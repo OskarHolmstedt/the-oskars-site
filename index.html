@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Oskars</title>
+    <link rel="stylesheet" href="styles/app.css" />
+  </head>
+  <body class="home-body">
+    <header class="app-header" data-site-header-pending></header>
+
+    <main class="home-shell">
+      <section class="home-search-band">
+        <label for="globalSearch">Search</label>
+        <input
+          id="globalSearch"
+          type="search"
+          autocomplete="off"
+          placeholder="Films, people, roles, songs, categories, periods"
+        />
+      </section>
+      <section id="searchResults" class="home-search-results" hidden></section>
+      <div id="homeContent"><p class="home-loading">Loading database…</p></div>
+    </main>
+
+    <script src="src/core/entry-loader.js" data-entry="home"></script>
+  </body>
+</html>

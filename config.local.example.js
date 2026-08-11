@@ -1,0 +1,19 @@
+/** @file Documents the optional browser-local TMDB and Google Sheets configuration shape. */
+
+window.OSKARS_LOCAL_CONFIG = {
+  tmdbCredential: "your-tmdb-api-key-or-read-token",
+  googleClientId: "your-google-oauth-client-id.apps.googleusercontent.com",
+  googleSheets: {
+    spreadsheetId: "your-private-google-sheet-id",
+    signInMode: "oneTap", // 'oneTap': silent token first, popup consent only if needed. 'redirect'/'popup': see below.
+    redirectSignIn: false, // legacy fallback for redirect mode
+    // redirectUri: 'https://localhost:1234/data.html',
+    ranges: {
+      bracketBlocks: "'The Oskars'!A:ZZ",
+      allTimeRankedList: "'All-time'!A:ZZ",
+      watchlist: "'Watchlist'!A:ZZ",
+      franchises: "'Franchises'!A:ZZ",
+      directors: "'Directors'!A:ZZ",
+    },
+  },
+};

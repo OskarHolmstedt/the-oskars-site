@@ -1,0 +1,298 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Data · The Oskars</title>
+    <link rel="stylesheet" href="styles/app.css" />
+  </head>
+  <body>
+    <header class="app-header" data-site-header-pending></header>
+    <main class="data-workspace">
+      <div class="data-workspace-heading">
+        <div>
+          <span class="eyebrow">Maintenance</span>
+          <h1>Data</h1>
+          <p>
+            Review Google Sheets and JSON proposals, publish canonical data,
+            keep a portable backup, inspect health, and configure image
+            retrieval.
+          </p>
+        </div>
+        <div class="data-actions">
+          <a class="button-link" href="intake.html">Open Intake</a>
+          <a class="button-link" href="editor.html">Open Editor</a>
+        </div>
+      </div>
+
+      <div class="data-workspace-grid">
+        <section class="data-panel">
+          <h2>Google Sheets</h2>
+          <p>
+            Build and review an unpublished proposal from configured private
+            sheet ranges. Applying never publishes canonical JSON.
+          </p>
+          <label class="data-field"
+            >Proposal mode<select id="googleSheetsImportMode">
+              <option value="foundation">
+                One-time foundation: replace draft from Sheets
+              </option>
+              <option value="merge" selected>
+                Follow-up proposal: merge and keep local metadata
+              </option>
+              <option value="replace">
+                Replacement proposal: rebuild draft from Sheets
+              </option>
+            </select></label
+          >
+          <div class="data-actions">
+            <button id="googleSheetsPreviewBtn" type="button">
+              Preview import</button
+            ><button id="googleSheetsImportBtn" type="button" disabled>
+              Apply reviewed proposal
+            </button>
+          </div>
+          <p id="googleSheetsStatus" class="data-panel-status"></p>
+        </section>
+
+        <section class="data-panel">
+          <h2>Official Oscars results</h2>
+          <p>
+            Preview a bracket-shaped TSV or the long-form historical Oscars
+            export as official winners and nominees. Only categories used by
+            this app are retained. This refresh never changes personal awards,
+            ranks, films, or edit history.
+          </p>
+          <div class="data-actions">
+            <label class="button-link"
+              >Preview official file<input
+                id="officialResultsInput"
+                type="file"
+                accept="text/tab-separated-values,text/plain,text/csv,.tsv,.txt,.csv"
+                hidden
+            /></label>
+            <button id="officialResultsApplyBtn" type="button" disabled>
+              Apply reviewed refresh
+            </button>
+          </div>
+          <p id="officialResultsStatus" class="data-panel-status"></p>
+        </section>
+
+        <div class="data-panel-stack">
+          <section class="data-panel">
+            <h2>Backup &amp; restore</h2>
+            <p>
+              Download a complete JSON snapshot, or select one to preview a
+              proposal. Merge adds films and awards; replace proposes a full
+              draft replacement. Neither path publishes canonical JSON.
+            </p>
+            <label class="data-field"
+              >Restore mode<select id="restoreModeSelect">
+                <option value="merge" selected>
+                  Merge: add films &amp; awards, keep local data
+                </option>
+                <option value="replace">
+                  Replace: overwrite everything with the backup
+                </option>
+              </select></label
+            >
+            <div class="data-actions">
+              <button id="downloadBtn" type="button">Download backup</button
+              ><label class="button-link"
+                >Preview JSON proposal<input
+                  id="uploadInput"
+                  type="file"
+                  accept="application/json,.json"
+                  hidden
+              /></label
+              ><button id="jsonImportApplyBtn" type="button" disabled>
+                Apply reviewed JSON proposal
+              </button>
+            </div>
+          </section>
+          <section id="canonicalPublicationView" class="data-panel"></section>
+          <section class="data-panel data-danger-zone">
+            <div>
+              <h2>Clear local data</h2>
+              <p>
+                Replace the browser database with an empty The Oskars app state.
+                Download a backup first.
+              </p>
+            </div>
+            <button id="clearDataBtn" type="button">Clear all data</button>
+          </section>
+          <section class="data-panel data-danger-zone">
+            <div>
+              <h2>Delete opinion data</h2>
+              <p>
+                Remove award placements, ratings, personal scores, reviews,
+                interest tiers, and notes, and reset the all-time order back
+                to a rating / release-year / title default. The factual
+                archive — films, watch dates, credits, metadata, tags,
+                franchises, projects — stays. A backup downloads first.
+              </p>
+              <p id="clearOpinionsStatus" class="data-panel-status"></p>
+            </div>
+            <button id="clearOpinionsBtn" type="button">Delete opinions</button>
+          </section>
+          <section class="data-panel data-danger-zone">
+            <div>
+              <h2>Reset rankings</h2>
+              <p>
+                Recompute the all-time order for a release-year range (blank
+                fields = every film) back to a default: rating, then release
+                year, then title. Ratings, awards, and everything else stay
+                untouched. A backup downloads first.
+              </p>
+              <p id="resetRankingStatus" class="data-panel-status"></p>
+            </div>
+            <form id="resetRankingForm" class="data-danger-zone-scope">
+              <label
+                >From year<input
+                  id="resetRankingFromYear"
+                  type="number"
+                  min="1888"
+                  max="2100"
+              /></label>
+              <label
+                >To year<input
+                  id="resetRankingToYear"
+                  type="number"
+                  min="1888"
+                  max="2100"
+              /></label>
+              <button type="submit">Reset rankings</button>
+            </form>
+          </section>
+          <section class="data-panel data-danger-zone">
+            <div>
+              <h2>Remove awards</h2>
+              <p>
+                Remove award placements for the chosen period types and
+                release-year range (blank fields = every year). Ratings,
+                ranks, and everything else stay untouched. A backup
+                downloads first.
+              </p>
+              <p id="clearAwardsStatus" class="data-panel-status"></p>
+            </div>
+            <form id="clearAwardsForm" class="data-danger-zone-scope">
+              <fieldset class="data-danger-zone-types">
+                <label
+                  ><input type="checkbox" name="periodType" value="years" checked />
+                  Years</label
+                >
+                <label
+                  ><input type="checkbox" name="periodType" value="decades" checked />
+                  Decades</label
+                >
+                <label
+                  ><input type="checkbox" name="periodType" value="centuries" checked />
+                  Centuries</label
+                >
+                <label
+                  ><input type="checkbox" name="periodType" value="allTime" checked />
+                  All-time</label
+                >
+              </fieldset>
+              <label
+                >From year<input
+                  id="clearAwardsFromYear"
+                  type="number"
+                  min="1888"
+                  max="2100"
+              /></label>
+              <label
+                >To year<input
+                  id="clearAwardsToYear"
+                  type="number"
+                  min="1888"
+                  max="2100"
+              /></label>
+              <button type="submit">Remove awards</button>
+            </form>
+          </section>
+          <section class="data-panel">
+            <h2>Image settings</h2>
+            <form id="imageSettingsForm" class="data-form">
+              <label class="data-field"
+                >TMDB API key or read token<input
+                  id="tmdbCredentialInput"
+                  type="password"
+                  autocomplete="off"
+              /></label>
+              <label
+                ><input id="wikimediaFallbackInput" type="checkbox" checked />
+                Use Wikimedia for film posters when TMDB is unavailable</label
+              >
+              <button type="submit">Save image settings</button>
+            </form>
+          </section>
+          <section class="data-panel">
+            <h2>Fetch metadata</h2>
+            <p>
+              Run a bounded batch, or fetch every currently missing metadata
+              queue using the saved TMDB credential.
+            </p>
+            <div class="data-form">
+              <label class="data-field"
+                >Batch type<select id="metadataBatchType">
+                  <option value="film-metadata">Watched film metadata</option>
+                  <option value="watchlist-metadata">Watchlist metadata</option>
+                  <option value="film-posters">Watched film posters</option>
+                  <option value="watchlist-posters">Watchlist posters</option>
+                  <option value="person-portraits">Person portraits</option>
+                </select></label
+              >
+              <label class="data-field"
+                >Batch size<input
+                  id="metadataBatchLimit"
+                  type="number"
+                  min="1"
+                  max="10000"
+                  step="1"
+                  value="25"
+              /></label>
+              <div class="data-actions">
+                <button id="metadataBatchBtn" type="button">Start batch</button
+                ><button id="metadataEverythingBtn" type="button">
+                  Fetch all missing</button
+                ><button id="metadataNonArchiveBtn" type="button">
+                  Fetch not-watched missing
+                </button>
+              </div>
+            </div>
+            <div class="metadata-progress">
+              <progress id="metadataBatchProgress" value="0" max="1"></progress>
+              <p id="metadataBatchStatus" class="data-panel-status">Idle</p>
+              <div
+                id="metadataBatchReport"
+                class="metadata-batch-report"
+                hidden
+              ></div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <section id="editLogView" class="data-panel edit-log-panel"></section>
+      <section
+        id="importReport"
+        class="data-panel import-report import-report-panel"
+        hidden
+      >
+        <div class="import-report-header">
+          <div>
+            <span class="eyebrow">Data review</span>
+            <h2 id="importReportTitle">Last import</h2>
+          </div>
+          <button id="dismissImportReport" type="button" title="Hide">×</button>
+        </div>
+        <div id="importReportBody"></div>
+      </section>
+      <section
+        id="dataHealthView"
+        class="data-panel data-health-panel"
+      ></section>
+    </main>
+    <script src="src/core/entry-loader.js" data-entry="data"></script>
+  </body>
+</html>
