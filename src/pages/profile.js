@@ -1,10 +1,12 @@
 /**
- * @file Renders the account page: Google sign-in status and Firestore
- * cloud sync controls (issue #248). Moved out of data.html, which had
- * accumulated backup/restore, canonical publication, public-profile
- * publication, Google Sheets/Letterboxd import, danger zones, edit log,
- * data health, and metadata batches alongside it - account/sync status
- * gets its own focused page instead of adding to that pile.
+ * @file Renders the account page: Google sign-in status, Firestore cloud
+ * sync controls (issue #248), and the public-profile display name (issue
+ * #253) that the Data page's publish panel slugifies into a URL. Moved out
+ * of data.html, which had accumulated backup/restore, canonical
+ * publication, public-profile publication, Google Sheets/Letterboxd
+ * import, danger zones, edit log, data health, and metadata batches
+ * alongside it - account/identity settings get their own focused page
+ * instead of adding to that pile.
  */
 
 (function () {
@@ -36,6 +38,41 @@
   function updateCloudSyncPanelVisibility(user) {
     let panel = document.getElementById("cloudSyncPanel");
     if (panel) panel.hidden = !user;
+  }
+
+  function publicProfileNameHtml(user) {
+    let saved = (window.state.publicProfileDisplayName || "").trim();
+    let suggested = saved || user?.displayName || "";
+    let slug = window.publicProfileSlugify?.(suggested) || "";
+    return `<h2>${ui("Public profile name")}</h2>
+      <p>${ui("Used as your public profile's display name and URL slug when you publish one (see the Data page's “Publish a public profile” panel).")}</p>
+      <label>${ui("Name")}<input type="text" id="publicProfileNameInput" value="${escape(suggested)}" placeholder="${escape(user?.displayName || "")}"></label>
+      <p class="data-panel-status">${slug ? ui("URL slug: {slug}", { slug }) : ui("Enter a name to see its URL slug.")}</p>
+      <div class="data-actions">
+        <button id="publicProfileNameSaveBtn" type="button">${ui("Save")}</button>
+      </div>
+      <p id="publicProfileNameStatus" class="data-panel-status"></p>`;
+  }
+
+  function renderPublicProfileNamePanel(user) {
+    let container = document.getElementById("publicProfileNamePanel");
+    if (!container) return;
+    container.innerHTML = publicProfileNameHtml(user);
+    document
+      .getElementById("publicProfileNameSaveBtn")
+      ?.addEventListener("click", async () => {
+        let value =
+          document.getElementById("publicProfileNameInput")?.value.trim() ||
+          "";
+        window.state.publicProfileDisplayName = value;
+        // Immediate and awaited, not the usual debounced save: a page
+        // navigation (e.g. straight to the Data page's publish panel)
+        // right after clicking Save must not race the write and lose it.
+        await window.save({ immediate: true });
+        renderPublicProfileNamePanel(user);
+        let status = document.getElementById("publicProfileNameStatus");
+        if (status) status.textContent = value ? ui("Saved.") : ui("Cleared.");
+      });
   }
 
   function renderConflicts() {
@@ -151,6 +188,7 @@
     let finishRenderTimer = window.startOskarsPerformance?.("profile:render");
     let user = window.getFirebaseCurrentUser?.() || null;
     renderAuthSection(user);
+    renderPublicProfileNamePanel(user);
     updateCloudSyncPanelVisibility(user);
     renderConflicts();
     finishRenderTimer?.();

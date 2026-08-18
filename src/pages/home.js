@@ -225,6 +225,7 @@
         window.shouldShowOnboarding({
           runtimeMode: window.getRuntimeMode(),
           persistenceLoadInfo: window.getPersistenceLoadInfo(),
+          isPublicProfileView: window.state.isPublicProfileView,
         })
       ) {
         window.renderOnboarding();

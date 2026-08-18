@@ -2482,6 +2482,17 @@
     "Could not preview the cloud archive: {error}": {
       sv: "Kunde inte förhandsgranska molnarkivet: {error}",
     },
+    "Public profile name": { sv: "Namn för offentlig profil" },
+    "Used as your public profile's display name and URL slug when you publish one (see the Data page's “Publish a public profile” panel).":
+      {
+        sv: "Används som visningsnamn och URL-slug för din offentliga profil när du publicerar en (se panelen “Publicera en offentlig profil” på datasidan).",
+      },
+    "URL slug: {slug}": { sv: "URL-slug: {slug}" },
+    "Enter a name to see its URL slug.": {
+      sv: "Ange ett namn för att se dess URL-slug.",
+    },
+    "Saved.": { sv: "Sparat." },
+    "Cleared.": { sv: "Rensat." },
     "Choose the original .zip file exported by Letterboxd.": {
       sv: "Välj den ursprungliga .zip-filen som exporterades av Letterboxd.",
     },

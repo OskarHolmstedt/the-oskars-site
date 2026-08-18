@@ -13,9 +13,19 @@
  * Supports exactly one configured profile at a time via this UI (matching
  * this app's single-owner scale); data/public-profile-config.json's schema
  * technically allows more, editable by hand if that's ever needed.
+ *
+ * The slug and display name are not typed here: both come from the Account
+ * page's single public-profile display name setting
+ * (window.state.publicProfileDisplayName), slugified via
+ * window.publicProfileSlugify. A separately-typed slug field would drift
+ * from the name it is supposed to label; deriving it keeps exactly one
+ * source of truth, at the cost of the slug changing if the name is ever
+ * renamed after a real publish (acceptable at this app's single-owner,
+ * revoke-and-republish scale).
  */
 
 let preparedPublicProfilePreview = null;
+let preparedPublicProfileOptIn = [];
 
 function publicProfileEscape(value) {
   return window.pageEscape?.(String(value ?? "")) || String(value ?? "");
@@ -63,11 +73,12 @@ window.renderPublicProfilePublication = function (container) {
     container.innerHTML = `<h2>Publish a public profile</h2><p class="data-panel-status">Publishing a public profile requires the owner deployment.</p>`;
     return;
   }
-  let form = preparedPublicProfilePreview || {
-    slug: "",
-    ownerName: "",
-    optIn: [],
-  };
+  let ownerName = (window.state.publicProfileDisplayName || "").trim();
+  let slug = window.publicProfileSlugify?.(ownerName) || "";
+  if (!ownerName) {
+    container.innerHTML = `<h2>Publish a public profile</h2><p class="data-panel-status">Set a public profile name on the <a href="profile.html">Account page</a> first — it becomes both the display name and the URL slug.</p>`;
+    return;
+  }
   let previewHtml = "";
   if (preparedPublicProfilePreview) {
     let sections = preparedPublicProfilePreview.sections
@@ -87,12 +98,11 @@ window.renderPublicProfilePublication = function (container) {
       ${findings ? `<h3>Findings</h3><ul>${findings}</ul>` : "<p>This projection is valid.</p>"}
     </div>`;
   }
-  let downloadDisabled = !form.slug || (preparedPublicProfilePreview && !preparedPublicProfilePreview.valid);
+  let downloadDisabled = preparedPublicProfilePreview && !preparedPublicProfilePreview.valid;
   container.innerHTML = `<h2>Publish a public profile</h2>
     <p>Create a read-only public projection of your archive at a stable share URL. This never publishes anything itself — it stages a candidate data/public-profile-config.json for you to commit, then a GitHub Action does the actual publish.</p>
-    <label>Profile slug<input type="text" data-public-profile-slug value="${publicProfileEscape(form.slug)}" placeholder="oskar"></label>
-    <label>Owner display name<input type="text" data-public-profile-owner-name value="${publicProfileEscape(form.ownerName)}" placeholder="Oskar"></label>
-    <label><input type="checkbox" data-public-profile-opt-in="localRanks" ${form.optIn.includes("localRanks") ? "checked" : ""}> Include local ranks (opt-in)</label>
+    <p>Publishing as <strong>${publicProfileEscape(ownerName)}</strong> at URL slug <code>${publicProfileEscape(slug)}</code>. Change the name on the <a href="profile.html">Account page</a>.</p>
+    <label><input type="checkbox" data-public-profile-opt-in="localRanks" ${preparedPublicProfileOptIn.includes("localRanks") ? "checked" : ""}> Include local ranks (opt-in)</label>
     <div class="data-actions">
       <button type="button" data-public-profile-preview>Preview publication</button>
       <button type="button" data-public-profile-download ${downloadDisabled ? "disabled" : ""}>Download config candidate</button>
@@ -109,11 +119,12 @@ window.renderPublicProfilePublication = function (container) {
 /** Handles public-profile publication controls in the Data workspace. */
 window.handlePublicProfilePublicationAction = function (event) {
   let container = event.currentTarget;
-  let slug = container.querySelector("[data-public-profile-slug]")?.value.trim() || "";
-  let ownerName = container.querySelector("[data-public-profile-owner-name]")?.value.trim() || "";
+  let ownerName = (window.state.publicProfileDisplayName || "").trim();
+  let slug = window.publicProfileSlugify?.(ownerName) || "";
   let optIn = container.querySelector('[data-public-profile-opt-in="localRanks"]')?.checked
     ? ["localRanks"]
     : [];
+  preparedPublicProfileOptIn = optIn;
   if (event.target.closest("[data-public-profile-preview]")) {
     preparedPublicProfilePreview = window.planPublicProfilePublication(slug, ownerName, optIn);
   } else if (event.target.closest("[data-public-profile-download]")) {

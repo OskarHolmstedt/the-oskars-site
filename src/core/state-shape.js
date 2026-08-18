@@ -990,6 +990,10 @@
  * @property {EditLogEntry[]} editLog Sheet edit-log entries.
  * @property {ProjectRecord[]} projects
  * @property {string} activeProjectId Project surfaced on the home page.
+ * @property {string} publicProfileDisplayName Owner-chosen name shown on a
+ *   published public profile (issue #253) - also slugified into its URL.
+ *   Device-local, not canonical: publishing is a single-device, git-based
+ *   action, so there is nothing to gain from syncing this across devices.
  * @property {Record<string, Object>} watchlistProjectSources Stored
  *   watchlist-filter project sources keyed by project id.
  * @property {{people: Object, periods: Object, franchises: Object, tags: Object, categories: Object, projects: Object}} entityNotes
@@ -1080,6 +1084,7 @@ window.createEmptyState = function () {
     editLog: [],
     projects: [],
     activeProjectId: "",
+    publicProfileDisplayName: "",
     watchlistProjectSources: {},
     entityNotes: {
       people: {},
@@ -1208,6 +1213,7 @@ window.OSKARS_WORKSPACE_SCHEMA_VERSION = 1;
 window.getDevicePreferences = function (source = window.state) {
   return {
     activeProjectId: source.activeProjectId || "",
+    publicProfileDisplayName: source.publicProfileDisplayName || "",
     view: source.view,
     leaderboardLimit: source.leaderboardLimit,
     peopleSearch: source.peopleSearch,

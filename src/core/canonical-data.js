@@ -1407,6 +1407,24 @@ window.assertPublicData = function (source) {
 };
 
 /**
+ * Derives a public-profile URL slug from an owner-chosen display name
+ * (issue #253) - the display name is the single source of truth, so the
+ * publish panel never needs a separately-typed, driftable slug field.
+ * Shared between the Account page (name entry, slug preview) and the Data
+ * page (publish panel), both of which load this module unconditionally.
+ * @param {string} name Owner-chosen public profile display name.
+ * @returns {string} URL-safe slug, empty if name has no alphanumeric content.
+ */
+window.publicProfileSlugify = function (name) {
+  return String(name || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+};
+
+/**
  * Builds a publication preview organized by disclosed section and record
  * count, so an owner can inspect exactly what would be published before
  * doing so.
