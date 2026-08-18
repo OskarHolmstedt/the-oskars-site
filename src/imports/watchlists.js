@@ -68,6 +68,17 @@ window.watchlistTierRank = function (value) {
 };
 
 /**
+ * Returns every selectable watchlist/rewatch tier-filter value: the ranked
+ * tiers plus the blank `""` "unset" tier. Shared by period.js's Rewatchlist
+ * tier filter and period/watchlist-view.js's Watchlist tier filter, which
+ * both filter on this same tier vocabulary.
+ * @returns {string[]}
+ */
+window.watchlistTierFilterValues = function () {
+  return [...window.WATCHLIST_TIERS, ""];
+};
+
+/**
  * Parses a comma-separated multi-tier URL filter value: `null` means every
  * tier (no filter active), `[]` means none (the explicit "none" value), and
  * a populated array lists the selected tiers with `""` standing in for
@@ -1019,37 +1030,6 @@ window.watchlistItemsByDirector = function (personName) {
 };
 
 /**
- * Lists canonically sorted watchlist items carrying a tag.
- * @param {string} tag Tag name.
- * @returns {WatchlistItem[]}
- */
-window.watchlistItemsByTag = function (tag) {
-  let items = window.watchlistItemsForTag?.(tag) || [];
-  return [...items].sort(window.compareWatchlistItems);
-};
-
-/**
- * Lists canonically sorted watchlist items in a franchise or direct child franchise.
- * @param {string} franchiseId Franchise identifier.
- * @returns {WatchlistItem[]}
- */
-window.watchlistItemsByFranchise = function (franchiseId) {
-  let target = window.normalizeFranchiseId(franchiseId);
-  return (state.watchlist || [])
-    .filter((item) =>
-      window
-        .normalizeFranchiseMemberships(item.franchises)
-        .some(
-          (membership) =>
-            membership.id === target ||
-            membership.parentId === target ||
-            (membership.parentIds || []).includes(target),
-        ),
-    )
-    .sort(window.compareWatchlistItems);
-};
-
-/**
  * Compares watchlist items by canonical tier and persisted order.
  * @param {WatchlistItem} left Left item.
  * @param {WatchlistItem} right Right item.
@@ -1184,95 +1164,41 @@ window.loadWatchlistPoster = async function (id, options = {}) {
  * @param {Object} [options] Batch limits, concurrency, provider, and progress options.
  * @returns {Promise<MetadataBatchResult>} Batch counts and failure details.
  */
-window.fetchWatchlistPosters = async function (items, options = {}) {
-  let settings = Object.assign(
-    window.getPosterSettings(),
-    options.settings || {},
-  );
-  let seen = new Set();
-  let limit = Math.max(1, Number(options.limit) || 25);
-  let skippedItems = [];
-  function failureRecord(item, reason) {
-    return {
-      title: String(item?.title || "Watchlist film"),
-      year: item?.year || "",
-      id: item?.id || window.watchlistItemId(item),
-      reason: String(reason || "No match found."),
-    };
-  }
-  let eligible = (items || []).filter((item) => {
-    let id = item.id || window.watchlistItemId(item);
-    if (!window.watchlistNeedsPosterLookup(item, settings) || seen.has(id))
-      return false;
-    seen.add(id);
-    if (!options.force && watchlistPosterLookupAttempts.has(id)) {
-      skippedItems.push(failureRecord(item, "Already attempted this session."));
-      return false;
-    }
-    return true;
-  });
-  let candidates = eligible.slice(0, limit);
-  candidates.forEach((item) =>
-    watchlistPosterLookupAttempts.add(item.id || window.watchlistItemId(item)),
-  );
+function watchlistItemKey(item) {
+  return item.id || window.watchlistItemId(item);
+}
 
-  let result = {
-    attempted: candidates.length,
-    found: 0,
-    failed: 0,
-    skipped: skippedItems.length,
-    failures: [],
-    skippedItems,
+function watchlistFailureRecord(item, reason, fallbackReason = "No match found.") {
+  return {
+    title: String(item?.title || "Watchlist film"),
+    year: item?.year || "",
+    id: watchlistItemKey(item),
+    reason: String(reason || fallbackReason),
   };
-  let cursor = 0;
-  async function worker() {
-    while (cursor < candidates.length) {
-      let item = candidates[cursor++];
-      let id = item.id || window.watchlistItemId(item);
-      try {
-        let poster = await window.lookupFilmPoster(
-          window.watchlistFilmLike(item),
-          { settings, fetchFn: options.fetchFn },
-        );
-        if (poster && window.setWatchlistPoster(id, poster, { save: false })) {
-          result.found += 1;
-          window.clearMetadataSessionFailure?.("watchlist-posters", id);
-        } else {
-          result.failed += 1;
-          result.failures.push(failureRecord(item, "No poster found."));
-          window.recordMetadataSessionFailure?.(
-            "watchlist-posters",
-            failureRecord(item, "No poster found."),
-          );
-        }
-      } catch (err) {
-        console.warn(`Watchlist poster lookup failed for ${item.title}`, err);
-        result.failed += 1;
-        result.failures.push(failureRecord(item, err.message || err));
-        window.recordMetadataSessionFailure?.(
-          "watchlist-posters",
-          failureRecord(item, err.message || err),
-        );
-      }
-      options.onProgress?.(
-        result.found + result.failed,
-        candidates.length,
-        item,
-      );
-    }
-  }
+}
 
-  let concurrency = Math.min(
-    candidates.length,
-    Math.max(1, Number(options.concurrency) || 3),
+window.fetchWatchlistPosters = async function (items, options = {}) {
+  return window.runBoundedLookupBatch(
+    items,
+    {
+      idOf: watchlistItemKey,
+      eligible: (item, settings) =>
+        window.watchlistNeedsPosterLookup(item, settings),
+      attempts: watchlistPosterLookupAttempts,
+      failureType: "watchlist-posters",
+      failureRecord: (item, reason) => watchlistFailureRecord(item, reason),
+      lookup: (item, context) =>
+        window.lookupFilmPoster(window.watchlistFilmLike(item), context),
+      apply: (item, poster) =>
+        window.setWatchlistPoster(watchlistItemKey(item), poster, {
+          save: false,
+        }),
+      notFoundReason: "No poster found.",
+      warnMessage: (item) => `Watchlist poster lookup failed for ${item.title}`,
+      imageFailureType: "poster",
+    },
+    options,
   );
-  await Promise.all(Array.from({ length: concurrency }, worker));
-  if (result.failed) window.recordImageImportFailure("poster", result.failed);
-  // Failure-only batches store nothing durable; skipping the save keeps
-  // read-only page loads write-free. Failure counters live in in-memory
-  // state and persist with the next genuine save.
-  if (result.found) window.save();
-  return result;
 };
 
 /**
@@ -1313,100 +1239,30 @@ window.loadWatchlistMetadata = async function (id, options = {}) {
  * @returns {Promise<MetadataBatchResult>} Batch counts and failure details.
  */
 window.fetchWatchlistMetadata = async function (items, options = {}) {
-  let seen = new Set();
-  let limit = Math.max(1, Number(options.limit) || 25);
-  let skippedItems = [];
-  function failureRecord(item, reason) {
-    return {
-      title: String(item?.title || "Watchlist film"),
-      year: item?.year || "",
-      id: item?.id || window.watchlistItemId(item),
-      reason: String(reason || "No TMDB match found."),
-    };
-  }
-  let candidates = (items || [])
-    .filter((item) => {
-      let id = item.id || window.watchlistItemId(item);
-      if (!window.watchlistNeedsMetadataLookup(item) || seen.has(id))
-        return false;
-      seen.add(id);
-      if (!options.force && watchlistMetadataLookupAttempts.has(id)) {
-        skippedItems.push(
-          failureRecord(item, "Already attempted this session."),
-        );
-        return false;
-      }
-      return true;
-    })
-    .slice(0, limit);
-  candidates.forEach((item) =>
-    watchlistMetadataLookupAttempts.add(
-      item.id || window.watchlistItemId(item),
-    ),
+  return window.runBoundedLookupBatch(
+    items,
+    {
+      // Deliberately skips the saved-settings merge every other batch
+      // function does (issue #310) - preserves this site's pre-existing
+      // behavior of using only the caller's explicit settings, unmerged.
+      buildSettings: (options) => options.settings,
+      idOf: watchlistItemKey,
+      eligible: (item) => window.watchlistNeedsMetadataLookup(item),
+      attempts: watchlistMetadataLookupAttempts,
+      failureType: "watchlist-metadata",
+      failureRecord: (item, reason) =>
+        watchlistFailureRecord(item, reason, "No TMDB match found."),
+      lookup: (item, context) =>
+        window.lookupTmdbMovieMetadata(window.watchlistFilmLike(item), context),
+      apply: (item, metadata) =>
+        window.setWatchlistTmdbMetadata(watchlistItemKey(item), metadata, {
+          save: false,
+        }),
+      notFoundReason: "No TMDB match found.",
+      warnMessage: (item) => `Watchlist metadata lookup failed for ${item.title}`,
+    },
+    options,
   );
-
-  let result = {
-    attempted: candidates.length,
-    found: 0,
-    failed: 0,
-    skipped: skippedItems.length,
-    failures: [],
-    skippedItems,
-  };
-  let cursor = 0;
-  async function worker() {
-    while (cursor < candidates.length) {
-      let item = candidates[cursor++];
-      let id = item.id || window.watchlistItemId(item);
-      try {
-        let metadata = await window.lookupTmdbMovieMetadata(
-          window.watchlistFilmLike(item),
-          {
-            settings: options.settings,
-            fetchFn: options.fetchFn,
-          },
-        );
-        if (
-          metadata &&
-          window.setWatchlistTmdbMetadata(id, metadata, { save: false })
-        ) {
-          result.found += 1;
-          window.clearMetadataSessionFailure?.("watchlist-metadata", id);
-        } else {
-          result.failed += 1;
-          result.failures.push(failureRecord(item, "No TMDB match found."));
-          window.recordMetadataSessionFailure?.(
-            "watchlist-metadata",
-            failureRecord(item, "No TMDB match found."),
-          );
-        }
-      } catch (err) {
-        console.warn(`Watchlist metadata lookup failed for ${item.title}`, err);
-        result.failed += 1;
-        result.failures.push(failureRecord(item, err.message || err));
-        window.recordMetadataSessionFailure?.(
-          "watchlist-metadata",
-          failureRecord(item, err.message || err),
-        );
-      }
-      options.onProgress?.(
-        result.found + result.failed,
-        candidates.length,
-        item,
-      );
-    }
-  }
-
-  let concurrency = Math.min(
-    candidates.length,
-    Math.max(1, Number(options.concurrency) || 3),
-  );
-  await Promise.all(Array.from({ length: concurrency }, worker));
-  // Failure-only batches store nothing durable; skipping the save keeps
-  // read-only page loads write-free. Failure counters live in in-memory
-  // state and persist with the next genuine save.
-  if (result.found) window.save();
-  return result;
 };
 
 /**

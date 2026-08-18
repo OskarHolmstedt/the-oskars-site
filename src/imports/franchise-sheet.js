@@ -3,19 +3,7 @@
  * preserving nested header ancestry, source links, ranks, and diagnostics.
  */
 
-(function () {
-  [
-    "cleanSheetCell",
-    "sheetTier",
-    "parseTabbedSheetRows",
-    "isFourDigitYearCell",
-    "isUrlOrDashCell",
-  ].forEach((name) => {
-    if (typeof window[name] !== "function") {
-      throw new Error(`Missing dependency: ${name} (sheet-import-utils.js)`);
-    }
-  });
-})();
+window.assertSheetImportUtilsReady();
 
 function franchiseSheetClean(value) {
   return window.cleanSheetCell(value);

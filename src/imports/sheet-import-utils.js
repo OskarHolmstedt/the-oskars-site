@@ -3,6 +3,28 @@
  * director and franchise spreadsheet importers.
  */
 
+window.OSKARS_SHEET_IMPORT_UTIL_NAMES = [
+  "cleanSheetCell",
+  "sheetTier",
+  "parseTabbedSheetRows",
+  "isFourDigitYearCell",
+  "isUrlOrDashCell",
+];
+
+/**
+ * Asserts this file's helpers are already loaded, so director-sheet.js and
+ * franchise-sheet.js fail loudly at load time if entry-loader.js's
+ * dependency order is ever changed, instead of failing later with a
+ * confusing "not a function" deep inside a parse.
+ */
+window.assertSheetImportUtilsReady = function () {
+  window.OSKARS_SHEET_IMPORT_UTIL_NAMES.forEach((name) => {
+    if (typeof window[name] !== "function") {
+      throw new Error(`Missing dependency: ${name} (sheet-import-utils.js)`);
+    }
+  });
+};
+
 /**
  * Parses tab-delimited spreadsheet text into rows while normalizing newlines.
  * @param {string} raw Raw spreadsheet text.

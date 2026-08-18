@@ -85,6 +85,15 @@
   // pack (including the year recap) shows a smaller, scope-relevant set
   // instead of global archive/people counts that wouldn't mean anything once
   // a slice has been chosen.
+  function formatSnapshotStats(pairs) {
+    return pairs
+      .filter(([value]) => value || value === 0)
+      .map(
+        ([value, label]) =>
+          `<span><b>${escape(value)}</b> ${escape(label)}</span>`,
+      )
+      .join("");
+  }
   let filmYears = films
     .map((film) => Number(film.year))
     .filter(Number.isFinite);
@@ -94,7 +103,7 @@
     let recapWinnerCount = films.filter((film) =>
       (film.awards || []).some((award) => Number(award.placement) === 1),
     ).length;
-    snapshotHtml = [
+    snapshotHtml = formatSnapshotStats([
       [recapStats.filmCount, ui("Films watched")],
       [
         recapStats.ratedCount
@@ -104,15 +113,9 @@
       ],
       [recapStats.decadeRows.length, ui("Decades explored")],
       [recapWinnerCount, ui("Award winners")],
-    ]
-      .filter(([value]) => value || value === 0)
-      .map(
-        ([value, label]) =>
-          `<span><b>${escape(value)}</b> ${escape(label)}</span>`,
-      )
-      .join("");
+    ]);
   } else if (isScoped) {
-    snapshotHtml = [
+    snapshotHtml = formatSnapshotStats([
       [films.length, ui("Films")],
       [
         filmYears.length
@@ -125,13 +128,7 @@
         ui("All-time ranked"),
       ],
       ...(watchlist.length ? [[watchlist.length, "Watchlist"]] : []),
-    ]
-      .filter(([value]) => value || value === 0)
-      .map(
-        ([value, label]) =>
-          `<span><b>${escape(value)}</b> ${escape(label)}</span>`,
-      )
-      .join("");
+    ]);
   } else {
     let annualNominations = 0;
     films.forEach((film) =>
@@ -140,7 +137,7 @@
       }),
     );
     let allTimeCount = (state.years?.alltime?.films || []).length;
-    snapshotHtml = [
+    snapshotHtml = formatSnapshotStats([
       [films.length, ui("Films")],
       [
         filmYears.length
@@ -152,13 +149,7 @@
       [allTimeCount, ui("All-time ranked")],
       [people.length, ui("People")],
       [watchlist.length, "Watchlist"],
-    ]
-      .filter(([value]) => value || value === 0)
-      .map(
-        ([value, label]) =>
-          `<span><b>${escape(value)}</b> ${escape(label)}</span>`,
-      )
-      .join("");
+    ]);
   }
 
   // All-time top shelf - deliberately smaller and quieter than home.js's
@@ -223,8 +214,8 @@
     : "";
 
   // Awards ceremony (issue #58, phase 2 of #19): the most recent annual
-  // awards period among the in-scope films - or, for a period-year scope,
-  // that exact year - in canonical category order. Never rendered for the
+  // awards period among the in-scope films - or, for a period scope, that
+  // exact year/decade/century/all-time bracket. Never rendered for the
   // year recap (its "awards" story is the retrospective section above, not
   // one release-year's category slate). The board below is always fully
   // revealed, matching ordinary showcase browsing; "Run ceremony" is an
@@ -232,26 +223,40 @@
   // setupPresentationInteractivity) that never changes what's persisted or
   // shareable about the page.
   let ceremonyTitle = ui("Awards ceremony");
-  function buildCeremonyData(forcedYear) {
-    let entriesByYear = new Map();
+  function buildCeremonyData() {
+    let forcedPeriodType = {
+      year: "years",
+      decade: "decades",
+      century: "centuries",
+      alltime: "allTime",
+    }[pack.periodType];
+    let forcedPeriodKey = pack.periodKey || "";
+    let entriesByPeriod = new Map();
     films.forEach((film) => {
       (film.awards || []).forEach((award) => {
-        let year = String(award.year || "");
-        if (!/^\d{4}$/.test(year)) return;
-        if (window.getAwardPeriodType(award) !== "years") return;
-        if (!entriesByYear.has(year)) entriesByYear.set(year, []);
-        entriesByYear.get(year).push({ film, award });
+        let periodKey = String(award.year || "");
+        if (forcedPeriodType) {
+          if (
+            periodKey !== forcedPeriodKey ||
+            window.getAwardPeriodType(award) !== forcedPeriodType
+          )
+            return;
+        } else {
+          if (!/^\d{4}$/.test(periodKey)) return;
+          if (window.getAwardPeriodType(award) !== "years") return;
+        }
+        if (!entriesByPeriod.has(periodKey)) entriesByPeriod.set(periodKey, []);
+        entriesByPeriod.get(periodKey).push({ film, award });
       });
     });
-    if (!entriesByYear.size) return null;
-    let year =
-      forcedYear && entriesByYear.has(forcedYear)
-        ? forcedYear
-        : [...entriesByYear.keys()].sort(
-            (left, right) => Number(right) - Number(left),
-          )[0];
+    if (!entriesByPeriod.size) return null;
+    let periodKey = forcedPeriodType
+      ? forcedPeriodKey
+      : [...entriesByPeriod.keys()].sort(
+          (left, right) => Number(right) - Number(left),
+        )[0];
     let entriesByCategory = new Map();
-    entriesByYear.get(year).forEach((entry) => {
+    entriesByPeriod.get(periodKey).forEach((entry) => {
       let category = entry.award.category;
       if (!entriesByCategory.has(category)) entriesByCategory.set(category, []);
       entriesByCategory.get(category).push(entry);
@@ -259,6 +264,7 @@
     let categories = window
       .getOrderedCategories()
       .filter((category) => entriesByCategory.has(category))
+      .reverse()
       .map((category) => {
         let categoryEntries = entriesByCategory.get(category);
         let winner =
@@ -266,15 +272,17 @@
             (entry) => Number(entry.award.placement) === 1,
           ) || null;
         // Alphabetical, not placement order: the stage reveal must not leak
-        // the winner through card position before "Reveal winner" is used.
+        // the ranking through card position before "Reveal ranking" is used.
         let nominees = [...categoryEntries].sort((left, right) =>
           window.compareEnglishTitles(left.film.title, right.film.title),
         );
         return { category, winner, nominees };
-      });
-    return categories.length ? { year, categories } : null;
+    });
+    return categories.length
+      ? { key: periodKey, periodType: forcedPeriodType || "years", categories }
+      : null;
   }
-  let ceremony = pack.isYearRecap ? null : buildCeremonyData(pack.targetYear);
+  let ceremony = pack.isYearRecap ? null : buildCeremonyData();
 
   function renderCeremonyCredit(entry, category) {
     return window.renderAwardCreditHtml({
@@ -298,7 +306,7 @@
       .filter((entry) => entry !== winner)
       .map(
         (entry) =>
-          `<li>${escape(window.placementEmoji?.[entry.award.placement] || `#${entry.award.placement}`)} <a href="${escape(window.filmPageUrl(entry.film.id))}">${escape(window.localizedFilmTitle?.(entry.film) || entry.film.title)}</a></li>`,
+          `<li>${escape(window.placementEmoji?.[entry.award.placement] || `#${entry.award.placement}`)} <a href="${escape(window.filmPageUrl(entry.film.id))}">${escape(window.localizedFilmTitle?.(entry.film) || entry.film.title)}</a>${renderCeremonyCredit(entry, category)}</li>`,
       )
       .join("");
     return `<div class="ceremony-category-card"><a class="category-link" href="${escape(window.categoryPageUrl(category))}"><b>${escape(window.localizedCategoryName?.(category) || category)}</b></a>${winnerHtml}${othersHtml ? `<ul class="ceremony-nominee-list">${othersHtml}</ul>` : ""}</div>`;
@@ -308,10 +316,15 @@
     let nomineeItems = nominees
       .map((entry) => {
         let isWinner = entry === winner;
-        return `<li class="ceremony-stage-nominee${isWinner ? " ceremony-stage-nominee--winner" : ""}">${window.renderFilmPoster(entry.film, "thumb")}<span class="ceremony-stage-nominee-body"><i class="ceremony-medal" aria-hidden="true">🏆</i><b>${escape(window.localizedFilmTitle?.(entry.film) || entry.film.title)}</b>${renderCeremonyCredit(entry, category)}</span></li>`;
+        let placement = Number(entry.award.placement);
+        let placementLabel = window.placementEmoji?.[placement] || `#${placement}`;
+        return `<li class="ceremony-stage-nominee${isWinner ? " ceremony-stage-nominee--winner" : ""}" style="--ceremony-placement:${placement}">${window.renderFilmPoster(entry.film, "thumb")}<span class="ceremony-stage-nominee-body"><i class="ceremony-placement" aria-label="${escape(ui("Placement {placement}", { placement }))}">${escape(placementLabel)}</i><b>${escape(window.localizedFilmTitle?.(entry.film) || entry.film.title)}</b>${renderCeremonyCredit(entry, category)}</span></li>`;
       })
       .join("");
-    return `<div class="ceremony-stage-slide" data-ceremony-slide="${index}" data-has-winner="${Boolean(winner)}"${index === 0 ? "" : " hidden"}>
+    let hasRanking = nominees.some(
+      (entry) => Number(entry.award.placement) > 0,
+    );
+    return `<div class="ceremony-stage-slide" data-ceremony-slide="${index}" data-has-ranking="${hasRanking}"${index === 0 ? "" : " hidden"}>
       <div class="ceremony-stage-progress">${escape(ui("Category {current} of {total}", { current: index + 1, total }))}</div>
       <h3 class="ceremony-stage-category">${escape(window.localizedCategoryName?.(category) || category)}</h3>
       <ul class="ceremony-stage-nominees">${nomineeItems}</ul>
@@ -320,13 +333,13 @@
   }
 
   let ceremonyHtml = ceremony
-    ? `<div class="ceremony-toolbar"><span class="ceremony-year-badge">${escape(ceremony.year)}</span><button type="button" class="button-link" data-ceremony-start>${escape(ui("Run ceremony"))}</button></div>
+    ? `<div class="ceremony-toolbar"><span class="ceremony-year-badge">${escape(ceremony.key)}</span><button type="button" class="button-link" data-ceremony-start>${escape(ui("Run ceremony"))}</button></div>
     <div class="ceremony-board" data-ceremony-board>${ceremony.categories.map(renderCeremonyBoardCard).join("")}</div>
     <div class="ceremony-stage" data-ceremony-stage hidden>
       ${ceremony.categories.map((entry, index) => renderCeremonyStageSlide(entry, index, ceremony.categories.length)).join("")}
       <div class="ceremony-stage-controls">
         <button type="button" data-ceremony-prev>${escape(ui("Previous category"))}</button>
-        <button type="button" data-ceremony-reveal>${escape(ui("Reveal winner"))}</button>
+        <button type="button" data-ceremony-reveal>${escape(ui("Reveal ranking"))}</button>
         <button type="button" data-ceremony-next>${escape(ui("Next category"))}</button>
         <button type="button" data-ceremony-exit>${escape(ui("Exit ceremony"))}</button>
       </div>
@@ -396,13 +409,14 @@
         }))
         .filter(
           (entry) =>
-            entry.completion.watchedCount >= 2 &&
+            (entry.franchise.films || []).length >= 2 &&
             entry.representative &&
             window.renderFilmPoster(entry.representative, "card"),
         )
         .sort(
           (left, right) =>
-            right.completion.watchedCount - left.completion.watchedCount ||
+            (right.franchise.films || []).length -
+              (left.franchise.films || []).length ||
             right.completion.percent - left.completion.percent,
         )
         .slice(0, sliceLimit(6));
@@ -514,8 +528,8 @@
         ceremonyTitle,
         ceremony
           ? ui(
-              "Step through {year}'s categories, revealing nominees before the winner.",
-              { year: ceremony.year },
+              "Step through {year}'s categories, revealing the full ranking category by category.",
+              { year: ceremony.key },
             )
           : "",
         ceremonyHtml,
@@ -823,8 +837,8 @@
       });
       let slide = ceremonySlides[ceremonyIndex];
       let revealed = slide?.classList.contains("ceremony-revealed");
-      let hasWinner = slide?.dataset.hasWinner === "true";
-      if (revealButton) revealButton.disabled = !hasWinner || Boolean(revealed);
+      let hasRanking = slide?.dataset.hasRanking === "true";
+      if (revealButton) revealButton.disabled = !hasRanking || Boolean(revealed);
       if (ceremonyPrevButton) ceremonyPrevButton.disabled = ceremonyIndex === 0;
       if (ceremonyNextButton)
         ceremonyNextButton.disabled = ceremonyIndex === ceremonySlides.length - 1;
@@ -832,7 +846,7 @@
 
     function ceremonyReveal() {
       let slide = ceremonySlides[ceremonyIndex];
-      if (!slide || slide.dataset.hasWinner !== "true") return;
+      if (!slide || slide.dataset.hasRanking !== "true") return;
       slide.classList.add("ceremony-revealed");
       if (revealButton) revealButton.disabled = true;
     }
@@ -866,7 +880,7 @@
         if (event.key === "ArrowRight" || event.key === " " || event.key === "Enter") {
           event.preventDefault?.();
           let slide = ceremonySlides[ceremonyIndex];
-          if (slide?.dataset.hasWinner === "true" && !slide.classList.contains("ceremony-revealed"))
+          if (slide?.dataset.hasRanking === "true" && !slide.classList.contains("ceremony-revealed"))
             ceremonyReveal();
           else ceremonyShow(ceremonyIndex + 1);
         } else if (event.key === "ArrowLeft") {
@@ -891,6 +905,6 @@
   setupPresentationInteractivity();
 
   finishRenderTimer?.(
-    `${films.length} films, ${peopleWall.length} people, ${franchiseShelf.length} franchises, ceremony ${ceremony ? ceremony.year : "none"}, scope ${packParams.scope || "archive"}`,
+    `${films.length} films, ${peopleWall.length} people, ${franchiseShelf.length} franchises, ceremony ${ceremony ? ceremony.key : "none"}, scope ${packParams.scope || "archive"}`,
   );
 })();

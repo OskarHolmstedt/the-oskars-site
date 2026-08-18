@@ -11,9 +11,11 @@ window.OSKARS_LOCAL_CONFIG = {
     ranges: {
       bracketBlocks: "'The Oskars'!A:ZZ",
       allTimeRankedList: "'All-time'!A:ZZ",
+      diary: "'Diary'!A:R",
       watchlist: "'Watchlist'!A:ZZ",
       franchises: "'Franchises'!A:ZZ",
       directors: "'Directors'!A:ZZ",
+      collectionAwards: "'Collection Awards'!A:ZZ",
     },
   },
 };

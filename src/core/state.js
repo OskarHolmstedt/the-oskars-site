@@ -258,11 +258,13 @@ window.addFilmToStore = function (year, film, options = {}) {
     existing.platform = existing.platform || film.platform || "";
     existing.dateWatched = existing.dateWatched || film.dateWatched || "";
     existing.views = existing.views || film.views || null;
-    existing.personalScore =
-      existing.personalScore || film.personalScore || null;
+    existing.musicScore =
+      existing.musicScore ?? film.musicScore ?? null;
+    existing.musicRating = existing.musicRating || film.musicRating || "";
+    existing.musicRatingValue =
+      existing.musicRatingValue ?? film.musicRatingValue ?? null;
     existing.runtimeMinutes =
       existing.runtimeMinutes || film.runtimeMinutes || null;
-    existing.globalRank = existing.globalRank || film.globalRank || null;
     existing.rankingGroupId =
       existing.rankingGroupId || film.rankingGroupId || "";
     existing.rankingGroupTitle =

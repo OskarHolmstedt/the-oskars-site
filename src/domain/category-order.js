@@ -29,13 +29,15 @@ window.categoryOrder = ["Best Picture"].concat(
 
 window.categories = [...window.categoryOrder];
 
+/** Returns categories outside the fixed categoryOrder set, sorted. @returns {string[]} Extra categories. */
+function extraCategoriesSorted() {
+  let known = new Set(window.categoryOrder);
+  return (window.categories || []).filter((cat) => !known.has(cat)).sort();
+}
+
 /** Returns canonical categories followed by sorted extras. @returns {string[]} Ordered categories. */
 window.getOrderedCategories = function () {
-  let known = new Set(window.categoryOrder);
-  let extras = (window.categories || [])
-    .filter((cat) => !known.has(cat))
-    .sort();
-  return window.categoryOrder.concat(extras);
+  return window.categoryOrder.concat(extraCategoriesSorted());
 };
 
 /** Returns two-column presentation slots followed by extras. @returns {Array<string|null>} Presentation slots. */
@@ -44,11 +46,7 @@ window.getCategoryPresentationSlots = function () {
     (slots, row) => slots.concat(row),
     [],
   );
-  let fixedCategories = new Set(window.categoryOrder);
-  let extras = (window.categories || [])
-    .filter((category) => !fixedCategories.has(category))
-    .sort();
-  return fixedSlots.concat(extras);
+  return fixedSlots.concat(extraCategoriesSorted());
 };
 
 /** Returns a category's canonical sort index. @param {string} category Category name. @returns {number} Sort index. */

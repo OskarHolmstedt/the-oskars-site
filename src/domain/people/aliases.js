@@ -35,6 +35,26 @@ function personNameDistance(left, right) {
   return previous[right.length];
 }
 
+const BUILT_IN_REJECTED_PERSON_ALIAS_PAIRS = new Set(
+  [
+    ["Joel Coen", "Joel Cohen"],
+    ["Mark Herman", "Mark Heyman"],
+    ["Andrew Davis", "Andrew Davies"],
+    ["Charles Bornstein", "Charles Bernstein"],
+    ["Gary Goldman", "Gary Oldman"],
+    ["Bette Davis", "Battle Davis"],
+    ["William Anderson", "Gillian Anderson"],
+  ].map((names) => names.map(foldPersonName).sort().join("\n")),
+);
+
+function isBuiltInRejectedPersonAliasPair(left, right) {
+  let namePairKey = [left.name, right.name]
+    .map(foldPersonName)
+    .sort()
+    .join("\n");
+  return BUILT_IN_REJECTED_PERSON_ALIAS_PAIRS.has(namePairKey);
+}
+
 /** Builds an order-independent alias-pair key. @param {string} leftId First id. @param {string} rightId Second id. @returns {string} Pair key. */
 window.personAliasPairKey = function (leftId, rightId) {
   return [String(leftId || ""), String(rightId || "")].sort().join("\n");
@@ -103,6 +123,7 @@ window.findPotentialPersonAliases = function (limit = 50) {
     let pairKey = [left.id, right.id].sort().join("\n");
     if (seenPairs.has(pairKey)) return;
     seenPairs.add(pairKey);
+    if (isBuiltInRejectedPersonAliasPair(left, right)) return;
     if ((state.rejectedPersonAliases || []).includes(pairKey)) return;
     let sharedProfessions = left.professions.filter((profession) =>
       right.professions.includes(profession),

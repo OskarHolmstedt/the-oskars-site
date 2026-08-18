@@ -129,8 +129,16 @@
         {}
       )[id];
       if (!franchise) return null;
+      let watchedOtherById = new Map(
+        (state.watchedOther || []).map((film) => [film.id, film]),
+      );
       let films = (franchise.films || [])
         .map((entry) => state.filmsById[entry.filmId])
+        .concat(
+          (franchise.otherFilms || []).map((entry) =>
+            watchedOtherById.get(entry.filmId),
+          ),
+        )
         .filter(Boolean)
         .sort(byAllTimeRank);
       return { name: franchise.name, films };
@@ -140,8 +148,16 @@
         id
       ];
       if (!person) return null;
+      let watchedOtherById = new Map(
+        (state.watchedOther || []).map((film) => [film.id, film]),
+      );
       let films = (person.filmIds || [])
         .map((filmId) => state.filmsById[filmId])
+        .concat(
+          (person.watchedOtherIds || []).map((filmId) =>
+            watchedOtherById.get(filmId),
+          ),
+        )
         .filter(Boolean)
         .sort(byAllTimeRank);
       return { name: person.name, films };

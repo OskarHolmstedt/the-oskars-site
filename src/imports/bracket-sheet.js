@@ -115,3 +115,57 @@ window.splitBracketSheetBlocks = function (rows, options = {}) {
 
   return blocks;
 };
+
+/** Splits a combined collection-awards range into five-row director/franchise brackets. @param {string[][]} rows Parsed spreadsheet rows. @param {Object} [options] Source-row options. @returns {Object[]} Collection bracket blocks. */
+window.splitCollectionAwardSheetBlocks = function (rows, options = {}) {
+  function clean(value) {
+    return String(value || "").trim();
+  }
+  function rowsToRaw(sourceRows) {
+    return (sourceRows || []).map((row) => (row || []).join("\t")).join("\n");
+  }
+  rows = (rows || []).map((row) => row || []);
+  let headerIndex = rows.findIndex((row) => {
+    let cells = row.map(clean);
+    return (
+      cells.includes("Position") &&
+      cells.includes("Period") &&
+      cells.includes("Picture (1st half)") &&
+      cells.includes("Picture (2nd half)")
+    );
+  });
+  if (headerIndex < 0)
+    return [
+      {
+        rows,
+        raw: rowsToRaw(rows),
+        rowNumber: options.sheetStartRow || 1,
+      },
+    ];
+  let header = rows[headerIndex];
+  let metaCol = header.findIndex((cell) => clean(cell) === "Period");
+  let blocks = [];
+  for (let index = headerIndex + 1; index < rows.length; index += 1) {
+    let marker = clean(rows[index]?.[metaCol]);
+    if (!/^(?:Director|Franchise)$/i.test(marker)) continue;
+    let blockRows = [header, ...rows.slice(index, index + 5)];
+    let collectionName = clean(rows[index + 1]?.[metaCol]);
+    blocks.push({
+      rows: blockRows,
+      raw: rowsToRaw(blockRows),
+      rowNumber: (options.sheetStartRow || 1) + index,
+      label: `collection awards near "${marker} ${collectionName}"`,
+    });
+    index += 4;
+  }
+  return blocks.length
+    ? blocks
+    : [
+        {
+          rows,
+          raw: rowsToRaw(rows),
+          rowNumber: options.sheetStartRow || 1,
+          label: "collection awards",
+        },
+      ];
+};

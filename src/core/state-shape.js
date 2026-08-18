@@ -88,8 +88,9 @@
  * @property {number} [views]
  * @property {boolean} [wantToRewatch] True when the watched film is on the rewatchlist.
  * @property {'S'|'A'|'B'|'C'|'D'|'E'|'F'|''} [rewatchTier] Rewatch priority, reusing the watchlist's interest tiers.
- * @property {number} [personalScore] Ranked-list Score column (musical score).
- * @property {string} [globalRank]
+ * @property {string|number} [musicScore] Ranked-list Score column: a canonical star grade for new imports or a legacy numeric soundtrack rating.
+ * @property {number} [musicRatingValue] Optional normalized music-quality star rating.
+ * @property {string} [musicRating] Optional star rating text for music quality.
  * @property {string} [url] Generic film URL.
  * @property {string} [letterboxdUrl]
  * @property {string} [rankingGroupId] Shared all-time ranking group id.
@@ -155,6 +156,26 @@
  * @property {string} name Display name.
  * @property {string} sourceRevision Deterministic identity of all stored periods.
  * @property {Record<string, OfficialResultsPeriod>} periods Period results keyed by source period.
+ */
+
+/**
+ * One placement in a collection-specific personal Oskars bracket.
+ * @typedef {Object} CollectionAwardNomination
+ * @property {string} category Canonical category name.
+ * @property {number} placement 1-based placement, with placement 1 the winner.
+ * @property {string} sourceTitle Film title exactly as imported.
+ * @property {string} [recipient] Credited recipient text when supplied.
+ * @property {string} [detail] Role or song/work title when supplied.
+ */
+
+/**
+ * One imported personal Oskars bracket scoped to a collection.
+ * @typedef {Object} CollectionAwardBracket
+ * @property {'director'|'franchise'} collectionType Supported collection kind.
+ * @property {string} collectionId Canonical collection identifier.
+ * @property {string} collectionName Imported display name.
+ * @property {string} sourceUrl Optional source-list URL.
+ * @property {CollectionAwardNomination[]} nominations Ranked nominations.
  */
 
 /**
@@ -298,6 +319,7 @@
  * @property {string} title
  * @property {string} year
  * @property {string} [letterboxdUrl]
+ * @property {string} [added] Date added to the source watchlist (YYYY-MM-DD).
  * @property {string} [tmdbId]
  * @property {string} [swedishTitle]
  * @property {'S'|'A'|'B'|'C'|'D'|'E'|'F'|''} [tier] Interest tier; tiers are
@@ -313,9 +335,9 @@
  */
 
 /**
- * A rated franchise/director sheet row that matches no archive film
- * (e.g. a miniseries). Kept in `state.watchedOther`, separate from both
- * the archive and the watchlist.
+ * A standalone watched work that has no archive appearance (for example a
+ * non-Film Diary row, miniseries, short, or stage show). Kept in
+ * `state.watchedOther`, separate from both the archive and the watchlist.
  * @typedef {Object} WatchedOtherEntry
  * @property {string} id `${year}::${normalized title}`.
  * @property {string} title
@@ -343,6 +365,30 @@
  * @property {string} [dateWatched]
  * @property {number} [views]
  * @property {'plus'|'dot'|'minus'|''} [ratingModifier]
+ */
+
+/**
+ * Derived progress for one release year in the Build your Oskars journey.
+ * @typedef {Object} BuildYearProgress
+ * @property {string} year
+ * @property {FilmRecord[]} archiveFilms Ranked/award-eligible films.
+ * @property {WatchedOtherEntry[]} otherFilms Rating-only standalone works.
+ * @property {FilmRecord[]} ratingFilms All unique watched records rated here.
+ * @property {number} totalCount
+ * @property {number} ratedCount
+ * @property {number} ratingPercent
+ * @property {number} rankingGroupCount Multi-film exact-rating groups.
+ * @property {number} reviewedRankingGroupCount Deliberately ordered groups.
+ * @property {number} rankingPercent
+ * @property {boolean} rankingReady Whether every watched record is rated.
+ * @property {boolean} rankingComplete Whether every ranking group is reviewed.
+ * @property {number} awardFilledSlots Reviewed annual categories (legacy field name).
+ * @property {number} awardTotalSlots Total annual categories (legacy field name).
+ * @property {number} awardPercent
+ * @property {boolean} awardStarted
+ * @property {boolean} awardComplete
+ * @property {FilmRecord[]} posterFilms Representative poster-deck records.
+ * @property {'rating'|'ranking'|'awards'|'complete'} stage Next useful stage.
  */
 
 /**
@@ -418,6 +464,18 @@
  * @property {Object[]} periods Per-period winner and nominee completion groups.
  * @property {Object[]} categories Per-category winner and nominee groups.
  * @property {Object|null} bestPicture Best Picture category group.
+ */
+
+/**
+ * Non-persisted plan for adding one official Academy Awards collection to the watchlist.
+ * @typedef {Object} OfficialOscarWatchlistPlan
+ * @property {string} sourceId Official-results collection source id.
+ * @property {string} sourceLabel Human-readable collection label.
+ * @property {string} sourceHref Link back to the source scope.
+ * @property {Object[]} ready Unambiguous unseen films ready to add.
+ * @property {Object[]} needsReview Unseen films whose release year is ambiguous.
+ * @property {Object[]} alreadyWatched Films already in watched state.
+ * @property {Object[]} alreadyWatchlisted Films already on the watchlist.
  */
 
 /**
@@ -677,7 +735,7 @@
  * One configured Google Sheets range and the importer that owns it.
  * @typedef {Object} GoogleSheetRangeSpec
  * @property {string} key Stable configuration and report key.
- * @property {'list'|'table'|'watchlist'|'franchises'|'directors'} importType
+ * @property {'list'|'diary'|'table'|'watchlist'|'franchises'|'directors'} importType
  * @property {'years'|'decades'|'centuries'|'allTime'|null} [periodTypeHint]
  * @property {string} range Google Sheets A1 range.
  */
@@ -804,6 +862,7 @@
  * @property {string[]} professions
  * @property {PersonCredit[]} credits
  * @property {string[]} filmIds Watched archive film ids.
+ * @property {string[]} watchedOtherIds Standalone watched entry ids.
  * @property {string[]} watchlistIds Known unwatched film ids.
  * @property {AwardStats} stats Annual-award statistics.
  * @property {AwardScores} awardScores
@@ -839,6 +898,8 @@
  * @property {string} sourceUrl Franchise-sheet lane URL, or ''.
  * @property {Array<{filmId: string, rank: number|null, direct: boolean}>} films
  *   Rolled up through the ancestor chain; sorted by all-time rank/year/title.
+ * @property {Array<{filmId: string, rank: number|null, direct: boolean}>} otherFilms
+ *   Standalone watched entries rolled up through the ancestor chain.
  * @property {Array<{itemId: string, rank: number|null, direct: boolean}>} watchlistFilms
  * @property {RatingStatistics} ratingStatistics Rolled-up watched-film rating statistics.
  */
@@ -857,7 +918,7 @@
  * @typedef {Object} ImportProposal
  * @property {number} schemaVersion Proposal contract version.
  * @property {'preview'|'applied'} status Session state.
- * @property {'google-sheets'|'json'|'delimited'|'official-results'} sourceKind Source family.
+ * @property {'google-sheets'|'json'|'delimited'|'official-results'|'letterboxd'} sourceKind Source family.
  * @property {'merge'|'replace'|'foundation'|'refresh'} mode Proposal behavior.
  * @property {string} sourceRevision Deterministic source identity.
  * @property {Object} sourceConfig Non-secret source configuration.
@@ -915,6 +976,7 @@
  * @property {Record<string, PeriodSourceRecord>} years Source period records
  *   keyed by period key ("1950", "1970s", "1900s", "alltime").
  * @property {Record<string, OfficialResultsSource>} officialResults External historical results by source id.
+ * @property {{director: Record<string, CollectionAwardBracket>, franchise: Record<string, CollectionAwardBracket>}} collectionAwards Personal brackets scoped to collections.
  * @property {string} view Selected home/period view.
  * @property {number} leaderboardLimit
  * @property {string} peopleSearch People-page search text.
@@ -942,7 +1004,20 @@
  * @property {WatchlistItem[]} watchlist
  * @property {WatchedOtherEntry[]} watchedOther
  * @property {WatchedFilmIntake[]} intakeWorkflows Versioned watched-film intake records.
- * @property {{baseRevision: string, dirty: boolean, changedAt?: string, reason?: string, publishedRevision?: string, reconciliationStatus?: string, requiredAction?: string, lastCanonicalCheckAt?: string, publication?: PublicationAttempt}|null} draftMetadata Local unpublished-draft, publication attempt, and canonical reconciliation marker.
+ * @property {{years: Record<string, string[]>, decades: Record<string, string[]>, centuries: Record<string, string[]>, allTime: Record<string, string[]>}} rankingReviews
+ *   Stable reviewed pair keys for resumable year heats and broader finals.
+ * @property {{years: Record<string, Record<string, {status: 'complete'|'none', reviewedAt: string}>>}} awardReviews
+ *   Explicit annual ballot completion, including reviewed-none categories.
+ * @property {{baseRevision: string, dirty: boolean, changedAt?: string, reason?: string, publishedRevision?: string, reconciliationStatus?: string, requiredAction?: string, lastCanonicalCheckAt?: string, publication?: PublicationAttempt}|null} draftMetadata Local unpublished-draft, publication attempt, and canonical reconciliation marker. Always null for a public-profile viewer state (issue #256) - that state is never a private draft.
+ * @property {boolean} isPublicProfileView Set by `hydratePublicProfileState()`
+ *   (issue #256) when state was hydrated from another owner's published
+ *   public-profile document rather than a private canonical/workspace
+ *   source. Distinguishes a viewer's own read-only browsing state from an
+ *   owner or local draft; never true otherwise.
+ * @property {{slug: string, ownerName: string, revision: string, publishedAt: string}|null} publicProfileMeta
+ *   Identity metadata for the currently hydrated public profile (issue
+ *   #253): the manifest-resolved slug/owner/revision/publish time. Set
+ *   alongside `isPublicProfileView`; always null otherwise.
  * @property {ImportFoundation|null} importFoundation One-time local Sheets foundation source/configuration record.
  * @property {Object[]} sourceConflicts Cross-source rating/tier conflicts.
  * @property {{checkedAt: string, ranges: Array<{key: string, checks: ImportConsistencyCheck[]}>}|null} importConsistency Persisted consistency checks.
@@ -983,7 +1058,15 @@ window.createEmptyState = function () {
     watchedDateVersion: 0,
     viewingFactsVersion: 0,
     years: {},
-    officialResults: {},
+    // Real historical results, not personal data - bundled with the app
+    // (issue #277) so every fresh state has it, not just the owner's own
+    // imported snapshot. JSON round-tripped (not window.cloneRecord, not
+    // yet defined below when this runs at module load time) so no two
+    // states ever share the same objects.
+    officialResults: JSON.parse(
+      JSON.stringify(window.OSKARS_BUNDLED_OFFICIAL_RESULTS || {}),
+    ),
+    collectionAwards: { director: {}, franchise: {} },
     view: "category",
     leaderboardLimit: 25,
     peopleSearch: "",
@@ -1015,7 +1098,11 @@ window.createEmptyState = function () {
     watchlist: [],
     watchedOther: [],
     intakeWorkflows: [],
+    rankingReviews: { years: {}, decades: {}, centuries: {}, allTime: {} },
+    awardReviews: { years: {} },
     draftMetadata: null,
+    isPublicProfileView: false,
+    publicProfileMeta: null,
     importFoundation: null,
     sourceConflicts: [],
     importConsistency: null,
@@ -1070,6 +1157,10 @@ window.getSerializableState = function () {
     viewingFactsVersion: window.state.viewingFactsVersion || 0,
     years: window.state.years,
     officialResults: window.state.officialResults || {},
+    collectionAwards: window.state.collectionAwards || {
+      director: {},
+      franchise: {},
+    },
     view: window.state.view,
     leaderboardLimit: window.state.leaderboardLimit,
     peopleSearch: window.state.peopleSearch,
@@ -1090,6 +1181,10 @@ window.getSerializableState = function () {
     watchlist: window.state.watchlist,
     watchedOther: window.state.watchedOther || [],
     intakeWorkflows: window.state.intakeWorkflows || [],
+    rankingReviews: window.state.rankingReviews || {
+      years: {}, decades: {}, centuries: {}, allTime: {},
+    },
+    awardReviews: window.state.awardReviews || { years: {} },
     draftMetadata: window.state.draftMetadata || null,
     importFoundation: window.state.importFoundation || null,
     sourceConflicts: window.state.sourceConflicts || [],
@@ -1213,22 +1308,23 @@ window.canonicalDraftDiffersFromBase = function (canonical, baseRevision) {
 };
 
 /**
- * Builds the versioned IndexedDB/localStorage workspace envelope.
- * @param {OskarsState} [source] Runtime state.
- * @returns {Object} Workspace.
+ * Builds a draftMetadata object from prior metadata, preserving every
+ * optional field it carried and stamping a fresh local-save time. Shared by
+ * `getBrowserPersistenceState` and the legacy branch of
+ * `browserPersistenceToRuntimeState`.
+ * @param {Object} existing Prior draft metadata, or {}.
+ * @param {string} baseRevision Resolved base revision.
+ * @param {string} [defaultReason] Reason to use when `existing.reason` is unset.
+ * @returns {Object} Draft metadata.
  */
-window.getBrowserPersistenceState = function (source = window.state) {
-  let canonical = window.getCanonicalData(source, { clone: false });
-  let existing = source.draftMetadata || {};
-  let baseRevision = String(
-    existing.baseRevision || window.canonicalDataRevision(canonical),
-  );
-  let metadata = {
+function buildDraftMetadata(existing, baseRevision, defaultReason) {
+  let reason = existing.reason || defaultReason;
+  return {
     baseRevision,
     dirty: Boolean(existing.dirty),
     lastLocalSaveAt: new Date().toISOString(),
     ...(existing.changedAt ? { changedAt: existing.changedAt } : {}),
-    ...(existing.reason ? { reason: existing.reason } : {}),
+    ...(reason ? { reason } : {}),
     ...(existing.lastPublishedRevision
       ? { lastPublishedRevision: existing.lastPublishedRevision }
       : {}),
@@ -1247,7 +1343,33 @@ window.getBrowserPersistenceState = function (source = window.state) {
     ...(existing.publication
       ? { publication: window.cloneRecord(existing.publication) }
       : {}),
+    // Per-shard Firestore sync bookkeeping (issue #248) - deliberately NOT
+    // carried by intentionalClearDraftMetadata() (persistence.js) or
+    // publishedCanonicalWorkspace() (reconciliation.js), both of which
+    // build fresh metadata objects without it: a full local clear or a
+    // published-canonical adoption is a different data lineage, and
+    // resetting remoteSync makes the next cloud sync pass treat it as a
+    // fresh device (pulling the account's cloud copy back down, per
+    // docs/firestore-workspace-sync-decision.md's bootstrap rules) rather
+    // than pushing the wipe/replacement up to the cloud.
+    ...(existing.remoteSync
+      ? { remoteSync: window.cloneRecord(existing.remoteSync) }
+      : {}),
   };
+}
+
+/**
+ * Builds the versioned IndexedDB/localStorage workspace envelope.
+ * @param {OskarsState} [source] Runtime state.
+ * @returns {Object} Workspace.
+ */
+window.getBrowserPersistenceState = function (source = window.state) {
+  let canonical = window.getCanonicalData(source, { clone: false });
+  let existing = source.draftMetadata || {};
+  let baseRevision = String(
+    existing.baseRevision || window.canonicalDataRevision(canonical),
+  );
+  let metadata = buildDraftMetadata(existing, baseRevision);
   source.draftMetadata = window.cloneRecord(metadata);
   return {
     workspaceSchemaVersion: window.OSKARS_WORKSPACE_SCHEMA_VERSION,
@@ -1284,34 +1406,13 @@ window.browserPersistenceToRuntimeState = function (stored) {
   let legacy = Object.assign({}, stored || {});
   let existing = legacy.draftMetadata || {};
   let canonical = window.getCanonicalData(legacy);
-  legacy.draftMetadata = {
-    baseRevision: String(
-      existing.baseRevision || window.canonicalDataRevision(canonical),
-    ),
-    dirty: Boolean(existing.dirty),
-    lastLocalSaveAt: new Date().toISOString(),
-    ...(existing.changedAt ? { changedAt: existing.changedAt } : {}),
-    ...(existing.reason
-      ? { reason: existing.reason }
-      : { reason: "legacy-workspace-migration" }),
-    ...(existing.lastPublishedRevision
-      ? { lastPublishedRevision: existing.lastPublishedRevision }
-      : {}),
-    ...(existing.publishedRevision
-      ? { publishedRevision: existing.publishedRevision }
-      : {}),
-    ...(existing.reconciliationStatus
-      ? { reconciliationStatus: existing.reconciliationStatus }
-      : {}),
-    ...(existing.requiredAction
-      ? { requiredAction: existing.requiredAction }
-      : {}),
-    ...(existing.lastCanonicalCheckAt
-      ? { lastCanonicalCheckAt: existing.lastCanonicalCheckAt }
-      : {}),
-    ...(existing.publication
-      ? { publication: window.cloneRecord(existing.publication) }
-      : {}),
-  };
+  let baseRevision = String(
+    existing.baseRevision || window.canonicalDataRevision(canonical),
+  );
+  legacy.draftMetadata = buildDraftMetadata(
+    existing,
+    baseRevision,
+    "legacy-workspace-migration",
+  );
   return legacy;
 };

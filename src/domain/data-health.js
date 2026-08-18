@@ -72,6 +72,29 @@ function dataHealthFilmLabel(film) {
   return `${film.title}${film.year ? ` (${film.year})` : ""}`;
 }
 
+/** Builds a watchlist-item health-list entry. @param {WatchlistItem} item Watchlist item. @returns {Object} Entry. */
+function dataHealthWatchlistEntry(item) {
+  let id = item.id || window.watchlistItemId?.(item);
+  return {
+    id,
+    title: dataHealthFilmLabel(item),
+    href: window.watchlistFilmPageUrl?.(id) || "",
+  };
+}
+
+/** Builds a review queue summary from a list of health-list entries. @param {string} id Queue id. @param {string} label Display label. @param {string} batchType Image-batch type. @param {Object[]} entries Health-list entries. @param {string} [source] Queue source. @returns {Object} Queue summary. */
+function dataHealthQueue(id, label, batchType, entries, source = "fetchable") {
+  return {
+    id,
+    label,
+    batchType,
+    source,
+    count: entries.length,
+    entries,
+    samples: entries.slice(0, 8),
+  };
+}
+
 function dataHealthMissingQueues() {
   let films = Object.values(state.filmsById || {}).filter(
     (film) => film?.id && film.title,
@@ -81,6 +104,10 @@ function dataHealthMissingQueues() {
   ).filter((person) => person?.id && person.name);
   let watchlist = (state.watchlist || []).filter((item) => item?.title);
   let archiveFilms = films.filter((film) => !film.watchlistItem);
+  let watchedFilms = new Map(archiveFilms.map((film) => [film.id, film]));
+  (state.watchedOther || []).forEach((film) => {
+    if (film?.id && film.title) watchedFilms.set(film.id, film);
+  });
   function filmEntry(film) {
     return {
       id: film.id,
@@ -95,33 +122,14 @@ function dataHealthMissingQueues() {
       href: window.personPageUrl?.(person.id) || "",
     };
   }
-  function watchlistEntry(item) {
-    let id = item.id || window.watchlistItemId?.(item);
-    return {
-      id,
-      title: dataHealthFilmLabel(item),
-      href: window.watchlistFilmPageUrl?.(id) || "",
-    };
-  }
-  function queue(id, label, batchType, entries, source = "fetchable") {
-    return {
-      id,
-      label,
-      batchType,
-      source,
-      count: entries.length,
-      entries,
-      samples: entries.slice(0, 8),
-    };
-  }
   return [
-    queue(
+    dataHealthQueue(
       "filmTmdb",
       "Watched films missing TMDB ID",
       "film-metadata",
       archiveFilms.filter((film) => !film.tmdbId).map(filmEntry),
     ),
-    queue(
+    dataHealthQueue(
       "filmDirectors",
       "Watched films missing director",
       "film-metadata",
@@ -129,20 +137,20 @@ function dataHealthMissingQueues() {
         .filter((film) => !film.director && !film.directors?.length)
         .map(filmEntry),
     ),
-    queue(
+    dataHealthQueue(
       "filmCountries",
       "Watched films missing country",
       "film-metadata",
       archiveFilms.filter((film) => !film.country).map(filmEntry),
     ),
-    queue(
+    dataHealthQueue(
       "filmRuntime",
       "Ranked-list films missing runtime",
       "",
       archiveFilms.filter((film) => !film.runtimeMinutes).map(filmEntry),
       "sheet",
     ),
-    queue(
+    dataHealthQueue(
       "filmMedium",
       "Ranked-list films missing medium",
       "",
@@ -151,7 +159,7 @@ function dataHealthMissingQueues() {
         .map(filmEntry),
       "sheet",
     ),
-    queue(
+    dataHealthQueue(
       "filmScreenplay",
       "Ranked-list films missing screenplay type",
       "",
@@ -162,31 +170,31 @@ function dataHealthMissingQueues() {
         .map(filmEntry),
       "sheet",
     ),
-    queue(
+    dataHealthQueue(
       "filmPosters",
       "Watched films missing poster",
       "film-posters",
-      archiveFilms
+      [...watchedFilms.values()]
         .filter((film) => !window.normalizePosterRecord?.(film.poster))
         .map(filmEntry),
     ),
-    queue(
-      "watchlistMetadata",
-      "Watchlist films missing TMDB/director",
+    dataHealthQueue(
+      "watchlistDirectors",
+      "Watchlist films missing director",
       "watchlist-metadata",
       watchlist
-        .filter((item) => window.watchlistNeedsMetadataLookup?.(item))
-        .map(watchlistEntry),
+        .filter((item) => !item.director && !item.directors?.length)
+        .map(dataHealthWatchlistEntry),
     ),
-    queue(
+    dataHealthQueue(
       "watchlistPosters",
       "Watchlist films missing poster",
       "watchlist-posters",
       watchlist
-        .filter((item) => window.watchlistNeedsPosterLookup?.(item))
-        .map(watchlistEntry),
+        .filter((item) => !window.normalizePosterRecord?.(item.poster))
+        .map(dataHealthWatchlistEntry),
     ),
-    queue(
+    dataHealthQueue(
       "personPortraits",
       "People missing portrait",
       "person-portraits",
@@ -202,9 +210,9 @@ function dataHealthMissingQueues() {
   ];
 }
 
-// Focused per-film eligibility review queues (issue #40): unlike the
-// aggregated eligibility warning counts, each queue lists every affected
-// nominee with a link and a short note, so gaps can be reviewed film by film.
+// Focused per-film eligibility review queues (issue #40): each queue lists
+// every affected nominee with a link and a short note, so this is the sole
+// user-facing home for eligibility metadata warnings.
 function dataHealthEligibilityQueues() {
   let films = Object.values(state.filmsById || {}).filter(
     (film) => film?.id && film.title,
@@ -266,6 +274,20 @@ function dataHealthEligibilityQueues() {
       ];
       return entry(film, `screenplay type unknown · ${categories.join(", ")}`);
     });
+  let director = nomineesOf(["Best Director"])
+    .map((film) => {
+      let directors = parsePeople(film.directors);
+      if (!directors.length) return entry(film, "director metadata missing");
+      let missingRecipient = (film.awards || []).some(
+        (award) =>
+          award.category === "Best Director" &&
+          !window.awardRecipients(award).length,
+      );
+      return missingRecipient
+        ? entry(film, "Best Director recipient missing")
+        : null;
+    })
+    .filter(Boolean);
   function queue(id, label, entries) {
     return {
       id,
@@ -293,6 +315,11 @@ function dataHealthEligibilityQueues() {
       "Screenplay nominees with unknown screenplay type",
       screenplay,
     ),
+    queue(
+      "eligibilityDirector",
+      "Director nominees with missing director or recipient metadata",
+      director,
+    ),
   ];
 }
 
@@ -310,7 +337,7 @@ function dataHealthFilmLetterboxdInferable(film) {
 // External ID and media type coverage (issue #42): TMDB/Letterboxd presence
 // across archive and watchlist, plus review queues for missing links and for
 // rows whose ranked-list Type isn't Film. The TMDB media type *check* (does a
-// stored ID resolve as TV?) needs the network and lives in image-batches.js.
+// stored ID resolve as TV?) needs the network and lives in tmdb-link-check.js.
 function dataHealthExternalIds() {
   let films = Object.values(state.filmsById || {}).filter(
     (film) => film?.id && film.title,
@@ -325,14 +352,6 @@ function dataHealthExternalIds() {
       href: window.filmPageUrl?.(film.id) || "",
     };
   }
-  function watchlistEntry(item) {
-    let id = item.id || window.watchlistItemId?.(item);
-    return {
-      id,
-      title: dataHealthFilmLabel(item),
-      href: window.watchlistFilmPageUrl?.(id) || "",
-    };
-  }
   function metric(id, label, present, target) {
     return {
       id,
@@ -341,17 +360,6 @@ function dataHealthExternalIds() {
       target,
       missing: Math.max(0, target - present),
       percent: target ? Math.round((present / target) * 100) : 0,
-    };
-  }
-  function queue(id, label, batchType, entries, source = "fetchable") {
-    return {
-      id,
-      label,
-      batchType,
-      source,
-      count: entries.length,
-      entries,
-      samples: entries.slice(0, 8),
     };
   }
   let nonFilmType = archiveFilms
@@ -385,7 +393,7 @@ function dataHealthExternalIds() {
       ),
     ],
     queues: [
-      queue(
+      dataHealthQueue(
         "filmLetterboxd",
         "Watched films missing Letterboxd link",
         "",
@@ -394,20 +402,22 @@ function dataHealthExternalIds() {
           .map((film) => filmEntry(film)),
         "sheet",
       ),
-      queue(
+      dataHealthQueue(
         "watchlistLetterboxd",
         "Watchlist films missing Letterboxd link",
         "",
-        watchlist.filter((item) => !item.letterboxdUrl).map(watchlistEntry),
+        watchlist
+          .filter((item) => !item.letterboxdUrl)
+          .map(dataHealthWatchlistEntry),
         "sheet",
       ),
-      queue(
+      dataHealthQueue(
         "watchlistTmdb",
         "Watchlist films missing TMDB ID",
         "watchlist-metadata",
-        watchlist.filter((item) => !item.tmdbId).map(watchlistEntry),
+        watchlist.filter((item) => !item.tmdbId).map(dataHealthWatchlistEntry),
       ),
-      queue(
+      dataHealthQueue(
         "filmNonFilmType",
         "Watched films with a non-Film type",
         "",
@@ -507,16 +517,9 @@ function collectSheetMetadataCoverage(films) {
       "Read from ranked list A:T.",
     ),
     metric(
-      "globalRank",
-      "Global ranks",
-      count((film) => film.globalRank),
-      archiveFilms.length,
-      "Read from ranked list A:T.",
-    ),
-    metric(
-      "personalScore",
-      "Personal scores",
-      count((film) => film.personalScore != null),
+      "musicScore",
+      "Music scores",
+      count((film) => film.musicScore != null),
       archiveFilms.length,
       "Read from ranked list A:T.",
     ),
@@ -770,16 +773,6 @@ function collectDataHealth() {
       periods: [...gap.periods].slice(0, 8),
     }));
 
-  eligibilityGaps.forEach((gap) => {
-    let examples = [...gap.films].slice(0, 4).join(", ");
-    findings.push({
-      severity: "warning",
-      period: "All",
-      issue: "Eligibility metadata missing",
-      detail: `${gap.category}: ${gap.message} ${gap.count} nomination(s). Examples: ${examples}`,
-    });
-  });
-
   if (state.peopleCreditIssues?.length) {
     let examples = state.peopleCreditIssues
       .slice(0, 5)
@@ -829,6 +822,7 @@ function collectDataHealth() {
 
   let filmImages = new Map();
   Object.values(state.filmsById || {})
+    .concat(state.watchedOther || [])
     .filter(
       (film) =>
         /^\d{4}$/.test(String(film.year || "")) && normalizeTitle(film.title),
@@ -848,13 +842,24 @@ function collectDataHealth() {
     ),
   ).length;
   let imageStats = state.imageImportStats || {};
+  let watchlistImages = (state.watchlist || []).filter((item) => item?.title);
+  let watchlistPosterCount = watchlistImages.filter((item) =>
+    window.normalizePosterRecord?.(item.poster),
+  ).length;
 
   let finishQueuesTimer = window.startOskarsPerformance?.("dataHealth:queues");
-  let queues = dataHealthMissingQueues();
+  let allQueues = dataHealthMissingQueues();
+  let imageQueueIds = new Set([
+    "filmPosters",
+    "watchlistPosters",
+    "personPortraits",
+  ]);
+  let imageQueues = allQueues.filter((queue) => imageQueueIds.has(queue.id));
+  let queues = allQueues.filter((queue) => !imageQueueIds.has(queue.id));
   let eligibilityQueues = dataHealthEligibilityQueues();
   let externalIds = dataHealthExternalIds();
   finishQueuesTimer?.(
-    `${queues.length} work queue(s), ${eligibilityQueues.length} eligibility queue(s), ${(externalIds.queues || []).length} external queue(s)`,
+    `${queues.length} work queue(s), ${imageQueues.length} image queue(s), ${eligibilityQueues.length} eligibility queue(s), ${(externalIds.queues || []).length} external queue(s)`,
   );
   finishDiagnosticsTimer?.(
     `${findings.length} finding(s), ${confirmedAliases.length} confirmed alias(es)`,
@@ -863,6 +868,7 @@ function collectDataHealth() {
   return {
     findings,
     queues,
+    imageQueues,
     eligibilityQueues,
     externalIds,
     sourceConflicts: [...(state.sourceConflicts || [])].sort(
@@ -877,6 +883,10 @@ function collectDataHealth() {
     images: {
       posters: [...filmImages.values()].filter(Boolean).length,
       posterTarget: filmImages.size,
+      watchedPosters: [...filmImages.values()].filter(Boolean).length,
+      watchedPosterTarget: filmImages.size,
+      watchlistPosters: watchlistPosterCount,
+      watchlistPosterTarget: watchlistImages.length,
       posterFailures: Math.max(0, Number(imageStats.posterFailures) || 0),
       portraits: portraitCount,
       portraitTarget: people.length,

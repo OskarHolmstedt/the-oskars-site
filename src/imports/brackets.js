@@ -289,12 +289,151 @@ function parseTable(raw, options = {}) {
 
   if (dataRows.length < 3) return null;
 
+  let awardRows = dataRows;
+  let awardDefs = buildAwardDefs(headerRow);
+
+  if (options.resultMode === "collection") {
+    let collectionName = cleanCell(dataRows[1]?.[1]);
+    let collectionType = window.normalizeCollectionAwardType?.(
+      cleanCell(dataRows[0]?.[1]),
+    );
+    let collectionId = window.collectionAwardCollectionId?.(
+      collectionType,
+      collectionName,
+    );
+    let sourceUrl = cleanCell(dataRows[2]?.[1]);
+    if (isBlankOrDash(sourceUrl)) sourceUrl = "";
+    let diagnostics = {
+      duplicateNominations: [],
+      malformedRows: [],
+      unsupportedHeaders: headerRow
+        .slice(2)
+        .filter(
+          (header, index) =>
+            normalizeHeader(header) && !parseAwardHeader(header, index + 2),
+        )
+        .map(normalizeHeader),
+      metadataErrors: [],
+    };
+    if (!collectionType)
+      diagnostics.metadataErrors.push(
+        'Period row 1 must be "Director" or "Franchise".',
+      );
+    if (!collectionName)
+      diagnostics.metadataErrors.push(
+        "Period row 2 must name the collection.",
+      );
+    let nominations = [];
+
+    function addCollectionNomination(definition, row, placement, filmColumn) {
+      let sourceTitle = cleanCell(row[filmColumn]);
+      if (isBlankOrDash(sourceTitle)) return;
+      let recipient =
+        definition.columns.recipient == null
+          ? ""
+          : cleanCell(row[definition.columns.recipient]);
+      let detail =
+        definition.columns.detail == null
+          ? ""
+          : cleanCell(row[definition.columns.detail]);
+      if (isBlankOrDash(recipient)) recipient = "";
+      if (isBlankOrDash(detail)) detail = "";
+      if (recipient && normalizeTitle(recipient) === normalizeTitle(sourceTitle))
+        recipient = "";
+      nominations.push({
+        category: definition.category,
+        placement,
+        sourceTitle,
+        ...(recipient ? { recipient } : {}),
+        ...(detail ? { detail } : {}),
+      });
+    }
+
+    let capacities = window.bracketCapacities("years");
+    let pictureDef = awardDefs.find(
+      (definition) => definition.category === "Best Picture",
+    );
+    let otherDefs = awardDefs.filter(
+      (definition) => definition.category !== "Best Picture",
+    );
+    awardRows.forEach((row, rowIndex) => {
+      let position = parsePlacement(row[0]);
+      let populatedAwardCells = row
+        .slice(2)
+        .some((cell) => !isBlankOrDash(cell));
+      if (!position) {
+        if (populatedAwardCells)
+          diagnostics.malformedRows.push({
+            rowNumber: headerRowIndex + rowIndex + 2,
+            reason: "Populated award row has no positive integer Position.",
+          });
+        return;
+      }
+      if (position > capacities.category) return;
+      if (pictureDef) {
+        let firstColumn = pictureDef.columns.filmFirstHalf;
+        let secondColumn = pictureDef.columns.filmSecondHalf;
+        if (firstColumn != null)
+          addCollectionNomination(pictureDef, row, position, firstColumn);
+        if (secondColumn != null)
+          addCollectionNomination(
+            pictureDef,
+            row,
+            position + capacities.category,
+            secondColumn,
+          );
+      }
+      otherDefs.forEach((definition) => {
+        if (definition.columns.film != null)
+          addCollectionNomination(
+            definition,
+            row,
+            position,
+            definition.columns.film,
+          );
+      });
+    });
+    let seen = new Set();
+    nominations = nominations
+      .sort(
+        (left, right) =>
+          window.categorySortIndex(left.category) -
+            window.categorySortIndex(right.category) ||
+          left.placement - right.placement ||
+          window.compareEnglishTitles(left.sourceTitle, right.sourceTitle),
+      )
+      .filter((nomination) => {
+        let key = [
+          nomination.category,
+          nomination.placement,
+          normalizeTitle(nomination.sourceTitle),
+          normalizeTitle(nomination.recipient || ""),
+          normalizeTitle(nomination.detail || ""),
+        ].join("\n");
+        if (!seen.has(key)) {
+          seen.add(key);
+          return true;
+        }
+        diagnostics.duplicateNominations.push({
+          category: nomination.category,
+          placement: nomination.placement,
+          title: nomination.sourceTitle,
+        });
+        return false;
+      });
+    return {
+      collectionType,
+      collectionId,
+      collectionName,
+      sourceUrl,
+      nominations,
+      diagnostics,
+    };
+  }
+
   let { periodType, year, url: sourceUrl } = periodFromMetaRows(dataRows);
   let capacities = window.bracketCapacities(periodType);
   if (!year) return null;
-
-  let awardRows = dataRows;
-  let awardDefs = buildAwardDefs(headerRow);
 
   if (options.resultMode === "official") {
     let diagnostics = {
@@ -539,4 +678,9 @@ function parseTable(raw, options = {}) {
  */
 window.parseOfficialResultsTable = function (raw, options = {}) {
   return parseTable(raw, { ...options, resultMode: "official" });
+};
+
+/** Parses bracket-shaped TSV as one collection-specific personal Oskars bracket. @param {string} raw Raw tab-delimited bracket text. @param {Object} [options] Optional preparsed rows. @returns {Object|null} Parsed collection bracket and diagnostics. */
+window.parseCollectionAwardsTable = function (raw, options = {}) {
+  return parseTable(raw, { ...options, resultMode: "collection" });
 };

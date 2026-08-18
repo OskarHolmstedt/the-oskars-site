@@ -216,21 +216,9 @@
   function visualRankingGuide(workflow) {
     let board = window.watchedIntakeRankingBoard(workflow.id);
     if (!board.ok) {
-      let level = ui(
-        board.level === "decade"
-          ? "Decade"
-          : board.level === "century"
-            ? "Century"
-            : board.level === "allTime"
-              ? "All-time"
-              : "Year",
-      );
-      let sourceLevel = ui(
-        board.constraint?.sourceLevel === "century"
-          ? "Century"
-          : board.constraint?.sourceLevel === "decade"
-            ? "Decade"
-            : "Year",
+      let level = capitalizeWord(periodWord(board.level));
+      let sourceLevel = capitalizeWord(
+        periodWord(board.constraint?.sourceLevel || "year"),
       );
       return `<section class="intake-ranking-board" data-intake-ranking-stale-anchor><span class="eyebrow">${escape(ui("{level} ranking", { level }))}</span><h3>${escape(ui("The recorded {level} anchor is no longer available", { level: sourceLevel.toLowerCase() }))}</h3><p>${escape(ui("Restore the referenced film or reopen the intake from the {level} step before continuing.", { level: sourceLevel.toLowerCase() }))}</p></section>`;
     }
@@ -247,15 +235,7 @@
       listUrl: `${pageUrl}&layout=list`,
       gridUrl: `${pageUrl}&layout=grid`,
       ariaLabel: ui("{level} ranking display", {
-        level: ui(
-          board.level === "year"
-            ? "Year"
-            : board.level === "decade"
-              ? "Decade"
-              : board.level === "century"
-                ? "Century"
-                : "All-time",
-        ),
+        level: capitalizeWord(periodWord(board.level)),
       }),
       escape,
     });
@@ -263,22 +243,8 @@
       ? `<input type="hidden" name="targetFilmId" value="${escape(placement.targetFilmId)}"><input type="hidden" name="position" value="${escape(placement.position)}">`
       : "";
     let isYear = board.level === "year";
-    let levelLabel = ui(
-      isYear
-        ? "Year"
-        : board.level === "decade"
-          ? "Decade"
-          : board.level === "century"
-            ? "Century"
-            : "All-time",
-    );
-    let sourceLabel = ui(
-      board.constraint.sourceLevel === "year"
-        ? "Year"
-        : board.constraint.sourceLevel === "decade"
-          ? "Decade"
-          : "Century",
-    );
+    let levelLabel = capitalizeWord(periodWord(board.level));
+    let sourceLabel = capitalizeWord(periodWord(board.constraint.sourceLevel));
     let nextLabel = ui(
       board.level === "year"
         ? "Decade"
@@ -479,16 +445,11 @@
     // Only acting categories and Best Song take a second identifying field
     // (issue #192) - everywhere else the generic "detail" isn't meaningful,
     // so the field is left out of the form entirely rather than mislabeled.
-    let subjectType = window.creditSubjectType(
+    let detailFieldHtml = window.creditDetailFieldHtml(
       guide.category,
-      window.PERSON_AWARD_PROFESSIONS[guide.category],
+      defaultDetail,
+      { escape, ui, labelClass: "data-field" },
     );
-    let detailFieldHtml =
-      subjectType === "role"
-        ? `<label class="data-field">${escape(ui("Role"))}<input name="detail" value="${escape(defaultDetail)}"></label>`
-        : subjectType === "song"
-          ? `<label class="data-field">${escape(ui("Song title"))}<input name="detail" value="${escape(defaultDetail)}"></label>`
-          : "";
     let hasNominatedHere = guide.decisions.some(
       (decision) =>
         decision.category === guide.category && decision.action === "nominate",

@@ -14,16 +14,6 @@ window.stripPersonDisambiguator = function (value) {
     .trim();
 };
 
-/** Builds a normalized person identity key. @param {*} value Name value. @returns {string} Person key. */
-window.personIdentityKey = function (value) {
-  return window.normalizeTitle(window.stripPersonDisambiguator(value));
-};
-
-/** Builds a recipient person id. @param {*} value Name value. @returns {string} Person id. */
-window.recipientPersonId = function (value) {
-  return window.personIdentityKey(value);
-};
-
 /** Splits recipient text into person names. @param {*} value Recipient text. @returns {string[]} Names. */
 window.splitRecipientNames = function (value) {
   let original = String(value || "").trim();
@@ -50,7 +40,7 @@ window.awardRecipients = function (award) {
       let name = String(
         typeof record === "string" ? record : record?.name || "",
       ).trim();
-      let personId = window.recipientPersonId(
+      let personId = window.normalizePersonName(
         typeof record === "string" ? name : record?.personId || name,
       );
       return { name, personId };

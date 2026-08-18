@@ -44,13 +44,6 @@ window.awardPoints = function (award) {
     : 0;
 };
 
-/** Calculates points only for annual awards. @param {AwardRecord} award Award. @returns {number} Points. */
-window.annualAwardPoints = function (award) {
-  return window.awardScorePeriodType(award) === "years"
-    ? window.awardPoints(award)
-    : 0;
-};
-
 /** Sums award points with an optional period filter. @param {AwardRecord[]} awards Awards. @param {string} [periodType] Period type. @returns {number} Score. */
 window.calculateAwardsScore = function (awards, periodType) {
   return (awards || []).reduce(
@@ -371,16 +364,6 @@ window.calculateAwardsScores = function (awards) {
     decade: window.calculateAwardsScore(awards, "decades"),
     century: window.calculateAwardsScore(awards, "centuries"),
     allTime: window.calculateAwardsScore(awards, "allTime"),
-  };
-};
-
-/** Calculates normalized scores for all period types. @param {AwardRecord[]} awards Awards. @returns {AwardScores} Scores. */
-window.calculateNormalizedAwardsScores = function (awards) {
-  return {
-    year: window.calculateNormalizedAwardsScore(awards, "years"),
-    decade: window.calculateNormalizedAwardsScore(awards, "decades"),
-    century: window.calculateNormalizedAwardsScore(awards, "centuries"),
-    allTime: window.calculateNormalizedAwardsScore(awards, "allTime"),
   };
 };
 

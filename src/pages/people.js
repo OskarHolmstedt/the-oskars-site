@@ -157,18 +157,13 @@
     }
     return filtered.sort((left, right) => {
       if (sort === "rating") {
-        let leftRatings = personRatingStatistics(left);
-        let rightRatings = personRatingStatistics(right);
-        if (!leftRatings.ratedCount && rightRatings.ratedCount) return 1;
-        if (leftRatings.ratedCount && !rightRatings.ratedCount) return -1;
-        if (leftRatings.ratedCount && rightRatings.ratedCount) {
-          let ratingResult = leftRatings.mean - rightRatings.mean;
-          if (order === "desc") ratingResult = -ratingResult;
-          if (ratingResult) return ratingResult;
-          let sampleResult = rightRatings.ratedCount - leftRatings.ratedCount;
-          if (sampleResult) return sampleResult;
-        }
-        return left.name.localeCompare(right.name);
+        return (
+          window.compareByRatingStatistics(
+            personRatingStatistics(left),
+            personRatingStatistics(right),
+            order,
+          ) || left.name.localeCompare(right.name)
+        );
       }
       let result =
         sort === "name"
@@ -227,7 +222,7 @@
         `<tr><td colspan="7">${escape(ui("No people match these filters."))}</td></tr>`,
     });
     document.title = `${ui("People")} · The Oskars`;
-    container.innerHTML = `${window.renderDetailHeader({ mainHtml: `<h1>${escape(ui("People"))}</h1><p>${escape(ui("Recipients, filmmakers, performers, and other credited contributors."))}</p>` })}
+    container.innerHTML = `${window.renderDetailHeader({ mainHtml: `<h1>${escape(ui("People"))}</h1><p>${escape(ui("Recipients, filmmakers, performers, and other credited contributors."))}</p>`, actionsHtml: `<a class="button-link" href="directors.html">${escape(ui("Browse directors"))}</a>` })}
     ${window.renderDetailStats({ itemsHtml: `<span><b>${filtered.length}</b> ${escape(ui("People"))}</span>` })}
     <div class="people-hub-controls"><label>${escape(ui("Search"))}<input type="search" data-people-query value="${escape(query)}" placeholder="${escape(ui("Name or alias"))}"></label><label>${escape(ui("Profession"))}<select data-people-profession><option value="all">${escape(ui("All professions"))}</option>${professionOptions}</select></label>${sortControl}<div class="detail-toolbar-controls">${window.renderChronologyControl({ iconOnly: true, escape, title: orderToggleLabel() })}${window.renderShuffleControl({ escape, label: ui("Shuffle") })}${window.renderFilmViewToggle({ view, listUrl: viewUrl("list"), gridUrl: viewUrl("grid"), escape, classes: "people-hub-view-toggle", ariaLabel: ui("People display") })}${window.renderCopyViewLinkButton({ escape })}</div></div>
     ${window.renderPaginationControls({ total: filtered.length, page, pageSize: PAGE_SIZE, dataAttribute: "data-people-page", itemLabel: ui("people"), ariaLabel: ui("People pages") })}

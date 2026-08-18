@@ -143,6 +143,13 @@ window.summarizeEligibilityWarnings = function (details) {
 window.summarizeGoogleSheetsReports = function (reports, source) {
   let summary = reports.reduce(
     (total, report) => {
+      let rangeTag = () => ({
+        source:
+          report.rangeKey ||
+          String(report.source || "").replace(/^Google Sheets\s*·\s*/, "") ||
+          "Google Sheets",
+        range: report.sheetRange || "",
+      });
       total.filmsParsed += report.filmsParsed || 0;
       total.filmsAdded += report.filmsAdded || 0;
       total.filmsMerged += report.filmsMerged || 0;
@@ -152,62 +159,19 @@ window.summarizeGoogleSheetsReports = function (reports, source) {
       total.ruleViolations.push(...(report.ruleViolations || []));
       total.missingAllTimeFilms.push(
         ...(report.missingAllTimeFilms || []).map((detail) =>
-          Object.assign(
-            {
-              source:
-                report.rangeKey ||
-                String(report.source || "").replace(
-                  /^Google Sheets\s*·\s*/,
-                  "",
-                ) ||
-                "Google Sheets",
-              range: report.sheetRange || "",
-            },
-            detail,
-          ),
+          Object.assign(rangeTag(), detail),
         ),
       );
       total.ruleWarningDetails.push(
         ...(report.ruleWarningDetails || []).map((detail) =>
-          Object.assign(
-            {
-              source:
-                report.rangeKey ||
-                String(report.source || "").replace(
-                  /^Google Sheets\s*·\s*/,
-                  "",
-                ) ||
-                "Google Sheets",
-              range: report.sheetRange || "",
-            },
-            detail,
-          ),
+          Object.assign(rangeTag(), detail),
         ),
       );
       total.skippedDetails.push(
         ...(report.skippedDetails || []).map((detail) =>
-          Object.assign(
-            {
-              source:
-                report.rangeKey ||
-                String(report.source || "").replace(
-                  /^Google Sheets\s*·\s*/,
-                  "",
-                ) ||
-                "Google Sheets",
-              range: report.sheetRange || "",
-            },
-            detail,
-          ),
+          Object.assign(rangeTag(), detail),
         ),
       );
-      let rangeTag = () => ({
-        source:
-          report.rangeKey ||
-          String(report.source || "").replace(/^Google Sheets\s*·\s*/, "") ||
-          "Google Sheets",
-        range: report.sheetRange || "",
-      });
       total.newFilmDetails.push(
         ...(report.newFilmDetails || []).map((detail) =>
           Object.assign(rangeTag(), detail),
@@ -240,36 +204,12 @@ window.summarizeGoogleSheetsReports = function (reports, source) {
       );
       if (report.franchiseSummary) {
         total.franchiseSummaries.push(
-          Object.assign(
-            {
-              source:
-                report.rangeKey ||
-                String(report.source || "").replace(
-                  /^Google Sheets\s*·\s*/,
-                  "",
-                ) ||
-                "Google Sheets",
-              range: report.sheetRange || "",
-            },
-            report.franchiseSummary,
-          ),
+          Object.assign(rangeTag(), report.franchiseSummary),
         );
       }
       if (report.directorSummary) {
         total.directorSummaries.push(
-          Object.assign(
-            {
-              source:
-                report.rangeKey ||
-                String(report.source || "").replace(
-                  /^Google Sheets\s*·\s*/,
-                  "",
-                ) ||
-                "Google Sheets",
-              range: report.sheetRange || "",
-            },
-            report.directorSummary,
-          ),
+          Object.assign(rangeTag(), report.directorSummary),
         );
       }
       total.periods.push(...(report.periods || []));

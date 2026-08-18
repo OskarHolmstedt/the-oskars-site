@@ -30,6 +30,8 @@ window.PERSON_PROFESSION_ORDER = [
   "Costume designer",
 ];
 
+let knownGroupPersonCredits = new Set(["huey lewis and the news"]);
+
 /** Builds a role or song subject id. @param {string} type Subject type. @param {string} filmId Film id. @param {string} title Subject title. @returns {string} Subject id. */
 window.makeCreditSubjectId = function (type, filmId, title) {
   if (type === "role") return `role::${normalizeTitle(title)}`;
@@ -52,13 +54,15 @@ window.isMultiNomineeCategory = function (category) {
 
 /** Normalizes a person name to its canonical id. @param {*} value Name. @returns {string} Person id. */
 window.normalizePersonName = function (value) {
-  return window.recipientPersonId(value);
+  return window.normalizeTitle(window.stripPersonDisambiguator(value));
 };
 
 /** Parses credited names and reports ambiguous separators. @param {*} value Credit text. @returns {{names: string[], ambiguous: boolean}} Parsed credit. */
 window.parsePersonCredit = function (value) {
   let original = String(value || "").trim();
   if (!original) return { names: [], ambiguous: false };
+  if (knownGroupPersonCredits.has(original.toLowerCase()))
+    return { names: [original], ambiguous: false };
 
   let names = window.splitRecipientNames(original);
 
@@ -93,6 +97,7 @@ window.rebuildPeopleIndex = function () {
       professions: [],
       credits: [],
       filmIds: [],
+      watchedOtherIds: [],
       watchlistIds: [],
       _creditKeys: new Set(),
     });
@@ -130,6 +135,15 @@ window.rebuildPeopleIndex = function () {
     let itemId = item.id || window.watchlistItemId?.(item);
     if (itemId && !person.watchlistIds.includes(itemId))
       person.watchlistIds.push(itemId);
+  }
+
+  function addWatchedOtherDirector(name, film) {
+    let person = ensurePerson(name);
+    if (!person) return;
+    if (!person.professions.includes("Director"))
+      person.professions.push("Director");
+    if (film.id && !person.watchedOtherIds.includes(film.id))
+      person.watchedOtherIds.push(film.id);
   }
 
   let films = Object.values(state.filmsById || {});
@@ -201,6 +215,12 @@ window.rebuildPeopleIndex = function () {
       addWatchlistDirector(name, item),
     );
   });
+  (state.watchedOther || []).forEach((film) => {
+    let directors = film.directors?.length
+      ? film.directors
+      : window.parsePersonCredit(film.director).names;
+    directors.forEach((name) => addWatchedOtherDirector(name, film));
+  });
   doneCollect?.();
 
   let doneFinalize = window.startOskarsPerformance?.(
@@ -229,7 +249,16 @@ window.rebuildPeopleIndex = function () {
       person.credits.filter((credit) => credit.source === "award"),
     );
     person.ratingStatistics = window.collectionRatingStatistics(
-      person.filmIds.map((filmId) => state.filmsById?.[filmId]).filter(Boolean),
+      person.filmIds
+        .map((filmId) => state.filmsById?.[filmId])
+        .concat(
+          person.watchedOtherIds
+            .map((filmId) =>
+              (state.watchedOther || []).find((film) => film.id === filmId),
+            )
+            .filter(Boolean),
+        )
+        .filter(Boolean),
     );
     delete person._creditKeys;
   });

@@ -73,9 +73,9 @@ window.periodAwardDominanceEntries = function (awards) {
 
 /**
  * Renders the period's film nomination-share chart and legend.
- * @param {Object[]} awards Film-and-award entries.
+ * @param {PeriodAwardEntry[]} awards Film-and-award entries.
  * @param {(value:*) => string} [escape] HTML escaper.
- * @returns {string}
+ * @returns {string} Evidence-linked story cards, or an empty string.
  */
 window.renderPeriodAwardDominanceChart = function (
   awards,
@@ -133,6 +133,74 @@ window.renderPeriodAwardDominanceChart = function (
       <ol class="award-dominance-legend">${legend}</ol>
     </div>
   </section>`;
+};
+
+/**
+ * Renders significant period award stories with links to every supporting record.
+ * @param {Object[]} awards Film-and-award entries.
+ * @param {(value:*) => string} [escape] HTML escaper.
+ * @returns {string}
+ */
+window.renderPeriodAwardStories = function (
+  awards,
+  escape = window.pageEscape,
+) {
+  let stories = window.periodAwardStories(awards);
+  if (!stories.length) return "";
+  let ui = window.uiText || ((key) => key);
+  let storyTitles = {
+    sweep: ui("Sweep"),
+    "near-sweep": ui("Near sweep"),
+    "most-wins": ui("Most wins"),
+    shutout: ui("Shutout"),
+    rivalry: ui("Recurring rivalry"),
+  };
+  let storyCounts = (story) => {
+    let first = story.films[0];
+    if (story.type === "rivalry") {
+      return ui("{count} shared categories · {firstWins}–{secondWins} wins", {
+        count: story.sharedCount,
+        firstWins: story.wins[0],
+        secondWins: story.wins[1],
+      });
+    }
+    if (story.type === "shutout") {
+      return ui("{nominations} nominations · no wins", {
+        nominations: first.nominations,
+      });
+    }
+    if (story.type === "sweep") {
+      return ui("Won all {wins} nominations", { wins: first.wins });
+    }
+    if (story.type === "near-sweep") {
+      return ui("{wins} wins from {nominations} nominations · one short", {
+        wins: first.wins,
+        nominations: first.nominations,
+      });
+    }
+    return ui("{wins} wins from {nominations} nominations", {
+      wins: first.wins,
+      nominations: first.nominations,
+    });
+  };
+  let cards = stories
+    .map((story) => {
+      let films = story.films
+        .map(
+          (film) =>
+            `<a href="${escape(window.filmPageUrl(film.film.id))}">${escape(window.localizedFilmTitle?.(film.film) || film.film.title)}</a>`,
+        )
+        .join(` <span aria-hidden="true">&amp;</span> `);
+      let categories = story.categories
+        .map(
+          (category) =>
+            `<a href="${escape(window.categoryPageUrl(category))}">${escape(window.localizedCategoryName?.(category) || category)}</a>`,
+        )
+        .join(", ");
+      return `<article class="award-story" data-award-story="${escape(story.type)}"><h3>${escape(storyTitles[story.type])}</h3><div class="award-story-films">${films}</div><p>${escape(storyCounts(story))}</p><p class="award-story-evidence"><span>${escape(ui("Categories"))}:</span> ${categories}</p></article>`;
+    })
+    .join("");
+  return `<section class="award-stories" aria-labelledby="awardStoriesHeading"><div class="award-stories-heading"><h2 id="awardStoriesHeading">${escape(ui("Award stories"))}</h2><p>${escape(ui("The strongest patterns supported by this bracket."))}</p></div><div class="award-story-list">${cards}</div></section>`;
 };
 
 /**
@@ -238,7 +306,12 @@ window.renderPeriodAwardView = function ({
       : `<div class="board-nominees">${renderCards(entries, category)}</div>`;
     return `<div class="board${fullWidth ? " full-width" : ""}" data-category-board="${escape(category)}"><div class="period-award-board-heading"><a class="category-link" href="${escape(window.categoryPageUrl(category))}"><b>${escape(window.localizedCategoryName?.(category) || category)}</b></a>${comparisonBadge(category)}</div><div class="board-content${winnerImage ? " has-winner-poster" : ""}${split ? " board-content--split" : ""}">${winnerImage}${nomineesHtml}</div></div>`;
   }
-  return `${window.renderPeriodAwardDominanceChart(awards, escape)}<div class="year-grid">${renderCategoryBoard("Best Picture", true)}</div><div class="year-grid category-order-grid">${getCategoryPresentationSlots()
+  let dominance = window.renderPeriodAwardDominanceChart(awards, escape);
+  let stories = window.renderPeriodAwardStories(awards, escape);
+  let overview = stories
+    ? `<div class="period-award-overview">${dominance}${stories}</div>`
+    : dominance;
+  return `${overview}<div class="year-grid">${renderCategoryBoard("Best Picture", true)}</div><div class="year-grid category-order-grid">${getCategoryPresentationSlots()
     .map((category) =>
       category
         ? renderCategoryBoard(category)

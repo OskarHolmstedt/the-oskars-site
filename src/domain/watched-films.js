@@ -26,6 +26,7 @@
   function clone(value) {
     return value === undefined ? undefined : window.cloneRecord(value);
   }
+  window.watchedFilmClone = clone;
 
   function stableJson(value) {
     if (value === null || typeof value !== "object")
@@ -228,6 +229,7 @@
         "legacy-unversioned",
     );
   }
+  window.watchedFilmBaseRevision = baseRevision;
 
   function transitionStateSignature(watchlistId, target) {
     let item = window.findWatchlistItemById?.(watchlistId);
@@ -277,39 +279,14 @@
 
   function workflowForTransition(item, target, facts, now) {
     let ratingComplete = Boolean(window.parseFilmRating?.(facts.rating)?.value);
-    if (window.createWatchedIntakeWorkflow)
-      return window.createWatchedIntakeWorkflow({
-        source: "watchlist-transition",
-        sourceRecordId: item.id,
-        filmId: target.id,
-        ratingComplete,
-        now,
-        baseRevision: baseRevision(),
-      });
-    return {
-      schemaVersion: 1,
-      id: `intake-${target.type}-${target.id}-${now}`,
-      filmId: target.id,
+    return window.createWatchedIntakeWorkflow({
       source: "watchlist-transition",
       sourceRecordId: item.id,
-      createdAt: now,
+      filmId: target.id,
+      ratingComplete,
+      now,
       baseRevision: baseRevision(),
-      steps: {
-        rating: {
-          status: ratingComplete ? "complete" : "pending",
-          ...(ratingComplete
-            ? { completedAt: now, resultRef: `${target.type}:${target.id}` }
-            : {}),
-        },
-        ranking: { status: "pending" },
-        awards: {
-          year: { status: "pending" },
-          decade: { status: "pending" },
-          century: { status: "pending" },
-          allTime: { status: "pending" },
-        },
-      },
-    };
+    });
   }
 
   /**

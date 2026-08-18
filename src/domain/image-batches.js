@@ -1,5 +1,5 @@
 /**
- * @file Runs bounded metadata, poster, portrait, and TMDB media-type batches with session retry tracking.
+ * @file Runs bounded metadata, poster, and portrait fetch batches with session retry tracking.
  */
 
 let filmMetadataLookupAttempts = new Set();
@@ -63,31 +63,55 @@ function lookupFailureRecord(item, reason) {
   };
 }
 
-/** Fetches bounded film metadata concurrently. @param {FilmRecord[]} films Films. @param {Object} [options] Batch controls. @returns {Promise<MetadataBatchResult>} Batch result. */
-window.fetchFilmMetadata = async function (films, options = {}) {
-  let settings = Object.assign(
-    window.getPosterSettings(),
-    options.settings || {},
-  );
+/**
+ * Runs a bounded-concurrency batch of provider lookups against a candidate
+ * item list: session-attempt dedup (skippable per item, "already attempted
+ * this session"), a cursor-based worker pool, and consistent result/
+ * failure-record bookkeeping through the shared session-failure registry.
+ * Every fetchX batch function (film metadata/posters, person portraits,
+ * watchlist posters/metadata) is built on this — they differ only in which
+ * eligibility test, lookup, and apply functions get plugged in.
+ * @param {Object[]} rawItems Candidate items, unfiltered.
+ * @param {Object} config Batch shape.
+ * @param {boolean} [config.requiresCredential] Whether a configured TMDB credential gates eligibility entirely (candidates are empty without one).
+ * @param {(item:Object) => string} config.idOf Resolves an item's dedup/session-attempt key.
+ * @param {(item:Object, settings:Object) => boolean} config.eligible Whether an item currently needs a lookup.
+ * @param {Set<string>} config.attempts Session attempt-tracking set, mutated in place.
+ * @param {string} config.failureType Session-failure-registry queue key.
+ * @param {(item:Object, reason:string) => Object} config.failureRecord Builds a failure record for an item.
+ * @param {(item:Object, context:{settings:Object, fetchFn:Function}) => Promise<*>} config.lookup Runs the network lookup for one item.
+ * @param {(item:Object, value:*) => boolean} config.apply Persists a successful lookup value; returns whether it was applied.
+ * @param {string} config.notFoundReason Failure reason when a lookup resolves but finds or applies nothing.
+ * @param {(item:Object) => string} config.warnMessage Console warning text for a caught lookup error.
+ * @param {'poster'|'portrait'} [config.imageFailureType] When set, `result.failed` is also recorded against window.recordImageImportFailure on this type.
+ * @param {(options:Object) => Object} [config.buildSettings] Overrides the default merged-settings computation.
+ * @param {Object} [options] Caller options: settings, fetchFn, limit, force, concurrency, onProgress.
+ * @returns {Promise<MetadataBatchResult>} Batch result.
+ */
+window.runBoundedLookupBatch = async function (rawItems, config, options = {}) {
+  let settings = config.buildSettings
+    ? config.buildSettings(options)
+    : Object.assign(window.getPosterSettings(), options.settings || {});
   let seen = new Set();
   let limit = Math.max(1, Number(options.limit) || 25);
   let skippedItems = [];
-  let eligible = settings.tmdbCredential
-    ? (films || []).filter((film) => {
-        if (!window.filmNeedsMetadataLookup(film) || seen.has(film.id))
-          return false;
-        seen.add(film.id);
-        if (!options.force && filmMetadataLookupAttempts.has(film.id)) {
-          skippedItems.push(
-            lookupFailureRecord(film, "Already attempted this session."),
-          );
-          return false;
-        }
-        return true;
-      })
-    : [];
+  let eligible =
+    !config.requiresCredential || settings?.tmdbCredential
+      ? (rawItems || []).filter((item) => {
+          let id = config.idOf(item);
+          if (!config.eligible(item, settings) || seen.has(id)) return false;
+          seen.add(id);
+          if (!options.force && config.attempts.has(id)) {
+            skippedItems.push(
+              config.failureRecord(item, "Already attempted this session."),
+            );
+            return false;
+          }
+          return true;
+        })
+      : [];
   let candidates = eligible.slice(0, limit);
-  candidates.forEach((film) => filmMetadataLookupAttempts.add(film.id));
+  candidates.forEach((item) => config.attempts.add(config.idOf(item)));
 
   let result = {
     attempted: candidates.length,
@@ -100,57 +124,73 @@ window.fetchFilmMetadata = async function (films, options = {}) {
   let cursor = 0;
   async function worker() {
     while (cursor < candidates.length) {
-      let film = candidates[cursor++];
+      let item = candidates[cursor++];
+      let id = config.idOf(item);
       try {
-        let metadata = await window.lookupTmdbMovieMetadata(film, {
+        let value = await config.lookup(item, {
           settings,
           fetchFn: options.fetchFn,
         });
-        if (
-          metadata &&
-          window.setFilmTmdbMetadata(film.id, metadata, { save: false })
-        ) {
+        if (value && config.apply(item, value)) {
           result.found += 1;
-          window.clearMetadataSessionFailure("film-metadata", film.id);
+          window.clearMetadataSessionFailure(config.failureType, id);
         } else {
           result.failed += 1;
-          result.failures.push(
-            lookupFailureRecord(film, "No TMDB match found."),
-          );
+          result.failures.push(config.failureRecord(item, config.notFoundReason));
           window.recordMetadataSessionFailure(
-            "film-metadata",
-            lookupFailureRecord(film, "No TMDB match found."),
+            config.failureType,
+            config.failureRecord(item, config.notFoundReason),
           );
         }
       } catch (err) {
-        console.warn(`Film metadata lookup failed for ${film.title}`, err);
+        console.warn(config.warnMessage(item), err);
         result.failed += 1;
-        result.failures.push(lookupFailureRecord(film, err.message || err));
+        result.failures.push(config.failureRecord(item, err.message || err));
         window.recordMetadataSessionFailure(
-          "film-metadata",
-          lookupFailureRecord(film, err.message || err),
+          config.failureType,
+          config.failureRecord(item, err.message || err),
         );
       }
-      options.onProgress?.(
-        result.found + result.failed,
-        candidates.length,
-        film,
-      );
+      options.onProgress?.(result.found + result.failed, candidates.length, item);
     }
   }
 
+  // Reconciled to one shared default (issue #310): every batch used 3
+  // already except film metadata's 2, an unexplained outlier next to its
+  // near-identical watchlist-metadata counterpart, which already ran at 3.
   let concurrency = Math.min(
     candidates.length,
-    Math.max(1, Number(options.concurrency) || 2),
+    Math.max(1, Number(options.concurrency) || 3),
   );
   await Promise.all(Array.from({ length: concurrency }, worker));
+  if (config.imageFailureType && result.failed)
+    window.recordImageImportFailure(config.imageFailureType, result.failed);
   // Failure-only batches store nothing durable; skipping the save keeps
   // read-only page loads write-free. Failure counters live in in-memory
   // state and persist with the next genuine save.
-  if (result.found) {
-    window.save();
-  }
+  if (result.found) window.save();
   return result;
+};
+
+/** Fetches bounded film metadata concurrently. @param {FilmRecord[]} films Films. @param {Object} [options] Batch controls. @returns {Promise<MetadataBatchResult>} Batch result. */
+window.fetchFilmMetadata = async function (films, options = {}) {
+  return window.runBoundedLookupBatch(
+    films,
+    {
+      requiresCredential: true,
+      idOf: (film) => film.id,
+      eligible: (film) => window.filmNeedsMetadataLookup(film),
+      attempts: filmMetadataLookupAttempts,
+      failureType: "film-metadata",
+      failureRecord: lookupFailureRecord,
+      lookup: (film, context) => window.lookupTmdbMovieMetadata(film, context),
+      apply: (film, metadata) =>
+        window.setFilmTmdbMetadata(film.id, metadata, { save: false }),
+      notFoundReason: "No TMDB match found.",
+      warnMessage: (film) => `Film metadata lookup failed for ${film.title}`,
+    },
+    options,
+  );
 };
 
 /** Increments persisted image failure counters. @param {'poster'|'portrait'} type Image type. @param {number} [count] Increment. @returns {number} Updated count. */
@@ -177,299 +217,44 @@ window.filmNeedsPosterLookup = function (
 
 /** Fetches bounded film posters concurrently. @param {FilmRecord[]} films Films. @param {Object} [options] Batch controls. @returns {Promise<MetadataBatchResult>} Batch result. */
 window.fetchFilmPosters = async function (films, options = {}) {
-  let settings = Object.assign(
-    window.getPosterSettings(),
-    options.settings || {},
+  return window.runBoundedLookupBatch(
+    films,
+    {
+      idOf: (film) => film.id,
+      eligible: (film, settings) => window.filmNeedsPosterLookup(film, settings),
+      attempts: posterLookupAttempts,
+      failureType: "film-posters",
+      failureRecord: lookupFailureRecord,
+      lookup: (film, context) => window.lookupFilmPoster(film, context),
+      apply: (film, poster) =>
+        window.setFilmPoster(film.id, poster, { save: false }),
+      notFoundReason: "No poster found.",
+      warnMessage: (film) => `Poster lookup failed for ${film.title}`,
+      imageFailureType: "poster",
+    },
+    options,
   );
-  let seen = new Set();
-  let limit = Math.max(1, Number(options.limit) || 25);
-  let skippedItems = [];
-  let eligible = (films || []).filter((film) => {
-    if (!window.filmNeedsPosterLookup(film, settings) || seen.has(film.id))
-      return false;
-    seen.add(film.id);
-    if (!options.force && posterLookupAttempts.has(film.id)) {
-      skippedItems.push(
-        lookupFailureRecord(film, "Already attempted this session."),
-      );
-      return false;
-    }
-    return true;
-  });
-  let candidates = eligible.slice(0, limit);
-  candidates.forEach((film) => posterLookupAttempts.add(film.id));
-
-  let result = {
-    attempted: candidates.length,
-    found: 0,
-    failed: 0,
-    skipped: skippedItems.length,
-    failures: [],
-    skippedItems,
-  };
-  let cursor = 0;
-  async function worker() {
-    while (cursor < candidates.length) {
-      let film = candidates[cursor++];
-      try {
-        let poster = await window.lookupFilmPoster(film, {
-          settings,
-          fetchFn: options.fetchFn,
-        });
-        if (poster && window.setFilmPoster(film.id, poster, { save: false })) {
-          result.found += 1;
-          window.clearMetadataSessionFailure("film-posters", film.id);
-        } else {
-          result.failed += 1;
-          result.failures.push(lookupFailureRecord(film, "No poster found."));
-          window.recordMetadataSessionFailure(
-            "film-posters",
-            lookupFailureRecord(film, "No poster found."),
-          );
-        }
-      } catch (err) {
-        console.warn(`Poster lookup failed for ${film.title}`, err);
-        result.failed += 1;
-        result.failures.push(lookupFailureRecord(film, err.message || err));
-        window.recordMetadataSessionFailure(
-          "film-posters",
-          lookupFailureRecord(film, err.message || err),
-        );
-      }
-      options.onProgress?.(
-        result.found + result.failed,
-        candidates.length,
-        film,
-      );
-    }
-  }
-
-  let concurrency = Math.min(
-    candidates.length,
-    Math.max(1, Number(options.concurrency) || 3),
-  );
-  await Promise.all(Array.from({ length: concurrency }, worker));
-  if (result.failed) window.recordImageImportFailure("poster", result.failed);
-  // Failure-only batches store nothing durable; skipping the save keeps
-  // read-only page loads write-free. Failure counters live in in-memory
-  // state and persist with the next genuine save.
-  if (result.found) window.save();
-  return result;
 };
 
 /** Fetches bounded person portraits concurrently. @param {PersonRecord[]} people People. @param {Object} [options] Batch controls. @returns {Promise<MetadataBatchResult>} Batch result. */
 window.fetchPersonPortraits = async function (people, options = {}) {
-  let settings = Object.assign(
-    window.getPosterSettings(),
-    options.settings || {},
+  return window.runBoundedLookupBatch(
+    people,
+    {
+      requiresCredential: true,
+      idOf: (person) => person.id,
+      eligible: (person) => Boolean(person?.id && !person.portrait),
+      attempts: portraitLookupAttempts,
+      failureType: "person-portraits",
+      failureRecord: lookupFailureRecord,
+      lookup: (person, context) => window.lookupPersonPortrait(person, context),
+      apply: (person, portrait) =>
+        window.setPersonPortrait(person.id, portrait, { save: false }),
+      notFoundReason: "No portrait found.",
+      warnMessage: (person) => `Portrait lookup failed for ${person.name}`,
+      imageFailureType: "portrait",
+    },
+    options,
   );
-  let seen = new Set();
-  let limit = Math.max(1, Number(options.limit) || 25);
-  let skippedItems = [];
-  let eligible = settings.tmdbCredential
-    ? (people || []).filter((person) => {
-        if (!person?.id || person.portrait || seen.has(person.id)) return false;
-        seen.add(person.id);
-        if (!options.force && portraitLookupAttempts.has(person.id)) {
-          skippedItems.push(
-            lookupFailureRecord(person, "Already attempted this session."),
-          );
-          return false;
-        }
-        return true;
-      })
-    : [];
-  let candidates = eligible.slice(0, limit);
-  candidates.forEach((person) => portraitLookupAttempts.add(person.id));
-
-  let result = {
-    attempted: candidates.length,
-    found: 0,
-    failed: 0,
-    skipped: skippedItems.length,
-    failures: [],
-    skippedItems,
-  };
-  let cursor = 0;
-  async function worker() {
-    while (cursor < candidates.length) {
-      let person = candidates[cursor++];
-      try {
-        let portrait = await window.lookupPersonPortrait(person, {
-          settings,
-          fetchFn: options.fetchFn,
-        });
-        if (
-          portrait &&
-          window.setPersonPortrait(person.id, portrait, { save: false })
-        ) {
-          result.found += 1;
-          window.clearMetadataSessionFailure("person-portraits", person.id);
-        } else {
-          result.failed += 1;
-          result.failures.push(
-            lookupFailureRecord(person, "No portrait found."),
-          );
-          window.recordMetadataSessionFailure(
-            "person-portraits",
-            lookupFailureRecord(person, "No portrait found."),
-          );
-        }
-      } catch (err) {
-        console.warn(`Portrait lookup failed for ${person.name}`, err);
-        result.failed += 1;
-        result.failures.push(lookupFailureRecord(person, err.message || err));
-        window.recordMetadataSessionFailure(
-          "person-portraits",
-          lookupFailureRecord(person, err.message || err),
-        );
-      }
-      options.onProgress?.(
-        result.found + result.failed,
-        candidates.length,
-        person,
-      );
-    }
-  }
-
-  let concurrency = Math.min(
-    candidates.length,
-    Math.max(1, Number(options.concurrency) || 3),
-  );
-  await Promise.all(Array.from({ length: concurrency }, worker));
-  if (result.failed) window.recordImageImportFailure("portrait", result.failed);
-  // Failure-only batches store nothing durable; skipping the save keeps
-  // read-only page loads write-free. Failure counters live in in-memory
-  // state and persist with the next genuine save.
-  if (result.found) window.save();
-  return result;
 };
 
-// TMDB media type check (issue #42): the app treats every tmdbId as a
-// *movie* id, but sheet-imported ids can accidentally be TV ids (e.g. a
-// miniseries stored as Type=Film). This probes TMDB only on an explicit
-// button press and reports ids that resolve as TV or as nothing at all.
-// Results are session-only; nothing is persisted.
-let mediaTypeCheckAttempts = new Set();
-
-async function fetchTmdbResource(kind, id, credential, fetchFn) {
-  let params = new URLSearchParams({ language: "en-US" });
-  let headers = { accept: "application/json" };
-  if (String(credential).startsWith("eyJ"))
-    headers.Authorization = `Bearer ${credential}`;
-  else params.set("api_key", credential);
-  let response = await fetchFn(
-    `https://api.themoviedb.org/3/${kind}/${encodeURIComponent(id)}?${params}`,
-    { headers },
-  );
-  if (response.status === 404) return { exists: false };
-  if (!response.ok) throw new Error(`TMDB request failed (${response.status})`);
-  let data = await response.json();
-  return { exists: true, title: String(data.title || data.name || "") };
-}
-
-/** Classifies movie/TV TMDB probe results. @param {Object} movieResult Movie result. @param {Object|null} tvResult TV result. @returns {Object} Verdict. */
-window.classifyTmdbMediaCheck = function (movieResult, tvResult) {
-  if (movieResult?.exists) return { status: "ok", detail: "" };
-  if (tvResult?.exists)
-    return {
-      status: "tv",
-      detail: tvResult.title
-        ? `Resolves as TV: ${tvResult.title}`
-        : "Resolves as TV",
-    };
-  return { status: "missing", detail: "Not found on TMDB" };
-};
-
-window.tmdbMediaTypeSession = { checked: 0, issues: [] };
-
-/** Checks stored TMDB ids against movie and TV endpoints. @param {Object} [options] Batch controls. @returns {Promise<Object>} Check totals. */
-window.checkTmdbMediaTypes = async function (options = {}) {
-  let settings = Object.assign(
-    {},
-    window.getPosterSettings?.() || {},
-    options.settings || {},
-  );
-  if (!settings.tmdbCredential)
-    throw new Error("A TMDB credential is required for media type checks.");
-  let fetchFn = options.fetchFn || window.fetch?.bind(window);
-  if (!fetchFn)
-    throw new Error("Media type checks require browser network access.");
-  let limit = Math.max(1, Number(options.limit) || 250);
-  let films = (
-    options.films || Object.values(window.state.filmsById || {})
-  ).filter(
-    (film) => film?.id && film.title && film.tmdbId && !film.watchlistItem,
-  );
-  let candidates = films
-    .filter((film) => options.force || !mediaTypeCheckAttempts.has(film.id))
-    .slice(0, limit);
-  candidates.forEach((film) => mediaTypeCheckAttempts.add(film.id));
-
-  let session = window.tmdbMediaTypeSession;
-  let result = {
-    attempted: candidates.length,
-    ok: 0,
-    issues: 0,
-    failed: 0,
-    remaining: 0,
-  };
-  let cursor = 0;
-  async function worker() {
-    while (cursor < candidates.length) {
-      let film = candidates[cursor++];
-      try {
-        let movie = await fetchTmdbResource(
-          "movie",
-          film.tmdbId,
-          settings.tmdbCredential,
-          fetchFn,
-        );
-        let tv = movie.exists
-          ? null
-          : await fetchTmdbResource(
-              "tv",
-              film.tmdbId,
-              settings.tmdbCredential,
-              fetchFn,
-            );
-        let verdict = window.classifyTmdbMediaCheck(movie, tv);
-        session.checked += 1;
-        if (verdict.status === "ok") result.ok += 1;
-        else {
-          result.issues += 1;
-          if (!session.issues.some((issue) => issue.id === film.id)) {
-            session.issues.push({
-              id: film.id,
-              title: `${film.title}${film.year ? ` (${film.year})` : ""}`,
-              href: window.filmPageUrl?.(film.id) || "",
-              tmdbId: String(film.tmdbId),
-              localType: String(film.type || "").trim(),
-              status: verdict.status,
-              detail: verdict.detail,
-            });
-          }
-        }
-      } catch (err) {
-        console.warn(`TMDB media type check failed for ${film.title}`, err);
-        result.failed += 1;
-        // A network hiccup shouldn't consume the film's one attempt.
-        mediaTypeCheckAttempts.delete(film.id);
-      }
-      options.onProgress?.(
-        result.ok + result.issues + result.failed,
-        candidates.length,
-        film,
-      );
-    }
-  }
-  let concurrency = Math.min(
-    candidates.length,
-    Math.max(1, Number(options.concurrency) || 3),
-  );
-  await Promise.all(Array.from({ length: concurrency }, worker));
-  result.remaining = films.filter(
-    (film) => !mediaTypeCheckAttempts.has(film.id),
-  ).length;
-  return result;
-};

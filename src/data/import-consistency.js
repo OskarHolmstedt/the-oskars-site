@@ -301,5 +301,56 @@ window.collectImportConsistency = function (spec, rows) {
     return window.collectLaneSheetConsistency(rows, "franchises");
   if (spec.importType === "directors")
     return window.collectLaneSheetConsistency(rows, "directors");
+  if (spec.importType === "collection-awards") {
+    let bracketCheck = importConsistencyCheck(
+      "collectionBracket",
+      "Collection award bracket",
+    );
+    let nominationCheck = importConsistencyCheck(
+      "collectionNomination",
+      "Collection award nomination",
+    );
+    window
+      .splitCollectionAwardSheetBlocks(rows)
+      .forEach((block) => {
+        let parsed = window.parseCollectionAwardsTable("", {
+          rows: block.rows,
+        });
+        if (!parsed?.collectionType || !parsed.collectionId) return;
+        let stored = window.collectionAwardBracket?.(
+          parsed.collectionType,
+          parsed.collectionId,
+        );
+        let sample = {
+          rowNumber: block.rowNumber || "",
+          collection: parsed.collectionName,
+        };
+        importConsistencyRecord(bracketCheck, Boolean(stored), sample);
+        (parsed.nominations || []).forEach((nomination) => {
+          let present = (stored?.nominations || []).some(
+            (candidate) =>
+              candidate.category === nomination.category &&
+              Number(candidate.placement) === Number(nomination.placement) &&
+              normalizeTitle(candidate.sourceTitle) ===
+                normalizeTitle(nomination.sourceTitle),
+          );
+          importConsistencyRecord(
+            nominationCheck,
+            present,
+            Object.assign(
+              {
+                title: nomination.sourceTitle,
+                category: nomination.category,
+                placement: nomination.placement,
+              },
+              sample,
+            ),
+          );
+        });
+      });
+    return [bracketCheck, nominationCheck].filter(
+      (check) => check.sourceCount > 0,
+    );
+  }
   return [];
 };

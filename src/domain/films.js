@@ -337,12 +337,13 @@ window.insertNomination = function (values) {
 };
 
 // Deletes every stored value that encodes a personal opinion (issue #75):
-// award placements, star ratings, all rank fields, personal scores, reviews,
-// franchise membership ranks, watchlist interest tiers and hand-made order,
-// rewatch intent, watched-other ratings, entity notes, local rank orders
-// (issue #165), and cross-source conflict records. Factual data stays: which films were
-// watched (and when/where), credits, countries, runtimes, tags, franchise
-// memberships, projects, and aliases.
+// award placements, star ratings, all rank fields, music-score opinion
+// inputs, reviews, franchise membership ranks, watchlist interest tiers and
+// hand-made order, rewatch intent, watched-other ratings, entity notes, local
+// rank orders (issue #165), and cross-source conflict records. Factual data
+// stays: which films were watched (and when/where), credits, countries,
+// runtimes, tags, franchise memberships, projects, aliases, and a separate
+// music-quality star rating where the app wants to store it.
 /** Removes every persisted personal-opinion field while preserving factual data. @returns {Record<string, number>} Removal counts. */
 window.clearOpinionData = function () {
   let report = {
@@ -358,6 +359,8 @@ window.clearOpinionData = function () {
     watchedOtherRatings: 0,
     notes: 0,
     localRanks: 0,
+    rankingReviews: 0,
+    awardReviews: 0,
     sourceConflicts: 0,
   };
   const RANK_FIELDS = [
@@ -366,7 +369,6 @@ window.clearOpinionData = function () {
     "decadeRank",
     "centuryRank",
     "allTimeRank",
-    "globalRank",
   ];
 
   function clearFranchiseRanks(memberships) {
@@ -422,9 +424,20 @@ window.clearOpinionData = function () {
         delete film.rewatchTier;
         touched = true;
       }
-      if (film.personalScore != null) {
+      if (film.musicScore != null) {
         report.scores += 1;
-        film.personalScore = null;
+        film.musicScore = null;
+        touched = true;
+      }
+      if (
+        film.musicRating ||
+        film.musicRatingValue != null ||
+        Object.prototype.hasOwnProperty.call(film, "musicRating") ||
+        Object.prototype.hasOwnProperty.call(film, "musicRatingValue")
+      ) {
+        report.ratings += 1;
+        delete film.musicRating;
+        delete film.musicRatingValue;
         touched = true;
       }
       clearFranchiseRanks(film.franchises);
@@ -463,6 +476,18 @@ window.clearOpinionData = function () {
     report.localRanks += Object.keys(state.localRanks[group] || {}).length;
     state.localRanks[group] = {};
   });
+
+  Object.values(state.rankingReviews || {}).forEach((scopes) => {
+    Object.values(scopes || {}).forEach((keys) => {
+      report.rankingReviews += (keys || []).length;
+    });
+  });
+  state.rankingReviews = { years: {}, decades: {}, centuries: {}, allTime: {} };
+
+  Object.values(state.awardReviews?.years || {}).forEach((categories) => {
+    report.awardReviews += Object.keys(categories || {}).length;
+  });
+  state.awardReviews = { years: {} };
 
   report.sourceConflicts = (state.sourceConflicts || []).length;
   state.sourceConflicts = [];

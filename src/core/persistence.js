@@ -1,7 +1,12 @@
 /**
  * @file Persists the layered browser-workspace envelope in IndexedDB with a
  * localStorage fallback, legacy migration, debounced writes, and stale-tab
- * protection.
+ * protection. save()/replaceStoredState()/saveRecoveryWorkspace() are the
+ * only paths that ever write private state here (issue #256) — every
+ * mutation across the app funnels through one of them, so gating these
+ * three functions on the active runtime mode's canPersistPrivateState
+ * capability is the single enforcement point that keeps a viewer-mode
+ * session from persisting anything, however it was reached.
  */
 
 window.OSKARS_DATABASE_NAME = "oskars";
@@ -35,6 +40,32 @@ function staleWriteError() {
   let error = new Error("Changed in another tab — reload before editing");
   error.code = "OSKARS_STALE_STATE";
   return error;
+}
+
+// Defaults to allowed when runtime-mode.js hasn't been loaded at all (some
+// standalone test suites load persistence.js on its own), matching that
+// module's own "absent configuration means owner" default. Only an
+// explicitly resolved viewer mode ever returns false here. A hydrated
+// public-profile view (issue #253) is blocked regardless of the baked
+// mode — viewing another owner's profile must never persist, even on a
+// deployment whose baked mode would otherwise allow it.
+function persistenceAllowed() {
+  if (window.state?.isPublicProfileView) return false;
+  return window.oskarsCapabilities ? window.oskarsCapabilities().canPersistPrivateState : true;
+}
+
+/**
+ * Whether the current session may persist private state - the exact same
+ * check save()/replaceStoredState()/saveRecoveryWorkspace() gate on.
+ * Exposed so firestore-sync.js (issue #248) never runs a remote sync pass
+ * anywhere local persistence itself is refused (viewer mode, or hydrated
+ * public-profile state, issue #256).
+ * @returns {boolean}
+ */
+window.oskarsPersistenceAllowed = persistenceAllowed;
+
+function readOnlyViewerStatus() {
+  storageStatus("Read-only — changes aren't saved", "viewer");
 }
 
 function markPersistenceStale(message) {
@@ -362,13 +393,15 @@ function writeFallbackState(snapshot, options = {}) {
 }
 
 /**
- * Stores a recoverable workspace before canonical replacement.
+ * Stores a recoverable workspace before canonical replacement. A no-op that
+ * resolves false in viewer mode (issue #256) — nothing is ever written.
  * @param {Object} snapshot Browser workspace envelope.
  * @param {Object} [options] Recovery metadata.
  * @param {string} [options.reason] Replacement reason.
  * @returns {Promise<boolean>} Whether recovery was retained.
  */
 window.saveRecoveryWorkspace = async function (snapshot, options = {}) {
+  if (!persistenceAllowed()) return false;
   try {
     let database = await openStateDatabase();
     if (database)
@@ -474,18 +507,31 @@ async function flushScheduledSave() {
       storageStatus("Save failed — download a backup", "error");
     }
   }
+  // A successful local save is the trigger for a background cloud push
+  // (issue #248) - debounced independently inside firestore-sync.js, so a
+  // burst of edits produces one sync pass rather than one per save. A
+  // no-op (never defined) when Firestore sync hasn't loaded or the user
+  // isn't signed in - scheduleWorkspaceSync itself checks both.
+  if (saved) window.scheduleWorkspaceSync?.();
   waiters.forEach((resolve) => resolve(saved));
   return saved;
 }
 
 /**
  * Persists current state immediately or through the shared debounce queue.
+ * A synchronous no-op that reports a read-only status and returns false in
+ * viewer mode (issue #256) — the single choke point every mutation in the
+ * app funnels through, so this is the one place that needs to refuse.
  * @param {Object} [options] Save controls.
  * @param {boolean} [options.rebuild] Whether to force, skip, or conditionally perform an aggregate rebuild.
  * @param {boolean} [options.immediate] Whether to flush the IndexedDB queue immediately.
  * @returns {boolean|Promise<boolean>} Save result or queued save result.
  */
 window.save = function (options = {}) {
+  if (!persistenceAllowed()) {
+    readOnlyViewerStatus();
+    return false;
+  }
   if (options.rebuild === true && window.rebuildAggregates)
     window.rebuildAggregates();
   else if (options.rebuild !== false) window.ensureAggregatesFresh?.();
@@ -525,7 +571,11 @@ window.save = function (options = {}) {
 window.flushOskarsSave = flushScheduledSave;
 
 /**
- * Replaces global state and overwrites persisted state regardless of stale-tab counters.
+ * Replaces global state and overwrites persisted state regardless of
+ * stale-tab counters. A no-op that reports a read-only status and returns
+ * false in viewer mode (issue #256) — neither the in-memory replacement nor
+ * any write happens, so import/clear/recovery-restore callers all refuse
+ * safely through this one function.
  * @param {OskarsState|Object} nextState Replacement source state.
  * @param {Object} [options] User-facing status messages.
  * @param {string} [options.message] IndexedDB success message.
@@ -533,6 +583,10 @@ window.flushOskarsSave = flushScheduledSave;
  * @returns {Promise<boolean>} Whether replacement state was persisted.
  */
 window.replaceStoredState = async function (nextState, options = {}) {
+  if (!persistenceAllowed()) {
+    readOnlyViewerStatus();
+    return false;
+  }
   window.state = Object.assign(window.createEmptyState(), nextState || {});
   if (window.rebuildAggregates) window.rebuildAggregates();
   let saved = false;
@@ -573,6 +627,30 @@ window.replaceStoredState = async function (nextState, options = {}) {
 };
 
 /**
+ * Creates draft metadata that distinguishes an intentional clear from a clean,
+ * outdated copy that owner-mode startup may safely replace from publication.
+ * @returns {Object} Dirty draft metadata for the cleared local state.
+ */
+function intentionalClearDraftMetadata() {
+  let plan = window.getStartupReconciliationPlan?.() || {};
+  let publishedRevision = String(plan.publishedRevision || "");
+  let baseRevision = String(
+    publishedRevision ||
+      window.state?.draftMetadata?.baseRevision ||
+      plan.baseRevision ||
+      "",
+  );
+  return {
+    baseRevision,
+    dirty: true,
+    changedAt: new Date().toISOString(),
+    reason: "clear-all-data",
+    reconciliationStatus: "unpublished",
+    ...(publishedRevision ? { publishedRevision } : {}),
+  };
+}
+
+/**
  * Replaces persisted data with empty, fully migrated local state.
  * @returns {Promise<boolean>} Whether cleared state was persisted.
  */
@@ -580,6 +658,7 @@ window.clearStoredOskarsData = function () {
   let cleared = window.createClearedLocalState
     ? window.createClearedLocalState()
     : window.createEmptyState();
+  cleared.draftMetadata = intentionalClearDraftMetadata();
   return window.replaceStoredState(cleared, {
     message: "Local data cleared",
     fallbackMessage: "Local data cleared using fallback storage",

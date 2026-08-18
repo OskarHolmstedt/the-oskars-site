@@ -103,7 +103,7 @@ window.getAdaptationSources = function (
 function parsePeople(value) {
   let values = Array.isArray(value) ? value : window.splitRecipientNames(value);
   return values
-    .map((name) => window.personIdentityKey?.(name) || normalizeTitle(name))
+    .map((name) => window.normalizePersonName?.(name) || normalizeTitle(name))
     .filter(Boolean);
 }
 
@@ -312,8 +312,8 @@ window.validateAward = function (film, award, context = {}) {
     if (!primaryCountry)
       warnings.push("International eligibility primary country is unknown.");
     else if (isUsOrUkCountry(primaryCountry))
-      errors.push(
-        "Best International Picture requires a non-US/UK primary country.",
+      warnings.push(
+        "Best International Picture recipient has a US/UK primary country.",
       );
   }
 

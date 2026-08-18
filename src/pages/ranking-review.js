@@ -3,8 +3,7 @@
  * two adjacent films sharing an exact rating bucket and asks whether the
  * current order still holds, reusing the existing guarded
  * `moveRankedFilmWithinRating` mutation for any resulting swap. Session
- * progress (confirmed/swapped/skipped counts and which pairs are resolved)
- * is entirely in-memory - nothing new is persisted beyond an applied swap.
+ * decisions persist by scope while skipped pairs remain session-only.
  */
 (function () {
   let escape = window.pageEscape;
@@ -12,17 +11,44 @@
   window.load();
 
   let container = document.getElementById("rankingReviewPage");
-  document.title = `${ui("Ranking consistency review")} · The Oskars`;
+  let scopeType = window.normalizeRankingReviewScopeType(window.pageQueryParam("type"));
+  let scopeKey = scopeType === "allTime" ? "alltime" : window.pageQueryParam("key");
 
-  let resolvedKeys = new Set();
+  let sessionExcludedKeys = new Set();
   let stats = { confirmed: 0, swapped: 0, skipped: 0 };
   let pairs = [];
   let currentPair = null;
   let pendingSwap = null;
 
   function loadNextPair() {
-    pairs = window.rankingConsistencyPairs(resolvedKeys);
+    pairs = window.rankingConsistencyPairsForScope(
+      scopeType,
+      scopeKey,
+      sessionExcludedKeys,
+    );
     currentPair = pairs[0] || null;
+  }
+
+  function scopeLabel() {
+    if (scopeType === "years") return ui("{scope} year heat", { scope: scopeKey });
+    if (scopeType === "decades") return ui("{scope} finals", { scope: scopeKey });
+    if (scopeType === "centuries") return ui("{scope} finals", { scope: scopeKey });
+    return ui("All-time final");
+  }
+
+  function backUrl() {
+    return scopeType === "years"
+      ? window.yearRankingPageUrl(scopeKey)
+      : window.periodPageUrl(scopeType, scopeKey);
+  }
+
+  function nextScope() {
+    if (scopeType === "years")
+      return { type: "decades", key: window.getDecadeKey(scopeKey) };
+    if (scopeType === "decades")
+      return { type: "centuries", key: window.getCenturyKey(Number.parseInt(scopeKey, 10)) };
+    if (scopeType === "centuries") return { type: "allTime", key: "alltime" };
+    return null;
   }
 
   function renderConsistencyCard(film, side, caption) {
@@ -46,16 +72,20 @@
   }
 
   function renderEmpty() {
+    let next = nextScope();
+    let nextAction = next
+      ? `<a class="button-link" href="ranking-review.html?type=${escape(next.type)}&key=${escape(next.key)}">${escape(ui("Continue to {scope}", { scope: next.type === "allTime" ? ui("all-time final") : next.key }))} →</a>`
+      : `<a class="button-link" href="build.html">${escape(ui("Return to Build your Oskars"))}</a>`;
     return `<div class="detail-empty">
-      <h2>${escape(ui("Nothing left to review"))}</h2>
-      <p>${escape(ui("Every adjacent pair sharing an exact rating has been reviewed this session, or there aren't two rated films to compare yet."))}</p>
-      <a href="period.html?type=alltime&key=alltime">${escape(ui("Return to all-time ranking"))}</a>
+      <span class="eyebrow">${escape(ui("Final settled"))}</span><h2>${escape(scopeLabel())}</h2>
+      <p>${escape(ui("Every relevant same-rating comparison in this scope is settled, or there are not two films to compare yet."))}</p>
+      ${nextAction}
     </div>`;
   }
 
   function renderReview() {
-    let progressText = ui("{count} reviewed this session · {remaining} pairs remain", {
-      count: stats.confirmed + stats.swapped + stats.skipped,
+    let progressText = ui("{count} reviewed · {remaining} pairs remain", {
+      count: window.rankingReviewResolvedKeys(scopeType, scopeKey).size,
       remaining: pairs.length,
     });
     return `<section class="ranking-consistency-compare" data-ranking-consistency-compare>
@@ -95,8 +125,10 @@
   }
 
   function render() {
+    document.title = `${scopeLabel()} · The Oskars`;
     let header = window.renderDetailHeader({
-      mainHtml: `<h1>${escape(ui("Ranking consistency review"))}</h1><p><a href="period.html?type=alltime&key=alltime">${escape(ui("Back to all-time ranking"))}</a></p>`,
+      mainHtml: `<span class="eyebrow">${escape(ui("Ranking heat"))}</span><h1>${escape(scopeLabel())}</h1><p>${escape(ui("Only comparisons that cross the already-settled narrower scope are shown in later finals."))}</p>`,
+      actionsHtml: `<a class="button-link" href="${escape(backUrl())}">${escape(ui("Back"))}</a>`,
     });
     let body = !currentPair
       ? renderEmpty()
@@ -108,8 +140,9 @@
 
   function pick(side) {
     if (side === "above") {
-      resolvedKeys.add(currentPair.key);
+      window.resolveRankingReviewPair(scopeType, scopeKey, currentPair);
       stats.confirmed += 1;
+      window.save?.({ immediate: true, rebuild: false });
       loadNextPair();
     } else {
       pendingSwap = currentPair;
@@ -118,7 +151,7 @@
   }
 
   function skip() {
-    resolvedKeys.add(currentPair.key);
+    sessionExcludedKeys.add(currentPair.key);
     stats.skipped += 1;
     loadNextPair();
     render();
@@ -135,7 +168,7 @@
       return;
     }
     stats.swapped += 1;
-    resolvedKeys.add(pendingSwap.key);
+    window.resolveRankingReviewPair(scopeType, scopeKey, pendingSwap);
     window.save?.({ immediate: true, rebuild: false });
     pendingSwap = null;
     loadNextPair();

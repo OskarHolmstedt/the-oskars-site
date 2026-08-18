@@ -502,10 +502,13 @@
         film.year,
         film.year ? window.periodPageUrl("year", film.year) : "",
       ],
+      [ui("Type"), film.type ? metadataLabel(film.type) : ""],
       [
         "TMDB",
         film.tmdbId ? `#${film.tmdbId}` : "",
-        film.tmdbId ? `https://www.themoviedb.org/movie/${film.tmdbId}` : "",
+        film.tmdbId
+          ? `https://www.themoviedb.org/${window.tmdbResourcePath(window.parseTmdbReference(film.tmdbId))}`
+          : "",
       ],
       ["Letterboxd", letterboxdUrl ? "Open on Letterboxd" : "", letterboxdUrl],
       [
@@ -561,8 +564,11 @@
       [ui("Watched"), formatWatchedDate(film.dateWatched)],
       [ui("Platform"), film.platform],
       [
-        ui("My score"),
-        film.personalScore != null ? String(film.personalScore) : "",
+        ui("Music score"),
+        film.musicScore != null
+          ? window.renderFilmRating?.(film.musicScore) ||
+            String(film.musicScore)
+          : "",
       ],
       [ui("Views"), formatNumber(film.views)],
       [
@@ -572,10 +578,6 @@
             ? ui("Want to rewatch ({tier})", { tier: film.rewatchTier })
             : ui("Want to rewatch")
           : ui("Not marked"),
-      ],
-      [
-        ui("Global rank"),
-        film.globalRank ? `#${formatNumber(film.globalRank)}` : "",
       ],
     ].filter((entry) => entry[1]);
     let viewingHtml = viewingFacts.length

@@ -443,6 +443,18 @@ window.setProjectPinned = function (projectId, pinned, options = {}) {
   return project;
 };
 
+/** Permanently removes a project and its project-owned note without changing any referenced film data. @param {string} projectId Project id. @param {Object} [options] Save controls. @returns {boolean} Whether a project was removed. */
+window.deleteProject = function (projectId, options = {}) {
+  state.projects ||= [];
+  let index = state.projects.findIndex((project) => project.id === projectId);
+  if (index < 0) return false;
+  state.projects.splice(index, 1);
+  if (state.activeProjectId === projectId) state.activeProjectId = "";
+  if (state.entityNotes?.projects) delete state.entityNotes.projects[projectId];
+  if (options.save !== false) window.save({ rebuild: false });
+  return true;
+};
+
 /** Dismisses a film reference from a project. @param {string} projectId Project id. @param {string} type Store type. @param {string} id Film id. @param {Object} [options] Save controls. @returns {ProjectRecord|null} Updated project. */
 window.removeProjectFilmRef = function (projectId, type, id, options = {}) {
   let project = window.findProjectById?.(projectId);
@@ -623,7 +635,7 @@ window.resolveProjectFilmRef = function (ref, options = {}) {
           ref,
           film,
           status: "watched",
-          href: window.intakePageUrl(film.id),
+          href: window.filmPageUrl(film.id),
           rewatch: Boolean(film.wantToRewatch),
         }
       : null;
@@ -640,10 +652,7 @@ window.resolveProjectFilmRef = function (ref, options = {}) {
         film,
         official,
         status: "watched",
-        href:
-          official.watchedType === "watched"
-            ? window.intakePageUrl(film.id)
-            : window.filmPageUrl(film.id),
+        href: window.filmPageUrl(film.id),
         rewatch: Boolean(film.wantToRewatch),
       };
     }
@@ -789,6 +798,25 @@ window.projectRepresentativeFilm = function (progress) {
   );
 };
 
+/** Selects unique project-deck films with the ordered queue first and watched work filling remaining slots. @param {Object} progress Progress model. @param {number} [limit] Maximum films. @returns {FilmRecord[]} Films for a poster deck. */
+window.projectPosterDeckFilms = function (progress, limit = 5) {
+  let seen = new Set();
+  return [
+    ...window.sortProjectRecords(progress?.watchlist || [], "project"),
+    ...window.sortProjectRecords(progress?.watched || [], "project"),
+  ]
+    .filter((record) => {
+      let key =
+        record.film?.id ||
+        `${record.ref?.type || ""}:${record.ref?.id || ""}`;
+      if (!record.film || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, Math.max(1, Number(limit) || 5))
+    .map((record) => record.film);
+};
+
 /** Calculates resolved records, counts, and next items for a project. @param {ProjectRecord} project Project. @returns {Object} Progress model. */
 window.projectProgress = function (project) {
   let missingRefs = [];
@@ -835,7 +863,8 @@ window.projectProgress = function (project) {
    COMPLETION (issue #17)
 =========================== */
 
-// Completion is always "of known films": the archive plus the watchlist.
+// Completion is always "of known works": the archive, standalone watched
+// entries, and the watchlist.
 // The sheet may not list a source's full canon, so a 100% figure means
 // "everything the watchlist knows about", not "the director's whole career".
 
@@ -850,7 +879,8 @@ window.directorCompletion = function (person) {
       .map((credit) => credit.filmId),
   );
   let watchlistItems = window.watchlistItemsByDirector?.(person?.name) || [];
-  let watchedCount = directedIds.size;
+  let watchedCount =
+    directedIds.size + new Set(person?.watchedOtherIds || []).size;
   let watchlistCount = watchlistItems.length;
   let total = watchedCount + watchlistCount;
   return {

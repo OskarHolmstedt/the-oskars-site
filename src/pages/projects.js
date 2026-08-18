@@ -91,10 +91,11 @@
       .join("")}</div>`;
   }
 
-  function projectCardPoster(progress) {
-    let film = window.projectRepresentativeFilm(progress);
-    let poster = film ? window.renderFilmPoster(film, "card") : "";
-    return poster ? `<div class="project-card-poster">${poster}</div>` : "";
+  function projectCardDeck(progress) {
+    let films = window.projectPosterDeckFilms(progress);
+    return films.length
+      ? `<div class="project-card-visual">${window.renderPosterDeck(films, { classes: "project-card-poster-deck" })}</div>`
+      : "";
   }
 
   function projectCard(project) {
@@ -113,8 +114,8 @@
         : status === "archived"
           ? `<p class="leaderboard-meta">${escape(ui("Archived."))}</p>`
           : `<p class="leaderboard-meta">${escape(ui("No unwatched films left."))}</p>`;
-    return `<article class="project-card project-card--poster">
-    ${projectCardPoster(progress)}
+    return `<article class="project-card project-card--deck">
+    ${projectCardDeck(progress)}
     <div class="project-card-body">
     <header><h2><a href="${escape(window.projectPageUrl(project.id))}">${escape(project.name)}</a></h2>${projectBadges(project, status, isActive)}</header>
     <div class="project-progress-meter" aria-label="${escape(ui("{percent} percent complete", { percent: progress.percent }))}"><span style="width:${escape(progress.percent)}%"></span></div>

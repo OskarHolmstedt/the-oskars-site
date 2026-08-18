@@ -13,9 +13,9 @@
           <span class="eyebrow">Maintenance</span>
           <h1>Data</h1>
           <p>
-            Review Google Sheets and JSON proposals, publish canonical data,
-            keep a portable backup, inspect health, and configure image
-            retrieval.
+            Review Letterboxd, Google Sheets, and JSON proposals, publish
+            canonical data, keep a portable backup, inspect health, and
+            configure image retrieval.
           </p>
         </div>
         <div class="data-actions">
@@ -25,6 +25,30 @@
       </div>
 
       <div class="data-workspace-grid">
+        <section class="data-panel" id="letterboxdImport">
+          <h2>Letterboxd export</h2>
+          <p>
+            Select the original ZIP from Letterboxd. The browser reads it
+            locally and previews watched films, ratings, diary facts, tags,
+            and watchlist changes. Awards and rankings are never imported.
+          </p>
+          <div class="data-actions">
+            <label class="button-link"
+              >Preview Letterboxd ZIP<input
+                id="letterboxdZipInput"
+                type="file"
+                accept="application/zip,.zip"
+                hidden
+            /></label>
+            <button id="letterboxdImportApplyBtn" type="button" disabled>
+              Apply reviewed jumpstart
+            </button>
+          </div>
+          <p id="letterboxdImportStatus" class="data-panel-status">
+            The ZIP never leaves this browser.
+          </p>
+        </section>
+
         <section class="data-panel">
           <h2>Google Sheets</h2>
           <p>
@@ -109,13 +133,32 @@
               </button>
             </div>
           </section>
+          <section id="cloudSyncPanel" class="data-panel" hidden>
+            <h2>Cloud sync</h2>
+            <p>
+              Signed-in devices keep this workspace synced through Firestore.
+              A manual sync runs the same reconciliation the app already runs
+              automatically after every save and on sign-in. Loading the
+              complete archive from the cloud previews it as a replace
+              proposal below - nothing changes until you apply it.
+            </p>
+            <div class="data-actions">
+              <button id="cloudSyncNowBtn" type="button">Sync now</button>
+              <button id="cloudRestoreBtn" type="button">
+                Load complete archive from cloud
+              </button>
+            </div>
+            <p id="cloudSyncStatus" class="data-panel-status"></p>
+          </section>
           <section id="canonicalPublicationView" class="data-panel"></section>
+          <section id="publicProfilePublicationView" class="data-panel"></section>
           <section class="data-panel data-danger-zone">
             <div>
               <h2>Clear local data</h2>
               <p>
-                Replace the browser database with an empty The Oskars app state.
-                Download a backup first.
+                Replace the browser database with an empty personal archive
+                that stays empty after reload. Bundled factual Oscars results
+                remain available. Download a backup first.
               </p>
             </div>
             <button id="clearDataBtn" type="button">Clear all data</button>
@@ -132,7 +175,10 @@
               </p>
               <p id="clearOpinionsStatus" class="data-panel-status"></p>
             </div>
-            <button id="clearOpinionsBtn" type="button">Delete opinions</button>
+            <div class="data-actions">
+              <a class="button-link" href="build.html">Build your Oskars</a>
+              <button id="clearOpinionsBtn" type="button">Delete opinions</button>
+            </div>
           </section>
           <section class="data-panel data-danger-zone">
             <div>

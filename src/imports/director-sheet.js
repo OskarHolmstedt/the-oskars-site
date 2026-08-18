@@ -3,19 +3,7 @@
  * lanes into normalized watchlist candidates and row-level diagnostics.
  */
 
-(function () {
-  [
-    "cleanSheetCell",
-    "sheetTier",
-    "parseTabbedSheetRows",
-    "isFourDigitYearCell",
-    "isUrlOrDashCell",
-  ].forEach((name) => {
-    if (typeof window[name] !== "function") {
-      throw new Error(`Missing dependency: ${name} (sheet-import-utils.js)`);
-    }
-  });
-})();
+window.assertSheetImportUtilsReady();
 
 function directorSheetClean(value) {
   return window.cleanSheetCell(value);

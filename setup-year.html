@@ -3,13 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Set up a year · The Oskars</title>
-    <link rel="stylesheet" href="styles/app.css" />
+    <title>Opening year workflow · The Oskars</title>
   </head>
-  <body class="film-page-body">
-    <header class="app-header" data-site-header-pending></header>
-    <main id="setupYearPage"></main>
-
-    <script src="src/core/entry-loader.js" data-entry="setup-year"></script>
+  <body>
+    <p>Opening the year workflow…</p>
+    <script>
+      const target =
+        window.location.hash.toLowerCase() === "#awards"
+          ? "awards-year.html"
+          : "rank-year.html";
+      window.location.replace(target + window.location.search);
+    </script>
   </body>
 </html>

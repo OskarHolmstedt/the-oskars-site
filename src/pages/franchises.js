@@ -43,7 +43,9 @@
 
   function franchiseKnownCount(franchise) {
     return (
-      (franchise?.films?.length || 0) + (franchise?.watchlistFilms?.length || 0)
+      (franchise?.films?.length || 0) +
+      (franchise?.otherFilms?.length || 0) +
+      (franchise?.watchlistFilms?.length || 0)
     );
   }
 
@@ -85,18 +87,13 @@
     }
     return [...roots].sort((left, right) => {
       if (controls.sort === "rating") {
-        let leftRatings = franchiseRatingStatistics(left);
-        let rightRatings = franchiseRatingStatistics(right);
-        if (!leftRatings.ratedCount && rightRatings.ratedCount) return 1;
-        if (leftRatings.ratedCount && !rightRatings.ratedCount) return -1;
-        if (leftRatings.ratedCount && rightRatings.ratedCount) {
-          let ratingResult = leftRatings.mean - rightRatings.mean;
-          if (controls.order === "desc") ratingResult = -ratingResult;
-          if (ratingResult) return ratingResult;
-          let sampleResult = rightRatings.ratedCount - leftRatings.ratedCount;
-          if (sampleResult) return sampleResult;
-        }
-        return left.name.localeCompare(right.name);
+        return (
+          window.compareByRatingStatistics(
+            franchiseRatingStatistics(left),
+            franchiseRatingStatistics(right),
+            controls.order,
+          ) || left.name.localeCompare(right.name)
+        );
       }
       let leftCompletion = window.franchiseCompletion(left);
       let rightCompletion = window.franchiseCompletion(right);
@@ -173,6 +170,14 @@
     let years = (franchise.films || [])
       .map((entry) => state.filmsById?.[entry.filmId]?.year)
       .concat(
+        (franchise.otherFilms || []).map(
+          (entry) =>
+            (state.watchedOther || []).find(
+              (film) => film.id === entry.filmId,
+            )?.year,
+        ),
+      )
+      .concat(
         (franchise.watchlistFilms || []).map(
           (entry) => window.findWatchlistItemById?.(entry.itemId)?.year,
         ),
@@ -197,12 +202,15 @@
   function renderCard(franchise) {
     let completion = window.franchiseCompletion(franchise);
     let ratings = franchiseRatingStatistics(franchise);
-    let representative = window.franchiseRepresentativeFilm(franchise);
-    let poster = representative
-      ? window.renderFilmPoster(representative, "card")
-      : "";
+    let deckFilms = window
+      .rankByAllTimeRank([
+        ...window.franchiseArchiveFilms(franchise),
+        ...window.franchiseOtherFilms(franchise),
+      ])
+      .slice(0, 5);
+    let deck = deckFilms.length ? window.renderPosterDeck(deckFilms) : "";
     let project = window.projectForSource("franchise", franchise.id);
-    return `<article class="franchise-card franchise-card--poster${project ? " franchise-card--project" : ""}">${poster ? `<div class="franchise-card-poster">${poster}</div>` : ""}<div class="franchise-card-body"><div class="franchise-card-heading"><h2><a href="${escape(window.franchisePageUrl(franchise.id))}">${escape(franchise.name)}</a></h2>${franchiseProjectMarker(project)}</div>${franchiseRatingHtml(ratings)}${franchiseStatsHtml(completion, franchise.childIds.length)}<div class="franchise-completion"><span><b>${escape(completion.percent)}%</b> ${escape(ui("complete"))}</span><div class="project-progress-meter" aria-label="${escape(ui("{percent} percent complete", { percent: completion.percent }))}"><span style="width:${escape(completion.percent)}%"></span></div></div></div></article>`;
+    return `<article class="franchise-card franchise-card--poster${project ? " franchise-card--project" : ""}">${deck ? `<div class="franchise-card-poster">${deck}</div>` : ""}<div class="franchise-card-body"><div class="franchise-card-heading"><h2><a href="${escape(window.franchisePageUrl(franchise.id))}">${escape(franchise.name)}</a></h2>${franchiseProjectMarker(project)}</div>${franchiseRatingHtml(ratings)}${franchiseStatsHtml(completion, franchise.childIds.length)}<div class="franchise-completion"><span><b>${escape(completion.percent)}%</b> ${escape(ui("complete"))}</span><div class="project-progress-meter" aria-label="${escape(ui("{percent} percent complete", { percent: completion.percent }))}"><span style="width:${escape(completion.percent)}%"></span></div></div></div></article>`;
   }
 
   function renderRow(franchise) {

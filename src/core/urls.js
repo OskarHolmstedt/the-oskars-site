@@ -24,6 +24,24 @@ window.intakePageUrl = function (workflowId) {
 };
 
 /**
+ * Builds the dedicated year-ranking workflow URL.
+ * @param {string|number} year Release year.
+ * @returns {string} Relative year-ranking URL.
+ */
+window.yearRankingPageUrl = function (year) {
+  return `rank-year.html?year=${encodeURIComponent(String(year || ""))}`;
+};
+
+/**
+ * Builds the dedicated annual-awards workflow URL.
+ * @param {string|number} year Release year.
+ * @returns {string} Relative annual-awards URL.
+ */
+window.yearAwardsPageUrl = function (year) {
+  return `awards-year.html?year=${encodeURIComponent(String(year || ""))}`;
+};
+
+/**
  * Builds a person detail URL.
  * @param {string} personId Canonical person id.
  * @returns {string} Relative person URL.

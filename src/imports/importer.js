@@ -8,6 +8,17 @@
    IMPORT ENTRY POINT
 =========================== */
 
+/** Compares import fields after applying field-specific semantic normalization. @param {string} field Field name. @param {*} localValue Existing value. @param {*} incomingValue Imported value. @returns {boolean} Whether the values differ. */
+function importFieldValuesDiffer(field, localValue, incomingValue) {
+  if (field === "country" && window.countryListValues) {
+    return (
+      window.countryListValues(localValue).join("\n") !==
+      window.countryListValues(incomingValue).join("\n")
+    );
+  }
+  return String(localValue) !== String(incomingValue);
+}
+
 /**
  * Imports one supported data format into application state and reports the merge.
  * @param {string} raw Raw import text.
@@ -21,6 +32,7 @@ window.importData = function (raw, importType, options = {}) {
     let suppliedRows =
       options.rows ||
       options.tableRows ||
+      options.collectionAwardRows ||
       options.directorRows ||
       options.franchiseRows;
 
@@ -29,7 +41,12 @@ window.importData = function (raw, importType, options = {}) {
       return;
     }
     let report = {
-      source: importType === "table" ? "Bracket text" : "Ranked list",
+      source:
+        importType === "table"
+          ? "Bracket text"
+          : importType === "collection-awards"
+            ? "Collection awards"
+            : "Ranked list",
       filmsParsed: 0,
       filmsAdded: 0,
       filmsMerged: 0,
@@ -278,7 +295,10 @@ window.importData = function (raw, importType, options = {}) {
         function preserveLocalField(field, incomingValue) {
           let localValue = existing[field];
           if (localValue) {
-            if (incomingValue && String(incomingValue) !== String(localValue)) {
+            if (
+              incomingValue &&
+              importFieldValuesDiffer(field, localValue, incomingValue)
+            ) {
               report.preservedFieldDetails.push({
                 title: existing.title,
                 year,
@@ -364,15 +384,19 @@ window.importData = function (raw, importType, options = {}) {
         existing.platform = preserveLocalField("platform", f.platform);
         existing.dateWatched = preserveLocalField("dateWatched", f.dateWatched);
         existing.views = preserveLocalField("views", f.views);
-        existing.personalScore = preserveLocalField(
-          "personalScore",
-          f.personalScore,
+        existing.musicScore = preserveLocalField("musicScore", f.musicScore);
+        existing.musicRating = preserveLocalField(
+          "musicRating",
+          f.musicRating,
+        );
+        existing.musicRatingValue = preserveLocalField(
+          "musicRatingValue",
+          f.musicRatingValue,
         );
         existing.runtimeMinutes = preserveLocalField(
           "runtimeMinutes",
           f.runtimeMinutes,
         );
-        existing.globalRank = preserveLocalField("globalRank", f.globalRank);
         existing.rankingGroupId = preserveLocalField(
           "rankingGroupId",
           f.rankingGroupId,
@@ -716,6 +740,98 @@ window.importData = function (raw, importType, options = {}) {
       return { added: true, changed: true };
     }
 
+    function diaryWatchedRecord(entry) {
+      let year = String(entry.year || "").trim();
+      let record = window.cloneRecord(entry);
+      record.id = `${year}::${normalizeTitle(entry.title || "")}`;
+      record.normalizedTitle = normalizeTitle(entry.title || "");
+      record.year = year;
+      record.type = String(entry.type || "").trim();
+      record.awards = [];
+      window.normalizeFilmMetadata?.(record);
+      return record;
+    }
+
+    function upsertDiaryWatchedEntry(entry) {
+      state.watchedOther ||= [];
+      let incoming = diaryWatchedRecord(entry);
+      let existing = state.watchedOther.find(
+        (item) => item.id === incoming.id,
+      );
+      if (!existing) {
+        state.watchedOther.push(incoming);
+        return { added: true, changed: true };
+      }
+
+      let before = JSON.stringify(existing);
+      let scalarFields = [
+        "title",
+        "director",
+        "rating",
+        "ratingValue",
+        "ratingModifier",
+        "medium",
+        "screenplayType",
+        "adaptationSource",
+        "country",
+        "primaryCountry",
+        "platform",
+        "runtimeMinutes",
+        "tmdbId",
+        "letterboxdUrl",
+        "url",
+        "musicScore",
+      ];
+      scalarFields.forEach((field) => {
+        if (
+          (existing[field] === undefined ||
+            existing[field] === null ||
+            existing[field] === "" ||
+            existing[field] === "unknown") &&
+          incoming[field] !== undefined &&
+          incoming[field] !== null &&
+          incoming[field] !== ""
+        ) {
+          existing[field] = window.cloneRecord(incoming[field]);
+        }
+      });
+      if (!existing.type || existing.type === "unknown")
+        existing.type = incoming.type;
+      existing.views = Math.max(
+        Number(existing.views) || 0,
+        Number(incoming.views) || 0,
+      ) || null;
+      if (
+        incoming.dateWatched &&
+        (!existing.dateWatched || incoming.dateWatched > existing.dateWatched)
+      ) {
+        existing.dateWatched = incoming.dateWatched;
+      }
+      existing.tags = window.parseFilmTags?.([
+        ...(existing.tags || []),
+        ...(incoming.tags || []),
+      ]) || existing.tags || incoming.tags || [];
+      existing.franchises = window.normalizeFranchiseMemberships?.([
+        ...(existing.franchises || []),
+        ...(incoming.franchises || []),
+      ]) || existing.franchises || incoming.franchises || [];
+      window.normalizeFilmMetadata?.(existing);
+      return { added: false, changed: JSON.stringify(existing) !== before };
+    }
+
+    function findDiaryArchiveFilm(entry) {
+      let title = normalizeTitle(entry?.title || "");
+      let year = String(entry?.year || "").trim();
+      if (!title || !year) return null;
+      return (
+        allTimeRosterFilms().find(
+          (film) =>
+            normalizeTitle(film.title) === title &&
+            String(film.year || "").trim() === year,
+        ) || null
+      );
+    }
+
     function cleanTableCell(value) {
       return String(value || "").trim();
     }
@@ -751,7 +867,109 @@ window.importData = function (raw, importType, options = {}) {
       return tableBlockLabelFromRows(rows, index, "");
     }
 
-    if (importType === "table") {
+    if (importType === "collection-awards") {
+      let tableRows = Array.isArray(options.collectionAwardRows)
+        ? options.collectionAwardRows
+        : Array.isArray(options.tableRows)
+          ? options.tableRows
+          : String(raw || "")
+              .replace(/\r\n/g, "\n")
+              .replace(/\r/g, "\n")
+              .split("\n")
+              .map((line) => line.split("\t"));
+      let blocks = window.splitCollectionAwardSheetBlocks(tableRows, {
+        sheetStartRow: options.sheetStartRow || 1,
+      });
+      state.collectionAwards ||= { director: {}, franchise: {} };
+      let imported = [];
+      blocks.forEach((block) => {
+        let parsed = window.parseCollectionAwardsTable("", {
+          rows: block.rows,
+        });
+        let label = block.label || "collection award bracket";
+        if (!parsed) {
+          report.skipped += 1;
+          report.warnings.push(`${label} could not be parsed.`);
+          report.skippedDetails.push({
+            rowNumber: block.rowNumber || "",
+            reason: "Collection award bracket could not be parsed.",
+            values: [label],
+          });
+          return;
+        }
+        (parsed.diagnostics?.metadataErrors || []).forEach((message) =>
+          report.warnings.push(`${label}: ${message}`),
+        );
+        if (!parsed.collectionType || !parsed.collectionId) {
+          report.skipped += 1;
+          report.skippedDetails.push({
+            rowNumber: block.rowNumber || "",
+            reason: "Missing or unsupported collection metadata.",
+            values: [label],
+          });
+          return;
+        }
+        (parsed.diagnostics?.unsupportedHeaders || []).forEach((header) =>
+          report.warnings.push(`${label} ignored unsupported header "${header}".`),
+        );
+        (parsed.diagnostics?.malformedRows || []).forEach((finding) => {
+          report.skipped += 1;
+          report.skippedDetails.push({
+            rowNumber:
+              (block.rowNumber || 1) + Number(finding.rowNumber || 1) - 2,
+            reason: finding.reason,
+            values: [label],
+          });
+        });
+        if (parsed.diagnostics?.duplicateNominations?.length)
+          report.warnings.push(
+            `${label} ignored ${parsed.diagnostics.duplicateNominations.length} duplicate nomination(s).`,
+          );
+        state.collectionAwards[parsed.collectionType] ||= {};
+        let bracket = {
+          collectionType: parsed.collectionType,
+          collectionId: parsed.collectionId,
+          collectionName: parsed.collectionName,
+          sourceUrl: parsed.sourceUrl,
+          nominations: parsed.nominations,
+        };
+        state.collectionAwards[parsed.collectionType][parsed.collectionId] =
+          bracket;
+        imported.push(bracket);
+        report.awardsAdded += bracket.nominations.length;
+      });
+      window.rebuildAggregates?.();
+      let membershipWarnings = [];
+      imported.forEach((bracket) => {
+        let model = window.collectionAwardViewModel?.(
+          bracket.collectionType,
+          bracket.collectionId,
+        );
+        (model?.unresolved || []).forEach((entry) =>
+          membershipWarnings.push({
+            collection: bracket.collectionName,
+            title: entry.sourceTitle,
+            ambiguous: entry.ambiguous,
+          }),
+        );
+      });
+      report.filmsParsed = new Set(
+        imported.flatMap((bracket) =>
+          bracket.nominations.map((nomination) =>
+            normalizeTitle(nomination.sourceTitle),
+          ),
+        ),
+      ).size;
+      if (membershipWarnings.length)
+        report.warnings.push(
+          `${membershipWarnings.length} collection award film(s) are not uniquely known as members of their collection; their titles were retained for display.`,
+        );
+      report.collectionAwardSummary = {
+        brackets: imported.length,
+        nominations: report.awardsAdded,
+        membershipWarnings,
+      };
+    } else if (importType === "table") {
       let tableRows = Array.isArray(options.tableRows)
         ? options.tableRows
         : String(raw || "")
@@ -879,6 +1097,53 @@ window.importData = function (raw, importType, options = {}) {
           'input[name="periodType"][value="alltime"]',
         );
         if (alltimeRadio) alltimeRadio.checked = true;
+      }
+    } else if (importType === "diary") {
+      let data = window.parseDiary(raw);
+      report.source = "Diary";
+      if (!data) {
+        report.skipped += 1;
+        report.warnings.push(
+          "Diary input could not be parsed. Check the header row and entries.",
+        );
+      } else {
+        report.filmsParsed = data.entries.length;
+        report.skipped += data.diagnostics?.skippedRows || 0;
+        report.skippedDetails.push(...(data.diagnostics?.skippedDetails || []));
+        let archiveMatched = 0;
+        let missingArchive = [];
+        let standaloneAdded = 0;
+        let standaloneMerged = 0;
+
+        data.entries.forEach((entry) => {
+          let kind = window.diaryEntryKind(entry.type);
+          if (kind === "archive") {
+            if (findDiaryArchiveFilm(entry)) archiveMatched += 1;
+            else missingArchive.push(entry);
+            return;
+          }
+          let result = upsertDiaryWatchedEntry(entry);
+          if (result.added) standaloneAdded += 1;
+          else standaloneMerged += 1;
+        });
+
+        report.filmsAdded = standaloneAdded;
+        report.filmsMerged = standaloneMerged;
+        if (missingArchive.length) {
+          let samples = missingArchive
+            .slice(0, 8)
+            .map((entry) => `${entry.title} (${entry.year})`)
+            .join(", ");
+          report.warnings.push(
+            `${missingArchive.length} Diary Film/TV-film row(s) did not match All-time and were not imported${samples ? `: ${samples}` : "."}`,
+          );
+        }
+        report.diarySummary = {
+          archiveMatched,
+          missingArchive: missingArchive.length,
+          standaloneAdded,
+          standaloneMerged,
+        };
       }
     } else if (importType === "watchlist") {
       let data = window.parseWatchlist(raw);

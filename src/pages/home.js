@@ -217,8 +217,6 @@
   }
 
   window.renderHomeDashboard = renderHome;
-  window.buildHomeSearchIndex = buildSearchIndex;
-  window.renderHomeSearch = renderSearch;
 
   window
     .ensureOskarsData()

@@ -8,6 +8,21 @@ window.filmConcreteYear = function (value) {
   return /^\d{4}$/.test(year) ? year : "";
 };
 
+/**
+ * Normalizes a film title for comparison with external metadata without
+ * changing the stricter normalization used by persisted local identities.
+ * @param {*} value Film title.
+ * @returns {string} Accent- and punctuation-compatible comparison title.
+ */
+window.comparableFilmTitle = function (value) {
+  return window
+    .normalizeTitle(String(value || "").replace(/\s*&\s*/g, " and "))
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u2018\u2019\u201a\u201b\u02bc\u02bb\u2032\u00b4`]/g, "'")
+    .replace(/[\u2010-\u2015\u2212]/g, "-");
+};
+
 /** Returns a valid decade or century key. @param {*} value Period value. @returns {string} Period key or empty string. */
 window.filmPeriodKey = function (value) {
   let key = String(value || "").trim();

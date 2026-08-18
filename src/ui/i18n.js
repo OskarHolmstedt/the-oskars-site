@@ -15,6 +15,8 @@
     "nav.editor": { sv: "Editor" },
     "nav.data": { sv: "Data" },
     "nav.intake": { sv: "Intag" },
+    "nav.build": { sv: "Bygg dina Oskars" },
+    "nav.rateWatched": { sv: "Betygsätt sedda" },
     "action.view": { sv: "Visa" },
     "search.placeholder": { sv: "Sök" },
     "search.aria": { sv: "Sök i The Oskars" },
@@ -48,6 +50,7 @@
     "menu.browseCategories": { sv: "Bläddra bland alla kategorier" },
     "menu.tags": { sv: "Taggar" },
     "menu.people": { sv: "Personer" },
+    "menu.directors": { sv: "Regissörer" },
     "menu.completion": { sv: "Färdigställande" },
     "menu.statistics": { sv: "Statistik" },
     "menu.openDirectory": { sv: "Öppna sidkatalog" },
@@ -58,32 +61,129 @@
     "theme.papyrus": { sv: "papyrus" },
     "posterGrid.switchOn": { sv: "Visa endast affischer" },
     "posterGrid.switchOff": { sv: "Visa filmdetaljer" },
+    "posterBackdrop.switchOn": { sv: "Visa affischbakgrund" },
+    "posterBackdrop.switchOff": { sv: "Dölj affischbakgrund" },
     "language.switchTo": { sv: "Switch to English" },
     "language.current": { sv: "Svenska" },
     "language.next": { sv: "EN" },
     "period.allTime": { sv: "All-time" },
+    "auth.signOut": { sv: "Logga ut" },
   };
 
   let literalTranslations = {
+    "Build your Oskars": { sv: "Bygg dina Oskars" },
+    "Your film journey": { sv: "Din filmresa" },
+    "Rate, rank, and celebrate your watched history one release year at a time.": {
+      sv: "Betygsätt, ranka och fira din filmhistorik ett premiärår i taget.",
+    },
+    "Journey progress": { sv: "Resans framsteg" },
+    "films rated": { sv: "filmer betygsatta" },
+    "ranking groups arranged": { sv: "rankningsgrupper ordnade" },
+    "award slots filled": { sv: "prisplatser fyllda" },
+    "years complete": { sv: "år klara" },
+    "Continue your journey": { sv: "Fortsätt din resa" },
+    "Needs ratings": { sv: "Behöver betyg" },
+    "Ready to rank": { sv: "Redo att rankas" },
+    "Build the ceremony": { sv: "Bygg ceremonin" },
+    "Year complete": { sv: "Året är klart" },
+    "Rate this year": { sv: "Betygsätt året" },
+    "Rank this year": { sv: "Ranka året" },
+    "View year": { sv: "Visa året" },
+    Ceremonies: { sv: "Ceremonier" },
+    "Filter years by next stage": { sv: "Filtrera år efter nästa steg" },
+    "No years at this stage.": { sv: "Inga år befinner sig i detta steg." },
+    "Ranking groups": { sv: "Rankningsgrupper" },
+    "Award slots": { sv: "Prisplatser" },
+    "{count} rating-only standalone work(s)": {
+      sv: "{count} fristående verk som endast betygsätts",
+    },
+    "Rate watched": { sv: "Betygsätt sedda" },
+    "Back to Intake": { sv: "Tillbaka till intag" },
+    "Back to Build your Oskars": { sv: "Tillbaka till Bygg dina Oskars" },
+    "Give unrated watched entries their exact personal rating, one release year at a time.": {
+      sv: "Ge sedda poster utan betyg deras exakta personliga betyg, ett premiärår i taget.",
+    },
+    "Everything watched is rated": { sv: "Allt sett är betygsatt" },
+    "There are no unrated watched entries with a release year.": {
+      sv: "Det finns inga sedda poster med premiärår som saknar betyg.",
+    },
+    "{count} remaining": { sv: "{count} återstår" },
+    "Unrated years": { sv: "År med poster utan betyg" },
+    "{count} unrated": { sv: "{count} utan betyg" },
+    "Save rating": { sv: "Spara betyg" },
+    "Your rating": { sv: "Ditt betyg" },
+    "Save & next": { sv: "Spara och fortsätt" },
+    "Undo last rating": { sv: "Ångra senaste betyget" },
+    "Rating only": { sv: "Endast betyg" },
+    "Rating mode": { sv: "Betygsläge" },
+    Focus: { sv: "Fokus" },
+    Grid: { sv: "Rutnät" },
+    "Films in this year": { sv: "Verk under året" },
+    "Keys 1–5 set whole stars · − / . / + choose the shade · Enter saves": {
+      sv: "Tangenterna 1–5 väljer hela stjärnor · − / . / + väljer nyans · Enter sparar",
+    },
+    "{current} of {total} left in {year}": {
+      sv: "{current} av {total} kvar från {year}",
+    },
+    "Year rated": { sv: "Året betygsatt" },
+    "is ready": { sv: "är redo" },
+    "You rated all {count} watched work(s) from this year.": {
+      sv: "Du har betygsatt alla {count} sedda verk från året.",
+    },
+    "Return to Build your Oskars": { sv: "Tillbaka till Bygg dina Oskars" },
+    "Choose another year": { sv: "Välj ett annat år" },
+    "Archive milestone": { sv: "Arkivmilstolpe" },
+    "Your Oskars are complete": { sv: "Dina Oskars är klara" },
+    "Every watched year is rated, ranked, and celebrated.": {
+      sv: "Varje sett år är betygsatt, rankat och firat.",
+    },
+    "Open the showcase": { sv: "Öppna utställningen" },
+    "Decade milestone": { sv: "Decenniemilstolpe" },
+    "{scope} is complete": { sv: "{scope} är klart" },
+    "Every watched year in this decade has completed its creative journey.": {
+      sv: "Varje sett år under decenniet har avslutat sin kreativa resa.",
+    },
+    "View the decade": { sv: "Visa decenniet" },
+    "Ceremony complete": { sv: "Ceremonin klar" },
+    "The ballot is sealed and ready to present.": {
+      sv: "Röstsedeln är förseglad och redo att presenteras.",
+    },
+    "Year ranked": { sv: "Året rankat" },
+    "{scope} has its order": { sv: "{scope} har fått sin ordning" },
+    "The year's same-rating shelves are deliberately arranged.": {
+      sv: "Årets hyllor med samma betyg är medvetet ordnade.",
+    },
+    "{scope} is rated": { sv: "{scope} är betygsatt" },
+    "Every watched work from the year now has your grade.": {
+      sv: "Varje sett verk från året har nu ditt betyg.",
+    },
+    "Dismiss milestone": { sv: "Dölj milstolpe" },
+    "Start rebuilding": { sv: "Börja bygga upp igen" },
+    "Your creative journey": { sv: "Din kreativa resa" },
+    "Your archive is ready to make yours": { sv: "Ditt arkiv är redo att bli ditt" },
+    "{count} watched work(s) need your personal rating. Import diagnostics can wait while you start with the films.": {
+      sv: "{count} sedda verk behöver ditt personliga betyg. Importdiagnostiken kan vänta medan du börjar med filmerna.",
+    },
+    "Start building your Oskars": { sv: "Börja bygga dina Oskars" },
+    "Other watched": { sv: "Övrigt sett" },
+    works: { sv: "verk" },
+    "No other watched entries in this period.": {
+      sv: "Inga övriga sedda poster under denna period.",
+    },
     "{count} changes": { sv: "{count} ändringar" },
     "1 change": { sv: "1 ändring" },
     Aliases: { sv: "Alias" },
     "Applied time": { sv: "Tillämpningstid" },
     "All targets": { sv: "Alla mål" },
-    Context: { sv: "Kontext" },
     "Entry id": { sv: "Post-id" },
     "Film metadata": { sv: "Filmmetadata" },
     Imports: { sv: "Importer" },
     Inspect: { sv: "Granska" },
-    Nominations: { sv: "Nomineringar" },
     "No context recorded.": { sv: "Ingen kontext registrerad." },
     "No recorded changes.": { sv: "Inga registrerade ändringar." },
     Notes: { sv: "Anteckningar" },
     Other: { sv: "Övrigt" },
-    Projects: { sv: "Projekt" },
-    Target: { sv: "Mål" },
     "Target id": { sv: "Mål-id" },
-    "Watchlist metadata": { sv: "Watchlistmetadata" },
     Undo: { sv: "Ångra" },
     Undone: { sv: "Ångrad" },
     Undoable: { sv: "Kan ångras" },
@@ -91,7 +191,6 @@
     "Undo of": { sv: "Ångrar post" },
     "Undo preview": { sv: "Förhandsgranska ångring" },
     "Confirm undo": { sv: "Bekräfta ångring" },
-    Cancel: { sv: "Avbryt" },
     "Restores {count} field(s). Nothing changes until you confirm.": {
       sv: "Återställer {count} fält. Inget ändras förrän du bekräftar.",
     },
@@ -161,6 +260,11 @@
     "Average rating": { sv: "Snittbetyg" },
     Avg: { sv: "Snitt" },
     "average rating": { sv: "snittbetyg" },
+    "Auteurs through their known films.": {
+      sv: "Auteurregissörer genom sina kända filmer.",
+    },
+    "All people": { sv: "Alla personer" },
+    "Browse directors": { sv: "Bläddra bland regissörer" },
     "Standard deviation": { sv: "Standardavvikelse" },
     "standard deviation": { sv: "standardavvikelse" },
     "Rated coverage": { sv: "Betygstäckning" },
@@ -190,7 +294,6 @@
     "By release year": { sv: "Efter premiärår" },
     "By release decade": { sv: "Efter premiärårtionde" },
     "By release century": { sv: "Efter premiärårhundrade" },
-    Coverage: { sv: "Täckning" },
     Distribution: { sv: "Fördelning" },
     "extra recorded views": { sv: "extra registrerade visningar" },
     "films watched": { sv: "sedda filmer" },
@@ -275,7 +378,6 @@
       sv: "Lägg till medlemskap från en filmsidas redigeringsläge.",
     },
     "Adapted from": { sv: "Bygger på" },
-    "All films": { sv: "Alla filmer" },
     "All countries": { sv: "Alla länder" },
     "All professions": { sv: "Alla yrken" },
     "All ratings": { sv: "Alla betyg" },
@@ -299,6 +401,10 @@
     "Removed {awards} award placements, {ratings} ratings, {scores} scores, {reviews} reviews, {rewatches} rewatch marks, {tiers} interest tiers, and {notes} notes, and reset {ranks} film rank(s) to the default order.":
       {
         sv: "Tog bort {awards} prisplaceringar, {ratings} betyg, {scores} poäng, {reviews} recensioner, {rewatches} omtittningsmarkeringar, {tiers} intressenivåer och {notes} anteckningar, och återställde {ranks} filmrankningar till standardordningen.",
+      },
+    "Removed {awards} award placements, {ratings} ratings, {scores} scores, {reviews} reviews, {rewatches} rewatch marks, {tiers} interest tiers, and {notes} notes, and reset {ranks} film rank(s) to the default order. {watched} watched work(s) remain ready to rebuild.":
+      {
+        sv: "Tog bort {awards} prisplaceringar, {ratings} betyg, {scores} musikpoäng, {reviews} recensioner, {rewatches} omtittningsmarkeringar, {tiers} intressenivåer och {notes} anteckningar, och återställde {ranks} filmrankningar till standardordningen. {watched} sedda verk finns kvar och är redo att byggas upp igen.",
       },
     "Queue tier": { sv: "Kö-tier" },
     "No queued films in this tier.": {
@@ -346,6 +452,7 @@
     "Award footprint": { sv: "Prisavtryck" },
     "Award density": { sv: "Pristäthet" },
     "Award overlap": { sv: "Prisöverlapp" },
+    "Award stories": { sv: "Prisberättelser" },
     Awards: { sv: "Priser" },
     "At least {rating}": { sv: "Minst {rating}" },
     "At most {rating}": { sv: "Högst {rating}" },
@@ -378,6 +485,29 @@
       },
     "Big wins": { sv: "Stora vinster" },
     "Bracket dominance": { sv: "Bracketdominans" },
+    Sweep: { sv: "Storslam" },
+    "Near sweep": { sv: "Nära storslam" },
+    "Most wins": { sv: "Flest vinster" },
+    Shutout: { sv: "Utan vinst" },
+    "Recurring rivalry": { sv: "Återkommande rivalitet" },
+    "{count} shared categories · {firstWins}–{secondWins} wins": {
+      sv: "{count} gemensamma kategorier · {firstWins}–{secondWins} vinster",
+    },
+    "{nominations} nominations · no wins": {
+      sv: "{nominations} nomineringar · inga vinster",
+    },
+    "Won all {wins} nominations": {
+      sv: "Vann alla {wins} nomineringar",
+    },
+    "{wins} wins from {nominations} nominations · one short": {
+      sv: "{wins} vinster från {nominations} nomineringar · en ifrån",
+    },
+    "{wins} wins from {nominations} nominations": {
+      sv: "{wins} vinster från {nominations} nomineringar",
+    },
+    "The strongest patterns supported by this bracket.": {
+      sv: "De tydligaste mönstren som stöds av den här prisklassen.",
+    },
     Cancel: { sv: "Avbryt" },
     "Canonical name": { sv: "Kanoniskt namn" },
     Categories: { sv: "Kategorier" },
@@ -429,6 +559,17 @@
     "Only first": { sv: "Bara den första" },
     "Only second": { sv: "Bara den andra" },
     Overview: { sv: "Översikt" },
+    "Collection view": { sv: "Samlingsvy" },
+    "Collection awards": { sv: "Samlingspriser" },
+    "No collection awards imported.": {
+      sv: "Inga samlingspriser har importerats.",
+    },
+    "Not matched to collection": { sv: "Inte matchad mot samlingen" },
+    "Ambiguous collection match": { sv: "Tvetydig samlingsmatchning" },
+    "{count} nomination films are not uniquely matched to this collection.": {
+      sv: "{count} nominerade filmer är inte unikt matchade mot denna samling.",
+    },
+    "The Oskars": { sv: "The Oskars" },
     Pair: { sv: "Par" },
     "Recent comparisons": { sv: "Senaste jämförelser" },
     Relationship: { sv: "Relation" },
@@ -489,7 +630,6 @@
     "Clear director filter": { sv: "Rensa regissörsfilter" },
     "Data and backups": { sv: "Data och backup" },
     "Data health": { sv: "Datahälsa" },
-    "Date watched": { sv: "Sedd datum" },
     Decade: { sv: "Årtionde" },
     "Decade score": { sv: "Årtiondepoäng" },
     "Decade rank": { sv: "Årtionderankning" },
@@ -511,6 +651,11 @@
     },
     Director: { sv: "Regissör" },
     "Director(s)": { sv: "Regissör(er)" },
+    "Director display": { sv: "Regissörsvisning" },
+    "Director pages": { sv: "Regissörssidor" },
+    "Directors appear when films or watchlist entries name them.": {
+      sv: "Regissörer visas när filmer eller watchlistposter namnger dem.",
+    },
     "Director ranking": { sv: "Regissörsrankning" },
     Chronological: { sv: "Kronologisk" },
     "Derived from each film’s all-time rank.": {
@@ -535,6 +680,9 @@
     },
     "{count} reviewed this session · {remaining} pairs remain": {
       sv: "{count} granskade denna session · {remaining} par kvar",
+    },
+    "{count} reviewed · {remaining} pairs remain": {
+      sv: "{count} granskade · {remaining} par kvar",
     },
     "Currently ranked higher": { sv: "Rankad högre just nu" },
     "Currently ranked lower": { sv: "Rankad lägre just nu" },
@@ -607,7 +755,6 @@
     Films: { sv: "Filmer" },
     "{count} annual nominations": { sv: "{count} årsnomineringar" },
     "{count} films": { sv: "{count} filmer" },
-    "Films shown": { sv: "Filmer som visas" },
     "Films I want to watch.": { sv: "Filmer jag vill se." },
     "Focused watch queues from directors, franchises, and watchlist filters.": {
       sv: "Fokuserade se-köer från regissörer, franchises och watchlist-filter.",
@@ -710,12 +857,13 @@
     "No winner recorded": { sv: "Ingen vinnare registrerad" },
     "Previous category": { sv: "Föregående kategori" },
     "Previous section": { sv: "Föregående sektion" },
-    "Reveal winner": { sv: "Visa vinnare" },
+    "Reveal ranking": { sv: "Visa rankning" },
+    "Placement {placement}": { sv: "Placering {placement}" },
     "Run ceremony": { sv: "Kör ceremoni" },
     "Section navigation": { sv: "Sektionsnavigering" },
-    "Step through {year}'s categories, revealing nominees before the winner.":
+    "Step through {year}'s categories, revealing the full ranking category by category.":
       {
-        sv: "Gå igenom {year}s kategorier och visa nominerade innan vinnaren.",
+        sv: "Gå igenom {year}s kategorier och visa hela rankningen kategori för kategori.",
       },
     "A curated look at {name}.": { sv: "En kurerad titt på {name}." },
     "A recap of what you watched in {year}.": {
@@ -764,8 +912,10 @@
     projects: { sv: "projekt" },
     categories: { sv: "kategorier" },
     periods: { sv: "perioder" },
+    tags: { sv: "taggar" },
     "Franchise not found": { sv: "Franchise hittades inte" },
     "Franchise pages": { sv: "Franchise-sidor" },
+    "Tag pages": { sv: "Taggsidor" },
     "Franchise film display": { sv: "Franchise-filmvisning" },
     "Franchise rank": { sv: "Franchise-rankning" },
     Franchises: { sv: "Franchises" },
@@ -794,8 +944,6 @@
     "Comma-separated names": { sv: "Kommaseparerade namn" },
     "Full order": { sv: "Full ordning" },
     "Full rankings": { sv: "Full rankning" },
-    "Global ranks": { sv: "Globala rankningar" },
-    "Global rank": { sv: "Global rankning" },
     Includes: { sv: "Innehåller" },
     Interest: { sv: "Intresse" },
     "Interest order": { sv: "Intresseordning" },
@@ -810,10 +958,19 @@
     "Grid view": { sv: "Rutnätsvy" },
     "Hide awards": { sv: "Dölj priser" },
     "Show awards": { sv: "Visa priser" },
+    "Showing all films": { sv: "Visar alla filmer" },
+    "Showing nominees only": { sv: "Visar endast nominerade" },
+    "Toggle films shown": { sv: "Växla filmer som visas" },
     Highlights: { sv: "Höjdpunkter" },
     Hybrid: { sv: "Hybrid" },
     Images: { sv: "Bilder" },
     "Imported posters out of films": { sv: "Importerade posters av filmer" },
+    "Imported posters out of watched films": {
+      sv: "Importerade posters av sedda filmer",
+    },
+    "Imported posters out of watchlist films": {
+      sv: "Importerade posters av watchlist-filmer",
+    },
     "Imported portraits out of people": {
       sv: "Importerade porträtt av personer",
     },
@@ -821,6 +978,26 @@
     "List view": { sv: "Listvy" },
     Links: { sv: "Länkar" },
     "Make active": { sv: "Gör aktivt" },
+    Manage: { sv: "Hantera" },
+    "Manage films": { sv: "Hantera filmer" },
+    "Finish managing": { sv: "Avsluta hantering" },
+    "Finish managing films": { sv: "Avsluta filmhantering" },
+    "Film management is on. Remove controls are visible.": {
+      sv: "Filmhantering är aktiv. Kontroller för borttagning visas.",
+    },
+    "Project management": { sv: "Projekthantering" },
+    "Refresh, lifecycle, films, and deletion": {
+      sv: "Uppdatering, livscykel, filmer och radering",
+    },
+    "Delete project": { sv: "Radera projekt" },
+    "Delete project?": { sv: "Radera projekt?" },
+    'Delete "{name}" permanently?': { sv: 'Radera "{name}" permanent?' },
+    "The project, its note, local order, and dismissed-film history will be removed. Films, ratings, awards, and watchlist entries will not be changed.":
+      {
+        sv: "Projektet, dess anteckning, lokala ordning och historik över borttagna filmer raderas. Filmer, betyg, priser och watchlist-poster ändras inte.",
+      },
+    "Open film": { sv: "Öppna film" },
+    queued: { sv: "i kö" },
     Medium: { sv: "Medium" },
     "Medium & screenplay": { sv: "Medium och manus" },
     Measure: { sv: "Mått" },
@@ -839,6 +1016,7 @@
     "Move through the award brackets and film views at every scale.": {
       sv: "Gå genom prisklasser och filmvyer på varje nivå.",
     },
+    "Music score": { sv: "Musikpoäng" },
     "My score": { sv: "Mitt betyg" },
     Name: { sv: "Namn" },
     "Name or alias": { sv: "Namn eller alias" },
@@ -851,6 +1029,14 @@
     "Up next": { sv: "Näst på tur" },
     "To watch": { sv: "Att se" },
     "In progress only": { sv: "Endast pågående" },
+    "In progress": { sv: "Pågående" },
+    "Known completion": { sv: "Känd färdigställandegrad" },
+    "known completion": { sv: "känd färdigställandegrad" },
+    "Known films": { sv: "Kända filmer" },
+    "No directors match this filter.": {
+      sv: "Inga regissörer matchar filtret.",
+    },
+    "No directors yet": { sv: "Inga regissörer ännu" },
     "Directors in progress": { sv: "Regissörer pågående" },
     "Franchises in progress": { sv: "Franchises pågående" },
     "Projects in progress": { sv: "Projekt pågående" },
@@ -859,6 +1045,60 @@
     "Watch goals reached": { sv: "Nådda titt-mål" },
     "Oscar completion": { sv: "Oscar-färdigställande" },
     "Oscar film completion": { sv: "Oscarfilmer sedda" },
+    "Add unseen": { sv: "Lägg till osedda" },
+    "Add {count} unseen": { sv: "Lägg till {count} osedda" },
+    "Review {count}": { sv: "Granska {count}" },
+    "{ready} ready; {review} need year review": {
+      sv: "{ready} klara; {review} behöver årsgranskning",
+    },
+    "Add unseen films to tier {tier}": {
+      sv: "Lägg till osedda filmer i tier {tier}",
+    },
+    "Add unseen to interest tier": { sv: "Lägg osedda i intressetier" },
+    "Unambiguous scopes add immediately.": {
+      sv: "Entydiga urval läggs till direkt.",
+    },
+    "{count} films need year review": {
+      sv: "{count} filmer behöver årsgranskas",
+    },
+    "Multi-year ceremonies stay out of the watchlist until their release year is known.":
+      {
+        sv: "Ceremonier som omfattar flera år hålls utanför watchlisten tills utgivningsåret är känt.",
+      },
+    "Possible years": { sv: "Möjliga år" },
+    "Add unseen Oscar films?": { sv: "Lägg till osedda Oscarfilmer?" },
+    "{ready} films are ready for tier {tier}. {review} need year review and will be skipped.":
+      {
+        sv: "{ready} filmer är klara för tier {tier}. {review} behöver årsgranskas och hoppas över.",
+      },
+    "Needs review": { sv: "Behöver granskas" },
+    "Add {count} films": { sv: "Lägg till {count} filmer" },
+    "Fetching metadata for {count} films…": {
+      sv: "Hämtar metadata för {count} filmer…",
+    },
+    "Fetching metadata: {done}/{total}": {
+      sv: "Hämtar metadata: {done}/{total}",
+    },
+    "Fetching posters for {count} films…": {
+      sv: "Hämtar affischer för {count} filmer…",
+    },
+    "Fetching posters: {done}/{total}": {
+      sv: "Hämtar affischer: {done}/{total}",
+    },
+    "Added {count} films. Found metadata for {metadata} and posters for {posters}.":
+      {
+        sv: "Lade till {count} filmer. Hittade metadata för {metadata} och affischer för {posters}.",
+      },
+    "Adding {count} films…": { sv: "Lägger till {count} filmer…" },
+    "Films could not be added.": { sv: "Filmerna kunde inte läggas till." },
+    "Added {count} films to tier {tier}.": {
+      sv: "Lade till {count} filmer i tier {tier}.",
+    },
+    "No new films to add.": { sv: "Inga nya filmer att lägga till." },
+    "Removed {count} recently added films.": {
+      sv: "Tog bort {count} nyligen tillagda filmer.",
+    },
+    "Undo failed.": { sv: "Ångringen misslyckades." },
     "Best Picture winners watched": {
       sv: "Sedda vinnare av Bästa film",
     },
@@ -1106,6 +1346,8 @@
     Place: { sv: "Placering" },
     Platform: { sv: "Plattform" },
     Portraits: { sv: "Porträtt" },
+    "Watched posters": { sv: "Posters för sedda filmer" },
+    "Watchlist posters": { sv: "Watchlist-posters" },
     Previous: { sv: "Föregående" },
     "Primary country": { sv: "Primärt land" },
     "Progression table": { sv: "Progressionstabell" },
@@ -1203,6 +1445,22 @@
     "Exact rating": { sv: "Exakt betyg" },
     Errors: { sv: "Fel" },
     "Eligibility metadata": { sv: "Behörighetsmetadata" },
+    Eligibility: { sv: "Behörighet" },
+    "Metadata coverage": { sv: "Metadatatäckning" },
+    "Missing metadata": { sv: "Saknad metadata" },
+    "External media types": { sv: "Externa medietyper" },
+    "Import diagnostics": { sv: "Importdiagnostik" },
+    "Metadata retries": { sv: "Nya metadataförsök" },
+    Coverage: { sv: "Täckning" },
+    "Watchlist films missing director": {
+      sv: "Watchlist-filmer som saknar regissör",
+    },
+    "No watched-film metadata lookups have run this session.": {
+      sv: "Inga metadatauppslag för sedda filmer har körts denna session.",
+    },
+    "No watchlist metadata lookups have run this session.": {
+      sv: "Inga metadatauppslag för watchlist har körts denna session.",
+    },
     "Eligibility violation": { sv: "Behörighetsfel" },
     "Eligibility review queues": { sv: "Granskningsköer för behörighet" },
     "Animated nominees with unknown or non-animation medium": {
@@ -1267,23 +1525,23 @@
       sv: "Använd härledda Letterboxd-länkar",
     },
     Apply: { sv: "Använd" },
-    "Check TMDB media types": { sv: "Kontrollera TMDB-medietyper" },
+    "Check TMDB links": { sv: "Kontrollera TMDB-länkar" },
     "Checking...": { sv: "Kontrollerar..." },
-    "Probes stored TMDB IDs in explicit batches; flags IDs that resolve as TV or are missing.":
+    "Checks watched-film TMDB IDs in explicit batches; lists every title, release year, runtime, media type, or missing-record difference.":
       {
-        sv: "Kontrollerar lagrade TMDB-ID:n i uttryckliga batchar; flaggar ID:n som är TV-serier eller saknas.",
+        sv: "Kontrollerar sedda filmers TMDB-ID:n i uttryckliga batchar; listar alla skillnader i titel, premiärår, speltid, medietyp eller saknad post.",
       },
-    "TMDB media type issues (this session)": {
-      sv: "TMDB-medietypsproblem (denna session)",
+    "TMDB link verification": {
+      sv: "Verifiering av TMDB-länkar",
     },
-    "No media type mismatches found in {count} checked film(s) this session.": {
-      sv: "Inga medietypsavvikelser i {count} kontrollerade filmer denna session.",
+    "No TMDB link issues found in {count} checked film(s) this session.": {
+      sv: "Inga TMDB-länkproblem hittades i {count} kontrollerade filmer denna session.",
     },
     "Local type": { sv: "Lokal typ" },
     "TMDB ID": { sv: "TMDB-ID" },
     Result: { sv: "Resultat" },
-    "Save a TMDB credential before checking media types.": {
-      sv: "Spara en TMDB-nyckel innan medietyper kontrolleras.",
+    "Save a TMDB credential before checking TMDB links.": {
+      sv: "Spara en TMDB-nyckel innan TMDB-länkar kontrolleras.",
     },
     "Checked {attempted}: {ok} OK, {issues} issue(s), {failed} failed. {remaining} film(s) unchecked.":
       {
@@ -1318,7 +1576,6 @@
     Back: { sv: "Tillbaka" },
     "Viewing facts": { sv: "Tittningsuppgifter" },
     "Date watched": { sv: "Sedd datum" },
-    Views: { sv: "Visningar" },
     "Any unfinished rating, ranking, and awards work will remain in the intake queue.": {
       sv: "Ofärdigt arbete med betyg, rankning och priser ligger kvar i intagskön.",
     },
@@ -1342,7 +1599,6 @@
     },
     "Rating and viewing facts": { sv: "Betyg och tittningsuppgifter" },
     "Global ranking": { sv: "Global rankning" },
-    "{level} awards": { sv: "Priser: {level}" },
     "Reviewed; none": { sv: "Granskad; inga" },
     "Not applicable": { sv: "Ej tillämpligt" },
     "The watched film for this intake no longer exists.": {
@@ -1554,7 +1810,7 @@
     "Reverse within tiers": { sv: "Bakåt inom tiers" },
     "Reset {count} dismissed": { sv: "Återställ {count} avfärdade" },
     Role: { sv: "Roll" },
-    Review: { sv: "Text" },
+    Review: { sv: "Granska" },
     "Review / comment": { sv: "Text / kommentar" },
     Rewatchlist: { sv: "Omtittningslista" },
     Ranks: { sv: "Rankningar" },
@@ -1711,8 +1967,6 @@
     "Removed: {titles}.": { sv: "Borttagna: {titles}." },
     Wins: { sv: "Vinster" },
     "Work queues": { sv: "Arbetsköer" },
-    Winner: { sv: "Vinnare" },
-    Winners: { sv: "Vinnare" },
     "Recipients, filmmakers, performers, and other credited contributors.": {
       sv: "Mottagare, filmskapare, skådespelare och andra krediterade medarbetare.",
     },
@@ -1732,6 +1986,9 @@
     "{count} bracket nomination(s)": { sv: "{count} bracketnominering(ar)" },
     "{count} failed import attempt(s)": {
       sv: "{count} misslyckade importförsök",
+    },
+    "{posters} poster and {portraits} portrait import attempt(s) have failed.": {
+      sv: "{posters} poster- och {portraits} porträttimportförsök har misslyckats.",
     },
     "{count} item(s) in queue.": { sv: "{count} poster i kön." },
     "{year}, no films": { sv: "{year}, inga filmer" },
@@ -1869,6 +2126,10 @@
     "Import activity": { sv: "Importaktivitet" },
     "Import notes": { sv: "Importnoteringar" },
     "Import preview": { sv: "Importförhandsgranskning" },
+    "Letterboxd jumpstart": { sv: "Letterboxd-start" },
+    "Awards and rankings are not part of this import.": {
+      sv: "Priser och rankningar ingår inte i den här importen.",
+    },
     "Official results": { sv: "Officiella resultat" },
     "Official nominee": { sv: "Officiellt nominerad" },
     "Official nominations": { sv: "Officiella nomineringar" },
@@ -2018,7 +2279,6 @@
     "Rated franchise rows stored as watched (unmatched in archive)": {
       sv: "Betygsatta franchise-rader lagrade som sedda (ej matchade i arkivet)",
     },
-    Reason: { sv: "Anledning" },
     Row: { sv: "Rad" },
     Rows: { sv: "Rader" },
     "Rule violations": { sv: "Regelbrott" },
@@ -2107,6 +2367,11 @@
       sv: "Försök igen med tidigare försök inkluderade",
     },
     "Session retry queues": { sv: "Sessionens omförsöksköer" },
+    "Image retry queues": { sv: "Omförsöksköer för bilder" },
+    "Missing images": { sv: "Saknade bilder" },
+    "No image lookups have run this session.": {
+      sv: "Inga bilduppslag har körts denna session.",
+    },
     "No metadata lookups have run this session.": {
       sv: "Inga metadata-uppslag har körts denna session.",
     },
@@ -2170,6 +2435,47 @@
     "Clear failed": { sv: "Rensning misslyckades" },
     "Clear log": { sv: "Rensa logg" },
     "Proposal blocked.": { sv: "Förslaget blockerades." },
+
+    // Cloud sync (issue #248)
+    "Sync now": { sv: "Synkronisera nu" },
+    "Syncing...": { sv: "Synkroniserar..." },
+    "{count} item(s) changed on this device and elsewhere - see the status badge to choose which version to keep.":
+      {
+        sv: "{count} objekt har ändrats på den här enheten och någon annanstans - se statusmärket för att välja vilken version som ska behållas.",
+      },
+    "Cloud sync hit an error - it will retry automatically.": {
+      sv: "Molnsynkroniseringen stötte på ett fel - den försöker igen automatiskt.",
+    },
+    "Synced: {pushed} shard(s) uploaded, {pulled} shard(s) downloaded.": {
+      sv: "Synkroniserat: {pushed} del(ar) uppladdade, {pulled} del(ar) nedladdade.",
+    },
+    "Already up to date.": { sv: "Redan uppdaterad." },
+    "Load complete archive from cloud": { sv: "Läs in fullständigt arkiv från molnet" },
+    "Loading from cloud...": { sv: "Läser in från molnet..." },
+    "Could not load the cloud archive: {error}": {
+      sv: "Kunde inte läsa in molnarkivet: {error}",
+    },
+    "Previewed below as a replace proposal - review, then apply the reviewed JSON proposal to draft it locally.":
+      {
+        sv: "Förhandsgranskad nedan som ett ersättningsförslag - granska och tillämpa sedan det granskade JSON-förslaget för att skapa ett lokalt utkast.",
+      },
+    "Could not preview the cloud archive: {error}": {
+      sv: "Kunde inte förhandsgranska molnarkivet: {error}",
+    },
+    "Choose the original .zip file exported by Letterboxd.": {
+      sv: "Välj den ursprungliga .zip-filen som exporterades av Letterboxd.",
+    },
+    "Reading and validating the Letterboxd export locally...": {
+      sv: "Läser och validerar Letterboxd-exporten lokalt...",
+    },
+    "Letterboxd jumpstart is ready. No local data changed; review the report before applying.":
+      {
+        sv: "Letterboxd-starten är klar. Ingen lokal data har ändrats; granska rapporten före tillämpning.",
+      },
+    "Letterboxd data applied to the local draft. Awards and rankings were kept unchanged.":
+      {
+        sv: "Letterboxd-data har tillämpats på det lokala utkastet. Priser och rankningar lämnades oförändrade.",
+      },
     "Proposal ready.": { sv: "Förslaget är klart." },
     "Proposal applied to the local draft. Publish canonical JSON separately.": {
       sv: "Förslaget har tillämpats på det lokala utkastet. Publicera kanonisk JSON separat.",
@@ -2222,7 +2528,7 @@
     "{open} open · {applied} applied · {total} total.": {
       sv: "{open} öppna · {applied} tillämpade · {total} totalt.",
     },
-    // Set up a year (src/pages/setup-year.js)
+    // Year ranking and annual awards
     "Set up a year": { sv: "Sätt upp ett år" },
     "Year not found": { sv: "Året hittades inte" },
     "Set up {year}": { sv: "Sätt upp {year}" },
@@ -2230,6 +2536,21 @@
       sv: "{year} är inte helt uppsatt än.",
     },
     "View {year}": { sv: "Visa {year}" },
+    "Rank a year": { sv: "Ranka ett år" },
+    "Rank {year}": { sv: "Ranka {year}" },
+    "Ranking shelves": { sv: "Rankningshyllor" },
+    "Arrange films only against others with the same exact rating.": {
+      sv: "Ordna filmer endast mot andra med exakt samma betyg.",
+    },
+    "Build annual awards": { sv: "Bygg årets priser" },
+    "Build {year} awards": { sv: "Bygg {year}s priser" },
+    "Build the ballot category by category, then run the ceremony.": {
+      sv: "Bygg röstsedeln kategori för kategori och kör sedan ceremonin.",
+    },
+    "Annual ballot": { sv: "Årlig röstsedel" },
+    "{year} isn't fully built yet.": {
+      sv: "{year} är inte helt byggt än.",
+    },
     Ranking: { sv: "Rankning" },
     Bracket: { sv: "Bracket" },
     "No rated films yet for {year}.": {
@@ -2240,6 +2561,16 @@
       sv: "Varje betygsnivå har redan en entydig ordning.",
     },
     Fill: { sv: "Fyll i" },
+    "Finish category": { sv: "Avsluta kategorin" },
+    "No award this year": { sv: "Inget pris i år" },
+    "Ballot categories": { sv: "Röstsedelns kategorier" },
+    "Next: {category}": { sv: "Nästa: {category}" },
+    reviewed: { sv: "granskade" },
+    "The envelope is sealed": { sv: "Kuvertet är förseglat" },
+    "Your {year} ceremony is ready": { sv: "Din {year}-ceremoni är klar" },
+    "Run the ceremony": { sv: "Starta ceremonin" },
+    "Continue to decade awards": { sv: "Fortsätt till decenniets priser" },
+    "award categories reviewed": { sv: "priskategorier granskade" },
     Collapse: { sv: "Fäll ihop" },
     "No more of {year}'s watched films are eligible for this category.": {
       sv: "Inga fler av {year}s sedda filmer är berättigade till denna kategori.",
@@ -2255,6 +2586,27 @@
     },
     "Show {count} hidden": { sv: "Visa {count} dolda" },
     NR: { sv: "NR" },
+    Settled: { sv: "Avgjord" },
+    Reviewed: { sv: "Granskad" },
+    "Mechanical order": { sv: "Mekanisk ordning" },
+    "Confirm this order": { sv: "Bekräfta ordningen" },
+    "Compare two at a time": { sv: "Jämför två i taget" },
+    "Compare this year two at a time": { sv: "Jämför året två i taget" },
+    "Year heat complete": { sv: "Årets heat är klart" },
+    "Continue to {scope} finals": { sv: "Fortsätt till {scope}-finalen" },
+    "{scope} year heat": { sv: "{scope} årsheat" },
+    "{scope} finals": { sv: "{scope}-final" },
+    "All-time final": { sv: "All-time-final" },
+    "Ranking heat": { sv: "Rankningsheat" },
+    "Final settled": { sv: "Finalen avgjord" },
+    "Only comparisons that cross the already-settled narrower scope are shown in later finals.": {
+      sv: "Senare finaler visar bara jämförelser som korsar den redan avgjorda smalare perioden.",
+    },
+    "Every relevant same-rating comparison in this scope is settled, or there are not two films to compare yet.": {
+      sv: "Alla relevanta jämförelser med samma betyg i perioden är avgjorda, eller så finns ännu inte två filmer att jämföra.",
+    },
+    "Continue to {scope}": { sv: "Fortsätt till {scope}" },
+    "all-time final": { sv: "all-time-finalen" },
     "Add credit": { sv: "Lägg till credit" },
     "Nominate {title} for {category}": {
       sv: "Nominera {title} till {category}",
@@ -2305,12 +2657,14 @@
         sv: "Några påhittade filmer och priser, så att du kan se hur allt fungerar innan du lägger till dina egna.",
       },
     "Load sample archive": { sv: "Ladda exempelarkiv" },
-    "Import an existing backup": { sv: "Importera en befintlig säkerhetskopia" },
-    "Already have an exported backup or canonical file? Import it on the Data page.":
+    "Import Letterboxd or a backup": {
+      sv: "Importera Letterboxd eller en säkerhetskopia",
+    },
+    "Start from an original Letterboxd export ZIP, an Oskars backup, or a canonical file on the Data page.":
       {
-        sv: "Har du redan en exporterad säkerhetskopia eller kanonisk fil? Importera den på Data-sidan.",
+        sv: "Börja från en ursprunglig Letterboxd-export, en Oskars-säkerhetskopia eller en kanonisk fil på Data-sidan.",
       },
-    "Go to Data page": { sv: "Gå till Data-sidan" },
+    "Import existing data": { sv: "Importera befintlig data" },
     "Your empty archive is ready.": { sv: "Ditt tomma arkiv är klart." },
     "Add your first film": { sv: "Lägg till din första film" },
     "Skip for now": { sv: "Hoppa över för nu" },

@@ -2,7 +2,9 @@
  * @file A small, unmistakably fictional canonical archive (issue #252),
  * offered as the "sample archive" first-run onboarding choice. Every film,
  * person, and award below is invented for this purpose and is not part of
- * the private canonical dataset.
+ * the private canonical dataset - except officialResults, which is the same
+ * real, bundled Academy Awards reference data every fresh state gets
+ * (issue #277), included so the sample demonstrates that comparison too.
  */
 
 window.OSKARS_SAMPLE_ARCHIVE = {
@@ -110,7 +112,14 @@ window.OSKARS_SAMPLE_ARCHIVE = {
       ],
     },
   },
-  officialResults: {},
+  // The real Academy Awards record isn't fictional like the rest of this
+  // archive - it's the same bundled reference data every fresh state gets
+  // (issue #277), included here too so the sample demonstrates the Real
+  // Oscars comparison feature.
+  officialResults: JSON.parse(
+    JSON.stringify(window.OSKARS_BUNDLED_OFFICIAL_RESULTS || {}),
+  ),
+  collectionAwards: { director: {}, franchise: {} },
   watchlist: [
     {
       id: "watchlist::the-quiet-orbit",

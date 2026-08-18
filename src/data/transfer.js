@@ -305,6 +305,16 @@ window.mergeData = function (imported, options = {}) {
     if (url && !state.directorLinks[personId])
       state.directorLinks[personId] = url;
   });
+  state.collectionAwards ||= { director: {}, franchise: {} };
+  ["director", "franchise"].forEach((type) => {
+    state.collectionAwards[type] ||= {};
+    Object.entries(imported.collectionAwards?.[type] || {}).forEach(
+      ([collectionId, bracket]) => {
+        if (!state.collectionAwards[type][collectionId])
+          state.collectionAwards[type][collectionId] = window.cloneRecord(bracket);
+      },
+    );
+  });
   state.imageImportStats ||= { posterFailures: 0, portraitFailures: 0 };
   state.imageImportStats.posterFailures = Math.max(
     Number(state.imageImportStats.posterFailures) || 0,

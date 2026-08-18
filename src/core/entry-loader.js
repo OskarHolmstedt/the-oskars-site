@@ -10,9 +10,12 @@
     "editor",
     "data",
     "intake",
+    "build",
+    "rate-watched",
     "film",
     "person",
     "people",
+    "directors",
     "subject",
     "category",
     "categories",
@@ -27,7 +30,8 @@
     "watchlist-merge",
     "local-rank-merge",
     "ranking-review",
-    "setup-year",
+    "rank-year",
+    "awards-year",
     "compare",
     "presentation",
     "completion",
@@ -40,6 +44,9 @@
 
   // Light/dark/papyrus cycle (issue #152); papyrus is only ever reached by
   // explicit toggle, never inferred from prefers-color-scheme.
+  // Duplicated verbatim in src/ui/site-header.js (this file paints the
+  // header synchronously before site-header.js loads, so it can't depend on
+  // that later copy) - keep both in sync on any theme change.
   let THEME_CYCLE = ["light", "dark", "papyrus"];
   let THEME_ICON = { light: "☾", dark: "🔥", papyrus: "☀" };
 
@@ -56,6 +63,14 @@
   function preferredPosterGrid() {
     try {
       return localStorage.getItem("oskars-poster-grid") === "on";
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function preferredPosterBackdrop() {
+    try {
+      return localStorage.getItem("oskars-poster-backdrop") === "on";
     } catch (err) {
       return false;
     }
@@ -108,6 +123,10 @@
       menuTitle: locale === "sv" ? "Sidkatalog" : "Site directory",
       posterGridAria:
         locale === "sv" ? "Växla endast affischer" : "Toggle posters only",
+      posterBackdropShow:
+        locale === "sv" ? "Visa affischbakgrund" : "Show poster backdrop",
+      posterBackdropHide:
+        locale === "sv" ? "Dölj affischbakgrund" : "Hide poster backdrop",
       elsewhere: locale === "sv" ? "Annat" : "Elsewhere",
       discover: locale === "sv" ? "Upptäck" : "Discover",
       compare: locale === "sv" ? "Jämför" : "Compare",
@@ -115,10 +134,13 @@
       completion: locale === "sv" ? "Färdigställande" : "Completion",
       statistics: locale === "sv" ? "Statistik" : "Statistics",
       people: locale === "sv" ? "Personer" : "People",
+      directors: locale === "sv" ? "Regissörer" : "Directors",
       tags: locale === "sv" ? "Taggar" : "Tags",
       editor: "Editor",
       data: "Data",
       intake: locale === "sv" ? "Intag" : "Intake",
+      build: locale === "sv" ? "Bygg dina Oskars" : "Build your Oskars",
+      rateWatched: locale === "sv" ? "Betygsätt sett" : "Rate watched",
     };
     let navItems = [
       ["home", text.home, "index.html"],
@@ -144,6 +166,9 @@
     document.documentElement.dataset.theme = theme;
     let posterGrid = preferredPosterGrid();
     if (posterGrid) document.documentElement.dataset.posterGrid = "on";
+    let posterBackdrop = preferredPosterBackdrop();
+    if (posterBackdrop)
+      document.documentElement.dataset.posterBackdrop = "on";
     document.documentElement.lang = locale;
     header.dataset.siteHeaderReady = "shell";
     header.removeAttribute("data-site-header-pending");
@@ -157,10 +182,11 @@
       <button class="language-toggle" type="button" data-language-toggle aria-label="${text.languageAria}">${text.languageNext}</button>
       <button class="theme-toggle" type="button" data-theme-toggle title="Switch color theme" aria-label="Switch color theme">${THEME_ICON[theme] || "☾"}</button>
       <button class="poster-grid-toggle" type="button" data-poster-grid-toggle aria-pressed="${posterGrid ? "true" : "false"}" title="${text.posterGridAria}" aria-label="${text.posterGridAria}">🖼️</button>
+      <button class="poster-backdrop-toggle" type="button" data-poster-backdrop-toggle aria-pressed="${posterBackdrop ? "true" : "false"}" title="${posterBackdrop ? text.posterBackdropHide : text.posterBackdropShow}" aria-label="${posterBackdrop ? text.posterBackdropHide : text.posterBackdropShow}">🎞️</button>
       <details class="site-menu">
         <summary aria-label="${text.menuAria}" title="${text.menuTitle}"><span></span><span></span><span></span></summary>
         <div class="site-menu-panel">
-          <section><h2>${text.elsewhere}</h2><div class="site-menu-links"><a href="discover.html">${text.discover}</a><a href="compare.html">${text.compare}</a><a href="presentation.html">${text.showcase}</a><a href="completion.html">${text.completion}</a><a href="stats.html">${text.statistics}</a><a href="people.html">${text.people}</a><a href="tags.html">${text.tags}</a><a href="intake.html">${text.intake}</a><a href="editor.html">${text.editor}</a><a href="data.html">${text.data}</a></div></section>
+          <section><h2>${text.elsewhere}</h2><div class="site-menu-links"><a href="discover.html">${text.discover}</a><a href="compare.html">${text.compare}</a><a href="presentation.html">${text.showcase}</a><a href="completion.html">${text.completion}</a><a href="stats.html">${text.statistics}</a><a href="people.html">${text.people}</a><a href="directors.html">${text.directors}</a><a href="tags.html">${text.tags}</a><a href="build.html">${text.build}</a><a href="intake.html">${text.intake}</a><a href="rate-watched.html">${text.rateWatched}</a><a href="editor.html">${text.editor}</a><a href="data.html">${text.data}</a></div></section>
         </div>
       </details>
     </div>`;
@@ -173,18 +199,24 @@
   // dependency chain has to load (previously home/editor/data only rendered the
   // header from their own page script, i.e. after the *entire* list below).
   let headerDependencies = [
+    // Must load before state-shape.js: createEmptyState() reads this
+    // bundled default synchronously at module-load time (issue #277).
+    "src/core/bundled-official-results.js",
     "src/core/state-shape.js",
     "src/core/performance.js",
     "src/domain/category-order.js",
     "src/core/urls.js",
     "src/ui/page-utils.js",
     "src/ui/i18n.js",
+    "src/core/firebase-client.js",
     "src/ui/site-header.js",
   ];
 
   let dependencies = [
     "src/core/canonical-data.js",
     "src/core/reconciliation.js",
+    "src/core/workspace-sections.js",
+    "src/core/workspace-sync-plan.js",
     "src/core/edit-log.js",
     "src/core/edit-undo.js",
     "src/core/state.js",
@@ -199,12 +231,13 @@
     ...(["completion", "project"].includes(entry)
       ? ["src/domain/watch-goals.js"]
       : []),
-    ...(["film", "period", "editor", "data", "intake", "setup-year"].includes(
+    ...(["film", "period", "editor", "data", "intake", "awards-year"].includes(
       entry,
     )
       ? ["src/domain/nomination-plans.js"]
       : []),
     "src/domain/franchises.js",
+    "src/domain/collection-awards.js",
     "src/domain/official-completion.js",
     ...(["period", "category", "stats"].includes(entry)
       ? ["src/domain/official-comparison.js"]
@@ -216,21 +249,61 @@
     "src/domain/merge-order.js",
     "src/domain/watched-films.js",
     "src/domain/watched-intake.js",
+    "src/domain/watched-ratings.js",
+    "src/domain/build-journey.js",
+    ...(["awards-year", "build"].includes(entry)
+      ? ["src/domain/award-reviews.js"]
+      : []),
     "src/domain/posters.js",
+    ...([
+      "build",
+      "rate-watched",
+      "tags",
+      "franchises",
+      "directors",
+      "projects",
+    ].includes(entry)
+      ? ["src/ui/poster-deck.js"]
+      : []),
     "src/domain/poster-selection.js",
     "src/domain/image-providers.js",
     "src/domain/image-batches.js",
-    ...(["film", "period", "data", "setup-year"].includes(entry)
-      ? ["src/domain/editing.js"]
+    "src/domain/tmdb-link-check.js",
+    ...(["film", "period", "data", "rate-watched", "build"].includes(entry)
+      ? [
+          "src/domain/film-metadata-editing.js",
+          "src/domain/all-time-ranking.js",
+          "src/domain/award-placement-editing.js",
+        ]
+      : []),
+    ...(entry === "rank-year"
+      ? [
+          "src/domain/all-time-ranking.js",
+          "src/domain/ranking-consistency.js",
+        ]
+      : []),
+    ...(entry === "awards-year"
+      ? [
+          "src/domain/film-metadata-editing.js",
+          "src/domain/award-placement-editing.js",
+        ]
       : []),
     ...(entry === "ranking-review"
-      ? ["src/domain/editing.js", "src/domain/ranking-consistency.js"]
+      ? [
+          "src/domain/film-metadata-editing.js",
+          "src/domain/all-time-ranking.js",
+          "src/domain/award-placement-editing.js",
+          "src/domain/ranking-consistency.js",
+        ]
       : []),
-    ...(["period", "setup-year"].includes(entry)
-      ? ["src/domain/ranking-consistency.js"]
+    ...(entry === "period"
+      ? [
+          "src/domain/ranking-consistency.js",
+          "src/domain/award-stories.js",
+        ]
       : []),
     ...(entry === "period" ? ["src/domain/decade-merge.js"] : []),
-    ...(["editor", "data", "intake", "setup-year"].includes(entry)
+    ...(["editor", "data", "intake", "awards-year"].includes(entry)
       ? ["src/domain/films.js"]
       : []),
     "src/domain/stats.js",
@@ -242,6 +315,7 @@
     "src/core/aggregates.js",
     ...(entry === "data" ? ["src/domain/data-health.js"] : []),
     "src/imports/ranked-list.js",
+    "src/imports/diary.js",
     "src/imports/watchlists.js",
     "src/imports/sheet-import-utils.js",
     "src/imports/brackets.js",
@@ -249,6 +323,10 @@
     "src/imports/franchise-sheet.js",
     "src/imports/director-sheet.js",
     "src/imports/importer.js",
+    "src/ui/country.js",
+    "src/ui/film-rating.js",
+    "src/ui/sort-keys.js",
+    "src/ui/people-credits.js",
     "src/ui/collapsibles.js",
     "src/ui/award-credit.js",
     "src/ui/pagination.js",
@@ -263,6 +341,7 @@
     "src/ui/notes.js",
     "src/ui/search.js",
     "src/ui/posters.js",
+    "src/ui/backdrop.js",
     ...(entry === "data"
       ? [
           "src/data/health-view.js",
@@ -279,14 +358,19 @@
           "src/pages/period/award-view.js",
           "src/pages/period/film-view.js",
           "src/pages/period/official-results-view.js",
+          "src/pages/period/watchlist-view.js",
         ]
       : []),
+    ...(entry === "compare" ? ["src/pages/compare/panels.js"] : []),
     "src/core/persistence.js",
     ...(entry === "data"
       ? [
           "src/data/transfer.js",
           "src/data/publication.js",
+          "src/data/public-profile-publication.js",
           "src/data/import-proposals.js",
+          "src/imports/zip.js",
+          "src/imports/letterboxd.js",
           "src/data/official-results.js",
           "src/data/google-sheets.js",
         ]
@@ -299,6 +383,8 @@
           "src/pages/home-onboarding.js",
         ]
       : []),
+    "src/core/migrations.js",
+    "src/core/firestore-sync.js",
     "src/core/bootstrap.js",
   ];
 
@@ -342,15 +428,34 @@
     renderBlockedMessage("Could not load page", String(err.message || err));
   }
 
-  // Owner-mutation pages: editor.html and data.html. Gated below the UI
-  // layer (issue #245) — a viewer-mode session never loads their
-  // dependencies or controller script at all, regardless of how it
-  // navigated there.
-  let ownerOnlyEntries = new Set(["editor", "data"]);
+  // Owner-mutation pages: editor.html, data.html, and every guided
+  // mutation-workflow page that has no independent read-only content of its
+  // own (intake, rank-year, awards-year, watchlist-merge, local-rank-merge,
+  // ranking-review — issue #256 broadened this from editor/data alone,
+  // issue #245's original set). Gated below the UI layer — a viewer-mode
+  // session never loads their dependencies or controller script at all,
+  // regardless of how it navigated there.
+  let ownerOnlyEntries = new Set([
+    "editor",
+    "data",
+    "intake",
+    "build",
+    "rate-watched",
+    "rank-year",
+    "awards-year",
+    "watchlist-merge",
+    "local-rank-merge",
+    "ranking-review",
+  ]);
 
   (async function () {
     await loadScript("src/core/runtime-mode.js");
     await loadScript("runtime-mode.config.js", true);
+    // Loaded early, before the owner-page gate below, so an active public-
+    // profile session (issue #253 — a per-tab override on top of the baked
+    // mode, not a baked mode itself) can block owner-only pages regardless
+    // of deployment mode. Its later entry in `dependencies` is removed.
+    await loadScript("src/core/public-profile.js");
     let runtimeModeResult = window.resolveRuntimeMode(
       window.OSKARS_RUNTIME_MODE,
     );
@@ -360,21 +465,29 @@
       return;
     }
     let capabilities = window.runtimeModeCapabilities(runtimeModeResult.mode);
-    if (!capabilities.allowOwnerPages) {
+    let activeProfileSlug = window.resolveActiveProfileSlug?.();
+    if (!capabilities.allowOwnerPages || activeProfileSlug) {
       document
         .querySelectorAll(
-          '.site-menu-links a[href="editor.html"], .site-menu-links a[href="data.html"]',
+          '.site-menu-links a[href="editor.html"], .site-menu-links a[href="data.html"], .site-menu-links a[href="intake.html"], .site-menu-links a[href="build.html"], .site-menu-links a[href="rate-watched.html"]',
         )
         .forEach((link) => link.remove());
     }
-    if (ownerOnlyEntries.has(entry) && !capabilities.allowOwnerPages) {
+    if (ownerOnlyEntries.has(entry) && (!capabilities.allowOwnerPages || activeProfileSlug)) {
       renderBlockedMessage(
-        "Not available in viewer mode",
-        "This page requires owner or local access.",
+        activeProfileSlug
+          ? "Not available while viewing a public profile"
+          : "Not available in viewer mode",
+        activeProfileSlug
+          ? "Stop viewing the public profile to use this page."
+          : "This page requires owner or local access.",
       );
       return;
     }
     await loadScript("config.local.js", true);
+    // Non-secret, unlike config.local.js — see docs/google-signin-firestore-decision.md.
+    // Optional: absent until the owner sets up a real Firebase project (issue #255).
+    await loadScript("firebase.config.js", true);
     for (let dependency of headerDependencies) await loadScript(dependency);
     window.renderSiteHeader?.();
     for (let dependency of dependencies) await loadScript(dependency);
@@ -387,6 +500,7 @@
           ? "src/editor/app.js"
           : `src/pages/${entry}.js`,
     );
+    window.refreshOskarsBackdrop?.();
     window.renderPosterAttribution?.();
   })().catch(renderLoadError);
 })();

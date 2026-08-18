@@ -6,9 +6,11 @@
 /**
  * Parses a ranked-list export into canonical film records.
  * @param {string} raw Raw CSV or TSV text.
+ * @param {Object} [options] Parsing controls.
+ * @param {boolean} [options.includeRowNumbers] Whether records retain source row numbers.
  * @returns {Object|null} Parsed all-time period and diagnostics, or null for empty input.
  */
-function parseRankedList(raw) {
+function parseRankedList(raw, options = {}) {
   let parsedRows = parseRankedListDelimitedRows(raw);
   if (!parsedRows.length) return null;
 
@@ -70,7 +72,7 @@ function parseRankedList(raw) {
       ? 4
       : 3;
   let rankIndex = columns
-    ? columnIndex(["fixed rank", "rank", "dynamic rank"])
+    ? columnIndex(["fixed rank"])
     : rankPrefixedRows
       ? 0
       : -1;
@@ -80,8 +82,8 @@ function parseRankedList(raw) {
       ? 5
       : -1;
   let inferredMediumIndex = inferRankedListMediumIndex(rows);
-  let genreIndex = columns
-    ? columnIndex(["genre", "genres", "tag", "tags"])
+  let tagIndex = columns
+    ? columnIndex(["tag"])
     : rankPrefixedRows
       ? 6
       : -1;
@@ -133,12 +135,12 @@ function parseRankedList(raw) {
       ? 11
       : -1;
   let dateWatchedIndex = columns
-    ? columnIndex(["date watched", "watched date", "watched"])
+    ? columnIndex(["date watched", "watched date", "watched", "date"])
     : rankPrefixedRows
       ? 12
       : -1;
-  let personalScoreIndex = columns
-    ? columnIndex(["score", "personal score"])
+  let musicScoreIndex = columns
+    ? columnIndex(["score", "music score", "soundtrack score"])
     : rankPrefixedRows
       ? 13
       : -1;
@@ -156,11 +158,6 @@ function parseRankedList(raw) {
     ? columnIndex(["runtime", "runtime minutes", "minutes"])
     : rankPrefixedRows
       ? 16
-      : -1;
-  let globalRankIndex = columns
-    ? columnIndex(["global rank", "globalrank"])
-    : rankPrefixedRows
-      ? 17
       : -1;
   let tmdbIndex = columns
     ? columnIndex(["tmdbid", "tmdb id", "tmdb"])
@@ -249,8 +246,8 @@ function parseRankedList(raw) {
     let type = cleanRankedListDash(
       (typeIndex >= 0 ? cols[typeIndex] : "") || "",
     );
-    let genre = cleanRankedListDash(
-      (genreIndex >= 0 ? cols[genreIndex] : "") || "",
+    let tag = cleanRankedListDash(
+      (tagIndex >= 0 ? cols[tagIndex] : "") || "",
     );
     let liveAction = cleanCell((liveIndex >= 0 ? cols[liveIndex] : "") || "");
     let adaptation = cleanCell((adaptIndex >= 0 ? cols[adaptIndex] : "") || "");
@@ -264,8 +261,8 @@ function parseRankedList(raw) {
     let dateWatched = cleanCell(
       (dateWatchedIndex >= 0 ? cols[dateWatchedIndex] : "") || "",
     );
-    let personalScore = cleanCell(
-      (personalScoreIndex >= 0 ? cols[personalScoreIndex] : "") || "",
+    let musicScore = cleanCell(
+      (musicScoreIndex >= 0 ? cols[musicScoreIndex] : "") || "",
     );
     let franchises = cleanCell(
       (franchiseIndex >= 0 ? cols[franchiseIndex] : "") || "",
@@ -275,9 +272,6 @@ function parseRankedList(raw) {
     );
     let runtime = cleanCell(
       (runtimeIndex >= 0 ? cols[runtimeIndex] : "") || "",
-    );
-    let globalRank = cleanCell(
-      (globalRankIndex >= 0 ? cols[globalRankIndex] : "") || "",
     );
     let tmdbId = cleanCell((tmdbIndex >= 0 ? cols[tmdbIndex] : "") || "");
     let letterboxdUrl = cleanCell(
@@ -301,7 +295,7 @@ function parseRankedList(raw) {
     let yearValues = splitCellLines(year);
     let titleValues = splitCellLines(title);
     let ratingValues = splitCellLines(rating);
-    let genreValues = splitCellLines(genre);
+    let tagValues = splitCellLines(tag);
     let countryValues = splitCellLines(country);
     let franchiseValues = splitCellLines(franchises);
     let tmdbValues = splitCellLines(tmdbId);
@@ -310,7 +304,7 @@ function parseRankedList(raw) {
       yearValues.length,
       titleValues.length,
       ratingValues.length,
-      genreValues.length,
+      tagValues.length,
       countryValues.length,
       franchiseValues.length,
       tmdbValues.length,
@@ -335,8 +329,8 @@ function parseRankedList(raw) {
         partCount,
       );
       let alignedTypes = alignedRankedListValues(type, partCount);
-      let alignedGenres = alignedRankedListValues(
-        valueAt(genreValues, rowPartIndex),
+      let alignedTags = alignedRankedListValues(
+        valueAt(tagValues, rowPartIndex),
         partCount,
       );
       let alignedLiveAction = alignedRankedListValues(liveAction, partCount);
@@ -351,17 +345,13 @@ function parseRankedList(raw) {
       );
       let alignedViews = alignedRankedListValues(views, partCount);
       let alignedDatesWatched = alignedRankedListValues(dateWatched, partCount);
-      let alignedPersonalScores = alignedRankedListValues(
-        personalScore,
-        partCount,
-      );
+      let alignedMusicScores = alignedRankedListValues(musicScore, partCount);
       let alignedFranchises = alignedRankedListValues(
         valueAt(franchiseValues, rowPartIndex),
         partCount,
       );
       let alignedPlatforms = alignedRankedListValues(platform, partCount);
       let alignedRuntimes = alignedRankedListValues(runtime, partCount);
-      let alignedGlobalRanks = alignedRankedListValues(globalRank, partCount);
       let alignedTmdbIds = alignedRankedListValues(
         valueAt(tmdbValues, rowPartIndex),
         partCount,
@@ -383,8 +373,8 @@ function parseRankedList(raw) {
         let partType = cleanRankedListDash(
           valueAt(alignedTypes, titlePartIndex),
         );
-        let partGenre = cleanRankedListDash(
-          valueAt(alignedGenres, titlePartIndex),
+        let partTags = cleanRankedListDash(
+          valueAt(alignedTags, titlePartIndex),
         );
         let partLiveAction = valueAt(alignedLiveAction, titlePartIndex);
         let partAdaptation = valueAt(alignedAdaptation, titlePartIndex);
@@ -397,24 +387,23 @@ function parseRankedList(raw) {
         );
         let partViews = valueAt(alignedViews, titlePartIndex);
         let partDateWatched = valueAt(alignedDatesWatched, titlePartIndex);
-        let partPersonalScore = valueAt(alignedPersonalScores, titlePartIndex);
+        let partMusicScore = valueAt(alignedMusicScores, titlePartIndex);
         let partFranchises = valueAt(alignedFranchises, titlePartIndex);
         let partPlatform = cleanRankedListDash(
           valueAt(alignedPlatforms, titlePartIndex),
         );
         let partRuntime = valueAt(alignedRuntimes, titlePartIndex);
-        let partGlobalRank = valueAt(alignedGlobalRanks, titlePartIndex);
         let partTmdbId = valueAt(alignedTmdbIds, titlePartIndex);
         let partLetterboxdUrl = valueAt(alignedLetterboxdUrls, titlePartIndex);
 
-        films.push({
+        let film = {
           title: partTitle,
           year: partYear,
           rank: Number.isFinite(rank) ? rank : null,
           director: partDirector,
           rating: partRating,
           type: partType,
-          tags: window.parseFilmTags?.(partGenre) || [],
+          tags: window.parseFilmTags?.(partTags) || [],
           liveAction: partLiveAction,
           adaptation: partAdaptation,
           adaptationSource: partAdaptationSource,
@@ -423,11 +412,10 @@ function parseRankedList(raw) {
           dateWatched: window.normalizeWatchedDate
             ? window.normalizeWatchedDate(partDateWatched)
             : cleanRankedListDash(partDateWatched),
-          personalScore: numberOrNull(partPersonalScore),
+          musicScore: musicScoreOrNull(partMusicScore),
           franchises: window.parseFranchiseMemberships?.(partFranchises) || [],
           platform: partPlatform,
           runtimeMinutes: positiveIntegerOrNull(partRuntime),
-          globalRank: positiveIntegerOrNull(partGlobalRank),
           tmdbId: partTmdbId,
           letterboxdUrl: partLetterboxdUrl,
           url: partLetterboxdUrl,
@@ -439,7 +427,10 @@ function parseRankedList(raw) {
               ? titleStructure.partTitles.map((title) => ({ title }))
               : null,
           awards: [],
-        });
+        };
+        if (options.includeRowNumbers)
+          film.rowNumber = rowIndex + (hasHeader ? 2 : 1);
+        films.push(film);
       });
     });
   });
@@ -634,6 +625,13 @@ function numberOrNull(value) {
   if (!text) return null;
   let number = Number(text);
   return Number.isFinite(number) ? number : null;
+}
+
+function musicScoreOrNull(value) {
+  let text = cleanRankedListDash(value);
+  if (!text) return null;
+  let rating = window.renderFilmRating?.(text) || "";
+  return rating || numberOrNull(text);
 }
 
 function positiveIntegerOrNull(value) {

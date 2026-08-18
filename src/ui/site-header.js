@@ -6,6 +6,10 @@
   // Light/dark/papyrus cycle (issue #152); papyrus is only ever reached by
   // explicit toggle, never inferred from prefers-color-scheme. The icon
   // shown for a theme represents the *next* theme the toggle switches to.
+  // Duplicated verbatim in src/core/entry-loader.js (that file paints the
+  // header synchronously before this file loads, so it can't depend on this
+  // copy without reintroducing a blocking request) - keep both in sync on
+  // any theme change.
   let THEME_CYCLE = ["light", "dark", "papyrus"];
   let THEME_ICON = { light: "☾", dark: "🔥", papyrus: "☀" };
 
@@ -71,6 +75,37 @@
     } catch (err) {}
   };
 
+  function preferredPosterBackdrop() {
+    try {
+      return localStorage.getItem("oskars-poster-backdrop") === "on";
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function posterBackdropToggleTitle(enabled) {
+    return headerText(
+      enabled ? "posterBackdrop.switchOff" : "posterBackdrop.switchOn",
+      enabled ? "Hide poster backdrop" : "Show poster backdrop",
+    );
+  }
+
+  /** Applies and persists the decorative contextual poster backdrop preference. @param {boolean} enabled Whether the backdrop is on. */
+  window.applyOskarsPosterBackdrop = function (enabled) {
+    if (enabled) document.documentElement.dataset.posterBackdrop = "on";
+    else delete document.documentElement.dataset.posterBackdrop;
+    try {
+      localStorage.setItem(
+        "oskars-poster-backdrop",
+        enabled ? "on" : "off",
+      );
+    } catch (err) {}
+    window.refreshOskarsBackdrop?.();
+  };
+
+  if (typeof document !== "undefined" && preferredPosterBackdrop())
+    document.documentElement.dataset.posterBackdrop = "on";
+
   function headerText(key, fallback, values) {
     return window.t ? window.t(key, fallback, values) : fallback;
   }
@@ -133,8 +168,8 @@
 
   function primaryNavHtml(active) {
     // Kept short and fixed so the header never wraps or resizes between pages.
-    // Everything else (Discover, Compare, People, Tags, Editor, Data) lives in
-    // the site-menu dropdown instead.
+    // Everything else (Discover, Compare, People, Directors, Tags, Editor,
+    // Data) lives in the site-menu dropdown instead.
     let primaryItems = [
       ["home", headerText("nav.home", "Home"), "index.html"],
       ["periods", headerText("nav.periods", "Periods"), "periods.html"],
@@ -200,9 +235,22 @@
           `<a href="${escape(window.periodPageUrl("decade", key))}">${escape(key)}</a>`,
       ),
     ].join("");
-    return `<section class="site-menu-categories"><h2>${escape(headerText("menu.categories", "Categories"))}</h2><div class="site-menu-links"><a href="categories.html"><b>${escape(headerText("menu.browseCategories", "Browse all categories"))}</b></a>${categories}</div></section>
+    // Owner-only entries (issue #256): entry-loader.js already removes these
+    // from the initial static header before this dynamic render replaces
+    // the whole panel, so this render must independently omit them too, or
+    // it would silently put them right back for a viewer-mode session. Also
+    // omitted for an active public-profile session (issue #253) regardless
+    // of baked mode, matching entry-loader.js's owner-page gate.
+    let allowOwnerPages =
+      (window.runtimeModeCapabilities?.(window.getRuntimeMode?.())
+        ?.allowOwnerPages ?? true) && !window.resolveActiveProfileSlug?.();
+    let ownerLinks = allowOwnerPages
+      ? `<a href="build.html">${escape(headerText("nav.build", "Build your Oskars"))}</a><a href="intake.html">${escape(headerText("nav.intake", "Intake"))}</a><a href="rate-watched.html">${escape(headerText("nav.rateWatched", "Rate watched"))}</a><a href="editor.html">${escape(headerText("nav.editor", "Editor"))}</a><a href="data.html">${escape(headerText("nav.data", "Data"))}</a>`
+      : "";
+    return `<div class="site-menu-account" data-auth-status>${authStatusInnerHtml(escape)}</div>
+    <section class="site-menu-categories"><h2>${escape(headerText("menu.categories", "Categories"))}</h2><div class="site-menu-links"><a href="categories.html"><b>${escape(headerText("menu.browseCategories", "Browse all categories"))}</b></a>${categories}</div></section>
     <section><h2>${escape(headerText("menu.periods", "Periods"))}</h2><div class="site-menu-links site-menu-periods"><a href="periods.html"><b>${escape(headerText("menu.browsePeriods", "Browse all periods"))}</b></a>${periodLinks}</div></section>
-    <section><h2>${escape(headerText("menu.elsewhere", "Elsewhere"))}</h2><div class="site-menu-links"><a href="discover.html">${escape(headerText("menu.discover", "Discover"))}</a><a href="compare.html">${escape(headerText("nav.compare", "Compare"))}</a><a href="presentation.html">${escape(headerText("menu.showcase", "Showcase"))}</a><a href="completion.html">${escape(headerText("menu.completion", "Completion"))}</a><a href="stats.html">${escape(headerText("menu.statistics", "Statistics"))}</a><a href="people.html">${escape(headerText("menu.people", "People"))}</a><a href="tags.html">${escape(headerText("menu.tags", "Tags"))}</a><a href="intake.html">${escape(headerText("nav.intake", "Intake"))}</a><a href="editor.html">${escape(headerText("nav.editor", "Editor"))}</a><a href="data.html">${escape(headerText("nav.data", "Data"))}</a></div></section>`;
+    <section><h2>${escape(headerText("menu.elsewhere", "Elsewhere"))}</h2><div class="site-menu-links"><a href="discover.html">${escape(headerText("menu.discover", "Discover"))}</a><a href="compare.html">${escape(headerText("nav.compare", "Compare"))}</a><a href="presentation.html">${escape(headerText("menu.showcase", "Showcase"))}</a><a href="completion.html">${escape(headerText("menu.completion", "Completion"))}</a><a href="stats.html">${escape(headerText("menu.statistics", "Statistics"))}</a><a href="people.html">${escape(headerText("menu.people", "People"))}</a><a href="directors.html">${escape(headerText("menu.directors", "Directors"))}</a><a href="tags.html">${escape(headerText("menu.tags", "Tags"))}</a>${ownerLinks}</div></section>`;
   }
 
   function updateLanguageToggle(button) {
@@ -210,6 +258,52 @@
     button.textContent = headerText("language.next", "SV");
     button.title = headerText("language.switchTo", "Switch to Swedish");
     button.setAttribute("aria-label", button.title);
+  }
+
+  // The menu panel's [data-auth-status] container lives inside
+  // dynamicMenuHtml()'s output, which is fully regenerated on every
+  // renderSiteHeader() call (language toggle, etc.) - so its *content*
+  // can't just be set once by onFirebaseAuthChange()'s callback, which
+  // only fires on real sign-in/sign-out, not on every re-render.
+  // lastKnownAuthUser is the cached state authStatusInnerHtml() renders
+  // from on every regeneration; renderAuthStatus() (the live callback)
+  // updates both the cache and, if the container currently exists, its
+  // innerHTML directly.
+  let lastKnownAuthUser = null;
+  let authStatusSubscribed = false;
+
+  // Signed-out state renders an empty container for Google's own "Sign in
+  // with Google" button (issue #255) - not a custom button - since only
+  // Google's own rendered button (via google.accounts.id.renderButton())
+  // reliably works from this app's real deployment shape (GitHub Pages,
+  // not Firebase Hosting); signInWithPopup()/signInWithRedirect() were
+  // both tried and confirmed broken by live testing, a known Firebase SDK
+  // limitation for apps not hosted on Firebase - see
+  // docs/google-signin-firestore-decision.md.
+  function authStatusInnerHtml(escape) {
+    if (!window.oskarsFirebaseConfigured?.()) return "";
+    return lastKnownAuthUser
+      ? `<span class="auth-status-name">${escape(lastKnownAuthUser.displayName || lastKnownAuthUser.email || "Signed in")}</span><button type="button" data-google-sign-out>${escape(headerText("auth.signOut", "Sign out"))}</button>`
+      : `<div data-google-signin-button></div>`;
+  }
+
+  // Google's rendered button needs a live DOM element, not an HTML string
+  // - called after every point authStatusInnerHtml()'s output lands in the
+  // DOM (both here and at the end of renderSiteHeader()'s own render
+  // cycle, since dynamicMenuHtml() regenerates this container on every
+  // call). A no-op when signed in (no such container then) or unconfigured.
+  function refreshGoogleSignInButton() {
+    let container = document.querySelector("[data-google-signin-button]");
+    if (container) window.renderGoogleSignInButton?.(container);
+  }
+
+  function renderAuthStatus(user) {
+    lastKnownAuthUser = user;
+    let container = document.querySelector("[data-auth-status]");
+    if (!container) return;
+    let escape = window.pageEscape || ((value) => String(value ?? ""));
+    container.innerHTML = authStatusInnerHtml(escape);
+    refreshGoogleSignInButton();
   }
 
   function bindSiteHeader(header, escape) {
@@ -239,6 +333,23 @@
         );
       });
     header
+      .querySelector("[data-poster-backdrop-toggle]")
+      ?.addEventListener("click", (event) => {
+        let next = !(
+          document.documentElement.dataset.posterBackdrop === "on"
+        );
+        window.applyOskarsPosterBackdrop(next);
+        event.currentTarget.setAttribute(
+          "aria-pressed",
+          next ? "true" : "false",
+        );
+        event.currentTarget.title = posterBackdropToggleTitle(next);
+        event.currentTarget.setAttribute(
+          "aria-label",
+          posterBackdropToggleTitle(next),
+        );
+      });
+    header
       .querySelector("[data-language-toggle]")
       ?.addEventListener("click", () => {
         window.toggleOskarsLocale?.();
@@ -246,6 +357,29 @@
         header.dataset.siteHeaderBound = "";
         window.renderSiteHeader?.();
       });
+    // Delegated on `header` itself, not the [data-auth-status] container:
+    // that container lives inside dynamicMenuHtml()'s output, which gets
+    // torn down and rebuilt on every renderSiteHeader() call (language
+    // toggle, etc.), so a direct listener on it would silently stop
+    // working after the first re-render. `header` is the one element that
+    // never gets replaced (only its innerHTML is reassigned) - but it also
+    // never gets destroyed between rebinds, so this needs its own guard
+    // independent of siteHeaderBound (which resets on every language
+    // toggle) or repeated toggles would stack duplicate listeners. Only
+    // sign-out is handled here - sign-in is Google's own rendered button
+    // (google.accounts.id.renderButton()), which handles its own clicks.
+    if (!header.dataset.authDelegationBound) {
+      header.dataset.authDelegationBound = "true";
+      header.addEventListener("click", async (event) => {
+        if (event.target.closest("[data-google-sign-out]")) {
+          await window.signOutOfFirebase?.();
+        }
+      });
+    }
+    if (!authStatusSubscribed) {
+      authStatusSubscribed = true;
+      window.onFirebaseAuthChange?.(renderAuthStatus);
+    }
     let searchForm = header.querySelector("[data-site-search]");
     let searchInput = header.querySelector("[data-site-search-input]");
     let searchResults = header.querySelector("[data-site-search-results]");
@@ -362,6 +496,7 @@
       <button class="language-toggle" type="button" data-language-toggle></button>
       <button class="theme-toggle" type="button" data-theme-toggle title="${escape(themeToggleTitle(nextOskarsTheme(preferredTheme())))}" aria-label="${escape(headerText("theme.switch", "Switch color theme"))}">${THEME_ICON[preferredTheme()] || "☾"}</button>
       <button class="poster-grid-toggle" type="button" data-poster-grid-toggle aria-pressed="${preferredPosterGrid() ? "true" : "false"}" title="${escape(posterGridToggleTitle(preferredPosterGrid()))}" aria-label="${escape(posterGridToggleTitle(preferredPosterGrid()))}">🖼️</button>
+      <button class="poster-backdrop-toggle" type="button" data-poster-backdrop-toggle aria-pressed="${preferredPosterBackdrop() ? "true" : "false"}" title="${escape(posterBackdropToggleTitle(preferredPosterBackdrop()))}" aria-label="${escape(posterBackdropToggleTitle(preferredPosterBackdrop()))}">🎞️</button>
       <details class="site-menu">
         <summary aria-label="${escape(headerText("menu.openDirectory", "Open site directory"))}" title="${escape(headerText("menu.openDirectory", "Site directory"))}"><span></span><span></span><span></span></summary>
         <div class="site-menu-panel">
@@ -386,6 +521,10 @@
     bindSiteHeader(header, escape);
     updateLanguageToggle(header.querySelector("[data-language-toggle]"));
     header._siteSearchEntries = null;
+    // dynamicMenuHtml() (called above, both render paths) creates a fresh
+    // [data-google-signin-button] container each time - re-render Google's
+    // button into it every time, not just once at initial bind.
+    refreshGoogleSignInButton();
     done?.();
   };
 })();

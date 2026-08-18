@@ -4,6 +4,7 @@ let ui = window.uiText || ((text) => text);
 let pendingGoogleImportProposal = null;
 let pendingJsonImportProposal = null;
 let pendingOfficialResultsProposal = null;
+let pendingLetterboxdImportProposal = null;
 
 function updateGoogleFoundationControls() {
   let option = document.querySelector(
@@ -22,6 +23,9 @@ function renderDataWorkspace() {
   renderEditLogView(document.getElementById("editLogView"));
   window.renderCanonicalPublication?.(
     document.getElementById("canonicalPublicationView"),
+  );
+  window.renderPublicProfilePublication?.(
+    document.getElementById("publicProfilePublicationView"),
   );
   updateGoogleFoundationControls();
   window.renderDataHealth(document.getElementById("dataHealthView"), {
@@ -382,6 +386,159 @@ async function applyJsonImportProposal() {
   button.textContent = ui("Applied to draft");
 }
 
+/**
+ * Shows or hides the Cloud sync panel (issue #248) - only meaningful once
+ * signed in, matching every other optional-credential feature in this app
+ * (TMDB posters, Sheets import) showing nothing at all when unconfigured.
+ * @param {Object|null} user Current Firebase user, or null when signed out.
+ */
+function updateCloudSyncPanelVisibility(user) {
+  let panel = document.getElementById("cloudSyncPanel");
+  if (panel) panel.hidden = !user;
+}
+
+/**
+ * Runs a manual cloud sync pass and reports its outcome inline, in
+ * addition to the shared corner status badge window.reportWorkspaceSyncStatus
+ * already updates - useful here since a manual "Sync now" click deserves
+ * an immediate answer next to the button, not just the corner badge.
+ */
+async function runManualCloudSync() {
+  let button = document.getElementById("cloudSyncNowBtn");
+  let status = document.getElementById("cloudSyncStatus");
+  button.disabled = true;
+  button.textContent = ui("Syncing...");
+  let result = await window.runWorkspaceSync?.({ reason: "manual" });
+  button.disabled = false;
+  button.textContent = ui("Sync now");
+  if (!result) return;
+  if (result.conflicts?.length) {
+    status.textContent = ui(
+      "{count} item(s) changed on this device and elsewhere - see the status badge to choose which version to keep.",
+      { count: result.conflicts.length },
+    );
+  } else if (result.hadError) {
+    status.textContent = ui("Cloud sync hit an error - it will retry automatically.");
+  } else if (result.pushedCount || result.pulledCount) {
+    status.textContent = ui(
+      "Synced: {pushed} shard(s) uploaded, {pulled} shard(s) downloaded.",
+      { pushed: result.pushedCount, pulled: result.pulledCount },
+    );
+  } else {
+    status.textContent = ui("Already up to date.");
+  }
+}
+
+/**
+ * Loads the complete archive straight from Firestore (issue #248) and
+ * previews it as a replace proposal through the exact same pipeline a
+ * restored JSON backup file uses - nothing is applied until the owner
+ * reviews and confirms, matching every other import path on this page.
+ */
+async function previewCloudRestore() {
+  let button = document.getElementById("cloudRestoreBtn");
+  let status = document.getElementById("cloudSyncStatus");
+  button.disabled = true;
+  button.textContent = ui("Loading from cloud...");
+  try {
+    let fetched = await window.fetchCanonicalDataFromCloud?.();
+    if (!fetched?.ok) {
+      status.textContent = ui("Could not load the cloud archive: {error}", {
+        error: fetched?.error || "unknown error",
+      });
+      return;
+    }
+    let proposal = window.proposeJsonImport(fetched.canonical, {
+      mode: "replace",
+      sourceName: "Cloud workspace",
+    });
+    pendingJsonImportProposal = proposal;
+    window.showImportReport?.(
+      window.compactImportReport?.(proposal.report, { preview: true }) ||
+        proposal.report,
+    );
+    document.getElementById("jsonImportApplyBtn").disabled = !proposal.allowed;
+    status.textContent = ui(
+      "Previewed below as a replace proposal - review, then apply the reviewed JSON proposal to draft it locally.",
+    );
+  } catch (err) {
+    status.textContent = ui("Could not preview the cloud archive: {error}", {
+      error: err.message || String(err),
+    });
+  } finally {
+    button.disabled = false;
+    button.textContent = ui("Load complete archive from cloud");
+  }
+}
+
+async function previewLetterboxdZip(event) {
+  let input = event.currentTarget;
+  let file = input.files?.[0];
+  let button = document.getElementById("letterboxdImportApplyBtn");
+  let status = document.getElementById("letterboxdImportStatus");
+  let finishTimer = window.startOskarsPerformance?.("letterboxd:preview");
+  pendingLetterboxdImportProposal = null;
+  button.disabled = true;
+  if (!file) {
+    finishTimer?.("no file selected");
+    return;
+  }
+  if (!/\.zip$/i.test(file.name)) {
+    status.textContent = ui("Choose the original .zip file exported by Letterboxd.");
+    input.value = "";
+    finishTimer?.("rejected filename");
+    return;
+  }
+  status.textContent = ui("Reading and validating the Letterboxd export locally...");
+  try {
+    let proposal = await window.proposeLetterboxdZipImport(file, {
+      fileName: file.name,
+    });
+    pendingLetterboxdImportProposal = proposal;
+    window.showImportReport?.(
+      window.compactImportReport?.(proposal.report, { preview: true }) ||
+        proposal.report,
+    );
+    button.disabled = !proposal.allowed;
+    status.textContent = proposal.allowed
+      ? ui(
+          "Letterboxd jumpstart is ready. No local data changed; review the report before applying.",
+        )
+      : `${ui("Proposal blocked.")} ${proposal.validation.errors.map((entry) => entry.message).join(" ")}`;
+    finishTimer?.(`${proposal.report.filmsParsed || 0} watched film(s)`);
+  } catch (err) {
+    console.error("Letterboxd ZIP preview failed", err);
+    status.textContent = err.message || String(err);
+    finishTimer?.("preview failed");
+  } finally {
+    input.value = "";
+  }
+}
+
+async function applyLetterboxdImportProposal() {
+  let button = document.getElementById("letterboxdImportApplyBtn");
+  let status = document.getElementById("letterboxdImportStatus");
+  if (!pendingLetterboxdImportProposal) return;
+  button.disabled = true;
+  button.textContent = ui("Applying...");
+  let result = await window.applyImportProposal(
+    pendingLetterboxdImportProposal,
+  );
+  if (!result.ok) {
+    status.textContent = result.errors.join(" ");
+    button.textContent = ui("Apply failed");
+    return;
+  }
+  pendingLetterboxdImportProposal = null;
+  status.textContent = ui(
+    "Letterboxd data applied to the local draft. Awards and rankings were kept unchanged.",
+  );
+  renderDataWorkspace();
+  button = document.getElementById("letterboxdImportApplyBtn");
+  button.disabled = true;
+  button.textContent = ui("Applied to draft");
+}
+
 async function previewOfficialResultsFile(event) {
   let input = event.currentTarget;
   let file = input.files?.[0];
@@ -444,7 +601,11 @@ function handleAliasAction(event) {
   let openQueue = event.target.closest("[data-data-health-open-queue]");
   if (openQueue) {
     try {
-      window.openDataHealthQueue(openQueue.dataset.dataHealthOpenQueue);
+      window.openDataHealthQueue(
+        openQueue.dataset.dataHealthOpenQueue,
+        undefined,
+        openQueue.dataset.dataHealthQueueDetail,
+      );
     } catch (e) {
       console.error(e);
     }
@@ -507,8 +668,8 @@ function handleAliasAction(event) {
   if (changed) persistDataWorkspace();
 }
 
-// Explicit, bounded TMDB media type check (issue #42). Each click probes the
-// next batch of stored TMDB IDs; session-level attempt tracking in
+// Explicit, bounded watched-film TMDB link check (issues #42/#280). Each click
+// probes the next batch of stored TMDB IDs; session-level attempt tracking in
 // checkTmdbMediaTypes keeps repeat clicks moving through the archive.
 async function runTmdbMediaTypeCheck(button) {
   let statusText = (message) => {
@@ -517,7 +678,7 @@ async function runTmdbMediaTypeCheck(button) {
   };
   let settings = window.getPosterSettings();
   if (!settings.tmdbCredential) {
-    statusText(ui("Save a TMDB credential before checking media types."));
+    statusText(ui("Save a TMDB credential before checking TMDB links."));
     return;
   }
   button.disabled = true;
@@ -544,10 +705,10 @@ async function runTmdbMediaTypeCheck(button) {
       ),
     );
   } catch (err) {
-    console.error("TMDB media type check failed", err);
+    console.error("TMDB link check failed", err);
     statusText(err.message || String(err));
     button.disabled = false;
-    button.textContent = ui("Check TMDB media types");
+    button.textContent = ui("Check TMDB links");
   }
 }
 
@@ -692,6 +853,66 @@ function handleEditLogFilterChange(event) {
   renderDataWorkspace();
 }
 
+// Shared owner of the Data page's destructive "danger zone" actions (clear
+// opinions, reset ranking, remove awards): every one of them downloads a
+// backup before mutating, so a future 4th destructive action reuses this
+// safeguard by construction instead of needing to remember to copy it.
+// Confirmation happens in the caller, before this runs.
+/**
+ * Runs one danger-zone destructive action: downloads a stamped backup,
+ * disables/relabels the button, applies the mutation, saves, re-renders the
+ * page, updates a status line, then restores the button label after a
+ * pause. The button is re-selected from the DOM both before and after
+ * `renderDataWorkspace()`, since that re-render replaces the button node.
+ * @param {Object} options Action definition.
+ * @param {Function} options.reselectButton Re-finds the current button element.
+ * @param {string} options.busyText Button label while running.
+ * @param {string} options.doneText Button label immediately after completion.
+ * @param {string} options.restingText Button label restored after the pause.
+ * @param {string} options.backupFilenamePrefix Backup filename prefix before the timestamp.
+ * @param {Function} options.perform Applies the mutation; returns a result for statusText.
+ * @param {string} options.statusElementId Status element id to update.
+ * @param {Function} options.statusText Formats the result into status text.
+ */
+async function runDangerZoneAction({
+  reselectButton,
+  busyText,
+  doneText,
+  restingText,
+  backupFilenamePrefix,
+  perform,
+  statusElementId,
+  statusText,
+  statusAction,
+}) {
+  let button = reselectButton();
+  button.disabled = true;
+  button.textContent = busyText;
+  let stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  window.downloadDataSnapshot?.(`${backupFilenamePrefix}-${stamp}.json`);
+  let result = perform();
+  let saving = window.save({ immediate: true, rebuild: false });
+  if (saving?.then) await saving;
+  renderDataWorkspace();
+  let status = document.getElementById(statusElementId);
+  if (status) {
+    status.textContent = statusText(result);
+    if (statusAction) {
+      let action = statusAction(result);
+      status.insertAdjacentHTML(
+        "beforeend",
+        ` <a class="button-link data-journey-action" href="${editLogEscape(action.href)}">${editLogEscape(action.label)} →</a>`,
+      );
+    }
+  }
+  button = reselectButton();
+  button.disabled = false;
+  button.textContent = doneText;
+  setTimeout(() => {
+    button.textContent = restingText;
+  }, 1400);
+}
+
 async function initializeDataWorkspace() {
   await window.ensureOskarsData();
   let settings = window.getPosterSettings();
@@ -746,8 +967,17 @@ async function initializeDataWorkspace() {
     .getElementById("downloadBtn")
     .addEventListener("click", window.downloadData);
   document
+    .getElementById("letterboxdZipInput")
+    .addEventListener("change", previewLetterboxdZip);
+  document
+    .getElementById("letterboxdImportApplyBtn")
+    .addEventListener("click", applyLetterboxdImportProposal);
+  document
     .getElementById("canonicalPublicationView")
     .addEventListener("click", window.handleCanonicalPublicationAction);
+  document
+    .getElementById("publicProfilePublicationView")
+    .addEventListener("click", window.handlePublicProfilePublicationAction);
   document.getElementById("uploadInput").addEventListener("change", (event) => {
     window.uploadData(event, {
       render: false,
@@ -769,6 +999,13 @@ async function initializeDataWorkspace() {
   document
     .getElementById("jsonImportApplyBtn")
     .addEventListener("click", applyJsonImportProposal);
+  window.onFirebaseAuthChange?.(updateCloudSyncPanelVisibility);
+  document
+    .getElementById("cloudSyncNowBtn")
+    ?.addEventListener("click", runManualCloudSync);
+  document
+    .getElementById("cloudRestoreBtn")
+    ?.addEventListener("click", previewCloudRestore);
   document
     .getElementById("officialResultsInput")
     .addEventListener("change", previewOfficialResultsFile);
@@ -826,38 +1063,35 @@ async function initializeDataWorkspace() {
         )
       )
         return;
-      let button = document.getElementById("clearOpinionsBtn");
-      button.disabled = true;
-      button.textContent = ui("Deleting...");
-      let stamp = new Date().toISOString().replace(/[:.]/g, "-");
-      window.downloadDataSnapshot?.(
-        `oskars-data-backup-before-opinion-clear-${stamp}.json`,
-      );
-      let report = window.clearOpinionData();
-      let saving = window.save({ immediate: true, rebuild: false });
-      if (saving?.then) await saving;
-      renderDataWorkspace();
-      let status = document.getElementById("clearOpinionsStatus");
-      if (status)
-        status.textContent = ui(
-          "Removed {awards} award placements, {ratings} ratings, {scores} scores, {reviews} reviews, {rewatches} rewatch marks, {tiers} interest tiers, and {notes} notes, and reset {ranks} film rank(s) to the default order.",
-          {
-            awards: report.awards,
-            ratings: report.ratings,
-            ranks: report.ranks,
-            scores: report.scores,
-            reviews: report.reviews,
-            rewatches: report.rewatchIntents,
-            tiers: report.tiers,
-            notes: report.notes,
-          },
-        );
-      button = document.getElementById("clearOpinionsBtn");
-      button.disabled = false;
-      button.textContent = ui("Deleted");
-      setTimeout(() => {
-        button.textContent = ui("Delete opinions");
-      }, 1400);
+      await runDangerZoneAction({
+        reselectButton: () => document.getElementById("clearOpinionsBtn"),
+        busyText: ui("Deleting..."),
+        doneText: ui("Deleted"),
+        restingText: ui("Delete opinions"),
+        backupFilenamePrefix: "oskars-data-backup-before-opinion-clear",
+        perform: () => {
+          let report = window.clearOpinionData();
+          report.watchedRemaining = window.watchedFilmsForRating().length;
+          return report;
+        },
+        statusElementId: "clearOpinionsStatus",
+        statusText: (report) =>
+          ui(
+            "Removed {awards} award placements, {ratings} ratings, {scores} scores, {reviews} reviews, {rewatches} rewatch marks, {tiers} interest tiers, and {notes} notes, and reset {ranks} film rank(s) to the default order. {watched} watched work(s) remain ready to rebuild.",
+            {
+              awards: report.awards,
+              ratings: report.ratings,
+              ranks: report.ranks,
+              scores: report.scores,
+              reviews: report.reviews,
+              rewatches: report.rewatchIntents,
+              tiers: report.tiers,
+              notes: report.notes,
+              watched: report.watchedRemaining,
+            },
+          ),
+        statusAction: () => ({ href: "build.html", label: ui("Start rebuilding") }),
+      });
     });
   document
     .getElementById("clearDataBtn")
@@ -890,7 +1124,6 @@ async function initializeDataWorkspace() {
     .getElementById("resetRankingForm")
     .addEventListener("submit", async (event) => {
       event.preventDefault();
-      let form = event.currentTarget;
       let fromYear = dangerZoneYearBound(
         document.getElementById("resetRankingFromYear"),
       );
@@ -906,30 +1139,18 @@ async function initializeDataWorkspace() {
         )
       )
         return;
-      let button = form.querySelector("button");
-      button.disabled = true;
-      button.textContent = ui("Resetting...");
-      let stamp = new Date().toISOString().replace(/[:.]/g, "-");
-      window.downloadDataSnapshot?.(
-        `oskars-data-backup-before-ranking-reset-${stamp}.json`,
-      );
-      let result = window.resetRankingToDefaultOrder({ fromYear, toYear });
-      let saving = window.save({ immediate: true, rebuild: false });
-      if (saving?.then) await saving;
-      renderDataWorkspace();
-      let status = document.getElementById("resetRankingStatus");
-      if (status)
-        status.textContent = ui("Reset {count} film rank(s).", {
-          count: result.changed,
-        });
-      button = document
-        .getElementById("resetRankingForm")
-        .querySelector("button");
-      button.disabled = false;
-      button.textContent = ui("Reset");
-      setTimeout(() => {
-        button.textContent = ui("Reset rankings");
-      }, 1400);
+      await runDangerZoneAction({
+        reselectButton: () =>
+          document.getElementById("resetRankingForm").querySelector("button"),
+        busyText: ui("Resetting..."),
+        doneText: ui("Reset"),
+        restingText: ui("Reset rankings"),
+        backupFilenamePrefix: "oskars-data-backup-before-ranking-reset",
+        perform: () => window.resetRankingToDefaultOrder({ fromYear, toYear }),
+        statusElementId: "resetRankingStatus",
+        statusText: (result) =>
+          ui("Reset {count} film rank(s).", { count: result.changed }),
+      });
     });
   document
     .getElementById("clearAwardsForm")
@@ -958,30 +1179,19 @@ async function initializeDataWorkspace() {
         )
       )
         return;
-      let button = form.querySelector("button");
-      button.disabled = true;
-      button.textContent = ui("Removing...");
-      let stamp = new Date().toISOString().replace(/[:.]/g, "-");
-      window.downloadDataSnapshot?.(
-        `oskars-data-backup-before-award-clear-${stamp}.json`,
-      );
-      let result = window.clearAwardsInScope({ periodTypes, fromYear, toYear });
-      let saving = window.save({ immediate: true, rebuild: false });
-      if (saving?.then) await saving;
-      renderDataWorkspace();
-      let status = document.getElementById("clearAwardsStatus");
-      if (status)
-        status.textContent = ui("Removed {count} nomination(s).", {
-          count: result.removed,
-        });
-      button = document
-        .getElementById("clearAwardsForm")
-        .querySelector("button");
-      button.disabled = false;
-      button.textContent = ui("Removed");
-      setTimeout(() => {
-        button.textContent = ui("Remove awards");
-      }, 1400);
+      await runDangerZoneAction({
+        reselectButton: () =>
+          document.getElementById("clearAwardsForm").querySelector("button"),
+        busyText: ui("Removing..."),
+        doneText: ui("Removed"),
+        restingText: ui("Remove awards"),
+        backupFilenamePrefix: "oskars-data-backup-before-award-clear",
+        perform: () =>
+          window.clearAwardsInScope({ periodTypes, fromYear, toYear }),
+        statusElementId: "clearAwardsStatus",
+        statusText: (result) =>
+          ui("Removed {count} nomination(s).", { count: result.removed }),
+      });
     });
 }
 

@@ -7,6 +7,17 @@ function metadataBatchUi(text, values) {
   return window.uiText?.(text, values) ?? text;
 }
 
+function metadataBatchWatchedFilms() {
+  let films = new Map();
+  Object.values(window.state.filmsById || {}).forEach((film) =>
+    films.set(film.id, film),
+  );
+  (window.state.watchedOther || []).forEach((film) =>
+    films.set(film.id, film),
+  );
+  return [...films.values()];
+}
+
 /**
  * Returns the localized label for a metadata batch type.
  * @param {string} type Batch type identifier.
@@ -34,15 +45,14 @@ window.metadataBatchLabel = function (type) {
  */
 window.metadataBatchPreviewCount = function (type, settings) {
   if (type === "film-metadata")
-    return Object.values(window.state.filmsById || {}).filter(
-      window.filmNeedsMetadataLookup,
-    ).length;
+    return metadataBatchWatchedFilms().filter(window.filmNeedsMetadataLookup)
+      .length;
   if (type === "watchlist-metadata")
     return (window.state.watchlist || []).filter(
       window.watchlistNeedsMetadataLookup,
     ).length;
   if (type === "film-posters")
-    return Object.values(window.state.filmsById || {}).filter((film) =>
+    return metadataBatchWatchedFilms().filter((film) =>
       window.filmNeedsPosterLookup(film, settings),
     ).length;
   if (type === "watchlist-posters")
@@ -200,7 +210,7 @@ function combineMetadataBatchResults(results) {
 async function runMetadataBatchType(type, options) {
   let source =
     type === "film-metadata" || type === "film-posters"
-      ? Object.values(window.state.filmsById || {})
+      ? metadataBatchWatchedFilms()
       : type === "watchlist-metadata" ||
           type === "watchlist-posters" ||
           type === "non-archive-metadata" ||

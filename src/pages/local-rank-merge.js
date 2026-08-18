@@ -78,29 +78,6 @@
     });
   }
 
-  function renderCompare() {
-    let remainingA = session.listA.length - session.pointerA;
-    let remainingB = session.listB.length - session.pointerB;
-    let cardA = renderCompareCard(session.listA[session.pointerA], "a");
-    let cardB = renderCompareCard(session.listB[session.pointerB], "b");
-    let progressText = ui("{a} left in Group A, {b} left in Group B", {
-      a: window.uiCount?.(remainingA, "film", "films") || `${remainingA} films`,
-      b: window.uiCount?.(remainingB, "film", "films") || `${remainingB} films`,
-    });
-    return `<section class="watchlist-merge-compare" data-watchlist-merge-compare>
-      <p class="watchlist-merge-progress">${escape(ui("Which one ranks higher?"))} · ${escape(progressText)}</p>
-      <div class="watchlist-merge-choice">
-        ${cardA}
-        <span class="watchlist-merge-vs">${escape(ui("or"))}</span>
-        ${cardB}
-      </div>
-      <div class="watchlist-merge-compare-actions">
-        <button type="button" class="sort-order-button" data-merge-undo${session.history.length ? "" : " disabled"}>${escape(ui("Undo last choice"))}</button>
-        <button type="button" class="sort-order-button" data-merge-cancel>${escape(ui("Cancel merge"))}</button>
-      </div>
-    </section>`;
-  }
-
   function renderPreview() {
     let itemsHtml = session.merged
       .map(
@@ -134,7 +111,10 @@
     });
     let body =
       step === "compare"
-        ? renderCompare()
+        ? window.renderMergeCompareStep(session, renderCompareCard, {
+            escape,
+            ui,
+          })
         : step === "preview"
           ? renderPreview()
           : step === "done"
@@ -174,49 +154,26 @@
     render();
   }
 
-  container.addEventListener("click", (event) => {
-    if (event.target.closest("[data-merge-start]")) {
-      startMerge();
-      return;
-    }
-    let pickTarget = event.target.closest("[data-watchlist-merge-pick]");
-    if (pickTarget) {
-      pick(pickTarget.dataset.watchlistMergePick);
-      return;
-    }
-    if (event.target.closest("[data-merge-undo]")) {
-      undoLastPick();
-      return;
-    }
-    if (event.target.closest("[data-merge-cancel]")) {
+  window.wireMergeCompareControls(container, {
+    start: startMerge,
+    pick,
+    undo: undoLastPick,
+    cancel: () => {
       session = null;
       step = "setup";
       render();
-      return;
-    }
-    if (event.target.closest("[data-merge-apply]")) {
-      applyMerge();
-      return;
-    }
-    if (event.target.closest("[data-merge-restart]")) {
+    },
+    apply: applyMerge,
+    restart: () => {
       step = "setup";
       render();
-      return;
-    }
-    if (event.target.closest("[data-merge-again]")) {
+    },
+    again: () => {
       session = null;
       applyResult = null;
       step = "setup";
       render();
-    }
-  });
-
-  container.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    let pickTarget = event.target.closest("[data-watchlist-merge-pick]");
-    if (!pickTarget) return;
-    event.preventDefault();
-    pick(pickTarget.dataset.watchlistMergePick);
+    },
   });
 
   render();

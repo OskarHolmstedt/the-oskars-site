@@ -13,6 +13,13 @@
     container.innerHTML = `<div class="detail-empty"><h1>${escape(ui("Franchise not found"))}</h1><a href="franchises.html">${escape(ui("Browse franchises"))}</a></div>`;
     return;
   }
+  let collectionPageView =
+    window.pageQueryParam("collection-view") === "awards" ? "awards" : "films";
+  let collectionAwardModel = window.collectionAwardViewModel?.(
+    "franchise",
+    franchise.id,
+  );
+  if (!collectionAwardModel) collectionPageView = "films";
   let finishRenderTimer = window.startOskarsPerformance?.("franchise:render");
   let parents = (
     franchise.parentIds?.length
@@ -42,6 +49,14 @@
     .filter(Boolean);
   let entries = franchise.films
     .map((entry) => ({ entry, film: state.filmsById[entry.filmId] }))
+    .filter((item) => item.film);
+  let otherEntries = (franchise.otherFilms || [])
+    .map((entry) => ({
+      entry,
+      film: (state.watchedOther || []).find(
+        (film) => film.id === entry.filmId,
+      ),
+    }))
     .filter((item) => item.film);
   let ratingStatistics =
     franchise.ratingStatistics ||
@@ -87,24 +102,11 @@
     ? window.renderFilmPoster(representative, "detail")
     : "";
   let years = entries
+    .concat(otherEntries)
     .map((item) => Number(item.film.year))
     .filter(Number.isFinite);
   function allTimeOrder(left, right) {
-    let leftRank = Number(left.film.allTimeRank);
-    let rightRank = Number(right.film.allTimeRank);
-    let leftKnown = Number.isFinite(leftRank) && leftRank > 0;
-    let rightKnown = Number.isFinite(rightRank) && rightRank > 0;
-    if (leftKnown && rightKnown)
-      return (
-        leftRank - rightRank ||
-        window.compareEnglishTitles(left.film.title, right.film.title)
-      );
-    if (leftKnown) return -1;
-    if (rightKnown) return 1;
-    return (
-      Number(left.film.year || 0) - Number(right.film.year || 0) ||
-      window.compareEnglishTitles(left.film.title, right.film.title)
-    );
+    return window.compareByAllTimeRank(left, right, (item) => item.film);
   }
   function franchiseViewUrl(next = {}) {
     let sort = next.sort || filmSort;
@@ -120,6 +122,8 @@
       parts.push(`&order=${order}`);
     }
     if (view === "grid") parts.push("&view=grid");
+    if (collectionPageView === "awards")
+      parts.push("&collection-view=awards");
     if (nextSections === "combined") parts.push("&sections=combined");
     if (watchlistOrderEditMode && nextSections !== "combined")
       parts.push("&edit=watchlist-order");
@@ -138,6 +142,9 @@
     });
   }
   let allTimeOrderedEntries = [...entries].sort(allTimeOrder);
+  let localRankEntries = allTimeOrderedEntries.concat(
+    [...otherEntries].sort(allTimeOrder),
+  );
   let franchiseRank = new Map(
     allTimeOrderedEntries.map((item, index) => [item.film.id, index + 1]),
   );
@@ -145,7 +152,7 @@
   // have to agree with the implicit rank above, alongside it as a second
   // sort axis rather than replacing it. Only offered in split-sections view,
   // matching watchlistOrderEditMode's existing constraint.
-  let implicitFilmIds = allTimeOrderedEntries.map((item) => item.film.id);
+  let implicitFilmIds = localRankEntries.map((item) => item.film.id);
   // Only computed when actually displayed/edited - avoids the extra
   // stored-order lookup and merge on every render of a page that isn't
   // using this sort axis.
@@ -159,7 +166,7 @@
     window.pageQueryParam("edit") === "local-rank";
   let filmEntries =
     filmSort === "local"
-      ? [...entries].sort((left, right) => {
+      ? [...localRankEntries].sort((left, right) => {
           let leftPos = localRankMap.get(left.film.id) ?? Infinity;
           let rightPos = localRankMap.get(right.film.id) ?? Infinity;
           return filmOrder === "desc"
@@ -167,6 +174,16 @@
             : leftPos - rightPos;
         })
       : [...entries].sort(franchiseCompare);
+  let otherFilmEntries = (filmSort === "local" ? [] : [...otherEntries]).sort((left, right) => {
+    if (filmSort === "rank")
+      return (
+        Number(left.entry.rank || 999999) -
+          Number(right.entry.rank || 999999) ||
+        Number(left.film.year || 0) - Number(right.film.year || 0) ||
+        window.compareEnglishTitles(left.film.title, right.film.title)
+      );
+    return franchiseCompare(left, right);
+  });
   watchlistEntries = [...watchlistEntries].sort(franchiseCompare);
   if (watchlistOrderEditMode)
     watchlistEntries = [...watchlistEntries].sort((left, right) =>
@@ -241,6 +258,20 @@
         metaFragments: context ? [`${escape(ui("via"))} ${context}`] : [],
       },
     )}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape, assumeIndexed: true })}</td>${window.renderRatingTierCell({ film }, { escape })}</tr>`;
+  }
+
+  function franchiseOtherRow({ film }) {
+    return `<tr><td><a class="period-link" href="${escape(`${window.periodPageUrl("year", film.year)}&view=other`)}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td><td>${escape(film.type || ui("Other"))}</td>${window.renderRatingTierCell({ film }, { escape })}</tr>`;
+  }
+
+  function franchiseOtherCard({ film }) {
+    return window.renderSharedFilmCard(film, {
+      classes: ["franchise-film-card", "other-watched-card"],
+      showYear: true,
+      directorHtml: window.renderLinkedDirectors(film, { escape }),
+      escape,
+      bodyHtml: `<div class="leaderboard-meta">${escape(film.type || ui("Other"))}</div>`,
+    });
   }
   let rows = filmEntries
     .map((entryRecord, index) => franchiseFilmRow(entryRecord, index))
@@ -389,6 +420,8 @@
   let watchlistRows = watchlistEntries
     .map((record, index) => franchiseWatchlistRow(record, { index }))
     .join("");
+  let otherRows = otherFilmEntries.map(franchiseOtherRow).join("");
+  let otherGrid = otherFilmEntries.map(franchiseOtherCard).join("");
   let watchlistGrid = watchlistEntries
     .map((record, index) => franchiseWatchlistCard(record, { index }))
     .join("");
@@ -426,7 +459,7 @@
       ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-franchise-watchlist-order-edit-toggle>${escape(ui(watchlistOrderEditMode ? "Finish order" : "Reorder"))}</button>${watchlistOrderEditMode ? `<span>${escape(ui("Edits global watchlist order inside the same interest tier only."))}</span>` : ""}</div>`
       : "";
   let localRankControls =
-    !combinedView && filmSort === "local" && entries.length > 1
+    !combinedView && filmSort === "local" && localRankEntries.length > 1
       ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-franchise-local-rank-edit-toggle>${escape(ui(localRankEditMode ? "Finish order" : "Reorder"))}</button>${localRankEditMode ? `<span>${escape(ui("Drag to set this collection's independent local order."))}</span>` : `<a class="sort-order-button" href="${escape(window.localRankMergePageUrl("franchises", franchise.id, franchiseViewUrl()))}">${escape(ui("Merge-sort tool"))}</a>`}</div>`
       : "";
   let watchlistBulkTierControls =
@@ -455,6 +488,8 @@
     { escape },
   )}
   ${window.renderDetailHeader({ classes: "franchise-detail-header", leadingHtml: representativePoster ? `<div class="franchise-detail-poster">${representativePoster}</div>` : "", mainHtml: `<h1>${escape(franchise.name)}</h1><p>${parentLinks ? `${escape(ui("Part of"))} ${parentLinks}` : escape(ui("Franchise"))}${sourceLinkHtml}</p>`, actionsHtml: window.renderSourceProjectAction("franchise", franchise.id, { escape }) })}
+  ${collectionAwardModel ? `<nav class="collection-page-view-controls" aria-label="${escape(ui("Collection view"))}">${collectionPageView === "films" ? `<strong>${escape(ui("Overview"))}</strong>` : `<a href="${escape(window.franchisePageUrl(franchise.id))}">${escape(ui("Overview"))}</a>`}${collectionPageView === "awards" ? `<strong>${escape(ui("Awards"))}</strong>` : `<a href="${escape(`${window.franchisePageUrl(franchise.id)}&collection-view=awards`)}">${escape(ui("Awards"))}</a>`}</nav>` : ""}
+  <div data-collection-page-view="films" ${collectionPageView === "films" ? "" : "hidden"}>
   ${window.renderDetailStats({ itemsHtml: `<span><b>${completion.watchedCount}</b> ${escape(ui("Watched"))}</span>${completion.watchlistCount ? `<span><b>${completion.watchlistCount}</b> Watchlist</span>` : ""}<span><b>${completion.total}</b> ${escape(ui("Known"))}</span><span><b>${completion.percent}%</b> ${escape(ui("Complete"))}</span>${years.length ? `<span><b>${Math.min(...years)}–${Math.max(...years)}</b> ${escape(ui("Years"))}</span>` : ""}<span><b>${children.length}</b> ${escape(ui("Child franchises"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}
   ${window.renderEntityNote("franchises", franchise.id, ui("Franchise note"))}
   <div class="project-progress-meter project-progress-meter--detail" aria-label="${escape(ui("{percent} percent complete", { percent: completion.percent }))}"><span style="width:${escape(completion.percent)}%"></span></div>
@@ -468,7 +503,9 @@
         : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Rank"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))} / ${escape(ui("Tier"))}</th></tr></thead><tbody>${combinedRows || `<tr><td colspan="4">${escape(ui("No films"))}</td></tr>`}</tbody></table></div>`
       : `${filmView === "grid" ? `<div class="film-grid franchise-film-grid">${filmGrid || `<p>${escape(ui("No films"))}</p>`}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Rank"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))}</th></tr></thead><tbody>${rows || `<tr><td colspan="4">${escape(ui("No films"))}</td></tr>`}</tbody></table></div>`}
   ${watchlistRows ? `<h2>Watchlist</h2>${watchlistBulkTierControls}${watchlistOrderControls}${filmView === "grid" ? `<div class="film-grid franchise-film-grid">${watchlistGrid}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Interest"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Tier"))}</th></tr></thead><tbody>${watchlistRows}</tbody></table></div>`}` : ""}`
-  }`;
+  }
+  ${otherRows ? `<section class="franchise-other-watched"><h2>${escape(ui("Other watched"))}</h2>${filmView === "grid" ? `<div class="film-grid franchise-film-grid">${otherGrid}</div>` : window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Director"), ui("Type"), ui("Rating")].map(escape), rows: otherRows })}</section>` : ""}</div>
+  ${collectionAwardModel ? `<div data-collection-page-view="awards" ${collectionPageView === "awards" ? "" : "hidden"}>${window.renderCollectionAwardsView(collectionAwardModel, { escape, ui })}</div>` : ""}`;
   container
     .querySelector("[data-franchise-sort]")
     ?.addEventListener("change", (event) => {

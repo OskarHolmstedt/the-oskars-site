@@ -1,6 +1,7 @@
-/** @file Controls tag detail, notes, watched/watchlist sections, sorting, tiers, and order editing. */
+/** @file Controls tag detail, notes, watched/watchlist sections, sorting, pagination, tiers, and order editing. */
 
 (function () {
+  const PAGE_SIZE = 20;
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
   window.load();
@@ -25,6 +26,18 @@
       : window.defaultOrderForFilmAxis(sort);
   let filmView = window.filmViewMode("grid");
   let sections = window.sectionsViewMode();
+  let combinedPage = Math.max(
+    1,
+    Number(window.pageQueryParam("page")) || 1,
+  );
+  let watchedPage = Math.max(
+    1,
+    Number(window.pageQueryParam("watchedPage")) || 1,
+  );
+  let watchlistPage = Math.max(
+    1,
+    Number(window.pageQueryParam("watchlistPage")) || 1,
+  );
   let watchlistOrderEditMode =
     sections !== "combined" &&
     window.pageQueryParam("edit") === "watchlist-order";
@@ -92,18 +105,66 @@
         })
       : [...(tagRecord?.films || [])].sort(tagCompare(false));
   let watchlistItems = [...(tagRecord?.watchlist || [])].sort(tagCompare(true));
+  if (watchlistOrderEditMode)
+    watchlistItems = [...watchlistItems].sort(window.compareWatchlistItems);
   let combinedRecords = combinedView
     ? [
         ...films.map((film) => ({ film })),
         ...watchlistItems.map((item) => ({ item })),
       ].sort(tagRecordCompare)
     : [];
+  let watchedPagination = window.paginationState(
+    films.length,
+    watchedPage,
+    PAGE_SIZE,
+  );
+  let watchlistPagination = window.paginationState(
+    watchlistItems.length,
+    watchlistPage,
+    PAGE_SIZE,
+  );
+  let combinedPagination = window.paginationState(
+    combinedRecords.length,
+    combinedPage,
+    PAGE_SIZE,
+  );
+  watchedPage = watchedPagination.page;
+  watchlistPage = watchlistPagination.page;
+  combinedPage = combinedPagination.page;
+  let visibleFilms = films.slice(
+    watchedPagination.sliceStart,
+    watchedPagination.sliceEnd,
+  );
+  let visibleWatchlistItems = watchlistItems.slice(
+    watchlistPagination.sliceStart,
+    watchlistPagination.sliceEnd,
+  );
+  let visibleCombinedRecords = combinedRecords.slice(
+    combinedPagination.sliceStart,
+    combinedPagination.sliceEnd,
+  );
   function tagViewUrl(next = {}) {
     let nextSort = next.sort || sort;
     let nextOrder = next.order || order;
     let view = next.view || filmView;
     let seed = next.seed || shuffleSeed;
     let nextSections = next.sections || sections;
+    let resetPages = next.resetPages === true;
+    let nextCombinedPage = resetPages
+      ? 1
+      : Object.prototype.hasOwnProperty.call(next, "page")
+        ? Math.max(1, Number(next.page) || 1)
+        : combinedPage;
+    let nextWatchedPage = resetPages
+      ? 1
+      : Object.prototype.hasOwnProperty.call(next, "watchedPage")
+        ? Math.max(1, Number(next.watchedPage) || 1)
+        : watchedPage;
+    let nextWatchlistPage = resetPages
+      ? 1
+      : Object.prototype.hasOwnProperty.call(next, "watchlistPage")
+        ? Math.max(1, Number(next.watchlistPage) || 1)
+        : watchlistPage;
     let parts = [];
     if (nextSort !== "year") parts.push(`sort=${encodeURIComponent(nextSort)}`);
     if (nextSort === "shuffle") {
@@ -113,6 +174,12 @@
     }
     if (view === "list") parts.push("view=list");
     if (nextSections === "combined") parts.push("sections=combined");
+    if (nextSections === "combined" && nextCombinedPage > 1)
+      parts.push(`page=${nextCombinedPage}`);
+    if (nextSections !== "combined" && nextWatchedPage > 1)
+      parts.push(`watchedPage=${nextWatchedPage}`);
+    if (nextSections !== "combined" && nextWatchlistPage > 1)
+      parts.push(`watchlistPage=${nextWatchlistPage}`);
     if (watchlistOrderEditMode && nextSections !== "combined")
       parts.push("edit=watchlist-order");
     if (localRankEditMode && nextSort === "local" && nextSections !== "combined")
@@ -183,15 +250,19 @@
         '<div class="watchlist-card-actions"><span>Watchlist</span></div>',
     });
   }
-  let cards = films.map((film, index) => tagFilmCard(film, index)).join("");
-  let rows = films
+  let cards = visibleFilms
+    .map((film, index) =>
+      tagFilmCard(film, watchedPagination.sliceStart + index),
+    )
+    .join("");
+  let rows = visibleFilms
     .map((film, index) => {
       let attributes = window.renderOrderEditItemAttributes(
         {
           enabled: localRankEditMode,
           scope: "local-rank",
           id: film.id,
-          index,
+          index: watchedPagination.sliceStart + index,
           group: canonicalTag,
         },
         escape,
@@ -203,14 +274,14 @@
       return `<tr${attributes}>${positionCell}${tagWatchedCells(film)}${window.renderRatingTierCell({ film }, { escape })}</tr>`;
     })
     .join("");
-  if (watchlistOrderEditMode)
-    watchlistItems = [...watchlistItems].sort(window.compareWatchlistItems);
-  let watchlistCards = watchlistItems
-    .map((item, index) => tagWatchlistCard(item, index))
+  let watchlistCards = visibleWatchlistItems
+    .map((item, index) =>
+      tagWatchlistCard(item, watchlistPagination.sliceStart + index),
+    )
     .join("");
   // Standard collection row (issue #136): Interest/order | Film | Director |
   // Tier for the split watchlist table.
-  let watchlistRows = watchlistItems
+  let watchlistRows = visibleWatchlistItems
     .map((item, index) => {
       let film = window.watchlistFilmLike(item);
       let directorHtml = window.renderLinkedDirectors(film, { escape });
@@ -219,7 +290,7 @@
           enabled: watchlistOrderEditMode,
           scope: "watchlist",
           id: item.id,
-          index,
+          index: watchlistPagination.sliceStart + index,
           group: window.normalizeWatchlistTier(item.tier),
         },
         escape,
@@ -238,12 +309,12 @@
   // reuse the split-view builders; combined rows share the split watched
   // schema with year in Position and the final Rating/Tier cell telling a
   // watched row's rating from a watchlist row's tier badge.
-  let combinedCards = combinedRecords
+  let combinedCards = visibleCombinedRecords
     .map((record) =>
       record.film ? tagFilmCard(record.film) : tagWatchlistCard(record.item),
     )
     .join("");
-  let combinedRows = combinedRecords
+  let combinedRows = visibleCombinedRecords
     .map((record) => {
       if (record.film)
         return `<tr>${tagWatchedCells(record.film)}${window.renderRatingTierCell({ film: record.film }, { escape })}</tr>`;
@@ -274,7 +345,24 @@
       { value: "score", label: "Score" },
     ],
   });
-  let toolbarControlsHtml = `<div class="detail-toolbar-controls">${sortAxisControl}${window.renderChronologyControl({ order, href: tagViewUrl({ sort: tagReverseTargetSort, order: order === "asc" ? "desc" : "asc" }), escape, iconOnly: true })}${window.renderShuffleControl({ href: tagViewUrl({ sort: "shuffle", seed: window.freshShuffleSeed() }), escape, label: ui("Shuffle") })}${watchlistItems.length ? window.renderCombinedSectionsControl({ combined: combinedView, href: tagViewUrl({ sections: combinedView ? "split" : "combined" }), escape }) : ""}</div>`;
+  let toolbarControlsHtml = `<div class="detail-toolbar-controls">${sortAxisControl}${window.renderChronologyControl({ order, href: tagViewUrl({ sort: tagReverseTargetSort, order: order === "asc" ? "desc" : "asc", resetPages: true }), escape, iconOnly: true })}${window.renderShuffleControl({ href: tagViewUrl({ sort: "shuffle", seed: window.freshShuffleSeed(), resetPages: true }), escape, label: ui("Shuffle") })}${watchlistItems.length ? window.renderCombinedSectionsControl({ combined: combinedView, href: tagViewUrl({ sections: combinedView ? "split" : "combined", resetPages: true }), escape }) : ""}</div>`;
+  let toolbarHtml = `<div class="tag-view-toolbar detail-toolbar">${toolbarControlsHtml}${window.renderFilmViewToggle({ view: filmView, listUrl: tagViewUrl({ view: "list" }), gridUrl: tagViewUrl({ view: "grid" }), escape, classes: "tag-film-view-toggle", ariaLabel: ui("Tag film display") })}</div>`;
+  function paginationControls(total, page, dataAttribute) {
+    return window.renderPaginationControls({
+      total,
+      page,
+      pageSize: PAGE_SIZE,
+      dataAttribute,
+      itemLabel: ui("films"),
+      classes: ["tag-pagination"],
+    });
+  }
+  function sectionHeading(title, count) {
+    let countLabel =
+      window.uiCount?.(count, "film", "films") ||
+      `${count} ${count === 1 ? ui("Film") : ui("Films")}`;
+    return `<div class="tag-section-heading"><h2>${escape(ui(title))}</h2><span>${escape(countLabel)}</span></div>`;
+  }
   let localRankControls =
     !combinedView && sort === "local" && films.length > 1
       ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-tag-local-rank-edit-toggle>${escape(ui(localRankEditMode ? "Finish order" : "Reorder"))}</button>${localRankEditMode ? `<span>${escape(ui("Drag to set this collection's independent local order."))}</span>` : `<a class="sort-order-button" href="${escape(window.localRankMergePageUrl("tags", canonicalTag, tagViewUrl()))}">${escape(ui("Merge-sort tool"))}</a>`}</div>`
@@ -287,19 +375,43 @@
     watchlistItems.length && !combinedView
       ? `<div class="period-edit-controls">${window.renderWatchlistBulkTierControl({ escape, count: watchlistItems.length })}</div>`
       : "";
+  let watchedPaginationHtml = paginationControls(
+    films.length,
+    watchedPage,
+    "data-tag-watched-page",
+  );
+  let watchlistPaginationHtml = paginationControls(
+    watchlistItems.length,
+    watchlistPage,
+    "data-tag-watchlist-page",
+  );
+  let combinedPaginationHtml = paginationControls(
+    combinedRecords.length,
+    combinedPage,
+    "data-tag-combined-page",
+  );
+  let watchedContentHtml =
+    filmView === "grid"
+      ? cards
+        ? `<div class="film-grid tag-film-grid">${cards}</div>`
+        : `<div class="detail-empty">${escape(ui("No watched films use this tag."))}</div>`
+      : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr>${sort === "local" ? `<th>${escape(ui("Rank"))}</th>` : ""}<th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))}</th></tr></thead><tbody>${rows || `<tr><td colspan="${sort === "local" ? "5" : "4"}">${escape(ui("No watched films use this tag."))}</td></tr>`}</tbody></table></div>`;
+  let watchlistContentHtml = watchlistItems.length
+    ? `<section class="tag-film-section tag-watchlist-section">${sectionHeading("Watchlist", watchlistItems.length)}${watchlistBulkTierControls}${watchlistOrderControls}${watchlistPaginationHtml}${filmView === "grid" ? `<div class="film-grid tag-film-grid">${watchlistCards}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Interest"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Tier"))}</th></tr></thead><tbody>${watchlistRows}</tbody></table></div>`}${watchlistPaginationHtml}</section>`
+    : "";
+  let splitContentHtml = `<section class="tag-film-section tag-watched-section">${sectionHeading("Watched", films.length)}${localRankControls}${watchedPaginationHtml}${watchedContentHtml}${watchedPaginationHtml}</section>${watchlistContentHtml}`;
+  let combinedContentHtml = `${combinedPaginationHtml}${
+    filmView === "grid"
+      ? combinedCards
+        ? `<div class="film-grid tag-film-grid">${combinedCards}</div>`
+        : `<div class="detail-empty">${escape(ui("No watched films use this tag."))}</div>`
+      : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))} / ${escape(ui("Tier"))}</th></tr></thead><tbody>${combinedRows || `<tr><td colspan="4">${escape(ui("No watched films use this tag."))}</td></tr>`}</tbody></table></div>`
+  }${combinedPaginationHtml}`;
   document.title = canonicalTag
     ? `${canonicalTag} · ${ui("Tags")} · The Oskars`
     : `${ui("Tag not found")} · The Oskars`;
   container.innerHTML = canonicalTag
-    ? `${window.renderBreadcrumbs([{ label: ui("Tags"), href: "tags.html" }, { label: canonicalTag }], { escape })}${window.renderDetailHeader({ mainHtml: `<h1>${escape(canonicalTag)}</h1>`, actionsHtml: window.renderSourceProjectAction("tag", canonicalTag, { escape }) })}${window.renderDetailStats({ itemsHtml: `<span><b>${films.length}</b> ${escape(ui(films.length === 1 ? "Film" : "Films"))}</span>${watchlistItems.length ? `<span><b>${watchlistItems.length}</b> Watchlist</span>` : ""}${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}${window.renderEntityNote("tags", canonicalTag, ui("Tag note"))}<div class="tag-view-toolbar">${toolbarControlsHtml}${window.renderFilmViewToggle({ view: filmView, listUrl: tagViewUrl({ view: "list" }), gridUrl: tagViewUrl({ view: "grid" }), escape, classes: "tag-film-view-toggle", ariaLabel: ui("Tag film display") })}</div>${localRankControls}${
-        combinedView
-          ? filmView === "grid"
-            ? combinedCards
-              ? `<div class="film-grid tag-film-grid">${combinedCards}</div>`
-              : `<div class="detail-empty">${escape(ui("No watched films use this tag."))}</div>`
-            : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))} / ${escape(ui("Tier"))}</th></tr></thead><tbody>${combinedRows || `<tr><td colspan="4">${escape(ui("No watched films use this tag."))}</td></tr>`}</tbody></table></div>`
-          : `${filmView === "grid" ? (cards ? `<div class="film-grid tag-film-grid">${cards}</div>` : `<div class="detail-empty">${escape(ui("No watched films use this tag."))}</div>`) : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr>${sort === "local" ? `<th>${escape(ui("Rank"))}</th>` : ""}<th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))}</th></tr></thead><tbody>${rows || `<tr><td colspan="${sort === "local" ? "5" : "4"}">${escape(ui("No watched films use this tag."))}</td></tr>`}</tbody></table></div>`}${watchlistCards ? `<h2>Watchlist</h2>${watchlistBulkTierControls}${watchlistOrderControls}${filmView === "grid" ? `<div class="film-grid tag-film-grid">${watchlistCards}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Interest"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Tier"))}</th></tr></thead><tbody>${watchlistRows}</tbody></table></div>`}` : ""}`
-      }`
+    ? `${window.renderBreadcrumbs([{ label: ui("Tags"), href: "tags.html" }, { label: canonicalTag }], { escape })}${window.renderDetailHeader({ mainHtml: `<h1>${escape(canonicalTag)}</h1>`, actionsHtml: window.renderSourceProjectAction("tag", canonicalTag, { escape }) })}${window.renderDetailStats({ itemsHtml: `<span><b>${films.length}</b> ${escape(ui(films.length === 1 ? "Film" : "Films"))}</span>${watchlistItems.length ? `<span><b>${watchlistItems.length}</b> ${escape(ui("Watchlist"))}</span>` : ""}${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}${window.renderEntityNote("tags", canonicalTag, ui("Tag note"))}${toolbarHtml}${combinedView ? combinedContentHtml : splitContentHtml}`
     : `<div class="detail-empty"><h1>${escape(ui("Tag not found"))}</h1><a href="tags.html">${escape(ui("Browse tags"))}</a></div>`;
   container
     .querySelector?.("[data-start-project-source]")
@@ -316,8 +428,24 @@
       window.location.href = tagViewUrl({
         sort: event.target.value,
         order: window.defaultOrderForFilmAxis(event.target.value),
+        resetPages: true,
       });
     });
+  container.addEventListener("click", (event) => {
+    let watchedButton = event.target.closest?.("[data-tag-watched-page]");
+    let watchlistButton = event.target.closest?.("[data-tag-watchlist-page]");
+    let combinedButton = event.target.closest?.("[data-tag-combined-page]");
+    let button = watchedButton || watchlistButton || combinedButton;
+    if (!button) return;
+    event.preventDefault();
+    window.location.href = tagViewUrl(
+      watchedButton
+        ? { watchedPage: button.dataset.tagWatchedPage }
+        : watchlistButton
+          ? { watchlistPage: button.dataset.tagWatchlistPage }
+          : { page: button.dataset.tagCombinedPage },
+    );
+  });
   container
     .querySelector?.("[data-tag-watchlist-order-edit-toggle]")
     ?.addEventListener("click", () => {

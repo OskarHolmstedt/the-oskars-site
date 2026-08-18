@@ -79,12 +79,12 @@
           buttonLabel: ui("Load sample archive"),
         })}
         ${choiceCard({
-          heading: ui("Import an existing backup"),
+          heading: ui("Import Letterboxd or a backup"),
           body: ui(
-            "Already have an exported backup or canonical file? Import it on the Data page.",
+            "Start from an original Letterboxd export ZIP, an Oskars backup, or a canonical file on the Data page.",
           ),
           buttonId: "onboardingImportBackup",
-          buttonLabel: ui("Go to Data page"),
+          buttonLabel: ui("Import existing data"),
         })}
       </div>
     </div>`;
@@ -97,7 +97,7 @@
     document
       .getElementById("onboardingImportBackup")
       .addEventListener("click", () => {
-        window.location.href = "data.html";
+        window.location.href = "data.html#letterboxdImport";
       });
   };
 })();

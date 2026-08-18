@@ -140,10 +140,12 @@
       : [];
     return [
       ["allTimeRankedList", "list"],
+      ["diary", "diary"],
       ...bracketRanges,
       ["watchlist", "watchlist"],
       ["franchises", "franchises"],
       ["directors", "directors"],
+      ["collectionAwards", "collection-awards"],
     ]
       .map(([key, importType, periodTypeHint, explicitRange]) => ({
         key,
@@ -426,7 +428,7 @@
         "director",
         "rating",
         "type",
-        "genre",
+        "tag",
         "medium",
         "screenplay",
         "source",
@@ -448,7 +450,7 @@
         "director",
         "rating",
         "type",
-        "genre",
+        "tag",
         "medium",
         "screenplay",
         "source",
@@ -472,7 +474,7 @@
         "director",
         "rating",
         "type",
-        "genre",
+        "tag",
         "medium",
         "screenplay",
         "source",
@@ -496,7 +498,7 @@
         "director",
         "rating",
         "type",
-        "genre",
+        "tag",
         "medium",
         "screenplay",
         "source",
@@ -553,6 +555,67 @@
     return warnings;
   }
 
+  function validateDiarySchema(values, spec) {
+    let warnings = [];
+    let rows = values || [];
+    let header = rows.find((row) =>
+      rowHasHeader(row, ["year", "title", "type"]),
+    );
+    if (!header) {
+      warnings.push(
+        `${spec.key} has no recognizable Diary header with Year, Title, and Type.`,
+      );
+      return warnings;
+    }
+    let normalized = header.map(normalizeHeaderCell);
+    let expected = [
+      "year",
+      "title",
+      "director",
+      "rating",
+      "type",
+      "tag",
+      "medium",
+      "screenplay",
+      "source",
+      "country",
+      "views",
+      "date",
+      "score",
+      "franchise",
+      "platform",
+      "runtime",
+      "tmdbid",
+      "letterboxd",
+    ];
+    let aliases = {
+      date: ["date", "date watched", "watched date"],
+      tmdbid: ["tmdbid", "tmdb id"],
+      letterboxd: ["letterboxd", "letterboxd url", "letterboxd uri"],
+    };
+    expected.forEach((headerName, index) => {
+      let accepted = aliases[headerName] || [headerName];
+      let actualIndex = normalized.findIndex((value) =>
+        accepted.includes(value),
+      );
+      if (actualIndex < 0)
+        warnings.push(`${spec.key} header is missing "${headerName}".`);
+      else if (actualIndex !== index)
+        warnings.push(
+          `${spec.key} header "${headerName}" is in column ${actualIndex + 1}, expected ${index + 1}.`,
+        );
+    });
+    if (
+      normalized.includes("dynamic rank") ||
+      normalized.includes("fixed rank")
+    ) {
+      warnings.push(
+        `${spec.key} must omit the All-time Dynamic Rank and Fixed Rank columns.`,
+      );
+    }
+    return warnings;
+  }
+
   function validateBracketSchema(values, spec) {
     let warnings = [];
     let rows = values || [];
@@ -598,6 +661,27 @@
     return warnings;
   }
 
+  function validateCollectionAwardsSchema(values, spec) {
+    let warnings = validateBracketSchema(values, spec).filter(
+      (warning) => !warning.includes("period marker"),
+    );
+    let rows = values || [];
+    let header = rows.find((row) =>
+      (row || []).some((cell) => String(cell || "").trim() === "Period"),
+    );
+    let metaCol = (header || []).findIndex(
+      (cell) => String(cell || "").trim() === "Period",
+    );
+    let hasMarker = rows.some((row) =>
+      /^(?:Director|Franchise)$/i.test(String(row?.[metaCol] || "").trim()),
+    );
+    if (!hasMarker)
+      warnings.push(
+        `${spec.key} has no Director or Franchise marker in the "Period" column.`,
+      );
+    return warnings;
+  }
+
   function isSheetLaneHeaderCell(value) {
     return (
       String(value || "")
@@ -616,7 +700,10 @@
     return count;
   }
 
-  function validateFranchiseSchema(values, spec) {
+  // Shared by validateFranchiseSchema/validateDirectorSheetSchema below -
+  // both check the same year/title/<lane> lane-of-3 structure and differ
+  // only in their wording, not their logic.
+  function validateLaneSheetSchema(values, spec, wording) {
     let warnings = [];
     let rows = values || [];
     let widestRow = rows.reduce(
@@ -625,17 +712,17 @@
     );
     if (widestRow < 3) {
       warnings.push(
-        `${spec.key} returned ${widestRow} visible column(s); franchise schema expects at least one year/title/rating lane.`,
+        `${spec.key} returned ${widestRow} visible column(s); ${wording.schemaLabel} schema expects at least one year/title/${wording.laneWord} lane.`,
       );
     } else if (widestRow % 3 !== 0) {
       warnings.push(
-        `${spec.key} returned ${widestRow} visible column(s); franchise lanes are read in year/title/rating groups of 3, so trailing columns may be ignored.`,
+        `${spec.key} returned ${widestRow} visible column(s); ${wording.schemaLabel} lanes are read in year/title/${wording.laneWord} groups of 3, so trailing columns may be ignored.`,
       );
     }
     let markerCount = countSheetLaneHeaders(rows);
     if (!markerCount) {
       warnings.push(
-        `${spec.key} has no "Year" franchise header cells; films cannot be assigned to franchise groups.`,
+        `${spec.key} has no "Year" ${wording.headerNoun} header cells; films cannot be assigned to ${wording.assignmentTarget}.`,
       );
     }
     let filmLikeRows = rows.filter((row) => {
@@ -647,47 +734,28 @@
     }).length;
     if (markerCount && !filmLikeRows) {
       warnings.push(
-        `${spec.key} has franchise headers but no film rows in the expected title columns.`,
+        `${spec.key} has ${wording.headerNoun} headers but no film rows in the expected title columns.`,
       );
     }
     return warnings;
   }
 
+  function validateFranchiseSchema(values, spec) {
+    return validateLaneSheetSchema(values, spec, {
+      schemaLabel: "franchise",
+      laneWord: "rating",
+      headerNoun: "franchise",
+      assignmentTarget: "franchise groups",
+    });
+  }
+
   function validateDirectorSheetSchema(values, spec) {
-    let warnings = [];
-    let rows = values || [];
-    let widestRow = rows.reduce(
-      (max, row) => Math.max(max, (row || []).length),
-      0,
-    );
-    if (widestRow < 3) {
-      warnings.push(
-        `${spec.key} returned ${widestRow} visible column(s); Directors schema expects at least one year/title/interest lane.`,
-      );
-    } else if (widestRow % 3 !== 0) {
-      warnings.push(
-        `${spec.key} returned ${widestRow} visible column(s); Directors lanes are read in year/title/interest groups of 3, so trailing columns may be ignored.`,
-      );
-    }
-    let markerCount = countSheetLaneHeaders(rows);
-    if (!markerCount) {
-      warnings.push(
-        `${spec.key} has no "Year" director header cells; films cannot be assigned to directors.`,
-      );
-    }
-    let filmLikeRows = rows.filter((row) => {
-      for (let col = 0; col < (row || []).length; col += 3) {
-        let title = String(row?.[col + 1] || "").trim();
-        if (title && !isSheetLaneHeaderCell(row?.[col])) return true;
-      }
-      return false;
-    }).length;
-    if (markerCount && !filmLikeRows) {
-      warnings.push(
-        `${spec.key} has director headers but no film rows in the expected title columns.`,
-      );
-    }
-    return warnings;
+    return validateLaneSheetSchema(values, spec, {
+      schemaLabel: "Directors",
+      laneWord: "interest",
+      headerNoun: "director",
+      assignmentTarget: "directors",
+    });
   }
 
   /**
@@ -700,9 +768,12 @@
     if (!spec?.importType) return [];
     if (spec.importType === "list")
       return validateRankedListSchema(values, spec);
+    if (spec.importType === "diary") return validateDiarySchema(values, spec);
     if (spec.importType === "watchlist")
       return validateWatchlistSchema(values, spec);
     if (spec.importType === "table") return validateBracketSchema(values, spec);
+    if (spec.importType === "collection-awards")
+      return validateCollectionAwardsSchema(values, spec);
     if (spec.importType === "franchises")
       return validateFranchiseSchema(values, spec);
     if (spec.importType === "directors")
@@ -883,11 +954,28 @@
         window.cloneRecord(incomingState.watchlist || []),
         localState.watchlist || [],
       );
+    }
+    let importedWatchedOther = reports.some(
+      (report) =>
+        ["diary", "franchises", "directors"].includes(report.rangeKey) &&
+        (report.filmsParsed || report.sheetRows),
+    );
+    if (importedWatchedOther) {
       merged.watchedOther = mergeWatchedOtherEntries(
         incomingState.watchedOther || [],
         localState.watchedOther || [],
       );
     }
+    if (
+      reports.some(
+        (report) =>
+          report.rangeKey === "collectionAwards" &&
+          (report.awardsAdded || report.sheetRows),
+      )
+    )
+      merged.collectionAwards = window.cloneRecord(
+        incomingState.collectionAwards || { director: {}, franchise: {} },
+      );
 
     // Cross-source conflicts are recorded on the import-time state (the
     // cleared state every range was parsed into), so the merged result must
@@ -964,7 +1052,12 @@
           values,
           spec,
         );
-        let raw = ["table", "franchises", "directors"].includes(spec.importType)
+        let raw = [
+          "table",
+          "collection-awards",
+          "franchises",
+          "directors",
+        ].includes(spec.importType)
           ? rowsToPlainDelimited(values, "\t")
           : rowsToDelimited(values, "\t");
         if (!raw.trim()) {
@@ -995,6 +1088,8 @@
           render: false,
           silentReport: true,
           tableRows: spec.importType === "table" ? values : null,
+          collectionAwardRows:
+            spec.importType === "collection-awards" ? values : null,
           franchiseRows: spec.importType === "franchises" ? values : null,
           directorRows: spec.importType === "directors" ? values : null,
           sheetStartRow: rangeStartRow(spec.range),

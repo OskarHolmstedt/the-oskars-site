@@ -58,6 +58,10 @@
         omit: (value, state) =>
           state.sort !== "project" || value !== "queue-order",
       },
+      manage: {
+        default: "",
+        validate: (value) => value === "" || value === "films",
+      },
     },
   });
   let initialViewState = projectUrlState.read();
@@ -74,6 +78,7 @@
   let pageSize = 50;
   let queueOrderEditMode =
     sort === "project" && initialViewState.edit === "queue-order";
+  let manageFilms = initialViewState.manage === "films";
   let tierFilter = initialViewState.tier;
 
   try {
@@ -89,6 +94,7 @@
           queuePage,
           watchedPage,
           edit: queueOrderEditMode ? "queue-order" : "",
+          manage: manageFilms ? "films" : "",
         },
         next,
       );
@@ -149,14 +155,16 @@
             ? window.renderWatchlistTierBadge(queueTier, { escape })
             : "",
         bodyHtml: `<div class="leaderboard-meta">${queueLabel}${directorHtml ? ` · ${directorHtml}` : ""}${film.allTimeRank ? ` · ${ui("all-time #{rank}", { rank: escape(film.allTimeRank) })}` : ""}</div>`,
-        actionsHtml: window.renderCardRemoveButton({
-          escape,
-          title: ui("Remove {title}", { title }),
-          attributes: {
-            "data-remove-project-ref": record.ref.type,
-            "data-remove-project-ref-id": record.ref.id,
-          },
-        }),
+        actionsHtml: options.manage
+          ? window.renderCardRemoveButton({
+              escape,
+              title: ui("Remove {title}", { title }),
+              attributes: {
+                "data-remove-project-ref": record.ref.type,
+                "data-remove-project-ref-id": record.ref.id,
+              },
+            })
+          : "",
       });
     }
 
@@ -173,6 +181,11 @@
       let orderControls = options.canReorder
         ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-project-queue-order-edit-toggle>${escape(ui(queueOrderEditMode ? "Finish order" : "Reorder"))}</button>${queueOrderEditMode ? `<span>${escape(ui("Edits this project queue only."))}</span>` : ""}</div>`
         : "";
+      let countText = escape(
+        window.uiCount?.(records.length, "film", "films") ||
+          `${records.length} ${records.length === 1 ? "film" : "films"}`,
+      );
+      let sectionBody = "";
       if (view === "list") {
         // Standard collection rows (issue #136): the queue section is
         // Order | Film | Tier and the watched section is Rank | Film |
@@ -193,6 +206,18 @@
               },
               escape,
             );
+            let manageCell = manageFilms
+              ? `<td class="project-manage-cell">${window.renderCardRemoveButton({
+                  escape,
+                  title: ui("Remove {title}", {
+                    title: window.localizedFilmTitle?.(film) || film.title,
+                  }),
+                  attributes: {
+                    "data-remove-project-ref": record.ref.type,
+                    "data-remove-project-ref-id": record.ref.id,
+                  },
+                })}</td>`
+              : "";
             return `<tr${attributes}><td class="leaderboard-position">${escape(isQueue ? record.ref?.projectOrder || "—" : film.allTimeRank || "—")}</td>${window.renderFilmIdentityCell(
               film,
               {
@@ -212,12 +237,17 @@
                       })
                     : "",
               },
-            )}</tr>`;
+            )}${manageCell}</tr>`;
           })
           .join("");
-        return `<section class="project-film-section"><div class="project-section-heading"><h2>${escape(title)}</h2><span>${escape(window.uiCount?.(records.length, "film", "films") || `${records.length} ${records.length === 1 ? "film" : "films"}`)}</span></div>${orderControls}${window.renderPaginationControls({ total: records.length, page: pageState.page, pageSize, dataAttribute: pageAttribute, itemLabel: ui("films"), variant: "extended" })}<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(options.positionHeader || ui("Rank"))}</th><th>${escape(ui("Film"))}</th><th>${escape(options.valueHeader || ui("Rating"))}</th></tr></thead><tbody>${rows || `<tr><td colspan="3">${escape(emptyText)}</td></tr>`}</tbody></table></div>${window.renderPaginationControls({ total: records.length, page: pageState.page, pageSize, dataAttribute: pageAttribute, itemLabel: ui("films"), variant: "extended" })}</section>`;
+        sectionBody = `${orderControls}${window.renderPaginationControls({ total: records.length, page: pageState.page, pageSize, dataAttribute: pageAttribute, itemLabel: ui("films"), variant: "extended" })}<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(options.positionHeader || ui("Rank"))}</th><th>${escape(ui("Film"))}</th><th>${escape(options.valueHeader || ui("Rating"))}</th>${manageFilms ? `<th>${escape(ui("Manage"))}</th>` : ""}</tr></thead><tbody>${rows || `<tr><td colspan="${manageFilms ? 4 : 3}">${escape(emptyText)}</td></tr>`}</tbody></table></div>${window.renderPaginationControls({ total: records.length, page: pageState.page, pageSize, dataAttribute: pageAttribute, itemLabel: ui("films"), variant: "extended" })}`;
+      } else {
+        sectionBody = `${orderControls}${window.renderPaginationControls({ total: records.length, page: pageState.page, pageSize, dataAttribute: pageAttribute, itemLabel: ui("films"), variant: "extended" })}<div class="film-grid person-film-grid project-film-grid">${visible.map((record, index) => projectFilmCard(record, { reorder, index, manage: manageFilms })).join("") || `<p>${escape(emptyText)}</p>`}</div>${window.renderPaginationControls({ total: records.length, page: pageState.page, pageSize, dataAttribute: pageAttribute, itemLabel: ui("films"), variant: "extended" })}`;
       }
-      return `<section class="project-film-section"><div class="project-section-heading"><h2>${escape(title)}</h2><span>${escape(window.uiCount?.(records.length, "film", "films") || `${records.length} ${records.length === 1 ? "film" : "films"}`)}</span></div>${orderControls}${window.renderPaginationControls({ total: records.length, page: pageState.page, pageSize, dataAttribute: pageAttribute, itemLabel: ui("films"), variant: "extended" })}<div class="film-grid person-film-grid project-film-grid">${visible.map((record, index) => projectFilmCard(record, { reorder, index })).join("") || `<p>${escape(emptyText)}</p>`}</div>${window.renderPaginationControls({ total: records.length, page: pageState.page, pageSize, dataAttribute: pageAttribute, itemLabel: ui("films"), variant: "extended" })}</section>`;
+      if (options.collapsible) {
+        return `<details class="project-film-section project-film-section--history" open><summary class="project-section-heading"><span class="project-section-title" role="heading" aria-level="2">${escape(title)}</span><span>${countText}</span></summary>${sectionBody}</details>`;
+      }
+      return `<section class="project-film-section"><div class="project-section-heading"><h2>${escape(title)}</h2><span>${countText}</span></div>${sectionBody}</section>`;
     }
 
     function missingRefSection(refs) {
@@ -242,6 +272,27 @@
       if (saving?.then) await saving;
     }
 
+    function projectNextHtml(next) {
+      if (!next) return "";
+      let film = next.film;
+      let title = window.localizedFilmTitle?.(film) || film.title;
+      let directorHtml = window.renderLinkedDirectors(film, { escape });
+      let tier = next.item?.tier ?? film.rewatchTier;
+      let context = [
+        film.year ? escape(film.year) : "",
+        directorHtml,
+        tier ? `${escape(ui("Tier"))} ${escape(tier)}` : "",
+        next.rewatch ? escape(ui("Rewatch")) : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      return `<section class="project-next project-next--featured"><div class="project-next-poster">${window.renderFilmPoster(film, "card")}</div><div class="project-next-body"><p class="project-next-kicker">${escape(ui("Up next"))}</p><h2>${escape(title)}</h2>${context ? `<p>${context}</p>` : ""}<a class="button-link" href="${escape(next.href)}">${escape(ui("Open film"))}</a></div></section>`;
+    }
+
+    function deleteProjectDialogHtml() {
+      return `<dialog id="deleteProjectDialog" class="project-delete-dialog"><form method="dialog"><h2>${escape(ui("Delete project?"))}</h2><p>${escape(ui('Delete "{name}" permanently?', { name: project.name }))}</p><p>${escape(ui("The project, its note, local order, and dismissed-film history will be removed. Films, ratings, awards, and watchlist entries will not be changed."))}</p><div class="dialog-actions"><button type="button" data-delete-project-cancel>${escape(ui("Cancel"))}</button><button type="button" class="danger-button" data-delete-project-confirm>${escape(ui("Delete project"))}</button></div></form></dialog>`;
+    }
+
     function bindProjectControls() {
       container
         .querySelector("[data-project-sort]")
@@ -259,6 +310,14 @@
         ?.addEventListener("click", () => {
           queueOrderEditMode = !queueOrderEditMode;
           window.location.href = projectUrl({ sort: "project", queuePage: 1 });
+        });
+      container
+        .querySelector("[data-project-manage-films]")
+        ?.addEventListener("click", () => {
+          manageFilms = !manageFilms;
+          window.location.href = projectUrl({
+            manage: manageFilms ? "films" : "",
+          });
         });
 
       container
@@ -345,6 +404,20 @@
             renderProjectPage();
           });
         });
+      let deleteDialog = container.querySelector("#deleteProjectDialog");
+      container
+        .querySelector("[data-delete-project]")
+        ?.addEventListener("click", () => deleteDialog?.showModal());
+      container
+        .querySelector("[data-delete-project-cancel]")
+        ?.addEventListener("click", () => deleteDialog?.close());
+      container
+        .querySelector("[data-delete-project-confirm]")
+        ?.addEventListener("click", async () => {
+          if (!window.deleteProject?.(project.id, { save: false })) return;
+          await saveProjectAction({ rebuild: false });
+          window.location.href = "projects.html";
+        });
     }
 
     function renderProjectPage() {
@@ -408,13 +481,6 @@
         ? project.status
         : "active";
       let next = status === "active" ? progress.next : null;
-      let statusLabel = isActiveProject
-        ? ui("Active")
-        : status === "active"
-          ? ui("Open")
-          : status === "complete"
-            ? ui("Complete")
-            : ui("Archived");
       let nextNotice =
         status === "complete"
           ? `<section class="project-next project-next--notice"><h2>${escape(ui("Closed"))}</h2><p>${escape(ui("This project is marked complete. Reopen it to put it back in the open queue."))}</p></section>`
@@ -447,6 +513,11 @@
       ]
         .filter(Boolean)
         .join("");
+      let progressSummary = `<div class="project-journey-progress"><div class="project-journey-progress-copy"><strong>${escape(progress.percent)}%</strong><span>${escape(progress.watchedCount)}/${escape(progress.total)} ${escape(ui("watched"))} · ${escape(progress.watchlistCount)} ${escape(ui("queued"))}</span></div><div class="project-progress-meter project-progress-meter--detail" aria-label="${escape(ui("{percent} percent complete", { percent: progress.percent }))}"><span style="width:${escape(progress.percent)}%"></span></div></div>`;
+      let manageModeNotice = manageFilms
+        ? `<div class="project-manage-mode"><span>${escape(ui("Film management is on. Remove controls are visible."))}</span><button type="button" class="button-link" data-project-manage-films>${escape(ui("Finish managing"))}</button></div>`
+        : "";
+      let projectManagementHtml = `<details class="project-management"${manageFilms ? " open" : ""}><summary><span class="project-section-title" role="heading" aria-level="2">${escape(ui("Project management"))}</span><span>${escape(ui("Refresh, lifecycle, films, and deletion"))}</span></summary><div class="project-management-body"><div class="project-management-actions">${statusActionHtml}<button type="button" class="button-link" data-project-manage-films>${escape(ui(manageFilms ? "Finish managing films" : "Manage films"))}</button><button type="button" class="danger-button" data-delete-project>${escape(ui("Delete project"))}</button></div>${dismissedNotice}${missingRefSection(progress.missingRefs)}</div></details>`;
       document.title = `${project.name} · The Oskars`;
       container.innerHTML = `${window.renderBreadcrumbs(
         [
@@ -455,12 +526,12 @@
         ],
         { escape },
       )}
-  ${window.renderDetailHeader({ classes: "project-detail-header", leadingHtml: representativePoster ? `<div class="project-detail-poster">${representativePoster}</div>` : "", mainHtml: `<h1>${escape(project.name)}</h1><p>${sourceHref ? `<a href="${escape(sourceHref)}">${escape(project.sourceLabel || project.sourceId)}</a>` : escape(project.sourceLabel || "")}</p>${projectBadges(status, isActiveProject)}${dismissedNotice}`, actionsHtml: `${isActiveProject ? "" : `<button type="button" class="button-link" data-active-project="${escape(project.id)}">${escape(ui("Make active"))}</button>`}${statusActionHtml}` })}
-  ${window.renderDetailStats({ classes: "project-stats", itemsHtml: `<span><b>${escape(statusLabel)}</b> ${escape(ui("Status"))}</span><span><b>${escape(project.pinned ? ui("Pinned") : ui("No"))}</b> ${escape(ui("Pinned"))}</span><span><b>${escape(progress.watchedCount)}</b> ${escape(ui("Watched"))}</span><span><b>${escape(progress.watchlistCount)}</b> ${escape(ui("Watchlist"))}</span><span><b>${escape(progress.total)}</b> ${escape(ui("Total"))}</span><span><b>${escape(progress.percent)}%</b> ${escape(ui("Complete"))}</span>${window.renderRatingStatisticsItems(progress.ratingStatistics, { escape, ui })}` })}
+  ${window.renderDetailHeader({ classes: "project-detail-header", leadingHtml: representativePoster ? `<div class="project-detail-poster">${representativePoster}</div>` : "", mainHtml: `<h1>${escape(project.name)}</h1><p>${sourceHref ? `<a href="${escape(sourceHref)}">${escape(project.sourceLabel || project.sourceId)}</a>` : escape(project.sourceLabel || "")}</p>${projectBadges(status, isActiveProject)}${progressSummary}`, actionsHtml: isActiveProject ? "" : `<button type="button" class="button-link" data-active-project="${escape(project.id)}">${escape(ui("Make active"))}</button>` })}
+  ${window.renderDetailStats({ classes: "project-stats project-rating-stats", itemsHtml: window.renderRatingStatisticsItems(progress.ratingStatistics, { escape, ui }) })}
   ${window.renderEntityNote("projects", project.id, ui("Project note"))}
-  <div class="project-progress-meter project-progress-meter--detail" aria-label="${escape(ui("{percent} percent complete", { percent: progress.percent }))}"><span style="width:${escape(progress.percent)}%"></span></div>
-  ${next ? `<section class="project-next"><h2>${escape(ui("Next"))}</h2>${projectFilmCard(next)}</section>` : ""}
+  ${projectNextHtml(next)}
   ${nextNotice}
+  ${manageModeNotice}
   <div class="detail-toolbar"><div class="detail-toolbar-controls">${window.renderSortAxisControl(
     {
       escape,
@@ -489,8 +560,9 @@
     },
   )}</div>
   ${projectSection(ui("Queue"), queueRecords, queuePagination, "data-project-queue-page", tierFilter ? ui("No queued films in this tier.") : ui("No unwatched or rewatch-marked films in this project."), { canReorder: sort === "project" && !tierFilter && queueRecords.length > 1, reorder: queueOrderEditMode, positionHeader: ui("Order"), valueHeader: ui("Tier") })}
-  ${projectSection(ui("Watched"), watchedRecords, watchedPagination, "data-project-watched-page", ui("No watched films in this project yet."), { positionHeader: ui("Rank"), valueHeader: ui("Rating") })}
-  ${missingRefSection(progress.missingRefs)}`;
+  ${projectSection(ui("Watched"), watchedRecords, watchedPagination, "data-project-watched-page", ui("No watched films in this project yet."), { positionHeader: ui("Rank"), valueHeader: ui("Rating"), collapsible: true })}
+  ${projectManagementHtml}
+  ${deleteProjectDialogHtml()}`;
 
       bindProjectControls();
       finishRenderTimer?.(

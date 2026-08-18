@@ -1,7 +1,11 @@
 /**
  * @file Defines the explicit owner/local/viewer deployment-mode contract
  * (issue #245) that gates startup snapshot fetching, publication
- * reconciliation, and the owner-mutation pages below the UI layer.
+ * reconciliation, and the owner-mutation pages below the UI layer. Also
+ * derives the finer-grained viewer capabilities (issue #256) that the
+ * persistence and entry-loader boundaries enforce so a viewer session can
+ * never mutate or persist owner state, regardless of how a page reaches
+ * those code paths.
  */
 
 window.OSKARS_RUNTIME_MODES = ["owner", "local", "viewer"];
@@ -29,16 +33,32 @@ window.resolveRuntimeMode = function (raw) {
 
 /**
  * Derives startup and mutation capabilities from a validated runtime mode.
+ * In the current three-mode model several capabilities collapse to the same
+ * boolean, but each is named for the one thing it gates so a future mode
+ * (or #243's accounts work) can separate them without renaming call sites.
  * @param {string} mode One of window.OSKARS_RUNTIME_MODES.
- * @returns {{fetchPublishedSnapshot: boolean, allowOwnerPages: boolean}}
+ * @returns {{fetchPublishedSnapshot: boolean, allowOwnerPages: boolean, canEdit: boolean, canImport: boolean, canPublish: boolean, canPersistPrivateState: boolean}}
  *   fetchPublishedSnapshot gates the owner-snapshot fetch/reconciliation
- *   startup path; allowOwnerPages gates loading the editor/data owner-
- *   mutation pages at all, below the page-controller layer.
+ *   startup path. allowOwnerPages gates loading the editor/data/intake and
+ *   other owner-only mutation-workflow pages at all, below the page-
+ *   controller layer. canEdit gates using any in-page mutation control.
+ *   canImport gates replacing or merging in imported/recovered data.
+ *   canPublish gates the owner-only canonical/public-profile publish
+ *   workflow — only a true owner deployment has anywhere to publish to.
+ *   canPersistPrivateState gates every write to IndexedDB/localStorage below
+ *   the UI layer (`src/core/persistence.js`), the single boundary every
+ *   mutation in the app funnels through before anything survives a reload.
  */
 window.runtimeModeCapabilities = function (mode) {
+  let isOwner = mode === "owner";
+  let isViewer = mode === "viewer";
   return {
-    fetchPublishedSnapshot: mode === "owner",
-    allowOwnerPages: mode !== "viewer",
+    fetchPublishedSnapshot: isOwner,
+    allowOwnerPages: !isViewer,
+    canEdit: !isViewer,
+    canImport: !isViewer,
+    canPublish: isOwner,
+    canPersistPrivateState: !isViewer,
   };
 };
 
@@ -54,4 +74,13 @@ window.getRuntimeMode = function () {
     window.OSKARS_RESOLVED_RUNTIME_MODE ||
     window.resolveRuntimeMode(window.OSKARS_RUNTIME_MODE).mode
   );
+};
+
+/**
+ * Reads the active runtime mode's capabilities in one call.
+ * @returns {{fetchPublishedSnapshot: boolean, allowOwnerPages: boolean, canEdit: boolean, canImport: boolean, canPublish: boolean, canPersistPrivateState: boolean}}
+ *   See runtimeModeCapabilities() for what each capability gates.
+ */
+window.oskarsCapabilities = function () {
+  return window.runtimeModeCapabilities(window.getRuntimeMode());
 };

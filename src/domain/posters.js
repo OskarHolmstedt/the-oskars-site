@@ -49,20 +49,55 @@ window.normalizePosterRecord = function (poster) {
   };
 };
 
-/** Looks up TMDB metadata for a film. @param {FilmRecord} film Film. @param {Object} [options] Provider controls. @returns {Promise<Object|null>} Metadata. */
-window.lookupTmdbMovieMetadata = async function (film, options = {}) {
-  if (!film?.title && !film?.tmdbId)
-    throw new Error("A film title or TMDB ID is required for metadata lookup.");
+/**
+ * Resolves the merged provider settings and fetch implementation shared by
+ * every TMDB/Wikimedia lookup entry point, applying the caller's per-call
+ * overrides on top of saved settings and throwing the caller's own error
+ * text when a required TMDB credential or fetch implementation is missing.
+ * @param {Object} [options] Caller options (settings override, fetchFn override).
+ * @param {Object} [config] Requirement controls.
+ * @param {boolean} [config.requireCredential] Throw when no TMDB credential is configured.
+ * @param {string} [config.credentialError] Error text when a required credential is missing.
+ * @param {string} [config.fetchError] Error text when no fetch implementation is available.
+ * @returns {{settings: Object, fetchFn: Function}} Resolved settings and fetch function.
+ */
+window.resolveProviderCall = function (options = {}, config = {}) {
   let settings = Object.assign(
     window.getPosterSettings(),
     options.settings || {},
   );
-  let credential = settings.tmdbCredential;
-  if (!credential)
-    throw new Error("A TMDB credential is required for metadata lookup.");
+  if (config.requireCredential && !settings.tmdbCredential)
+    throw new Error(config.credentialError || "A TMDB credential is required.");
   let fetchFn = options.fetchFn || window.fetch?.bind(window);
   if (!fetchFn)
-    throw new Error("Metadata lookup requires browser network access.");
+    throw new Error(
+      config.fetchError || "This lookup requires browser network access.",
+    );
+  return { settings, fetchFn };
+};
+
+function storedWatchedFilm(filmId) {
+  return (
+    window.findFilmById(filmId) || window.findWatchedFilmById?.(filmId) || null
+  );
+}
+
+function storedWatchedFilmSources(filmId, film) {
+  let sources = window.findSourceFilmsById?.(filmId) || [];
+  if (!sources.includes(film)) sources.push(film);
+  return sources;
+}
+
+/** Looks up TMDB metadata for a film. @param {FilmRecord} film Film. @param {Object} [options] Provider controls. @returns {Promise<Object|null>} Metadata. */
+window.lookupTmdbMovieMetadata = async function (film, options = {}) {
+  if (!film?.title && !film?.tmdbId)
+    throw new Error("A film title or TMDB ID is required for metadata lookup.");
+  let { settings, fetchFn } = window.resolveProviderCall(options, {
+    requireCredential: true,
+    credentialError: "A TMDB credential is required for metadata lookup.",
+    fetchError: "Metadata lookup requires browser network access.",
+  });
+  let credential = settings.tmdbCredential;
   let match = film.tmdbId
     ? {
         id: film.tmdbId,
@@ -70,20 +105,37 @@ window.lookupTmdbMovieMetadata = async function (film, options = {}) {
       }
     : await window.lookupTmdbMovieSearch(film, credential, fetchFn);
   if (!match?.id) return null;
+  let reference = window.parseTmdbReference(match.id);
   let details =
     match._details ||
     (await window.lookupTmdbMovieDetails(match.id, credential, fetchFn));
-  let directors = (details.credits?.crew || [])
+  // An episode's crew/guest_stars are native root fields, not nested under
+  // an appended "credits" resource the way movie/series/season credits are.
+  let directors = (details.credits?.crew || details.crew || [])
     .filter((person) => person.job === "Director")
     .map((person) => String(person.name || "").trim())
     .filter(Boolean);
-  let productionCountries = (details.production_countries || [])
-    .map((country) => String(country.name || "").trim())
-    .filter(Boolean);
+  // TV series/season report origin_country as ISO codes directly, already
+  // matching this app's stored country format; movies report full
+  // production_countries objects instead.
+  let productionCountries =
+    reference.mediaType === "tv"
+      ? (details.origin_country || []).map((code) => String(code || "").trim())
+      : (details.production_countries || [])
+          .map((country) => String(country.name || "").trim())
+          .filter(Boolean);
   let country = productionCountries.join(", ");
   let swedishTitle = window.tmdbTranslatedTitle?.(details, "sv", "SE") || "";
-  let posterPath = match.poster_path || details.poster_path || "";
-  let runtimeMinutes = Number(details.runtime) > 0 ? Number(details.runtime) : "";
+  let posterPath =
+    match.poster_path || details.poster_path || details.still_path || "";
+  // Episodes report their own runtime like a movie does; a whole series or
+  // season has no single runtime, only a typical episode_run_time list.
+  let runtimeMinutes =
+    Number(details.runtime) > 0
+      ? Number(details.runtime)
+      : Number(details.episode_run_time?.[0]) > 0
+        ? Number(details.episode_run_time[0])
+        : "";
   return {
     tmdbId: String(match.id),
     director: directors.join(", "),
@@ -95,7 +147,7 @@ window.lookupTmdbMovieMetadata = async function (film, options = {}) {
       ? window.normalizePosterRecord({
           url: `https://image.tmdb.org/t/p/w500${posterPath}`,
           source: "tmdb",
-          sourceUrl: `https://www.themoviedb.org/movie/${match.id}`,
+          sourceUrl: `https://www.themoviedb.org/${window.tmdbResourcePath(reference)}`,
           providerId: match.id,
         })
       : null,
@@ -117,18 +169,19 @@ window.tmdbTranslatedTitle = function (
   let languageOnly = translations.find(
     (item) => String(item.iso_639_1 || "").toLowerCase() === language,
   );
-  let title = String((exact || languageOnly)?.data?.title || "").trim();
-  if (
-    !title ||
-    window.normalizeTitle(title) === window.normalizeTitle(details?.title || "")
-  )
+  // TV translation entries carry the localized value in .data.name; movie
+  // entries use .data.title.
+  let match = exact || languageOnly;
+  let title = String(match?.data?.title || match?.data?.name || "").trim();
+  let originalTitle = String(details?.title || details?.name || "");
+  if (!title || window.normalizeTitle(title) === window.normalizeTitle(originalTitle))
     return "";
   return title;
 };
 
 /** Applies fetched TMDB metadata to source copies of a film. @param {string} filmId Film id. @param {Object} metadata Metadata. @param {Object} [options] Save controls. @returns {boolean} Whether changed. */
 window.setFilmTmdbMetadata = function (filmId, metadata, options = {}) {
-  let film = window.findFilmById(filmId);
+  let film = storedWatchedFilm(filmId);
   if (!film || !metadata) return false;
   let beforeLog = options.log && {
     tmdbId: film.tmdbId,
@@ -164,12 +217,7 @@ window.setFilmTmdbMetadata = function (filmId, metadata, options = {}) {
       target.poster = metadata.poster;
     window.normalizeFilmMetadata?.(target);
   }
-  Object.values(state.years || {}).forEach((period) => {
-    (period.films || []).forEach((sourceFilm) => {
-      if (window.sameFilmIdentity(sourceFilm, film)) applyMetadata(sourceFilm);
-    });
-  });
-  applyMetadata(film);
+  storedWatchedFilmSources(filmId, film).forEach(applyMetadata);
   window.markAggregatesDirty?.("film metadata enriched");
   if (beforeLog && window.recordEdit) {
     let afterLog = {
@@ -204,9 +252,15 @@ window.setFilmTmdbMetadata = function (filmId, metadata, options = {}) {
   return true;
 };
 
+// Deliberately without loadFilmPoster/loadPersonPortrait's try/catch +
+// recordImageImportFailure wrapper: window.state.imageImportStats only
+// tracks posterFailures/portraitFailures, so a metadata failure would have
+// nowhere correct to record itself — adding the wrapper would either silently
+// miscount into posterFailures or require a product decision (a new counter)
+// this refactor isn't making.
 /** Looks up and applies metadata for one film. @param {string} filmId Film id. @param {Object} [options] Provider controls. @returns {Promise<Object|null>} Applied metadata. */
 window.loadFilmMetadata = async function (filmId, options = {}) {
-  let film = window.findFilmById(filmId);
+  let film = storedWatchedFilm(filmId);
   if (!film) throw new Error("Film not found.");
   let metadata = await window.lookupTmdbMovieMetadata(film, options);
   if (!metadata) return null;
@@ -224,13 +278,9 @@ window.loadFilmMetadata = async function (filmId, options = {}) {
 window.lookupFilmPoster = async function (film, options = {}) {
   if (!film?.title)
     throw new Error("A film title is required for poster lookup.");
-  let settings = Object.assign(
-    window.getPosterSettings(),
-    options.settings || {},
-  );
-  let fetchFn = options.fetchFn || window.fetch?.bind(window);
-  if (!fetchFn)
-    throw new Error("Poster lookup requires browser network access.");
+  let { settings, fetchFn } = window.resolveProviderCall(options, {
+    fetchError: "Poster lookup requires browser network access.",
+  });
   let tmdbError = null;
   try {
     let poster = await window.lookupTmdbPoster(
@@ -252,21 +302,15 @@ window.lookupFilmPoster = async function (film, options = {}) {
 
 /** Applies a poster to source copies of a film. @param {string} filmId Film id. @param {PosterRecord} poster Poster. @param {Object} [options] Save controls. @returns {boolean} Whether changed. */
 window.setFilmPoster = function (filmId, poster, options = {}) {
-  let film = window.findFilmById(filmId);
+  let film = storedWatchedFilm(filmId);
   if (!film) return false;
   let normalized = poster ? window.normalizePosterRecord(poster) : null;
   if (poster && !normalized)
     throw new Error("Poster URL must use HTTP or HTTPS.");
-  Object.values(state.years || {}).forEach((period) => {
-    (period.films || []).forEach((sourceFilm) => {
-      if (window.sameFilmIdentity(sourceFilm, film)) {
-        if (normalized) sourceFilm.poster = window.cloneRecord(normalized);
-        else delete sourceFilm.poster;
-      }
-    });
+  storedWatchedFilmSources(filmId, film).forEach((sourceFilm) => {
+    if (normalized) sourceFilm.poster = window.cloneRecord(normalized);
+    else delete sourceFilm.poster;
   });
-  if (normalized) film.poster = normalized;
-  else delete film.poster;
   window.markAggregatesDirty?.("film poster updated");
   if (options.save !== false) window.save();
   return true;
@@ -274,7 +318,7 @@ window.setFilmPoster = function (filmId, poster, options = {}) {
 
 /** Looks up and applies a poster for one film. @param {string} filmId Film id. @param {Object} [options] Provider controls. @returns {Promise<PosterRecord|null>} Applied poster. */
 window.loadFilmPoster = async function (filmId, options = {}) {
-  let film = window.findFilmById(filmId);
+  let film = storedWatchedFilm(filmId);
   if (!film) throw new Error("Film not found.");
   try {
     let poster = await window.lookupFilmPoster(film, options);
@@ -292,19 +336,15 @@ window.loadFilmPoster = async function (filmId, options = {}) {
   }
 };
 
-/** Lists poster options for one archive film. @param {string} filmId Film id. @param {Object} [options] Provider controls. @returns {Promise<PosterRecord[]>} Posters. */
+/** Lists poster options for one watched film. @param {string} filmId Film id. @param {Object} [options] Provider controls. @returns {Promise<PosterRecord[]>} Posters. */
 window.loadFilmPosterOptions = async function (filmId, options = {}) {
-  let film = window.findFilmById(filmId);
+  let film = storedWatchedFilm(filmId);
   if (!film) throw new Error("Film not found.");
-  let settings = Object.assign(
-    window.getPosterSettings(),
-    options.settings || {},
-  );
-  if (!settings.tmdbCredential)
-    throw new Error("A TMDB credential is required for poster browsing.");
-  let fetchFn = options.fetchFn || window.fetch?.bind(window);
-  if (!fetchFn)
-    throw new Error("Poster browsing requires browser network access.");
+  let { settings, fetchFn } = window.resolveProviderCall(options, {
+    requireCredential: true,
+    credentialError: "A TMDB credential is required for poster browsing.",
+    fetchError: "Poster browsing requires browser network access.",
+  });
   return window.lookupTmdbPosterOptions(
     film,
     settings.tmdbCredential,
@@ -320,15 +360,11 @@ window.loadFilmPosterOptions = async function (filmId, options = {}) {
 window.loadWatchlistPosterOptions = async function (itemId, options = {}) {
   let item = window.findWatchlistItemById?.(itemId);
   if (!item) throw new Error("Watchlist film not found.");
-  let settings = Object.assign(
-    window.getPosterSettings(),
-    options.settings || {},
-  );
-  if (!settings.tmdbCredential)
-    throw new Error("A TMDB credential is required for poster browsing.");
-  let fetchFn = options.fetchFn || window.fetch?.bind(window);
-  if (!fetchFn)
-    throw new Error("Poster browsing requires browser network access.");
+  let { settings, fetchFn } = window.resolveProviderCall(options, {
+    requireCredential: true,
+    credentialError: "A TMDB credential is required for poster browsing.",
+    fetchError: "Poster browsing requires browser network access.",
+  });
   return window.lookupTmdbPosterOptions(
     window.watchlistFilmLike(item),
     settings.tmdbCredential,
@@ -341,13 +377,9 @@ window.loadWatchlistPosterOptions = async function (itemId, options = {}) {
 window.lookupPersonPortrait = async function (person, options = {}) {
   if (!person?.name)
     throw new Error("A person name is required for portrait lookup.");
-  let settings = Object.assign(
-    window.getPosterSettings(),
-    options.settings || {},
-  );
-  let fetchFn = options.fetchFn || window.fetch?.bind(window);
-  if (!fetchFn)
-    throw new Error("Portrait lookup requires browser network access.");
+  let { settings, fetchFn } = window.resolveProviderCall(options, {
+    fetchError: "Portrait lookup requires browser network access.",
+  });
   return window.lookupTmdbPersonPortrait(
     person,
     settings.tmdbCredential,
@@ -357,9 +389,7 @@ window.lookupPersonPortrait = async function (person, options = {}) {
 
 /** Applies a portrait to a person id. @param {string} personId Person id. @param {PosterRecord} portrait Portrait. @param {Object} [options] Save controls. @returns {boolean} Whether changed. */
 window.setPersonPortrait = function (personId, portrait, options = {}) {
-  let normalizedId =
-    window.normalizePersonName?.(personId) ||
-    window.recipientPersonId(personId);
+  let normalizedId = window.normalizePersonName(personId);
   let canonicalName = state.peopleAliases?.[normalizedId];
   let canonicalId = canonicalName
     ? window.normalizePersonName(canonicalName)
@@ -381,9 +411,7 @@ window.setPersonPortrait = function (personId, portrait, options = {}) {
 
 /** Looks up and applies a portrait for one person. @param {string} personId Person id. @param {Object} [options] Provider controls. @returns {Promise<PosterRecord|null>} Applied portrait. */
 window.loadPersonPortrait = async function (personId, options = {}) {
-  let normalizedId =
-    window.normalizePersonName?.(personId) ||
-    window.recipientPersonId(personId);
+  let normalizedId = window.normalizePersonName(personId);
   let person = (window.ensurePeopleIndex?.() || state.peopleById || {})[
     normalizedId
   ];

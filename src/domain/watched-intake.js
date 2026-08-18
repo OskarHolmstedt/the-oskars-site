@@ -11,7 +11,7 @@
   };
 
   function clone(value) {
-    return value === undefined ? undefined : window.cloneRecord(value);
+    return window.watchedFilmClone(value);
   }
 
   function now(options = {}) {
@@ -19,11 +19,7 @@
   }
 
   function baseRevision() {
-    return String(
-      window.state.draftMetadata?.baseRevision ||
-        window.state.canonicalRevision ||
-        "legacy-unversioned",
-    );
+    return window.watchedFilmBaseRevision();
   }
 
   function identity(film) {
@@ -313,11 +309,13 @@
         seen.add(key);
         return true;
       })
-      .sort(
-        (left, right) =>
-          Number(left.allTimeRank || left.rank || 999999) -
-            Number(right.allTimeRank || right.rank || 999999) ||
-          window.compareEnglishTitles(left.title, right.title),
+      .sort((left, right) =>
+        window.compareByAllTimeRank(
+          left,
+          right,
+          (item) => ({ allTimeRank: item.allTimeRank || item.rank, title: item.title }),
+          { yearFallback: false },
+        ),
       );
   }
 
@@ -479,38 +477,6 @@
         lower: ratingEdge(lowerRating, "first"),
       },
     });
-  };
-
-  /** Builds the visual year placement board. @param {string} workflowId Workflow id. @returns {Object} Year board or an invalid-level result. */
-  window.watchedIntakeYearRankingBoard = function (workflowId) {
-    let board = window.watchedIntakeRankingBoard(workflowId);
-    return board.level === "year"
-      ? Object.assign({}, board, { year: Number(board.scopeKey) })
-      : Object.assign({}, board, { ok: false, reason: "not-year-step" });
-  };
-
-  /** Builds the year-constrained visual decade placement board. @param {string} workflowId Workflow id. @returns {Object} Decade board or an invalid-level result. */
-  window.watchedIntakeDecadeRankingBoard = function (workflowId) {
-    let board = window.watchedIntakeRankingBoard(workflowId);
-    return board.level === "decade"
-      ? Object.assign({}, board, { decade: board.scopeKey })
-      : Object.assign({}, board, { ok: false, reason: "not-decade-step" });
-  };
-
-  /** Builds the decade-constrained visual century placement board. @param {string} workflowId Workflow id. @returns {Object} Century board or an invalid-level result. */
-  window.watchedIntakeCenturyRankingBoard = function (workflowId) {
-    let board = window.watchedIntakeRankingBoard(workflowId);
-    return board.level === "century"
-      ? Object.assign({}, board, { century: board.scopeKey })
-      : Object.assign({}, board, { ok: false, reason: "not-century-step" });
-  };
-
-  /** Builds the century-constrained visual all-time placement board. @param {string} workflowId Workflow id. @returns {Object} All-time board or an invalid-level result. */
-  window.watchedIntakeAllTimeRankingBoard = function (workflowId) {
-    let board = window.watchedIntakeRankingBoard(workflowId);
-    return board.level === "allTime"
-      ? Object.assign({}, board, { allTime: board.scopeKey })
-      : Object.assign({}, board, { ok: false, reason: "not-all-time-step" });
   };
 
   function addArchiveToAllTimeIfNeeded(film) {

@@ -286,4 +286,176 @@
       })),
     };
   };
+
+  function officialWatchlistCandidate(film, year) {
+    return {
+      officialId: film.id,
+      title: film.title,
+      year: String(year || ""),
+      periodKey: film.periodKey,
+      href: film.href,
+      winner: Boolean(film.winner),
+      categories: [...(film.categories || [])],
+    };
+  }
+
+  /** Plans one official-results collection's unseen watchlist additions without mutating state. @param {string} sourceId Official collection source id. @param {OfficialOscarCompletion} [completion] Existing completion model. @returns {OfficialOscarWatchlistPlan|null} Bulk-add plan. */
+  window.officialOscarWatchlistPlan = function (sourceId, completion) {
+    let model = completion || window.officialOscarCompletion();
+    let source = window.officialOscarProjectSource(sourceId, model);
+    if (!source) return null;
+    let evidenceByTitle = new Map();
+    model.films.forEach((film) => {
+      let year = String(
+        film.watchedFilm?.year || film.watchlistItem?.year || "",
+      );
+      let periodYears = window.officialResultPeriodYears(film.periodKey);
+      if (!year && periodYears.length === 1) year = periodYears[0];
+      if (!/^\d{4}$/.test(year)) return;
+      let key = window.normalizeTitle(film.title);
+      let years = evidenceByTitle.get(key) || new Set();
+      years.add(year);
+      evidenceByTitle.set(key, years);
+    });
+    let ready = new Map();
+    let needsReview = new Map();
+    let alreadyWatched = new Map();
+    let alreadyWatchlisted = new Map();
+    source.films.forEach((film) => {
+      if (film.watched) {
+        alreadyWatched.set(
+          film.watchedFilm?.id || film.id,
+          officialWatchlistCandidate(film, film.watchedFilm?.year || film.year),
+        );
+        return;
+      }
+      if (film.watchlistItem) {
+        alreadyWatchlisted.set(
+          film.watchlistItem.id || film.id,
+          officialWatchlistCandidate(
+            film,
+            film.watchlistItem.year || film.year,
+          ),
+        );
+        return;
+      }
+      let periodYears = window.officialResultPeriodYears(film.periodKey);
+      let year = periodYears.length === 1 ? periodYears[0] : "";
+      if (!year && periodYears.length > 1) {
+        let evidence = [
+          ...(evidenceByTitle.get(window.normalizeTitle(film.title)) || []),
+        ].filter((value) => periodYears.includes(value));
+        if (evidence.length === 1) year = evidence[0];
+      }
+      if (!year) {
+        needsReview.set(film.id, {
+          ...officialWatchlistCandidate(film, ""),
+          possibleYears: periodYears,
+        });
+        return;
+      }
+      let candidate = officialWatchlistCandidate(film, year);
+      let itemId = `${year}::${window.normalizeTitle(film.title)}`;
+      if (window.findWatchlistItemById?.(itemId)) {
+        alreadyWatchlisted.set(itemId, candidate);
+        return;
+      }
+      if (!ready.has(itemId)) ready.set(itemId, candidate);
+    });
+    return {
+      sourceId,
+      sourceLabel: source.sourceLabel,
+      sourceHref: source.sourceHref,
+      ready: [...ready.values()],
+      needsReview: [...needsReview.values()],
+      alreadyWatched: [...alreadyWatched.values()],
+      alreadyWatchlisted: [...alreadyWatchlisted.values()],
+    };
+  };
+
+  /** Adds every currently unambiguous unseen film in an official-results collection to the watchlist. @param {string} sourceId Official collection source id. @param {string} tier Destination interest tier. @param {Object} [options] Persistence controls. @returns {Object} Bulk-add result. */
+  window.applyOfficialOscarWatchlistPlan = function (
+    sourceId,
+    tier,
+    options = {},
+  ) {
+    if (window.oskarsCapabilities && !window.oskarsCapabilities().canEdit)
+      return { ok: false, reason: "Watchlist editing is unavailable." };
+    let normalizedTier = window.normalizeWatchlistTier?.(tier);
+    if (!normalizedTier)
+      return { ok: false, reason: "Choose an interest tier." };
+    let plan = window.officialOscarWatchlistPlan(sourceId);
+    if (!plan) return { ok: false, reason: "Oscar collection not found." };
+    let added = [];
+    window.state.watchlist ||= [];
+    plan.ready.forEach((candidate) => {
+      let item = window.normalizeWatchlistItem?.({
+        title: candidate.title,
+        year: candidate.year,
+        tier: normalizedTier,
+        tags: ["Oscars"],
+      });
+      if (!item || window.findWatchlistItemById?.(item.id)) return;
+      window.state.watchlist.push(item);
+      added.push(item);
+    });
+    if (!added.length)
+      return { ok: true, added, plan, tier: normalizedTier, persisted: null };
+    window.recomputeWatchlistOrder?.();
+    window.markAggregatesDirty?.("official Oscar films added to watchlist");
+    window.recordEdit?.({
+      type: "official Oscar watchlist added",
+      summary: `Added ${added.length} film(s) from ${plan.sourceLabel} to tier ${normalizedTier}`,
+      sheetHint: "Watchlist",
+      changes: [
+        { field: "films added", before: "0", after: String(added.length) },
+        { field: "tier", before: "", after: normalizedTier },
+      ],
+      context: {
+        sourceId,
+        tier: normalizedTier,
+        watchlistIds: added.map((item) => item.id),
+      },
+    });
+    let persisted =
+      options.save === false
+        ? null
+        : window.save?.({ immediate: true, rebuild: true });
+    return { ok: true, added, plan, tier: normalizedTier, persisted };
+  };
+
+  /** Removes a just-added official Oscar watchlist batch. @param {string[]} ids Watchlist ids returned by the bulk add. @param {Object} [options] Persistence controls. @returns {Object} Undo result. */
+  window.undoOfficialOscarWatchlistAdd = function (ids, options = {}) {
+    if (window.oskarsCapabilities && !window.oskarsCapabilities().canEdit)
+      return { ok: false, reason: "Watchlist editing is unavailable." };
+    let targets = new Set((ids || []).map(String));
+    let removed = [];
+    window.state.watchlist = (window.state.watchlist || []).filter((item) => {
+      let id = item.id || window.watchlistItemId?.(item);
+      let isOscarAddition = (item.tags || []).some(
+        (tag) => window.normalizeTitle(tag) === "oscars",
+      );
+      if (!targets.has(id) || !isOscarAddition) return true;
+      removed.push(item);
+      return false;
+    });
+    if (!removed.length)
+      return { ok: true, removed, persisted: null };
+    window.recomputeWatchlistOrder?.();
+    window.markAggregatesDirty?.("official Oscar watchlist addition undone");
+    window.recordEdit?.({
+      type: "official Oscar watchlist add undone",
+      summary: `Removed ${removed.length} recently added Oscar film(s) from the watchlist`,
+      sheetHint: "Watchlist",
+      changes: [
+        { field: "films removed", before: String(removed.length), after: "0" },
+      ],
+      context: { watchlistIds: removed.map((item) => item.id) },
+    });
+    let persisted =
+      options.save === false
+        ? null
+        : window.save?.({ immediate: true, rebuild: true });
+    return { ok: true, removed, persisted };
+  };
 })();

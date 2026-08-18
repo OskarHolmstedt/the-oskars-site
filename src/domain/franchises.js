@@ -168,7 +168,8 @@ window.formatFranchiseMemberships = function (value) {
 
 /** Calculates watched and known-film completion for a franchise. @param {FranchiseRecord} franchise Franchise. @returns {Object} Completion counts. */
 window.franchiseCompletion = function (franchise) {
-  let watchedCount = franchise?.films?.length || 0;
+  let watchedCount =
+    (franchise?.films?.length || 0) + (franchise?.otherFilms?.length || 0);
   let watchlistCount = franchise?.watchlistFilms?.length || 0;
   let total = watchedCount + watchlistCount;
   let percent = total ? Math.round((watchedCount / total) * 100) : 0;
@@ -223,16 +224,31 @@ window.franchiseFilmPosition = function (
   return null;
 };
 
-/** Selects a representative watched or watchlist film. @param {FranchiseRecord} franchise Franchise. @returns {FilmAxisRecord|null} Representative. */
-window.franchiseRepresentativeFilm = function (franchise) {
-  let archiveEntries = (franchise?.films || [])
+/** Resolves a franchise's archive (watched) films. @param {FranchiseRecord} franchise Franchise. @returns {FilmRecord[]} Archive films. */
+window.franchiseArchiveFilms = function (franchise) {
+  return (franchise?.films || [])
     .map((entry) => state.filmsById?.[entry.filmId])
     .filter(Boolean);
+};
+
+/** Resolves a franchise's watched short/other films. @param {FranchiseRecord} franchise Franchise. @returns {FilmRecord[]} Other films. */
+window.franchiseOtherFilms = function (franchise) {
+  return (franchise?.otherFilms || [])
+    .map((entry) =>
+      (state.watchedOther || []).find((film) => film.id === entry.filmId),
+    )
+    .filter(Boolean);
+};
+
+/** Selects a representative watched or watchlist film. @param {FranchiseRecord} franchise Franchise. @returns {FilmAxisRecord|null} Representative. */
+window.franchiseRepresentativeFilm = function (franchise) {
+  let archiveEntries = window.franchiseArchiveFilms(franchise);
   let watchlistEntries = (franchise?.watchlistFilms || [])
     .map((entry) =>
       window.watchlistFilmLike?.(window.findWatchlistItemById?.(entry.itemId)),
     )
     .filter(Boolean);
+  let otherEntries = window.franchiseOtherFilms(franchise);
   function posterReady(film) {
     return window.normalizePosterRecord?.(film?.poster);
   }
@@ -259,12 +275,17 @@ window.franchiseRepresentativeFilm = function (franchise) {
     .filter(posterReady)
     .sort(releaseOrder)[0];
   if (firstWithPoster) return firstWithPoster;
+  let otherWithPoster = otherEntries
+    .filter(posterReady)
+    .sort(releaseOrder)[0];
+  if (otherWithPoster) return otherWithPoster;
   let watchlistWithPoster = watchlistEntries
     .filter(posterReady)
     .sort(releaseOrder)[0];
   if (watchlistWithPoster) return watchlistWithPoster;
   return (
     archiveEntries.sort(allTimeOrder)[0] ||
+    otherEntries.sort(releaseOrder)[0] ||
     watchlistEntries.sort(releaseOrder)[0] ||
     null
   );
@@ -274,6 +295,9 @@ window.franchiseRepresentativeFilm = function (franchise) {
 window.rebuildFranchiseIndex = function () {
   let done = window.startOskarsPerformance?.("rebuildFranchiseIndex");
   let franchises = {};
+  let watchedOtherById = new Map(
+    (state.watchedOther || []).map((film) => [film.id, film]),
+  );
   function ensure(id, name) {
     return (franchises[id] ||= {
       id,
@@ -284,6 +308,7 @@ window.rebuildFranchiseIndex = function () {
       parentNames: [],
       childIds: [],
       _films: new Map(),
+      _otherFilms: new Map(),
       _watchlistFilms: new Map(),
       sourceUrl: state.franchiseLinks?.[id] || "",
     });
@@ -336,7 +361,7 @@ window.rebuildFranchiseIndex = function () {
   // only run once every parent/child edge exists (see the two-pass split
   // below) — otherwise rollup silently misses ancestors whose edges haven't
   // been created yet, depending on which film happened to declare them.
-  function rollUpToAncestors(start, filmOrItem, isWatchlist) {
+  function rollUpToAncestors(start, filmOrItem, kind) {
     let visited = new Set([start.id]);
     let queue = [...start.parentIds];
     while (queue.length) {
@@ -345,16 +370,24 @@ window.rebuildFranchiseIndex = function () {
       visited.add(parentId);
       let parent = franchises[parentId];
       if (!parent) continue;
-      if (isWatchlist) addWatchlistFilm(parent, filmOrItem, null, false);
+      if (kind === "watchlist")
+        addWatchlistFilm(parent, filmOrItem, null, false);
+      else if (kind === "other")
+        addOtherFilm(parent, filmOrItem, null, false);
       else addFilm(parent, filmOrItem, null, false);
       queue.push(...parent.parentIds);
     }
   }
-  function addFilm(franchise, film, rank, direct) {
-    let existing = franchise._films.get(film.id);
+  // Upserts one film/item into a franchise's Map, preferring a direct
+  // membership over a rolled-up one and backfilling a still-missing rank -
+  // shared by addFilm/addWatchlistFilm/addOtherFilm below, which differ only
+  // in which Map they target and which id field the stored entry carries.
+  function upsertFranchiseMember(map, id, idField, rank, direct) {
+    if (!id) return;
+    let existing = map.get(id);
     if (!existing || (direct && !existing.direct)) {
-      franchise._films.set(film.id, {
-        filmId: film.id,
+      map.set(id, {
+        [idField]: id,
         rank: rank || null,
         direct: Boolean(direct),
       });
@@ -362,19 +395,27 @@ window.rebuildFranchiseIndex = function () {
       existing.rank = rank;
     }
   }
+  function addFilm(franchise, film, rank, direct) {
+    upsertFranchiseMember(franchise._films, film.id, "filmId", rank, direct);
+  }
   function addWatchlistFilm(franchise, item, rank, direct) {
     let id = item.id || window.watchlistItemId?.(item);
-    if (!id) return;
-    let existing = franchise._watchlistFilms.get(id);
-    if (!existing || (direct && !existing.direct)) {
-      franchise._watchlistFilms.set(id, {
-        itemId: id,
-        rank: rank || null,
-        direct: Boolean(direct),
-      });
-    } else if (direct && rank && !existing.rank) {
-      existing.rank = rank;
-    }
+    upsertFranchiseMember(
+      franchise._watchlistFilms,
+      id,
+      "itemId",
+      rank,
+      direct,
+    );
+  }
+  function addOtherFilm(franchise, film, rank, direct) {
+    upsertFranchiseMember(
+      franchise._otherFilms,
+      film.id,
+      "filmId",
+      rank,
+      direct,
+    );
   }
 
   let eligibleFilms = Object.values(state.filmsById || {}).filter((film) =>
@@ -396,6 +437,15 @@ window.rebuildFranchiseIndex = function () {
     });
   });
 
+  (state.watchedOther || []).forEach((film) => {
+    film.franchises = window.normalizeFranchiseMemberships(film.franchises);
+    film.franchises.forEach((membership) => {
+      let franchise = ensure(membership.id, membership.name);
+      addOtherFilm(franchise, film, membership.rank, true);
+      addParent(franchise, membership);
+    });
+  });
+
   (state.watchlist || []).forEach((item) => {
     item.id ||= window.watchlistItemId?.(item);
     item.franchises = window.normalizeFranchiseMemberships(item.franchises);
@@ -411,14 +461,21 @@ window.rebuildFranchiseIndex = function () {
   eligibleFilms.forEach((film) => {
     (film.franchises || []).forEach((membership) => {
       let franchise = franchises[membership.id];
-      if (franchise) rollUpToAncestors(franchise, film, false);
+      if (franchise) rollUpToAncestors(franchise, film, "archive");
+    });
+  });
+
+  (state.watchedOther || []).forEach((film) => {
+    (film.franchises || []).forEach((membership) => {
+      let franchise = franchises[membership.id];
+      if (franchise) rollUpToAncestors(franchise, film, "other");
     });
   });
 
   (state.watchlist || []).forEach((item) => {
     (item.franchises || []).forEach((membership) => {
       let franchise = franchises[membership.id];
-      if (franchise) rollUpToAncestors(franchise, item, true);
+      if (franchise) rollUpToAncestors(franchise, item, "watchlist");
     });
   });
 
@@ -450,12 +507,29 @@ window.rebuildFranchiseIndex = function () {
         );
       },
     );
+    franchise.otherFilms = [...franchise._otherFilms.values()].sort(
+      (left, right) => {
+        let leftFilm = watchedOtherById.get(left.filmId);
+        let rightFilm = watchedOtherById.get(right.filmId);
+        return (
+          Number(left.rank || 999999) - Number(right.rank || 999999) ||
+          Number(leftFilm?.year || 0) - Number(rightFilm?.year || 0) ||
+          window.compareEnglishTitles(leftFilm?.title, rightFilm?.title)
+        );
+      },
+    );
     franchise.ratingStatistics = window.collectionRatingStatistics(
       franchise.films
         .map((entry) => state.filmsById?.[entry.filmId])
+        .concat(
+          franchise.otherFilms.map((entry) =>
+            watchedOtherById.get(entry.filmId),
+          ),
+        )
         .filter(Boolean),
     );
     delete franchise._films;
+    delete franchise._otherFilms;
     delete franchise._watchlistFilms;
   });
   state.franchisesById = franchises;

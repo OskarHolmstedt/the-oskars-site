@@ -14,11 +14,7 @@ function posterYear(value) {
 // straight vs curly vs acute-accent apostrophes, or a plain hyphen vs an en
 // dash or em dash), which otherwise makes an exact match silently fail.
 function looseComparableTitle(value) {
-  return normalizeTitle(String(value || "").replace(/\s*&\s*/g, " and "))
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[\u2018\u2019\u201a\u201b\u02bc\u02bb\u2032\u00b4`]/g, "'")
-    .replace(/[\u2010-\u2015\u2212]/g, "-");
+  return window.comparableFilmTitle(value);
 }
 
 function tmdbMovieTitles(result, details) {
@@ -95,9 +91,7 @@ window.selectTmdbMovie = function (film, results, detailsById) {
 
 /** Selects the best TMDB person with a profile image. @param {PersonRecord} person Person. @param {Object[]} results Results. @returns {Object|null} Result. */
 window.selectTmdbPersonPortrait = function (person, results) {
-  let name =
-    window.normalizePersonName?.(person?.name) ||
-    window.recipientPersonId(person?.name);
+  let name = window.normalizePersonName(person?.name);
   let filmTitles = new Set(
     (person?.filmIds || [])
       .map((id) => looseComparableTitle(window.state.filmsById?.[id]?.title))
@@ -106,9 +100,7 @@ window.selectTmdbPersonPortrait = function (person, results) {
   let matches = (results || [])
     .filter((result) => result?.profile_path)
     .map((result, index) => {
-      let resultName =
-        window.normalizePersonName?.(result.name) ||
-        window.recipientPersonId(result.name);
+      let resultName = window.normalizePersonName(result.name);
       let knownForMatches = (result.known_for || []).filter((item) =>
         filmTitles.has(looseComparableTitle(item.title || item.name)),
       ).length;

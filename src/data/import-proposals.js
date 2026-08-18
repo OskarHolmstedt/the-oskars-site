@@ -13,7 +13,7 @@ function sheetsFoundationHistoryEntry(source) {
 /**
  * Builds a validated import proposal without persisting it.
  * @param {Object} input Proposal inputs.
- * @param {'google-sheets'|'json'|'delimited'|'official-results'} input.sourceKind Source family.
+ * @param {'google-sheets'|'json'|'delimited'|'official-results'|'letterboxd'} input.sourceKind Source family.
  * @param {'merge'|'replace'|'foundation'|'refresh'} input.mode Proposal mode.
  * @param {OskarsState} input.baseState State at preview time.
  * @param {OskarsState} input.candidateState Temporary imported state.

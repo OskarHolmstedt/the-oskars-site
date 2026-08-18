@@ -160,7 +160,9 @@
       metadataRow(
         "TMDB",
         tmdbId ? `#${tmdbId}` : "",
-        tmdbId ? `https://www.themoviedb.org/movie/${tmdbId}` : "",
+        tmdbId
+          ? `https://www.themoviedb.org/${window.tmdbResourcePath(window.parseTmdbReference(tmdbId))}`
+          : "",
       ),
       metadataRow(
         "Letterboxd",

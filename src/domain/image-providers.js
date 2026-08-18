@@ -2,6 +2,69 @@
  * @file Implements resilient TMDB and Wikimedia lookup requests and provider-specific result shaping.
  */
 
+// TMDB TV references: a stored tmdbId is either a plain movie id (all
+// existing data) or the explicit "TV:<seriesId>", "TV:<seriesId>/S<season>",
+// or "TV:<seriesId>/S<season>E<episode>" notation for a whole series, one
+// season, or one episode tracked as an archive entry. Every TMDB endpoint
+// construction in this file routes through parseTmdbReference/
+// tmdbResourcePath so a stored id is never used directly as a /movie/{id}
+// path segment.
+
+/**
+ * Parses a stored tmdbId into a structured TMDB reference. Anything not
+ * matching the explicit TV notation is treated as a movie id, preserving
+ * existing behavior for every id already in the archive.
+ * @param {string|number} value Stored tmdbId.
+ * @returns {{mediaType: "movie"|"tv", id: string, season: number|null, episode: number|null}} Parsed reference.
+ */
+window.parseTmdbReference = function (value) {
+  let raw = String(value ?? "").trim();
+  let match = raw.match(/^TV:(\d+)(?:\/S(\d+)(?:E(\d+))?)?$/i);
+  if (!match) return { mediaType: "movie", id: raw, season: null, episode: null };
+  return {
+    mediaType: "tv",
+    id: match[1],
+    season: match[2] !== undefined ? Number(match[2]) : null,
+    episode: match[3] !== undefined ? Number(match[3]) : null,
+  };
+};
+
+/**
+ * Builds the TMDB API path segment for a parsed reference (movie, whole
+ * series, one season, or one episode).
+ * @param {{mediaType: string, id: string, season: number|null, episode: number|null}} reference Parsed reference.
+ * @returns {string} Path segment appended after "https://api.themoviedb.org/3/".
+ */
+window.tmdbResourcePath = function (reference) {
+  if (reference.mediaType !== "tv")
+    return `movie/${encodeURIComponent(reference.id)}`;
+  let path = `tv/${encodeURIComponent(reference.id)}`;
+  if (reference.season !== null) path += `/season/${reference.season}`;
+  if (reference.episode !== null) path += `/episode/${reference.episode}`;
+  return path;
+};
+
+// themoviedb.org's public website URLs use the identical path shape to the
+// API ("movie/{id}", "tv/{id}", "tv/{id}/season/{s}", "tv/{id}/season/{s}/
+// episode/{e}"), so tmdbResourcePath(reference) doubles as the public path
+// too — https://www.themoviedb.org/${tmdbResourcePath(reference)}.
+
+/**
+ * Builds TMDB request headers for a credential, adding the credential to
+ * `params` as `api_key` when it isn't a v4 read-access token (those start
+ * with "eyJ" and go in the Authorization header instead).
+ * @param {string} credential TMDB v3 API key or v4 read-access token.
+ * @param {URLSearchParams} params Request params, mutated in place.
+ * @returns {{accept: string, Authorization?: string}} Request headers.
+ */
+window.tmdbAuthHeaders = function (credential, params) {
+  let headers = { accept: "application/json" };
+  if (String(credential).startsWith("eyJ"))
+    headers.Authorization = `Bearer ${credential}`;
+  else params.set("api_key", credential);
+  return headers;
+};
+
 /** Requests provider JSON with timeouts and retries. @param {Function} fetchFn Fetch implementation. @param {string} url URL. @param {Object} options Fetch options. @param {string} provider Provider label. @param {number} attempts Attempts. @returns {Promise<Object>} Parsed JSON. */
 window.requestPosterJson = async function (
   fetchFn,
@@ -77,16 +140,35 @@ function tmdbMovieSearchParams(film, credential, queryTitle) {
     language: "en-US",
   });
   if (/^\d{4}$/.test(String(film.year || ""))) params.set("year", film.year);
-  let headers = { accept: "application/json" };
-  if (String(credential).startsWith("eyJ"))
-    headers.Authorization = `Bearer ${credential}`;
-  else params.set("api_key", credential);
+  let headers = window.tmdbAuthHeaders(credential, params);
   return { params, headers };
 }
+
+/** Tests whether an ID-less record may use TMDB movie-title search. @param {FilmRecord|WatchedOtherEntry} film Film-like record. @returns {boolean} Whether movie search is appropriate. */
+window.tmdbMovieSearchEligible = function (film) {
+  return !/series\b/i.test(String(film?.type || "").trim());
+};
 
 /** Finds the best TMDB poster for a film. @param {FilmRecord} film Film. @param {string} credential Credential. @param {Function} fetchFn Fetch implementation. @returns {Promise<PosterRecord|null>} Poster. */
 window.lookupTmdbPoster = async function (film, credential, fetchFn) {
   if (!credential) return null;
+  if (film.tmdbId) {
+    let reference = window.parseTmdbReference(film.tmdbId);
+    let details = await window.lookupTmdbMovieDetails(
+      film.tmdbId,
+      credential,
+      fetchFn,
+    );
+    let posterPath = details.poster_path || details.still_path || "";
+    if (!posterPath) return null;
+    return window.normalizePosterRecord({
+      url: `https://image.tmdb.org/t/p/w500${posterPath}`,
+      source: "tmdb",
+      sourceUrl: `https://www.themoviedb.org/${window.tmdbResourcePath(reference)}`,
+      providerId: film.tmdbId,
+    });
+  }
+  if (!window.tmdbMovieSearchEligible(film)) return null;
   for (let queryTitle of window.tmdbMovieSearchTitleVariants(film.title)) {
     let { params, headers } = tmdbMovieSearchParams(
       film,
@@ -121,23 +203,25 @@ window.lookupTmdbPosterOptions = async function (
   options = {},
 ) {
   if (!credential) return [];
-  let headers = { accept: "application/json" };
   let apiParams = new URLSearchParams({ include_image_language: "en,null" });
-  if (String(credential).startsWith("eyJ"))
-    headers.Authorization = `Bearer ${credential}`;
-  else apiParams.set("api_key", credential);
+  let headers = window.tmdbAuthHeaders(credential, apiParams);
   let match = film.tmdbId
     ? { id: film.tmdbId, poster_path: film.poster?.source === "tmdb" ? "" : "" }
     : await window.lookupTmdbMovieSearch(film, credential, fetchFn);
   if (!match?.id) return [];
+  let reference = window.parseTmdbReference(match.id);
   let data = await window.requestPosterJson(
     fetchFn,
-    `https://api.themoviedb.org/3/movie/${encodeURIComponent(match.id)}/images?${apiParams}`,
+    `https://api.themoviedb.org/3/${window.tmdbResourcePath(reference)}/images?${apiParams}`,
     { headers },
     "TMDB",
     2,
   );
-  let posters = (data.posters || []).filter((poster) => poster?.file_path);
+  // A specific episode has no posters of its own — TMDB's episode images
+  // endpoint returns "stills" instead of "posters"/"backdrops".
+  let posters = (
+    (reference.episode !== null ? data.stills : data.posters) || []
+  ).filter((poster) => poster?.file_path);
   if (
     match.poster_path &&
     !posters.some((poster) => poster.file_path === match.poster_path)
@@ -159,7 +243,7 @@ window.lookupTmdbPosterOptions = async function (
       let record = window.normalizePosterRecord({
         url: `https://image.tmdb.org/t/p/w500${poster.file_path}`,
         source: "tmdb",
-        sourceUrl: `https://www.themoviedb.org/movie/${match.id}/images/posters`,
+        sourceUrl: `https://www.themoviedb.org/${window.tmdbResourcePath(reference)}/images`,
         providerId: match.id,
       });
       if (!record || seen.has(record.url)) return null;
@@ -179,7 +263,7 @@ window.lookupTmdbPosterOptions = async function (
 
 /** Finds a TMDB movie using titles and alternative-title details. @param {FilmRecord} film Film. @param {string} credential Credential. @param {Function} fetchFn Fetch implementation. @returns {Promise<Object|null>} TMDB result. */
 window.lookupTmdbMovieSearch = async function (film, credential, fetchFn) {
-  if (!credential) return null;
+  if (!credential || !window.tmdbMovieSearchEligible(film)) return null;
   for (let queryTitle of window.tmdbMovieSearchTitleVariants(film.title)) {
     let { params, headers } = tmdbMovieSearchParams(
       film,
@@ -229,19 +313,25 @@ window.lookupTmdbMovieSearch = async function (film, credential, fetchFn) {
   return null;
 };
 
-/** Fetches TMDB movie details and alternative titles. @param {string|number} tmdbId TMDB id. @param {string} credential Credential. @param {Function} fetchFn Fetch implementation. @returns {Promise<Object>} Details. */
+/**
+ * Fetches TMDB details and alternative titles for a movie, or for a TV
+ * series/season/episode when the id uses the explicit "TV:" notation
+ * (parseTmdbReference).
+ * @param {string|number} tmdbId Stored TMDB id.
+ * @param {string} credential Credential.
+ * @param {Function} fetchFn Fetch implementation.
+ * @returns {Promise<Object>} Details.
+ */
 window.lookupTmdbMovieDetails = async function (tmdbId, credential, fetchFn) {
+  let reference = window.parseTmdbReference(tmdbId);
   let params = new URLSearchParams({
     language: "en-US",
     append_to_response: "credits,alternative_titles,translations",
   });
-  let headers = { accept: "application/json" };
-  if (String(credential).startsWith("eyJ"))
-    headers.Authorization = `Bearer ${credential}`;
-  else params.set("api_key", credential);
+  let headers = window.tmdbAuthHeaders(credential, params);
   return window.requestPosterJson(
     fetchFn,
-    `https://api.themoviedb.org/3/movie/${encodeURIComponent(tmdbId)}?${params}`,
+    `https://api.themoviedb.org/3/${window.tmdbResourcePath(reference)}?${params}`,
     { headers },
     "TMDB",
     2,
@@ -257,10 +347,7 @@ window.lookupTmdbPersonPortrait = async function (person, credential, fetchFn) {
     include_adult: "false",
     language: "en-US",
   });
-  let headers = { accept: "application/json" };
-  if (String(credential).startsWith("eyJ"))
-    headers.Authorization = `Bearer ${credential}`;
-  else params.set("api_key", credential);
+  let headers = window.tmdbAuthHeaders(credential, params);
   let data = await window.requestPosterJson(
     fetchFn,
     `https://api.themoviedb.org/3/search/person?${params}`,

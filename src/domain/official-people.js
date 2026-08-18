@@ -4,10 +4,10 @@
   const SOURCE_ID = "academy-awards";
 
   function canonicalPersonId(name) {
-    let variantId = window.personIdentityKey(name);
+    let variantId = window.normalizePersonName(name);
     if (!variantId) return "";
     let canonicalName = window.state?.peopleAliases?.[variantId] || name;
-    return window.personIdentityKey(canonicalName);
+    return window.normalizePersonName(canonicalName);
   }
 
   function recipientNames(value) {

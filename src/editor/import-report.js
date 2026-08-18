@@ -61,6 +61,13 @@ function formatPeriodSummary(periods) {
   return parts.join(", ") || importReportUi("None");
 }
 
+/** Wraps an already-translated "Showing N of M ..." message, or "" when nothing was truncated. @param {number} shown Rendered count. @param {number} total Full count. @param {string} translatedText Pre-translated overflow message. @returns {string} */
+function overflowNote(shown, total, translatedText) {
+  return total > shown
+    ? `<p class="import-report-note">${importReportEscape(translatedText)}</p>`
+    : "";
+}
+
 function organizeImportReport(body) {
   let summaryNodes = [...body.children].slice(0, 2);
   let detailNodes = [...body.children].slice(2);
@@ -173,6 +180,11 @@ window.showImportReport = function (report) {
   let preservedFieldDetails = (report.preservedFieldDetails || []).slice(0, 25);
   let sourceConflicts = (report.sourceConflicts || []).slice(0, 25);
   let officialResultIssues = (report.officialResultIssues || []).slice(0, 100);
+  let letterboxdSummary =
+    report.sourceKind === "letterboxd" ||
+    report.watchedArchiveMerged !== undefined
+      ? report
+      : null;
   let franchiseSummaries =
     report.franchiseSummaries ||
     (report.franchiseSummary ? [report.franchiseSummary] : []);
@@ -213,10 +225,14 @@ window.showImportReport = function (report) {
     </tr>`;
     })
     .join("");
-  let skippedOverflow =
-    detailTotal("skippedDetails") > skippedDetails.length
-      ? `<p class="import-report-note">${importReportEscape(ui("Showing {shown} of {total} skipped row details.", { shown: skippedDetails.length, total: detailTotal("skippedDetails") }))}</p>`
-      : "";
+  let skippedOverflow = overflowNote(
+    skippedDetails.length,
+    detailTotal("skippedDetails"),
+    ui("Showing {shown} of {total} skipped row details.", {
+      shown: skippedDetails.length,
+      total: detailTotal("skippedDetails"),
+    }),
+  );
   let eligibilityRows = eligibilitySummaries
     .map((summary) => {
       let films = (summary.films || []).join(", ") || ui("None");
@@ -231,10 +247,14 @@ window.showImportReport = function (report) {
     </tr>`;
     })
     .join("");
-  let eligibilityOverflow =
-    detailTotal("eligibilitySummaries") > eligibilitySummaries.length
-      ? `<p class="import-report-note">${importReportEscape(ui("Showing {shown} of {total} eligibility groups.", { shown: eligibilitySummaries.length, total: detailTotal("eligibilitySummaries") }))}</p>`
-      : "";
+  let eligibilityOverflow = overflowNote(
+    eligibilitySummaries.length,
+    detailTotal("eligibilitySummaries"),
+    ui("Showing {shown} of {total} eligibility groups.", {
+      shown: eligibilitySummaries.length,
+      total: detailTotal("eligibilitySummaries"),
+    }),
+  );
   let missingAllTimeRows = missingAllTimeFilms
     .map(
       (entry) => `<tr>
@@ -245,10 +265,14 @@ window.showImportReport = function (report) {
   </tr>`,
     )
     .join("");
-  let missingAllTimeOverflow =
-    detailTotal("missingAllTimeFilms") > missingAllTimeFilms.length
-      ? `<p class="import-report-note">${importReportEscape(ui("Showing {shown} of {total} bracket films missing from the all-time ranked list.", { shown: missingAllTimeFilms.length, total: detailTotal("missingAllTimeFilms") }))}</p>`
-      : "";
+  let missingAllTimeOverflow = overflowNote(
+    missingAllTimeFilms.length,
+    detailTotal("missingAllTimeFilms"),
+    ui("Showing {shown} of {total} bracket films missing from the all-time ranked list.", {
+      shown: missingAllTimeFilms.length,
+      total: detailTotal("missingAllTimeFilms"),
+    }),
+  );
   let newFilmRows = newFilmDetails
     .map(
       (entry) => `<tr>
@@ -259,10 +283,14 @@ window.showImportReport = function (report) {
   </tr>`,
     )
     .join("");
-  let newFilmOverflow =
-    detailTotal("newFilmDetails") > newFilmDetails.length
-      ? `<p class="import-report-note">${importReportEscape(ui("Showing {shown} of {total} new films.", { shown: newFilmDetails.length, total: detailTotal("newFilmDetails") }))}</p>`
-      : "";
+  let newFilmOverflow = overflowNote(
+    newFilmDetails.length,
+    detailTotal("newFilmDetails"),
+    ui("Showing {shown} of {total} new films.", {
+      shown: newFilmDetails.length,
+      total: detailTotal("newFilmDetails"),
+    }),
+  );
   let rankChangeRows = rankChanges
     .map(
       (entry) => `<tr>
@@ -273,10 +301,14 @@ window.showImportReport = function (report) {
   </tr>`,
     )
     .join("");
-  let rankChangeOverflow =
-    detailTotal("rankChanges") > rankChanges.length
-      ? `<p class="import-report-note">${importReportEscape(ui("Showing {shown} of {total} rank changes.", { shown: rankChanges.length, total: detailTotal("rankChanges") }))}</p>`
-      : "";
+  let rankChangeOverflow = overflowNote(
+    rankChanges.length,
+    detailTotal("rankChanges"),
+    ui("Showing {shown} of {total} rank changes.", {
+      shown: rankChanges.length,
+      total: detailTotal("rankChanges"),
+    }),
+  );
   let awardChangeRows = awardChanges
     .map(
       (entry) => `<tr>
@@ -288,10 +320,14 @@ window.showImportReport = function (report) {
   </tr>`,
     )
     .join("");
-  let awardChangeOverflow =
-    detailTotal("awardChanges") > awardChanges.length
-      ? `<p class="import-report-note">${importReportEscape(ui("Showing {shown} of {total} awards added to existing films.", { shown: awardChanges.length, total: detailTotal("awardChanges") }))}</p>`
-      : "";
+  let awardChangeOverflow = overflowNote(
+    awardChanges.length,
+    detailTotal("awardChanges"),
+    ui("Showing {shown} of {total} awards added to existing films.", {
+      shown: awardChanges.length,
+      total: detailTotal("awardChanges"),
+    }),
+  );
   let preservedFieldRows = preservedFieldDetails
     .map(
       (entry) => `<tr>
@@ -304,10 +340,14 @@ window.showImportReport = function (report) {
   </tr>`,
     )
     .join("");
-  let preservedFieldOverflow =
-    detailTotal("preservedFieldDetails") > preservedFieldDetails.length
-      ? `<p class="import-report-note">${importReportEscape(ui("Showing {shown} of {total} preserved local values.", { shown: preservedFieldDetails.length, total: detailTotal("preservedFieldDetails") }))}</p>`
-      : "";
+  let preservedFieldOverflow = overflowNote(
+    preservedFieldDetails.length,
+    detailTotal("preservedFieldDetails"),
+    ui("Showing {shown} of {total} preserved local values.", {
+      shown: preservedFieldDetails.length,
+      total: detailTotal("preservedFieldDetails"),
+    }),
+  );
   let sourceConflictRows = sourceConflicts
     .map(
       (conflict) => `<tr>
@@ -322,10 +362,14 @@ window.showImportReport = function (report) {
   </tr>`,
     )
     .join("");
-  let sourceConflictOverflow =
-    detailTotal("sourceConflicts") > sourceConflicts.length
-      ? `<p class="import-report-note">${importReportEscape(ui("Showing {shown} of {total} cross-source conflicts.", { shown: sourceConflicts.length, total: detailTotal("sourceConflicts") }))}</p>`
-      : "";
+  let sourceConflictOverflow = overflowNote(
+    sourceConflicts.length,
+    detailTotal("sourceConflicts"),
+    ui("Showing {shown} of {total} cross-source conflicts.", {
+      shown: sourceConflicts.length,
+      total: detailTotal("sourceConflicts"),
+    }),
+  );
   let officialResultIssueRows = officialResultIssues
     .map(
       (issue) => `<tr>
@@ -492,6 +536,7 @@ window.showImportReport = function (report) {
     </div>
     <div class="import-report-meta"><b>${importReportEscape(ui("Source:"))}</b> ${importReportEscape(report.source || ui("Import"))} · <b>${importReportEscape(ui("Periods:"))}</b> ${importReportEscape(formatPeriodSummary(report.periods))}${generatedLabel ? ` · <b>${importReportEscape(ui("Run:"))}</b> ${importReportEscape(generatedLabel)}` : ""}</div>
     ${proposalChangeRows ? `<div class="import-report-proposal-changes"><b>${importReportEscape(ui("Canonical proposal changes"))}</b><div class="leaderboard-wrap"><table class="leaderboard import-proposal-change-summary"><thead><tr><th>${importReportEscape(ui("Section"))}</th><th>${importReportEscape(ui("Changed records"))}</th><th>${importReportEscape(ui("Before"))}</th><th>${importReportEscape(ui("After"))}</th></tr></thead><tbody>${proposalChangeRows}</tbody></table></div></div>` : ""}
+    ${letterboxdSummary ? `<div class="import-report-letterboxd-summary"><b>${importReportEscape(ui("Letterboxd jumpstart"))}</b><p>${letterboxdSummary.watchedArchiveMerged || 0} archive film(s) matched · ${letterboxdSummary.watchedOtherAdded || 0} standalone watched film(s) added · ${letterboxdSummary.watchedOtherMerged || 0} standalone watched film(s) merged · ${letterboxdSummary.watchlistAdded || 0} watchlist item(s) added · ${letterboxdSummary.watchlistMerged || 0} watchlist item(s) merged · ${letterboxdSummary.watchlistRemoved || 0} watched watchlist item(s) removed</p><p class="import-report-note">${importReportEscape(ui("Awards and rankings are not part of this import."))}</p></div>` : ""}
     ${officialSummary ? `<div class="import-report-official-summary"><b>${importReportEscape(ui("Official results"))}</b><p>${officialSummary.refreshedPeriods || 0} period(s) · ${officialSummary.nominations || 0} nomination(s) · ${officialSummary.winners || 0} winner(s) · ${officialSummary.matched || 0} canonical match(es) · ${officialSummary.unmatched || 0} unmatched${officialSummary.skippedRows ? ` · ${officialSummary.skippedRows} out-of-scope or unusable row(s) skipped` : ""}</p>${officialSummary.skippedCategories?.length ? `<p class="import-report-note">${importReportEscape(ui("Skipped source categories"))}: ${importReportEscape(officialSummary.skippedCategories.map((entry) => `${entry.category} (${entry.count})`).join(" · "))}</p>` : ""}</div>` : ""}
     ${rangeRows ? `<div class="import-report-ranges"><b>${importReportEscape(ui("Ranges"))}</b><div class="leaderboard-wrap"><table class="leaderboard import-range-summary"><thead><tr><th>${importReportEscape(ui("Range"))}</th><th>${importReportEscape(ui("Rows"))}</th><th>${importReportEscape(ui("Films"))}</th><th>${importReportEscape(ui("Awards"))}</th><th>${importReportEscape(ui("Skipped"))}</th><th>${importReportEscape(ui("Periods"))}</th></tr></thead><tbody>${rangeRows}</tbody></table></div></div>` : ""}
     ${warnings ? `<div class="import-report-warnings import-report-attention-item"><b>${importReportEscape(ui("Warnings"))}</b><ul>${warnings}</ul></div>` : ""}
@@ -528,6 +573,17 @@ window.showImportReport = function (report) {
     }
     ${variants ? `<div class="import-report-title-variants"><b>${importReportEscape(ui("Title variants resolved"))}</b><ul>${variants}</ul></div>` : ""}`;
   organizeImportReport(body);
+  let unratedCount = report.preview
+    ? 0
+    : [...(window.unratedWatchedFilmsByYear?.().values() || [])].reduce(
+        (sum, films) => sum + films.length,
+        0,
+      );
+  if (unratedCount)
+    body.insertAdjacentHTML(
+      "beforeend",
+      `<section class="import-journey-handoff"><div><span class="eyebrow">${importReportEscape(ui("Your creative journey"))}</span><h3>${importReportEscape(ui("Your archive is ready to make yours"))}</h3><p>${importReportEscape(ui("{count} watched work(s) need your personal rating. Import diagnostics can wait while you start with the films.", { count: unratedCount }))}</p></div><a class="button-link" href="build.html">${importReportEscape(ui("Start building your Oskars"))} →</a></section>`,
+    );
   panel.hidden = false;
   finishRenderTimer?.(
     `${report.filmsParsed || 0} parsed, ${body.querySelectorAll("table").length} table(s)`,
