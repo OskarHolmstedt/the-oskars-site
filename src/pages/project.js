@@ -3,6 +3,7 @@
 (function () {
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   window.load();
   let container = document.getElementById("projectPage");
   let projectSortValues = new Set([
@@ -178,7 +179,7 @@
     ) {
       let visible = records.slice(pageState.sliceStart, pageState.sliceEnd);
       let reorder = Boolean(options.reorder);
-      let orderControls = options.canReorder
+      let orderControls = canEdit && options.canReorder
         ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-project-queue-order-edit-toggle>${escape(ui(queueOrderEditMode ? "Finish order" : "Reorder"))}</button>${queueOrderEditMode ? `<span>${escape(ui("Edits this project queue only."))}</span>` : ""}</div>`
         : "";
       let countText = escape(
@@ -517,7 +518,9 @@
       let manageModeNotice = manageFilms
         ? `<div class="project-manage-mode"><span>${escape(ui("Film management is on. Remove controls are visible."))}</span><button type="button" class="button-link" data-project-manage-films>${escape(ui("Finish managing"))}</button></div>`
         : "";
-      let projectManagementHtml = `<details class="project-management"${manageFilms ? " open" : ""}><summary><span class="project-section-title" role="heading" aria-level="2">${escape(ui("Project management"))}</span><span>${escape(ui("Refresh, lifecycle, films, and deletion"))}</span></summary><div class="project-management-body"><div class="project-management-actions">${statusActionHtml}<button type="button" class="button-link" data-project-manage-films>${escape(ui(manageFilms ? "Finish managing films" : "Manage films"))}</button><button type="button" class="danger-button" data-delete-project>${escape(ui("Delete project"))}</button></div>${dismissedNotice}${missingRefSection(progress.missingRefs)}</div></details>`;
+      let projectManagementHtml = canEdit
+        ? `<details class="project-management"${manageFilms ? " open" : ""}><summary><span class="project-section-title" role="heading" aria-level="2">${escape(ui("Project management"))}</span><span>${escape(ui("Refresh, lifecycle, films, and deletion"))}</span></summary><div class="project-management-body"><div class="project-management-actions">${statusActionHtml}<button type="button" class="button-link" data-project-manage-films>${escape(ui(manageFilms ? "Finish managing films" : "Manage films"))}</button><button type="button" class="danger-button" data-delete-project>${escape(ui("Delete project"))}</button></div>${dismissedNotice}${missingRefSection(progress.missingRefs)}</div></details>`
+        : "";
       document.title = `${project.name} · The Oskars`;
       container.innerHTML = `${window.renderBreadcrumbs(
         [

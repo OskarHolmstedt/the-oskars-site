@@ -70,6 +70,11 @@
     let listeners = [];
 
     function enabled() {
+      // Reordering mutates state regardless of which page embeds this
+      // controller (issue #253) - gating here once covers every page
+      // instead of requiring each page's own `enabled` callback to
+      // separately remember to check canEdit too.
+      if (!(window.oskarsCapabilities?.().canEdit ?? true)) return false;
       return Boolean(container && options?.enabled?.());
     }
 

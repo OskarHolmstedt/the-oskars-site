@@ -3,6 +3,7 @@
 (function () {
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   window.load();
   let franchiseIndex =
     window.ensureFranchiseIndex?.() || state.franchisesById || {};
@@ -454,11 +455,11 @@
     ? `<p class="franchise-completion-caveat">${escape(ui("All known films watched. Completion counts known films only — add missing entries to the watchlist to track true coverage."))}</p>`
     : "";
   let watchlistOrderControls =
-    watchlistEntries.length && !combinedView
+    canEdit && watchlistEntries.length && !combinedView
       ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-franchise-watchlist-order-edit-toggle>${escape(ui(watchlistOrderEditMode ? "Finish order" : "Reorder"))}</button>${watchlistOrderEditMode ? `<span>${escape(ui("Edits global watchlist order inside the same interest tier only."))}</span>` : ""}</div>`
       : "";
   let localRankControls =
-    !combinedView && filmSort === "local" && localRankEntries.length > 1
+    canEdit && !combinedView && filmSort === "local" && localRankEntries.length > 1
       ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-franchise-local-rank-edit-toggle>${escape(ui(localRankEditMode ? "Finish order" : "Reorder"))}</button>${localRankEditMode ? `<span>${escape(ui("Drag to set this collection's independent local order."))}</span>` : `<a class="sort-order-button" href="${escape(window.localRankMergePageUrl("franchises", franchise.id, franchiseViewUrl()))}">${escape(ui("Merge-sort tool"))}</a>`}</div>`
       : "";
   let watchlistBulkTierControls =

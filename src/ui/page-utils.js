@@ -145,6 +145,9 @@ window.renderFilmViewToggle = function (options = {}) {
 
 /** Renders the shared bulk watchlist-tier selector and apply button. @param {Object} [options] Tier, count, and escaping options. @returns {string} */
 window.renderWatchlistBulkTierControl = function (options = {}) {
+  // Shared across every page that embeds it (issue #253) - gating here once
+  // covers all of them instead of requiring each page to remember to check.
+  if (!(window.oskarsCapabilities?.().canEdit ?? true)) return "";
   let escape = options.escape || window.pageEscape;
   let ui = window.uiText || ((text) => text);
   let value = window.normalizeWatchlistTier?.(options.value) || "";
@@ -239,6 +242,7 @@ window.bindWatchlistBulkTierControl = function (options = {}) {
   let selectedTier = "";
 
   function apply(nextTier = selectedTier) {
+    if (!(window.oskarsCapabilities?.().canEdit ?? true)) return { ok: false };
     selectedTier = window.normalizeWatchlistTier?.(nextTier) || "";
     let result = window.applyWatchlistBulkTierChange?.(
       options.entries?.() || [],

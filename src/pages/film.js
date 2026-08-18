@@ -3,6 +3,7 @@
 (function () {
   let filmPageEscape = window.pageEscape;
   let filmPagePlacement = window.pagePlacement;
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let ui =
     window.uiText ||
     ((text, values = {}) =>
@@ -654,7 +655,11 @@
       ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}
       ${viewingHtml}
       ${film.review ? `<section class="detail-note film-review-compact"><div><h2>${filmPageEscape(ui("Review"))}</h2></div><p>${filmPageEscape(film.review)}</p></section>` : ""}`,
-      actionsHtml: `<a class="button-link" href="${filmPageEscape(window.comparePageUrl([film.id]))}">${filmPageEscape(ui("Compare"))}</a><button type="button" data-toggle-film-rewatch>${filmPageEscape(ui(film.wantToRewatch ? "Remove from rewatchlist" : "Want to rewatch"))}</button><button type="button" data-edit-film>${filmPageEscape(ui("Edit"))}</button><details class="detail-header-more"${moreToolsOpen ? " open" : ""}><summary class="button-link">${filmPageEscape(ui("More"))}</summary><div class="detail-header-more-panel"><button type="button" data-enrich-film="${filmPageEscape(film.id)}">${filmPageEscape(ui("Find metadata"))}</button><button type="button" data-find-film-poster="${filmPageEscape(film.id)}">${filmPageEscape(film.poster ? ui("Refresh poster") : ui("Find poster"))}</button><button type="button" data-load-poster-options="${filmPageEscape(film.id)}">${filmPageEscape(posterOptions.length ? ui("Reload poster options") : ui("Browse posters"))}</button></div></details>`,
+      actionsHtml: `<a class="button-link" href="${filmPageEscape(window.comparePageUrl([film.id]))}">${filmPageEscape(ui("Compare"))}</a>${
+        canEdit
+          ? `<button type="button" data-toggle-film-rewatch>${filmPageEscape(ui(film.wantToRewatch ? "Remove from rewatchlist" : "Want to rewatch"))}</button><button type="button" data-edit-film>${filmPageEscape(ui("Edit"))}</button><details class="detail-header-more"${moreToolsOpen ? " open" : ""}><summary class="button-link">${filmPageEscape(ui("More"))}</summary><div class="detail-header-more-panel"><button type="button" data-enrich-film="${filmPageEscape(film.id)}">${filmPageEscape(ui("Find metadata"))}</button><button type="button" data-find-film-poster="${filmPageEscape(film.id)}">${filmPageEscape(film.poster ? ui("Refresh poster") : ui("Find poster"))}</button><button type="button" data-load-poster-options="${filmPageEscape(film.id)}">${filmPageEscape(posterOptions.length ? ui("Reload poster options") : ui("Browse posters"))}</button></div></details>`
+          : ""
+      }`,
     })}
   ${intakeBannerHtml}
   ${tagHtml ? `<section class="film-tags"><h2>${filmPageEscape(ui("Tags"))}</h2><div class="film-tag-list">${tagHtml}</div></section>` : ""}
@@ -712,6 +717,7 @@
       finishRenderTimer?.("not found");
       return;
     }
+    editing = editing && canEdit;
     document.title = `${editing ? ui("Edit {title}", { title: film.title }) : window.localizedFilmTitle(film)} · The Oskars`;
     if (editing) renderEdit(film);
     else renderView(film);

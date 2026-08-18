@@ -2,6 +2,7 @@
 
 (function () {
   let escape = window.pageEscape;
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let ui =
     window.uiText ||
     ((text, values = {}) =>
@@ -90,6 +91,7 @@
   }
 
   function renderWatchedForm() {
+    if (!canEdit) return render();
     let item = window.findWatchlistItemById(itemId);
     if (!item) return render();
     document.title = `${ui("Mark {title} as watched", { title: item.title })} · The Oskars`;
@@ -227,7 +229,9 @@
         ${localizedTitleMeta}
         ${directorHtml ? `<p>${escape(ui("by"))} ${directorHtml}</p>` : ""}
         ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}`,
-      actionsHtml: `<button type="button" data-mark-watchlist-watched>${escape(ui("Mark as watched"))}</button><button type="button" data-edit-watchlist-film>${escape(ui("Edit"))}</button><details class="detail-header-more"${moreToolsOpen ? " open" : ""}><summary class="button-link">${escape(ui("More"))}</summary><div class="detail-header-more-panel"><button type="button" data-enrich-watchlist-film="${escape(item.id)}">${escape(ui("Find metadata"))}</button><button type="button" data-find-watchlist-poster="${escape(item.id)}">${escape(film.poster ? ui("Refresh poster") : ui("Find poster"))}</button><button type="button" data-load-watchlist-poster-options="${escape(item.id)}">${escape(posterOptions.length ? ui("Reload poster options") : ui("Browse posters"))}</button></div></details>`,
+      actionsHtml: canEdit
+        ? `<button type="button" data-mark-watchlist-watched>${escape(ui("Mark as watched"))}</button><button type="button" data-edit-watchlist-film>${escape(ui("Edit"))}</button><details class="detail-header-more"${moreToolsOpen ? " open" : ""}><summary class="button-link">${escape(ui("More"))}</summary><div class="detail-header-more-panel"><button type="button" data-enrich-watchlist-film="${escape(item.id)}">${escape(ui("Find metadata"))}</button><button type="button" data-find-watchlist-poster="${escape(item.id)}">${escape(film.poster ? ui("Refresh poster") : ui("Find poster"))}</button><button type="button" data-load-watchlist-poster-options="${escape(item.id)}">${escape(posterOptions.length ? ui("Reload poster options") : ui("Browse posters"))}</button></div></details>`
+        : "",
     })}
     ${tagHtml ? `<section class="film-tags"><h2>${escape(ui("Tags"))}</h2><div class="film-tag-list">${tagHtml}</div></section>` : ""}
     ${franchiseHtml ? `<section class="film-franchises"><h2>${escape(ui("Franchises"))}</h2><div class="film-franchise-links">${franchiseHtml}</div></section>` : ""}
@@ -256,6 +260,7 @@
   }
 
   function renderEdit() {
+    if (!canEdit) return render();
     let item = window.findWatchlistItemById(itemId);
     if (!item) return render();
     document.title = `${ui("Edit {title}", { title: item.title })} · Watchlist · The Oskars`;
@@ -447,7 +452,7 @@
   });
 
   function renderInitial() {
-    if (openTransitionOnLoad) {
+    if (openTransitionOnLoad && canEdit) {
       openTransitionOnLoad = false;
       renderWatchedForm();
     } else render();

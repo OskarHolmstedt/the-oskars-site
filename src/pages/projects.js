@@ -3,6 +3,7 @@
 (function () {
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   window.load();
   let finishRenderTimer = window.startOskarsPerformance?.("projects:render");
   let container = document.getElementById("projectsPage");
@@ -122,7 +123,7 @@
     <dl class="project-card-stats"><div><dt>${escape(ui("Watched"))}</dt><dd>${escape(progress.watchedCount)}/${escape(progress.total)}</dd></div><div><dt>Watchlist</dt><dd>${escape(progress.watchlistCount)}</dd></div><div><dt>${escape(ui("Complete"))}</dt><dd>${escape(progress.percent)}%</dd></div><div><dt>${escape(ui("Average rating"))}</dt><dd>${escape(window.formatAverageRating(progress.ratingStatistics.mean))}</dd></div><div><dt>${escape(ui("Rated"))}</dt><dd>${escape(progress.ratingStatistics.ratedCount)}</dd></div></dl>
     <p>${sourceHref ? `<a href="${escape(sourceHref)}">${escape(project.sourceLabel || project.sourceId)}</a>` : escape(project.sourceLabel || "")}</p>
     ${nextHtml}
-    <div class="project-card-actions">${isActive ? "" : `<button type="button" class="button-link" data-active-project="${escape(project.id)}">${escape(ui("Make active"))}</button>`}<button type="button" class="button-link" data-pin-project="${escape(project.id)}">${escape(project.pinned ? ui("Unpin") : ui("Pin"))}</button></div>
+    <div class="project-card-actions">${canEdit ? `${isActive ? "" : `<button type="button" class="button-link" data-active-project="${escape(project.id)}">${escape(ui("Make active"))}</button>`}<button type="button" class="button-link" data-pin-project="${escape(project.id)}">${escape(project.pinned ? ui("Unpin") : ui("Pin"))}</button>` : ""}</div>
     </div>
   </article>`;
   }
@@ -171,10 +172,10 @@
   }
 
   container.innerHTML = `${window.renderBreadcrumbs([{ label: ui("Projects") }], { escape })}
-  ${window.renderDetailHeader({ mainHtml: `<h1>${escape(ui("Projects"))}</h1><p>${escape(ui("Focused watch queues from directors, franchises, and watchlist filters."))}</p>`, actionsHtml: `<button type="button" class="button-link" data-create-project>${escape(ui("Create project"))}</button>` })}
+  ${window.renderDetailHeader({ mainHtml: `<h1>${escape(ui("Projects"))}</h1><p>${escape(ui("Focused watch queues from directors, franchises, and watchlist filters."))}</p>`, actionsHtml: canEdit ? `<button type="button" class="button-link" data-create-project>${escape(ui("Create project"))}</button>` : "" })}
   <nav class="person-filmography-sort-controls project-view-controls" aria-label="${escape(ui("Project view"))}"><span>${escape(ui("View"))}</span>${viewLink("open", "Open", counts.open)}${viewLink("pinned", "Pinned", counts.pinned)}${viewLink("active", "Active", counts.active)}${viewLink("complete", "Complete", counts.complete)}${viewLink("archived", "Archived", counts.archived)}${viewLink("all", "All", counts.all)}</nav>
   ${projects.length ? `<div class="project-grid">${projects.map(projectCard).join("")}</div>` : emptyCopy}
-  ${createProjectDialogHtml()}`;
+  ${canEdit ? createProjectDialogHtml() : ""}`;
 
   container.querySelectorAll("[data-active-project]").forEach((button) => {
     button.addEventListener("click", async () => {

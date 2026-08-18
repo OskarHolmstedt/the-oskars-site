@@ -26,7 +26,16 @@
   window.renderEntityNote = function (scope, key, label = ui("Note")) {
     let escape = window.pageEscape;
     let note = String(noteStore(scope)[key] || "").trim();
-    return `<section class="detail-note" data-entity-note="${escape(scope)}" data-note-key="${escape(key)}" data-note-label="${escape(label)}"><div><h2>${escape(label)}</h2><button type="button" data-edit-entity-note>${note ? escape(ui("Edit")) : escape(ui("Add note"))}</button></div>${note ? `<p>${escape(note)}</p>` : `<p class="detail-note-empty">${escape(ui("No note yet."))}</p>`}</section>`;
+    // Shared across every entity detail page that embeds a note section
+    // (issue #253) - gating here once covers all of them. A public-profile
+    // viewer with no note to see gets nothing rather than an empty section
+    // whose only content would otherwise be a non-functional "Add note" button.
+    let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
+    if (!canEdit && !note) return "";
+    let editButtonHtml = canEdit
+      ? `<button type="button" data-edit-entity-note>${note ? escape(ui("Edit")) : escape(ui("Add note"))}</button>`
+      : "";
+    return `<section class="detail-note" data-entity-note="${escape(scope)}" data-note-key="${escape(key)}" data-note-label="${escape(label)}"><div><h2>${escape(label)}</h2>${editButtonHtml}</div>${note ? `<p>${escape(note)}</p>` : `<p class="detail-note-empty">${escape(ui("No note yet."))}</p>`}</section>`;
   };
 
   /**
@@ -37,6 +46,7 @@
     container.addEventListener("click", (event) => {
       let button = event.target.closest("[data-edit-entity-note]");
       if (!button) return;
+      if (!(window.oskarsCapabilities?.().canEdit ?? true)) return;
       let section = button.closest("[data-entity-note]");
       let note =
         noteStore(section.dataset.entityNote)[section.dataset.noteKey] || "";

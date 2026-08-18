@@ -3,6 +3,7 @@
 (function () {
   let personPageEscape = window.pageEscape;
   let personPagePlacement = window.pagePlacement;
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let ui = window.uiText || ((text) => text);
 
   function personPagePeriodOrder(period) {
@@ -759,7 +760,7 @@
       .map((film, index) => personFilmCard(film, index))
       .join("");
     let localRankControls =
-      filmographySort === "local-rank" && films.length > 1
+      canEdit && filmographySort === "local-rank" && films.length > 1
         ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-person-local-rank-edit-toggle>${personPageEscape(ui(localRankEditMode ? "Finish order" : "Reorder"))}</button>${localRankEditMode ? `<span>${personPageEscape(ui("Drag to set this collection's independent local order."))}</span>` : `<a class="sort-order-button" href="${personPageEscape(window.localRankMergePageUrl("people", person.id, personViewUrl()))}">${personPageEscape(ui("Merge-sort tool"))}</a>`}</div>`
         : "";
     return `${localRankControls}<div data-person-filmography="list" ${filmographyView === "list" ? "" : "hidden"}><div class="leaderboard-wrap"><table class="leaderboard"><thead><tr>${filmographySort === "director-rank" ? `<th>${personPageEscape(ui("Rank"))}</th>` : ""}${filmographySort === "local-rank" ? `<th>${personPageEscape(ui("Rank"))}</th>` : ""}<th>${personPageEscape(ui("Year"))}</th><th>${personPageEscape(ui("Film"))}</th><th>${personPageEscape(ui("Credit"))}</th><th>${combinedView ? `${personPageEscape(ui("Rating"))} / ${personPageEscape(ui("Tier"))}` : personPageEscape(ui("Rating"))}</th></tr></thead><tbody>${combinedView ? combinedRows : filmRows}</tbody></table></div></div><div data-person-filmography="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${(combinedView ? combinedCards : filmCards) || `<p>${personPageEscape(ui("No films"))}</p>`}</div></div>`;
@@ -781,7 +782,9 @@
     let cards = watchlistItems
       .map((item, index) => personWatchlistCard(item, index))
       .join("");
-    let orderControls = `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-person-watchlist-order-edit-toggle>${personPageEscape(ui(watchlistOrderEditMode ? "Finish order" : "Reorder"))}</button>${watchlistOrderEditMode ? `<span>${personPageEscape(ui("Edits global watchlist order inside the same interest tier only."))}</span>` : ""}</div>`;
+    let orderControls = canEdit
+      ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-person-watchlist-order-edit-toggle>${personPageEscape(ui(watchlistOrderEditMode ? "Finish order" : "Reorder"))}</button>${watchlistOrderEditMode ? `<span>${personPageEscape(ui("Edits global watchlist order inside the same interest tier only."))}</span>` : ""}</div>`
+      : "";
     let bulkTierControls = `<div class="period-edit-controls">${window.renderWatchlistBulkTierControl({ escape: personPageEscape, count: watchlistItems.length })}</div>`;
     let html = `<h3 id="person-watchlist" class="person-filmography-subheading">${personPageEscape(ui("Watchlist"))}</h3>${window.renderDetailStats({ itemsHtml: `<span><b>${watchlistItems.length}</b> ${personPageEscape(ui("Unwatched"))}</span>${directorProgress ? `<span><b>${directorProgress.percent}%</b> ${personPageEscape(ui("Complete (known films)"))}</span>` : ""}` })}${directorProgress ? `<div class="project-progress-meter project-progress-meter--detail" aria-label="${personPageEscape(ui("{percent} percent complete", { percent: directorProgress.percent }))}"><span style="width:${personPageEscape(directorProgress.percent)}%"></span></div>` : ""}${bulkTierControls}${orderControls}<div data-person-watchlist="list" ${filmographyView === "list" ? "" : "hidden"}><div class="leaderboard-wrap"><table class="leaderboard"><thead><tr>${filmographySort === "director-rank" ? `<th>${personPageEscape(ui("Rank"))}</th>` : ""}<th>${personPageEscape(ui("Year"))}</th><th>${personPageEscape(ui("Film"))}</th><th>${personPageEscape(ui("Credit"))}</th><th>${personPageEscape(ui("Tier"))}</th></tr></thead><tbody>${rows}</tbody></table></div></div><div data-person-watchlist="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${cards}</div></div>`;
     finishWatchlistRender?.(

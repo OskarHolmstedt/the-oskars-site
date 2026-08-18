@@ -3,6 +3,7 @@
 (function () {
   let periodEscape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
 
   window.load();
   let periodIdentityState = window
@@ -901,7 +902,7 @@
   }
 
   function periodEditControls() {
-    if (viewMode !== "awards" || !canEditBracket) return "";
+    if (viewMode !== "awards" || !canEditBracket || !canEdit) return "";
     return `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-period-edit-toggle>${periodEscape(ui(editMode ? "Finish editing" : "Edit bracket"))}</button>${editMode ? `<span>${periodEscape(ui("Move by dragging or choosing an exact destination; delete with ×."))}</span>` : ""}</div>`;
   }
 
@@ -1043,12 +1044,12 @@
   }
 
   function rankingEditControls() {
-    if (viewMode !== "films" || periodOrder !== "rank") return "";
+    if (viewMode !== "films" || periodOrder !== "rank" || !canEdit) return "";
     return `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-period-ranking-edit-toggle>${periodEscape(ui(rankingEditMode ? "Finish ranking" : "Edit ranking"))}</button>${rankingEditMode ? `<span>${periodEscape(ui("Edits all-time order inside the same exact rating only."))}</span>` : ""}${rankingEditMode && type === "alltime" ? `<a class="sort-order-button" href="ranking-review.html">${periodEscape(ui("Review consistency"))}</a>` : ""}</div>`;
   }
 
   function watchlistEditControls() {
-    if (viewMode !== "watchlist") return "";
+    if (viewMode !== "watchlist" || !canEdit) return "";
     return `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-period-watchlist-tier-edit-toggle>${periodEscape(ui(tierEditMode ? "Finish interest" : "Edit interest"))}</button><button type="button" class="sort-order-button" data-period-watchlist-order-edit-toggle ${periodOrder === "rank" ? "" : "disabled"}>${periodEscape(ui(watchlistOrderEditMode ? "Finish order" : "Reorder"))}</button><a class="sort-order-button" href="watchlist-merge.html">${periodEscape(ui("Merge order"))}</a>${watchlistOrderEditMode ? `<span>${periodEscape(ui("Edits global watchlist order inside the same interest tier only."))}</span>` : ""}</div>`;
   }
 

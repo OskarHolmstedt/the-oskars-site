@@ -3,6 +3,7 @@
 (function () {
   const PAGE_SIZE = 20;
   let escape = window.pageEscape;
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let ui = window.uiText || ((text) => text);
   window.load();
   let finishRenderTimer = window.startOskarsPerformance?.("tag:render");
@@ -364,11 +365,11 @@
     return `<div class="tag-section-heading"><h2>${escape(ui(title))}</h2><span>${escape(countLabel)}</span></div>`;
   }
   let localRankControls =
-    !combinedView && sort === "local" && films.length > 1
+    canEdit && !combinedView && sort === "local" && films.length > 1
       ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-tag-local-rank-edit-toggle>${escape(ui(localRankEditMode ? "Finish order" : "Reorder"))}</button>${localRankEditMode ? `<span>${escape(ui("Drag to set this collection's independent local order."))}</span>` : `<a class="sort-order-button" href="${escape(window.localRankMergePageUrl("tags", canonicalTag, tagViewUrl()))}">${escape(ui("Merge-sort tool"))}</a>`}</div>`
       : "";
   let watchlistOrderControls =
-    watchlistItems.length && !combinedView
+    canEdit && watchlistItems.length && !combinedView
       ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-tag-watchlist-order-edit-toggle>${escape(ui(watchlistOrderEditMode ? "Finish order" : "Reorder"))}</button>${watchlistOrderEditMode ? `<span>${escape(ui("Edits global watchlist order inside the same interest tier only."))}</span>` : ""}</div>`
       : "";
   let watchlistBulkTierControls =

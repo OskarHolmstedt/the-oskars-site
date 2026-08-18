@@ -77,10 +77,26 @@ window.getRuntimeMode = function () {
 };
 
 /**
- * Reads the active runtime mode's capabilities in one call.
+ * Reads the active runtime mode's capabilities in one call — folding in an
+ * active public-profile view (issue #253) as a per-tab override to the same
+ * "viewer" capability set, regardless of the deployment's baked mode. A
+ * `local`-mode deployment (the only real one, `the-oskars-site`) otherwise
+ * reports full owner-equivalent `canEdit`/`canImport`/`canPublish` even
+ * while a visitor is viewing someone else's published profile - the
+ * persistence layer's own separate `isPublicProfileView` check
+ * (`persistence.js`'s `persistenceAllowed()`) already stops any of that
+ * from actually writing anything, but every page-controller call site that
+ * decides whether to *render* a mutation control from this function's
+ * output was seeing stale, baked-mode-only capabilities, showing fully
+ * interactive edit UI to anonymous profile visitors that would silently
+ * no-op on save. Folding the override in here, once, fixes every current
+ * and future `oskarsCapabilities()` call site instead of requiring each
+ * page to separately remember to check `state.isPublicProfileView` too.
  * @returns {{fetchPublishedSnapshot: boolean, allowOwnerPages: boolean, canEdit: boolean, canImport: boolean, canPublish: boolean, canPersistPrivateState: boolean}}
  *   See runtimeModeCapabilities() for what each capability gates.
  */
 window.oskarsCapabilities = function () {
+  if (window.state?.isPublicProfileView)
+    return window.runtimeModeCapabilities("viewer");
   return window.runtimeModeCapabilities(window.getRuntimeMode());
 };
