@@ -89,7 +89,7 @@
   let collectionAwardModel = isDirector
     ? window.collectionAwardViewModel?.("director", person.id)
     : null;
-  if (!collectionAwardModel) collectionPageView = "films";
+  if (!isDirector) collectionPageView = "films";
   let requestedFilmographySort = window.pageQueryParam("sort");
   let filmographySort =
     requestedFilmographySort === "shuffle"
@@ -726,6 +726,25 @@
       : chronologyOrder === "asc"
         ? ui("Newest first")
         : ui("Oldest first");
+  let personReverseTargetSort =
+    filmographySort === "shuffle" ? "chronological" : filmographySort;
+  let personSortAxisControl = isDirector
+    ? window.renderSortAxisControl({
+        escape: personPageEscape,
+        value: filmographySort === "shuffle" ? "" : filmographySort,
+        attribute: "data-person-filmography-sort",
+        axes: [
+          { value: "chronological", label: "Chronological" },
+          { value: "director-rank", label: "Director ranking" },
+          ...(combinedView
+            ? []
+            : [{ value: "local-rank", label: "Local rank" }]),
+        ],
+      })
+    : "";
+  let personSortNote = isDirector
+    ? `<small class="person-filmography-sort-note">${personPageEscape(ui("Derived from each film’s all-time rank."))}</small>`
+    : "";
   // Local rank films section (issue #165) is its own re-renderable
   // subsection, same principle as personWatchlistContentHtml below: rows,
   // cards, and the Reorder control all depend on localRankEditMode, so they
@@ -787,10 +806,10 @@
     ${window.renderEntityNote("people", person.id, ui("Person note"))}`,
     actionsHtml: `${isDirector || films.length ? window.renderSourceProjectAction("person", person.id, { escape: personPageEscape }) : ""}<button type="button" data-find-person-portrait="${personPageEscape(person.id)}">${personPageEscape(portraitHtml ? ui("Refresh portrait") : ui("Find portrait"))}</button>`,
   })}
-${collectionAwardModel ? `<nav class="collection-page-view-controls" aria-label="${personPageEscape(ui("Collection view"))}">${collectionPageView === "films" ? `<strong>${personPageEscape(ui("Overview"))}</strong>` : `<a href="${personPageEscape(window.personPageUrl(person.id))}">${personPageEscape(ui("Overview"))}</a>`}${collectionPageView === "awards" ? `<strong>${personPageEscape(ui("Awards"))}</strong>` : `<a href="${personPageEscape(`${window.personPageUrl(person.id)}&collection-view=awards`)}">${personPageEscape(ui("Awards"))}</a>`}</nav>` : ""}
+${isDirector ? window.renderCollectionViewController({ view: collectionPageView, overviewUrl: window.personPageUrl(person.id), awardsUrl: `${window.personPageUrl(person.id)}&collection-view=awards`, escape: personPageEscape, ui }) : ""}
 <div data-collection-page-view="films" ${collectionPageView === "films" ? "" : "hidden"}>
 <h2 id="person-filmography">${personPageEscape(ui("Filmography"))}</h2>
-<div class="detail-toolbar"><div class="detail-toolbar-controls">${window.renderChronologyControl({ order: chronologyOrder, href: personViewUrl(chronologyOrder === "asc" ? "desc" : "asc"), ascLabel: reverseLabel, descLabel: reverseLabel, title: ui("Reverse current order"), escape: personPageEscape, iconOnly: true })}${window.renderShuffleControl({ href: personViewUrl(chronologyOrder, "shuffle", filmographyView, window.freshShuffleSeed()), escape: personPageEscape, label: ui("Shuffle") })}${watchlistItems.length ? window.renderCombinedSectionsControl({ combined: combinedView, href: personViewUrl(chronologyOrder, filmographySort, filmographyView, filmographySeed, combinedView ? "split" : "combined"), escape: personPageEscape }) : ""}</div>${window.renderFilmViewToggle(
+<div class="person-filmography-toolbar collection-film-toolbar detail-toolbar"><div class="detail-toolbar-controls">${personSortAxisControl}${window.renderChronologyControl({ order: chronologyOrder, href: personViewUrl(chronologyOrder === "asc" ? "desc" : "asc", personReverseTargetSort), ascLabel: reverseLabel, descLabel: reverseLabel, title: ui("Reverse current order"), escape: personPageEscape, iconOnly: true })}${window.renderShuffleControl({ href: personViewUrl(chronologyOrder, "shuffle", filmographyView, window.freshShuffleSeed()), escape: personPageEscape, label: ui("Shuffle") })}${watchlistItems.length ? window.renderCombinedSectionsControl({ combined: combinedView, href: personViewUrl(chronologyOrder, filmographySort, filmographyView, filmographySeed, combinedView ? "split" : "combined"), escape: personPageEscape }) : ""}${personSortNote}</div>${window.renderFilmViewToggle(
     {
       view: filmographyView,
       listUrl: personViewUrl(chronologyOrder, filmographySort, "list"),
@@ -800,7 +819,6 @@ ${collectionAwardModel ? `<nav class="collection-page-view-controls" aria-label=
       ariaLabel: ui("Filmography display"),
     },
   )}</div>
-${isDirector ? `<nav class="person-filmography-sort-controls" aria-label="${personPageEscape(ui("Filmography order"))}"><span>${personPageEscape(ui("Order"))}</span>${filmographySort === "chronological" ? `<strong>${personPageEscape(ui("Chronological"))}</strong>` : `<a href="${personPageEscape(personViewUrl(chronologyOrder, "chronological"))}">${personPageEscape(ui("Chronological"))}</a>`}${filmographySort === "director-rank" ? `<strong>${personPageEscape(ui("Director ranking"))}</strong>` : `<a href="${personPageEscape(personViewUrl(chronologyOrder, "director-rank"))}">${personPageEscape(ui("Director ranking"))}</a>`}${combinedView ? "" : filmographySort === "local-rank" ? `<strong>${personPageEscape(ui("Local rank"))}</strong>` : `<a href="${personPageEscape(personViewUrl(chronologyOrder, "local-rank"))}">${personPageEscape(ui("Local rank"))}</a>`}<small>${personPageEscape(ui("Derived from each film’s all-time rank."))}</small></nav>` : ""}
 ${!combinedView ? `<h3 id="person-watched" class="person-filmography-subheading">${personPageEscape(ui("Watched"))}</h3>` : ""}
 <section data-person-filmography-films>${personFilmographyFilmsHtml()}</section>
 ${otherWatched.length && filmographySort !== "local-rank" ? `<section class="person-other-watched"><h3 class="person-filmography-subheading">${personPageEscape(ui("Other watched"))}</h3><div data-person-other-watched="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Type"), ui("Rating")].map(personPageEscape), rows: otherWatched.map(personOtherWatchedRow).join("") })}</div><div data-person-other-watched="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${otherWatched.map(personOtherWatchedCard).join("")}</div></div></section>` : ""}
@@ -810,7 +828,7 @@ ${!combinedView && watchlistItems.length ? `<section data-person-watchlist-secti
 <div data-person-awards="periods" ${personAwardsView === "periods" ? "" : "hidden"}><div class="film-award-period-grid person-award-period-grid">${renderPersonAwardGroups() || `<div class="detail-empty">${personPageEscape(ui("No nominations"))}</div>`}</div></div>
 <div data-person-awards="progression" ${personAwardsView === "progression" ? "" : "hidden"}>${renderPersonProgression()}</div>
 ${renderOfficialOscarSection()}</div>
-${collectionAwardModel ? `<div data-collection-page-view="awards" ${collectionPageView === "awards" ? "" : "hidden"}>${window.renderCollectionAwardsView(collectionAwardModel, { escape: personPageEscape, ui })}</div>` : ""}`;
+${isDirector ? `<div data-collection-page-view="awards" ${collectionPageView === "awards" ? "" : "hidden"}>${window.renderCollectionAwardsView(collectionAwardModel, { escape: personPageEscape, ui })}</div>` : ""}`;
   window.enhanceCollapsibles?.(container);
   window.bindEntityNoteEditor(container);
 
@@ -929,6 +947,14 @@ ${collectionAwardModel ? `<div data-collection-page-view="awards" ${collectionPa
     },
   });
   container.addEventListener("change", (event) => {
+    let sortSelect = event.target.closest("[data-person-filmography-sort]");
+    if (sortSelect) {
+      window.location.href = personViewUrl(
+        chronologyOrder,
+        sortSelect.value,
+      );
+      return;
+    }
     let input = event.target.closest('input[name="personAwardsView"]');
     if (!input) return;
     personAwardsView = input.value;

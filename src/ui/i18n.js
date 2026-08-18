@@ -14,6 +14,7 @@
     "nav.compare": { sv: "Jämför" },
     "nav.editor": { sv: "Editor" },
     "nav.data": { sv: "Data" },
+    "nav.profile": { sv: "Konto" },
     "nav.intake": { sv: "Intag" },
     "nav.build": { sv: "Bygg dina Oskars" },
     "nav.rateWatched": { sv: "Betygsätt sedda" },
@@ -561,8 +562,11 @@
     Overview: { sv: "Översikt" },
     "Collection view": { sv: "Samlingsvy" },
     "Collection awards": { sv: "Samlingspriser" },
-    "No collection awards imported.": {
-      sv: "Inga samlingspriser har importerats.",
+    "No collection awards have been imported yet.": {
+      sv: "Inga samlingspriser har importerats ännu.",
+    },
+    "This collection is open for a future Oskars bracket.": {
+      sv: "Den här samlingen är öppen för en framtida Oskars-tabell.",
     },
     "Not matched to collection": { sv: "Inte matchad mot samlingen" },
     "Ambiguous collection match": { sv: "Tvetydig samlingsmatchning" },
@@ -2436,12 +2440,28 @@
     "Clear log": { sv: "Rensa logg" },
     "Proposal blocked.": { sv: "Förslaget blockerades." },
 
-    // Cloud sync (issue #248)
+    // Account page: sign-in and cloud sync (issue #248, src/pages/profile.js)
+    "Sign in": { sv: "Logga in" },
+    "Cloud sync isn't set up for this deployment yet.": {
+      sv: "Molnsynkronisering är inte konfigurerad för den här driftsättningen än.",
+    },
+    "Signed in as {name}.": { sv: "Inloggad som {name}." },
+    "your Google account": { sv: "ditt Google-konto" },
+    "Sign out": { sv: "Logga ut" },
+    "Sign in with Google to sync this workspace across your devices.": {
+      sv: "Logga in med Google för att synkronisera denna arbetsyta mellan dina enheter.",
+    },
+    "{count} item(s) changed on this device and elsewhere - choose which version to keep for each:":
+      {
+        sv: "{count} objekt har ändrats på den här enheten och någon annanstans - välj vilken version som ska behållas för varje:",
+      },
+    "Keep this device's version": { sv: "Behåll den här enhetens version" },
+    "Use the other device's version": { sv: "Använd den andra enhetens version" },
     "Sync now": { sv: "Synkronisera nu" },
     "Syncing...": { sv: "Synkroniserar..." },
-    "{count} item(s) changed on this device and elsewhere - see the status badge to choose which version to keep.":
+    "{count} item(s) changed on this device and elsewhere - see below to choose which version to keep.":
       {
-        sv: "{count} objekt har ändrats på den här enheten och någon annanstans - se statusmärket för att välja vilken version som ska behållas.",
+        sv: "{count} objekt har ändrats på den här enheten och någon annanstans - se nedan för att välja vilken version som ska behållas.",
       },
     "Cloud sync hit an error - it will retry automatically.": {
       sv: "Molnsynkroniseringen stötte på ett fel - den försöker igen automatiskt.",
@@ -2455,9 +2475,9 @@
     "Could not load the cloud archive: {error}": {
       sv: "Kunde inte läsa in molnarkivet: {error}",
     },
-    "Previewed below as a replace proposal - review, then apply the reviewed JSON proposal to draft it locally.":
+    "Previewed below as a replace proposal - review, then apply the reviewed archive to draft it locally.":
       {
-        sv: "Förhandsgranskad nedan som ett ersättningsförslag - granska och tillämpa sedan det granskade JSON-förslaget för att skapa ett lokalt utkast.",
+        sv: "Förhandsgranskad nedan som ett ersättningsförslag - granska och tillämpa sedan det granskade arkivet för att skapa ett lokalt utkast.",
       },
     "Could not preview the cloud archive: {error}": {
       sv: "Kunde inte förhandsgranska molnarkivet: {error}",

@@ -100,3 +100,58 @@ window.planWorkspaceSectionSync = function (input) {
   });
   return { shardKeys, plans, pushKeys, deleteKeys, pullKeys, conflictKeys };
 };
+
+/**
+ * Splits a section's dirty push/delete shard keys into ordered batches that
+ * each stay under a target byte budget, so a section with many dirty
+ * shards - most commonly the very first sync, when nothing has been
+ * pushed yet and every shard in the section is dirty at once - doesn't
+ * bundle more data into one Firestore commit than Firestore allows.
+ * Discovered the hard way: a first sync pushing an entire ~8 MB `years`
+ * section in one transaction hit Firestore's whole-request size limit
+ * (observed failure: an 11+ MB commit rejected outright) even though
+ * every individual shard document stayed comfortably under the
+ * separate, much smaller per-document 1 MiB cap chunking already
+ * respects (docs/firestore-workspace-sync-decision.md) - these are two
+ * different limits, and only the per-document one was accounted for
+ * originally. Pure: takes pre-computed byte-size estimates in, returns
+ * key groupings out; no I/O, no actual shard values, so this is fully
+ * unit-testable without a network or emulator.
+ * @param {Object} input
+ * @param {string[]} input.pushKeys Shard keys with content to write.
+ * @param {string[]} input.deleteKeys Shard keys to remove (cheap - no value payload).
+ * @param {Record<string, number>} input.byteSizes Shard key -> estimated byte size.
+ * @param {number} input.maxBatchBytes Target maximum total size per batch.
+ * @returns {Array<{pushKeys: string[], deleteKeys: string[]}>} Ordered
+ *   batches, each safe to push as one Firestore transaction. Empty when
+ *   there's nothing to push or delete. A single shard whose own size
+ *   already exceeds maxBatchBytes still gets its own one-shard batch
+ *   rather than being dropped or stalling the partition.
+ */
+window.partitionShardPushBatches = function ({ pushKeys, deleteKeys, byteSizes, maxBatchBytes }) {
+  let sizes = byteSizes || {};
+  let budget = maxBatchBytes > 0 ? maxBatchBytes : Infinity;
+  let batches = [];
+  let current = { pushKeys: [], deleteKeys: [] };
+  let currentBytes = 0;
+  function flush() {
+    if (current.pushKeys.length || current.deleteKeys.length) batches.push(current);
+    current = { pushKeys: [], deleteKeys: [] };
+    currentBytes = 0;
+  }
+  // Pushes carry the real payload weight and are batched first; deletes
+  // (no value payload, negligible size) fill in wherever there's room.
+  (pushKeys || []).forEach((shardKey) => {
+    let size = sizes[shardKey] || 0;
+    if (currentBytes > 0 && currentBytes + size > budget) flush();
+    current.pushKeys.push(shardKey);
+    currentBytes += size;
+  });
+  (deleteKeys || []).forEach((shardKey) => {
+    if (currentBytes > 0 && currentBytes + 1 > budget) flush();
+    current.deleteKeys.push(shardKey);
+    currentBytes += 1;
+  });
+  flush();
+  return batches;
+};

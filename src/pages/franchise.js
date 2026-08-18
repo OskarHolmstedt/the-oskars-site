@@ -19,7 +19,6 @@
     "franchise",
     franchise.id,
   );
-  if (!collectionAwardModel) collectionPageView = "films";
   let finishRenderTimer = window.startOskarsPerformance?.("franchise:render");
   let parents = (
     franchise.parentIds?.length
@@ -488,7 +487,7 @@
     { escape },
   )}
   ${window.renderDetailHeader({ classes: "franchise-detail-header", leadingHtml: representativePoster ? `<div class="franchise-detail-poster">${representativePoster}</div>` : "", mainHtml: `<h1>${escape(franchise.name)}</h1><p>${parentLinks ? `${escape(ui("Part of"))} ${parentLinks}` : escape(ui("Franchise"))}${sourceLinkHtml}</p>`, actionsHtml: window.renderSourceProjectAction("franchise", franchise.id, { escape }) })}
-  ${collectionAwardModel ? `<nav class="collection-page-view-controls" aria-label="${escape(ui("Collection view"))}">${collectionPageView === "films" ? `<strong>${escape(ui("Overview"))}</strong>` : `<a href="${escape(window.franchisePageUrl(franchise.id))}">${escape(ui("Overview"))}</a>`}${collectionPageView === "awards" ? `<strong>${escape(ui("Awards"))}</strong>` : `<a href="${escape(`${window.franchisePageUrl(franchise.id)}&collection-view=awards`)}">${escape(ui("Awards"))}</a>`}</nav>` : ""}
+  ${window.renderCollectionViewController({ view: collectionPageView, overviewUrl: window.franchisePageUrl(franchise.id), awardsUrl: `${window.franchisePageUrl(franchise.id)}&collection-view=awards`, escape, ui })}
   <div data-collection-page-view="films" ${collectionPageView === "films" ? "" : "hidden"}>
   ${window.renderDetailStats({ itemsHtml: `<span><b>${completion.watchedCount}</b> ${escape(ui("Watched"))}</span>${completion.watchlistCount ? `<span><b>${completion.watchlistCount}</b> Watchlist</span>` : ""}<span><b>${completion.total}</b> ${escape(ui("Known"))}</span><span><b>${completion.percent}%</b> ${escape(ui("Complete"))}</span>${years.length ? `<span><b>${Math.min(...years)}–${Math.max(...years)}</b> ${escape(ui("Years"))}</span>` : ""}<span><b>${children.length}</b> ${escape(ui("Child franchises"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}
   ${window.renderEntityNote("franchises", franchise.id, ui("Franchise note"))}
@@ -505,7 +504,7 @@
   ${watchlistRows ? `<h2>Watchlist</h2>${watchlistBulkTierControls}${watchlistOrderControls}${filmView === "grid" ? `<div class="film-grid franchise-film-grid">${watchlistGrid}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Interest"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Tier"))}</th></tr></thead><tbody>${watchlistRows}</tbody></table></div>`}` : ""}`
   }
   ${otherRows ? `<section class="franchise-other-watched"><h2>${escape(ui("Other watched"))}</h2>${filmView === "grid" ? `<div class="film-grid franchise-film-grid">${otherGrid}</div>` : window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Director"), ui("Type"), ui("Rating")].map(escape), rows: otherRows })}</section>` : ""}</div>
-  ${collectionAwardModel ? `<div data-collection-page-view="awards" ${collectionPageView === "awards" ? "" : "hidden"}>${window.renderCollectionAwardsView(collectionAwardModel, { escape, ui })}</div>` : ""}`;
+  <div data-collection-page-view="awards" ${collectionPageView === "awards" ? "" : "hidden"}>${window.renderCollectionAwardsView(collectionAwardModel, { escape, ui })}</div>`;
   container
     .querySelector("[data-franchise-sort]")
     ?.addEventListener("change", (event) => {

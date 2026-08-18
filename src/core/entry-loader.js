@@ -9,6 +9,7 @@
     "home",
     "editor",
     "data",
+    "profile",
     "intake",
     "build",
     "rate-watched",
@@ -350,7 +351,9 @@
           "src/data/import-consistency.js",
           "src/data/metadata-batch.js",
         ]
-      : []),
+      : entry === "profile"
+        ? ["src/editor/import-report.js", "src/data/import-summary.js"]
+        : []),
     ...(entry === "period"
       ? [
           "src/pages/period/navigation.js",
@@ -374,7 +377,13 @@
           "src/data/official-results.js",
           "src/data/google-sheets.js",
         ]
-      : []),
+      : entry === "profile"
+        ? [
+            "src/data/publication.js",
+            "src/data/transfer.js",
+            "src/data/import-proposals.js",
+          ]
+        : []),
     ...(entry === "editor" ? ["src/editor/forms.js"] : []),
     ...(entry === "home"
       ? [
@@ -438,6 +447,7 @@
   let ownerOnlyEntries = new Set([
     "editor",
     "data",
+    "profile",
     "intake",
     "build",
     "rate-watched",
@@ -469,7 +479,7 @@
     if (!capabilities.allowOwnerPages || activeProfileSlug) {
       document
         .querySelectorAll(
-          '.site-menu-links a[href="editor.html"], .site-menu-links a[href="data.html"], .site-menu-links a[href="intake.html"], .site-menu-links a[href="build.html"], .site-menu-links a[href="rate-watched.html"]',
+          '.site-menu-links a[href="editor.html"], .site-menu-links a[href="data.html"], .site-menu-links a[href="profile.html"], .site-menu-links a[href="intake.html"], .site-menu-links a[href="build.html"], .site-menu-links a[href="rate-watched.html"]',
         )
         .forEach((link) => link.remove());
     }

@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Account · The Oskars</title>
+    <link rel="stylesheet" href="styles/app.css" />
+  </head>
+  <body>
+    <header class="app-header" data-site-header-pending></header>
+    <main class="data-workspace">
+      <div class="data-workspace-heading">
+        <div>
+          <span class="eyebrow">Account</span>
+          <h1>Account</h1>
+          <p>
+            Sign in with Google to keep this workspace synced across every
+            device signed into the same account. Signing in is optional -
+            everything still works locally without it.
+          </p>
+        </div>
+      </div>
+
+      <div class="data-panel-stack">
+        <section id="profileAuthSection" class="data-panel"></section>
+        <section id="cloudSyncPanel" class="data-panel" hidden>
+          <h2>Cloud sync</h2>
+          <p>
+            A manual sync runs the same reconciliation the app already runs
+            automatically after every save and on sign-in. Loading the
+            complete archive from the cloud previews it below as a replace
+            proposal - nothing changes until you apply it.
+          </p>
+          <div id="cloudSyncConflicts" class="cloud-sync-conflicts"></div>
+          <div class="data-actions">
+            <button id="cloudSyncNowBtn" type="button">Sync now</button>
+            <button id="cloudRestoreBtn" type="button">
+              Load complete archive from cloud
+            </button>
+            <button id="cloudRestoreApplyBtn" type="button" disabled>
+              Apply reviewed archive
+            </button>
+          </div>
+          <p id="cloudSyncStatus" class="data-panel-status"></p>
+        </section>
+        <section
+          id="importReport"
+          class="data-panel import-report import-report-panel"
+          hidden
+        >
+          <div class="import-report-header">
+            <div>
+              <span class="eyebrow">Data review</span>
+              <h2 id="importReportTitle">Last import</h2>
+            </div>
+            <button id="dismissImportReport" type="button" title="Hide">
+              ×
+            </button>
+          </div>
+          <div id="importReportBody"></div>
+        </section>
+      </div>
+    </main>
+    <script src="src/core/entry-loader.js" data-entry="profile"></script>
+  </body>
+</html>

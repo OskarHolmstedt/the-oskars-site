@@ -386,91 +386,6 @@ async function applyJsonImportProposal() {
   button.textContent = ui("Applied to draft");
 }
 
-/**
- * Shows or hides the Cloud sync panel (issue #248) - only meaningful once
- * signed in, matching every other optional-credential feature in this app
- * (TMDB posters, Sheets import) showing nothing at all when unconfigured.
- * @param {Object|null} user Current Firebase user, or null when signed out.
- */
-function updateCloudSyncPanelVisibility(user) {
-  let panel = document.getElementById("cloudSyncPanel");
-  if (panel) panel.hidden = !user;
-}
-
-/**
- * Runs a manual cloud sync pass and reports its outcome inline, in
- * addition to the shared corner status badge window.reportWorkspaceSyncStatus
- * already updates - useful here since a manual "Sync now" click deserves
- * an immediate answer next to the button, not just the corner badge.
- */
-async function runManualCloudSync() {
-  let button = document.getElementById("cloudSyncNowBtn");
-  let status = document.getElementById("cloudSyncStatus");
-  button.disabled = true;
-  button.textContent = ui("Syncing...");
-  let result = await window.runWorkspaceSync?.({ reason: "manual" });
-  button.disabled = false;
-  button.textContent = ui("Sync now");
-  if (!result) return;
-  if (result.conflicts?.length) {
-    status.textContent = ui(
-      "{count} item(s) changed on this device and elsewhere - see the status badge to choose which version to keep.",
-      { count: result.conflicts.length },
-    );
-  } else if (result.hadError) {
-    status.textContent = ui("Cloud sync hit an error - it will retry automatically.");
-  } else if (result.pushedCount || result.pulledCount) {
-    status.textContent = ui(
-      "Synced: {pushed} shard(s) uploaded, {pulled} shard(s) downloaded.",
-      { pushed: result.pushedCount, pulled: result.pulledCount },
-    );
-  } else {
-    status.textContent = ui("Already up to date.");
-  }
-}
-
-/**
- * Loads the complete archive straight from Firestore (issue #248) and
- * previews it as a replace proposal through the exact same pipeline a
- * restored JSON backup file uses - nothing is applied until the owner
- * reviews and confirms, matching every other import path on this page.
- */
-async function previewCloudRestore() {
-  let button = document.getElementById("cloudRestoreBtn");
-  let status = document.getElementById("cloudSyncStatus");
-  button.disabled = true;
-  button.textContent = ui("Loading from cloud...");
-  try {
-    let fetched = await window.fetchCanonicalDataFromCloud?.();
-    if (!fetched?.ok) {
-      status.textContent = ui("Could not load the cloud archive: {error}", {
-        error: fetched?.error || "unknown error",
-      });
-      return;
-    }
-    let proposal = window.proposeJsonImport(fetched.canonical, {
-      mode: "replace",
-      sourceName: "Cloud workspace",
-    });
-    pendingJsonImportProposal = proposal;
-    window.showImportReport?.(
-      window.compactImportReport?.(proposal.report, { preview: true }) ||
-        proposal.report,
-    );
-    document.getElementById("jsonImportApplyBtn").disabled = !proposal.allowed;
-    status.textContent = ui(
-      "Previewed below as a replace proposal - review, then apply the reviewed JSON proposal to draft it locally.",
-    );
-  } catch (err) {
-    status.textContent = ui("Could not preview the cloud archive: {error}", {
-      error: err.message || String(err),
-    });
-  } finally {
-    button.disabled = false;
-    button.textContent = ui("Load complete archive from cloud");
-  }
-}
-
 async function previewLetterboxdZip(event) {
   let input = event.currentTarget;
   let file = input.files?.[0];
@@ -999,13 +914,6 @@ async function initializeDataWorkspace() {
   document
     .getElementById("jsonImportApplyBtn")
     .addEventListener("click", applyJsonImportProposal);
-  window.onFirebaseAuthChange?.(updateCloudSyncPanelVisibility);
-  document
-    .getElementById("cloudSyncNowBtn")
-    ?.addEventListener("click", runManualCloudSync);
-  document
-    .getElementById("cloudRestoreBtn")
-    ?.addEventListener("click", previewCloudRestore);
   document
     .getElementById("officialResultsInput")
     .addEventListener("change", previewOfficialResultsFile);

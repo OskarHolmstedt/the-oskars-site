@@ -25,6 +25,25 @@ const RETRYABLE_FIRESTORE_ERROR_CODES = new Set([
   "cancelled",
 ]);
 
+// Conservative target for a single push transaction's total shard-value
+// payload, well under Firestore's real whole-request size limit (observed
+// directly: an 11+ MB commit was rejected outright - a first sync pushing
+// an entire multi-megabyte section in one go is the case this protects
+// against; see partitionShardPushBatches in workspace-sync-plan.js). Sized
+// off raw JSON length, which understates Firestore's own proto-encoded
+// wire size (every value wraps in a {"stringValue"/"mapValue"/...} tag),
+// so the real margin below the actual limit is larger than the number
+// alone suggests - deliberate, not an oversight.
+const MAX_PUSH_BATCH_BYTES = 2 * 1024 * 1024;
+
+function estimateShardByteSize(value) {
+  try {
+    return JSON.stringify(value)?.length || 0;
+  } catch (err) {
+    return 0;
+  }
+}
+
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -292,41 +311,69 @@ async function processSectionSync(firestoreModule, db, uid, sectionKey, canonica
   }
 
   if (plan.pushKeys.length || plan.deleteKeys.length) {
-    let pushShards = {};
     let newRevisions = {};
+    let byteSizes = {};
     plan.pushKeys.forEach((shardKey) => {
-      pushShards[shardKey] = localShards[shardKey];
       newRevisions[shardKey] = localShardRevisions[shardKey];
+      byteSizes[shardKey] = estimateShardByteSize(localShards[shardKey]);
     });
     let expectedRevisions = {};
     [...plan.pushKeys, ...plan.deleteKeys].forEach((shardKey) => {
       expectedRevisions[shardKey] = manifest.shardRevisions[shardKey] || "";
     });
-    let pushed = await pushSectionWithRetryAndVerification(firestoreModule, db, uid, sectionKey, {
-      pushShards,
-      deleteShardKeys: plan.deleteKeys,
-      expectedRevisions,
-      newRevisions,
+    // Every dirty shard in a section can exceed Firestore's whole-request
+    // size limit even though each individual shard document stays under
+    // the much smaller per-document cap - most commonly on a first sync,
+    // when the entire section is dirty at once. Split into size-bounded
+    // batches, each its own transaction; a batch that fails or conflicts
+    // leaves only its own shards dirty for the next pass; it doesn't
+    // undo an already-succeeded batch (partial progress across a
+    // section's push is expected and safe, not a partial-application bug -
+    // each shard's own revision tracking is what makes that safe).
+    let batches = window.partitionShardPushBatches({
+      pushKeys: plan.pushKeys,
+      deleteKeys: plan.deleteKeys,
+      byteSizes,
+      maxBatchBytes: MAX_PUSH_BATCH_BYTES,
     });
-    if (pushed.ok) {
-      plan.pushKeys.forEach((shardKey) => {
-        lastSyncedShardRevisions[shardKey] = newRevisions[shardKey];
+    for (let batch of batches) {
+      let batchPushShards = {};
+      let batchNewRevisions = {};
+      let batchExpectedRevisions = {};
+      batch.pushKeys.forEach((shardKey) => {
+        batchPushShards[shardKey] = localShards[shardKey];
+        batchNewRevisions[shardKey] = newRevisions[shardKey];
+        batchExpectedRevisions[shardKey] = expectedRevisions[shardKey];
       });
-      plan.deleteKeys.forEach((shardKey) => {
-        delete lastSyncedShardRevisions[shardKey];
+      batch.deleteKeys.forEach((shardKey) => {
+        batchExpectedRevisions[shardKey] = expectedRevisions[shardKey];
       });
-      result.pushedCount = plan.pushKeys.length + plan.deleteKeys.length;
-    } else if (pushed.conflict) {
-      [...plan.pushKeys, ...plan.deleteKeys].forEach((shardKey) =>
-        result.conflicts.push({
-          sectionKey,
-          shardKey,
-          localRevision: localShardRevisions[shardKey] || "",
-          remoteRevision: "",
-        }),
-      );
-    } else {
-      result.hadError = true;
+      let pushed = await pushSectionWithRetryAndVerification(firestoreModule, db, uid, sectionKey, {
+        pushShards: batchPushShards,
+        deleteShardKeys: batch.deleteKeys,
+        expectedRevisions: batchExpectedRevisions,
+        newRevisions: batchNewRevisions,
+      });
+      if (pushed.ok) {
+        batch.pushKeys.forEach((shardKey) => {
+          lastSyncedShardRevisions[shardKey] = newRevisions[shardKey];
+        });
+        batch.deleteKeys.forEach((shardKey) => {
+          delete lastSyncedShardRevisions[shardKey];
+        });
+        result.pushedCount += batch.pushKeys.length + batch.deleteKeys.length;
+      } else if (pushed.conflict) {
+        [...batch.pushKeys, ...batch.deleteKeys].forEach((shardKey) =>
+          result.conflicts.push({
+            sectionKey,
+            shardKey,
+            localRevision: localShardRevisions[shardKey] || "",
+            remoteRevision: "",
+          }),
+        );
+      } else {
+        result.hadError = true;
+      }
     }
   }
 

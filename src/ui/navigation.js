@@ -130,3 +130,23 @@ window.renderSortAxisControl = function (options = {}) {
     .join("");
   return `<label class="sort-axis-control">${escape(ui(options.label || "Sort"))} <select${attribute}>${optionsHtml}</select></label>`;
 };
+
+/**
+ * Renders the shared Overview/Awards controller for collection detail pages.
+ * @param {Object} [options] Active view, destinations, and escaping options.
+ * @returns {string}
+ */
+window.renderCollectionViewController = function (options = {}) {
+  let escape = options.escape || window.pageEscape;
+  let ui = options.ui || window.uiText || ((text) => text);
+  let view = options.view === "awards" ? "awards" : "films";
+  let overview =
+    view === "films"
+      ? `<strong aria-current="page">${escape(ui("Overview"))}</strong>`
+      : `<a href="${escape(options.overviewUrl || "#")}">${escape(ui("Overview"))}</a>`;
+  let awards =
+    view === "awards"
+      ? `<strong aria-current="page">${escape(ui("Awards"))}</strong>`
+      : `<a href="${escape(options.awardsUrl || "#")}">${escape(ui("Awards"))}</a>`;
+  return `<nav class="collection-page-view-controls" aria-label="${escape(ui("Collection view"))}">${overview}${awards}</nav>`;
+};

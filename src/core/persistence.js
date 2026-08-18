@@ -543,6 +543,7 @@ window.save = function (options = {}) {
       writeFallbackState(window.getBrowserPersistenceState());
       doneSnapshot?.();
       storageStatus("Saved using fallback storage", "warning");
+      window.scheduleWorkspaceSync?.();
       return true;
     } catch (err) {
       if (err?.code === "OSKARS_STALE_STATE") {
@@ -622,6 +623,13 @@ window.replaceStoredState = async function (nextState, options = {}) {
       storageStatus("Save failed — download a backup", "error");
     }
   }
+  // Same trigger as flushScheduledSave() (issue #248): replaceStoredState()
+  // is the write path for clear-all-data, recovery restore, and canonical
+  // adoption, none of which go through window.save(). Without this, clearing
+  // local data while signed in never reconciles with the cloud on its own -
+  // the local "fresh empty device" bookkeeping is set, but nothing schedules
+  // the sync pass that would act on it.
+  if (saved) window.scheduleWorkspaceSync?.();
   loadPromise = window.state;
   return saved;
 };

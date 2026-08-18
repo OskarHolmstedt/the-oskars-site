@@ -245,7 +245,7 @@
       (window.runtimeModeCapabilities?.(window.getRuntimeMode?.())
         ?.allowOwnerPages ?? true) && !window.resolveActiveProfileSlug?.();
     let ownerLinks = allowOwnerPages
-      ? `<a href="build.html">${escape(headerText("nav.build", "Build your Oskars"))}</a><a href="intake.html">${escape(headerText("nav.intake", "Intake"))}</a><a href="rate-watched.html">${escape(headerText("nav.rateWatched", "Rate watched"))}</a><a href="editor.html">${escape(headerText("nav.editor", "Editor"))}</a><a href="data.html">${escape(headerText("nav.data", "Data"))}</a>`
+      ? `<a href="build.html">${escape(headerText("nav.build", "Build your Oskars"))}</a><a href="intake.html">${escape(headerText("nav.intake", "Intake"))}</a><a href="rate-watched.html">${escape(headerText("nav.rateWatched", "Rate watched"))}</a><a href="editor.html">${escape(headerText("nav.editor", "Editor"))}</a><a href="data.html">${escape(headerText("nav.data", "Data"))}</a><a href="profile.html">${escape(headerText("nav.profile", "Account"))}</a>`
       : "";
     return `<div class="site-menu-account" data-auth-status>${authStatusInnerHtml(escape)}</div>
     <section class="site-menu-categories"><h2>${escape(headerText("menu.categories", "Categories"))}</h2><div class="site-menu-links"><a href="categories.html"><b>${escape(headerText("menu.browseCategories", "Browse all categories"))}</b></a>${categories}</div></section>
@@ -283,7 +283,7 @@
   function authStatusInnerHtml(escape) {
     if (!window.oskarsFirebaseConfigured?.()) return "";
     return lastKnownAuthUser
-      ? `<span class="auth-status-name">${escape(lastKnownAuthUser.displayName || lastKnownAuthUser.email || "Signed in")}</span><button type="button" data-google-sign-out>${escape(headerText("auth.signOut", "Sign out"))}</button>`
+      ? `<a class="auth-status-name" href="profile.html">${escape(lastKnownAuthUser.displayName || lastKnownAuthUser.email || "Signed in")}</a><button type="button" data-google-sign-out>${escape(headerText("auth.signOut", "Sign out"))}</button>`
       : `<div data-google-signin-button></div>`;
   }
 

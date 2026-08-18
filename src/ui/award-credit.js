@@ -83,9 +83,7 @@ window.renderAwardCreditHtml = function (options) {
 window.renderCollectionAwardsView = function (model, options = {}) {
   let escape = options.escape || window.pageEscape;
   let ui = options.ui || window.uiText || ((text) => text);
-  if (!model)
-    return `<div class="detail-empty"><p>${escape(ui("No collection awards imported."))}</p></div>`;
-  let cards = model.categories
+  let cards = (model?.categories || [])
     .map((group) => {
       let rows = group.nominations
         .map((entry) => {
@@ -102,11 +100,14 @@ window.renderCollectionAwardsView = function (model, options = {}) {
       return `<section class="collection-award-card${group.category === "Best Picture" ? " full-width" : ""}"><h2>${escape(window.localizedCategoryName?.(group.category) || group.category)}</h2>${window.renderLeaderboardTable({ headers: [ui("Place"), ui("Film"), ui("Credit")].map(escape), rows, classes: "collection-award-table" })}</section>`;
     })
     .join("");
-  let source = model.bracket.sourceUrl
+  let source = model?.bracket.sourceUrl
     ? `<a class="period-link" href="${escape(model.bracket.sourceUrl)}" target="_blank" rel="noopener noreferrer">${escape(ui("Source"))}</a>`
     : "";
-  let unresolved = model.unresolved.length
+  let unresolved = model?.unresolved.length
     ? `<p class="completion-note">${escape(ui("{count} nomination films are not uniquely matched to this collection.", { count: model.unresolved.length }))}</p>`
     : "";
-  return `<section class="collection-awards-view" aria-labelledby="collection-awards-heading"><header><div><span class="eyebrow">${escape(ui("The Oskars"))}</span><h2 id="collection-awards-heading">${escape(ui("Collection awards"))}</h2></div>${source}</header>${unresolved}<div class="collection-award-grid">${cards}</div></section>`;
+  let content = model
+    ? `${unresolved}<div class="collection-award-grid">${cards}</div>`
+    : `<div class="detail-empty collection-awards-empty"><p>${escape(ui("No collection awards have been imported yet."))}</p><p>${escape(ui("This collection is open for a future Oskars bracket."))}</p></div>`;
+  return `<section class="collection-awards-view" aria-labelledby="collection-awards-heading"><header><div><span class="eyebrow">${escape(ui("The Oskars"))}</span><h2 id="collection-awards-heading">${escape(ui("Collection awards"))}</h2></div>${source}</header>${content}</section>`;
 };

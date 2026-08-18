@@ -616,6 +616,26 @@ textarea {
   gap: 8px;
   margin-top: 14px;
 }
+.cloud-sync-conflicts:not(:empty) {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+.cloud-sync-conflict-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+.cloud-sync-conflict-row + .cloud-sync-conflict-row {
+  border-top: 1px solid var(--line);
+}
+.cloud-sync-conflict-row span {
+  flex: 1 1 auto;
+  font-weight: 600;
+}
 .data-form {
   display: grid;
   gap: 13px;
@@ -3534,7 +3554,7 @@ dialog h2 {
   background: color-mix(in srgb, var(--gold) 5%, var(--surface));
 }
 .person-filmography-view-toggle {
-  margin: 0 0 16px;
+  margin: 0;
 }
 .collection-page-view-controls {
   display: inline-flex;
@@ -4390,7 +4410,7 @@ dialog h2 {
 .tag-card h2 {
   text-transform: none;
 }
-.tag-view-toolbar {
+.collection-film-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -4402,6 +4422,11 @@ dialog h2 {
   border-radius: 8px;
   background: var(--surface-soft);
   box-shadow: var(--shadow);
+}
+.person-filmography-sort-note {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 11px;
 }
 .tag-film-section {
   margin-top: 24px;

@@ -346,7 +346,7 @@
     ],
   });
   let toolbarControlsHtml = `<div class="detail-toolbar-controls">${sortAxisControl}${window.renderChronologyControl({ order, href: tagViewUrl({ sort: tagReverseTargetSort, order: order === "asc" ? "desc" : "asc", resetPages: true }), escape, iconOnly: true })}${window.renderShuffleControl({ href: tagViewUrl({ sort: "shuffle", seed: window.freshShuffleSeed(), resetPages: true }), escape, label: ui("Shuffle") })}${watchlistItems.length ? window.renderCombinedSectionsControl({ combined: combinedView, href: tagViewUrl({ sections: combinedView ? "split" : "combined", resetPages: true }), escape }) : ""}</div>`;
-  let toolbarHtml = `<div class="tag-view-toolbar detail-toolbar">${toolbarControlsHtml}${window.renderFilmViewToggle({ view: filmView, listUrl: tagViewUrl({ view: "list" }), gridUrl: tagViewUrl({ view: "grid" }), escape, classes: "tag-film-view-toggle", ariaLabel: ui("Tag film display") })}</div>`;
+  let toolbarHtml = `<div class="tag-view-toolbar collection-film-toolbar detail-toolbar">${toolbarControlsHtml}${window.renderFilmViewToggle({ view: filmView, listUrl: tagViewUrl({ view: "list" }), gridUrl: tagViewUrl({ view: "grid" }), escape, classes: "tag-film-view-toggle", ariaLabel: ui("Tag film display") })}</div>`;
   function paginationControls(total, page, dataAttribute) {
     return window.renderPaginationControls({
       total,
