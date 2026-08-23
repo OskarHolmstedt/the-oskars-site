@@ -892,7 +892,9 @@ ${isDirector ? `<div data-collection-page-view="awards" ${collectionPageView ===
     if (!button) {
       let card = event.target.closest("[data-open-film-id]");
       if (card && !event.target.closest("a,button,input,label"))
-        window.location.href = window.filmPageUrl(card.dataset.openFilmId);
+        window.location.href = window.prepareOskarsAccountNavigation(
+          window.filmPageUrl(card.dataset.openFilmId),
+        );
       return;
     }
     try {
@@ -952,9 +954,8 @@ ${isDirector ? `<div data-collection-page-view="awards" ${collectionPageView ===
   container.addEventListener("change", (event) => {
     let sortSelect = event.target.closest("[data-person-filmography-sort]");
     if (sortSelect) {
-      window.location.href = personViewUrl(
-        chronologyOrder,
-        sortSelect.value,
+      window.location.href = window.prepareOskarsAccountNavigation(
+        personViewUrl(chronologyOrder, sortSelect.value),
       );
       return;
     }
@@ -971,7 +972,9 @@ ${isDirector ? `<div data-collection-page-view="awards" ${collectionPageView ===
     let card = event.target.closest("[data-open-film-id]");
     if (!card || event.target.closest("a,button,input,label")) return;
     event.preventDefault();
-    window.location.href = window.filmPageUrl(card.dataset.openFilmId);
+    window.location.href = window.prepareOskarsAccountNavigation(
+      window.filmPageUrl(card.dataset.openFilmId),
+    );
   });
   if (
     !portraitHtml &&

@@ -509,10 +509,12 @@
   container
     .querySelector("[data-franchise-sort]")
     ?.addEventListener("change", (event) => {
-      window.location.href = franchiseViewUrl({
-        sort: event.target.value,
-        order: window.defaultOrderForFilmAxis(event.target.value),
-      });
+      window.location.href = window.prepareOskarsAccountNavigation(
+        franchiseViewUrl({
+          sort: event.target.value,
+          order: window.defaultOrderForFilmAxis(event.target.value),
+        }),
+      );
     });
   container
     .querySelector("[data-start-project-source]")
@@ -527,19 +529,25 @@
     .querySelector("[data-franchise-watchlist-order-edit-toggle]")
     ?.addEventListener("click", () => {
       watchlistOrderEditMode = !watchlistOrderEditMode;
-      window.location.href = franchiseViewUrl();
+      window.location.href = window.prepareOskarsAccountNavigation(
+        franchiseViewUrl(),
+      );
     });
   container
     .querySelector("[data-franchise-local-rank-edit-toggle]")
     ?.addEventListener("click", () => {
       localRankEditMode = !localRankEditMode;
-      window.location.href = franchiseViewUrl();
+      window.location.href = window.prepareOskarsAccountNavigation(
+        franchiseViewUrl(),
+      );
     });
   window.bindWatchlistBulkTierControl({
     container,
     entries: () => watchlistEntries,
     rerender: () => {
-      window.location.href = franchiseViewUrl();
+      window.location.href = window.prepareOskarsAccountNavigation(
+        franchiseViewUrl(),
+      );
     },
   });
   window.createOrderEditController({
@@ -553,7 +561,9 @@
       window.moveWatchlistItemWithinTier?.(from.id, target.id, position),
     rerender: () => {
       window.save?.({ immediate: true, rebuild: false });
-      window.location.href = franchiseViewUrl();
+      window.location.href = window.prepareOskarsAccountNavigation(
+        franchiseViewUrl(),
+      );
     },
   });
   window.createOrderEditController({
@@ -574,7 +584,9 @@
         : { ok: false },
     rerender: () => {
       window.save?.({ immediate: true, rebuild: false });
-      window.location.href = franchiseViewUrl();
+      window.location.href = window.prepareOskarsAccountNavigation(
+        franchiseViewUrl(),
+      );
     },
   });
   window.enhanceCollapsibles?.(container);

@@ -22,6 +22,7 @@
     "search.placeholder": { sv: "Sök" },
     "search.aria": { sv: "Sök i The Oskars" },
     "search.type.film": { sv: "Film" },
+    "search.type.otherwatched": { sv: "Övrigt sett" },
     "search.type.watchlist": { sv: "Watchlist" },
     "search.type.person": { sv: "Person" },
     "search.type.song": { sv: "Låt" },
@@ -46,6 +47,7 @@
     "menu.periods": { sv: "Perioder" },
     "menu.browsePeriods": { sv: "Bläddra bland alla perioder" },
     "menu.elsewhere": { sv: "Annat" },
+    "menu.community": { sv: "Gemenskap" },
     "menu.discover": { sv: "Upptäck" },
     "menu.showcase": { sv: "Utställning" },
     "menu.browseCategories": { sv: "Bläddra bland alla kategorier" },
@@ -69,6 +71,12 @@
     "language.next": { sv: "EN" },
     "period.allTime": { sv: "All-time" },
     "auth.signOut": { sv: "Logga ut" },
+    "auth.confirmSignOut": {
+      sv: "Sluta molnsynka och fortsätt lokalt? Du kan logga in igen när som helst.",
+    },
+    "auth.confirmSignOutRequired": {
+      sv: "Logga ut och lås webbläsarens privata arkiv? Ingenting raderas; samma konto kan öppna det igen senare.",
+    },
   };
 
   let literalTranslations = {
@@ -1049,6 +1057,8 @@
     "Watch goals reached": { sv: "Nådda titt-mål" },
     "Oscar completion": { sv: "Oscar-färdigställande" },
     "Oscar film completion": { sv: "Oscarfilmer sedda" },
+    "{source} completion": { sv: "{source}-färdigställande" },
+    "{source} film completion": { sv: "{source}-filmer sedda" },
     "Add unseen": { sv: "Lägg till osedda" },
     "Add {count} unseen": { sv: "Lägg till {count} osedda" },
     "Review {count}": { sv: "Granska {count}" },
@@ -1071,6 +1081,7 @@
       },
     "Possible years": { sv: "Möjliga år" },
     "Add unseen Oscar films?": { sv: "Lägg till osedda Oscarfilmer?" },
+    "Add unseen films?": { sv: "Lägg till osedda filmer?" },
     "{ready} films are ready for tier {tier}. {review} need year review and will be skipped.":
       {
         sv: "{ready} filmer är klara för tier {tier}. {review} behöver årsgranskas och hoppas över.",
@@ -1108,13 +1119,25 @@
     },
     "Oscar-winning films watched": { sv: "Sedda Oscarsvinnare" },
     "Oscar-nominated films watched": { sv: "Sedda Oscarsnominerade filmer" },
+    "{source}-winning films watched": { sv: "Sedda {source}-vinnare" },
+    "{source}-nominated films watched": {
+      sv: "Sedda {source}-nominerade filmer",
+    },
     "Oscar completion covers every imported official nominee. Director, franchise, and project completion covers known films in the archive and watchlist.":
       {
         sv: "Oscar-färdigställande omfattar varje importerad officiell nominering. Färdigställande för regissörer, franchises och projekt omfattar kända filmer i arkivet och watchlisten.",
       },
+    "Official completion covers every imported official nominee, per source. Director, franchise, and project completion covers known films in the archive and watchlist.":
+      {
+        sv: "Officiellt färdigställande omfattar varje importerad officiell nominering, per källa. Färdigställande för regissörer, franchises och projekt omfattar kända filmer i arkivet och watchlisten.",
+      },
     "Films watched from the imported official Academy Awards winners and nominees — overall, by year, and by category.":
       {
         sv: "Sedda filmer bland importerade officiella Oscarsvinnare och nominerade — totalt, per år och per kategori.",
+      },
+    "Films watched from the imported official {source} winners and nominees — overall, by year, and by category.":
+      {
+        sv: "Sedda filmer bland importerade officiella {source}-vinnare och nominerade — totalt, per år och per kategori.",
       },
     "The headline Oscar watch-through.": {
       sv: "Den främsta Oscar-utmaningen.",
@@ -1128,11 +1151,17 @@
     "Based on {count} imported Academy Awards periods, {first}–{last}.": {
       sv: "Baserat på {count} importerade Oscarsperioder, {first}–{last}.",
     },
+    "Based on {count} imported {source} periods, {first}–{last}.": {
+      sv: "Baserat på {count} importerade {source}-perioder, {first}–{last}.",
+    },
     "{count} more official periods already fully watched.": {
       sv: "Ytterligare {count} officiella perioder är redan helt sedda.",
     },
     "Every official Oscar period is fully watched.": {
       sv: "Varje officiell Oscarsperiod är helt sedd.",
+    },
+    "Every official period is fully watched.": {
+      sv: "Varje officiell period är helt sedd.",
     },
     "Every film in this collection has been watched.": {
       sv: "Alla filmer i den här samlingen är sedda.",
@@ -1144,6 +1173,9 @@
     "Nominees watched": { sv: "Sedda nominerade" },
     "No official Academy Awards data imported yet.": {
       sv: "Ingen officiell Oscarsdata har importerats ännu.",
+    },
+    "No official data imported yet for this source.": {
+      sv: "Ingen officiell data har importerats ännu för denna källa.",
     },
     "Oscar collection": { sv: "Oscar-samling" },
     "known films": { sv: "kända filmer" },
@@ -2043,6 +2075,13 @@
         sv: "Medium styr behörighet för animation. Rätta ranked-listans Medium-kolumn i Google Sheets.",
       },
     None: { sv: "Inga" },
+    "Other watched entries with no franchise or director link": {
+      sv: "Övrigt sett utan franchise- eller regissörskoppling",
+    },
+    "Otherwise only findable through search - link a franchise or director in the source sheet.":
+      {
+        sv: "Annars bara hittbart via sökning - länka en franchise eller regissör i källarket.",
+      },
     "People missing portrait": { sv: "Personer utan porträtt" },
     Placement: { sv: "Placering" },
     "Placement gap": { sv: "Placeringslucka" },
@@ -2466,6 +2505,10 @@
     "Cloud sync hit an error - it will retry automatically.": {
       sv: "Molnsynkroniseringen stötte på ett fel - den försöker igen automatiskt.",
     },
+    "This account isn't authorized for cloud sync on this deployment. Changes stay saved locally on this device.":
+      {
+        sv: "Det här kontot är inte auktoriserat för molnsynkronisering på den här driftsättningen. Ändringar sparas lokalt på den här enheten.",
+      },
     "Synced: {pushed} shard(s) uploaded, {pulled} shard(s) downloaded.": {
       sv: "Synkroniserat: {pushed} del(ar) uppladdade, {pulled} del(ar) nedladdade.",
     },
@@ -2482,6 +2525,69 @@
     "Could not preview the cloud archive: {error}": {
       sv: "Kunde inte förhandsgranska molnarkivet: {error}",
     },
+
+    // Account page: cloud account deletion (issue #254, src/pages/profile.js)
+    "Stop cloud sync and continue locally? You can sign in again anytime - nothing local is lost either way.":
+      {
+        sv: "Sluta molnsynka och fortsätt lokalt? Du kan logga in igen när som helst - inget lokalt går förlorat oavsett.",
+      },
+    "Signing out locks this private archive immediately. Sign back into the same account to reopen it.": {
+      sv: "Utloggning låser det privata arkivet omedelbart. Logga in med samma konto för att öppna det igen.",
+    },
+    "Sign out and lock": { sv: "Logga ut och lås" },
+    "Sign out and lock this browser's private archive? Nothing is deleted; the same account can reopen it later.": {
+      sv: "Logga ut och lås webbläsarens privata arkiv? Ingenting raderas; samma konto kan öppna det igen senare.",
+    },
+    "Switch accounts safely": { sv: "Byt konto säkert" },
+    "Switch accounts? A full backup downloads first, an account-bound recovery is retained, and this archive is removed from the active browser before sign-out. Cloud data is not deleted.": {
+      sv: "Byta konto? En fullständig säkerhetskopia laddas först ned, en kontobunden återställning sparas och arkivet tas bort från den aktiva webbläsaren före utloggning. Molndata raderas inte.",
+    },
+    "Preparing safe switch...": { sv: "Förbereder säkert kontobyte..." },
+    "Could not prepare account switch: {reason}": {
+      sv: "Kunde inte förbereda kontobytet: {reason}",
+    },
+    "Backup retained. Locking this browser and signing out...": {
+      sv: "Säkerhetskopian är sparad. Låser webbläsaren och loggar ut...",
+    },
+    "This local workspace is not attached to a cloud account yet. Connect it explicitly before any upload or download.": {
+      sv: "Den lokala arbetsytan är ännu inte kopplad till ett molnkonto. Anslut den uttryckligen före uppladdning eller nedladdning.",
+    },
+    "Connect this workspace to this account": {
+      sv: "Anslut arbetsytan till detta konto",
+    },
+    "Could not connect this workspace: {reason}": {
+      sv: "Kunde inte ansluta arbetsytan: {reason}",
+    },
+    "Cloud actions are locked because this workspace belongs to another account.": {
+      sv: "Molnåtgärder är låsta eftersom arbetsytan tillhör ett annat konto.",
+    },
+    "Cloud sync is locked until this workspace is attached to the signed-in account.": {
+      sv: "Molnsynkronisering är låst tills arbetsytan har kopplats till det inloggade kontot.",
+    },
+    "Delete cloud account data": { sv: "Radera molnkontodata" },
+    "Permanently deletes every document Firestore holds for this account - every synced section and this device's sync history. A full backup downloads first. This is final; there is no admin-side recovery once it verifies removal.":
+      {
+        sv: "Raderar permanent alla dokument Firestore lagrar för det här kontot - varje synkroniserad sektion och den här enhetens synkroniseringshistorik. En fullständig säkerhetskopia laddas ned först. Detta är slutgiltigt; det finns ingen återställning från administratörssidan efter att raderingen har verifierats.",
+      },
+    "A public profile ({name}) may currently be published. Deleting your cloud account data does NOT take it down - that needs the separate revocation step on the Data page's publish panel. ":
+      {
+        sv: "En offentlig profil ({name}) kan för närvarande vara publicerad. Att radera dina molnkontodata tar INTE ner den - det kräver det separata återkallningssteget på datasidans publiceringspanel. ",
+      },
+    "This downloads a full backup, then permanently deletes every document Firestore holds for this account. It cannot be undone. Continue?":
+      {
+        sv: "Detta laddar ned en fullständig säkerhetskopia och raderar sedan permanent alla dokument Firestore lagrar för det här kontot. Det kan inte ångras. Fortsätta?",
+      },
+    "Deleted and verified {count} section(s). Signing out - your local archive is untouched.":
+      {
+        sv: "Raderade och verifierade {count} sektion(er). Loggar ut - ditt lokala arkiv är orört.",
+      },
+    "Could not verify deletion for: {sections}. Nothing was signed out - try again.": {
+      sv: "Kunde inte verifiera radering för: {sections}. Ingen utloggning gjordes - försök igen.",
+    },
+    "Deletion failed. Nothing was signed out - try again.": {
+      sv: "Raderingen misslyckades. Ingen utloggning gjordes - försök igen.",
+    },
+
     "Public profile name": { sv: "Namn för offentlig profil" },
     "Used as your public profile's display name and URL slug when you publish one (see the Data page's “Publish a public profile” panel).":
       {

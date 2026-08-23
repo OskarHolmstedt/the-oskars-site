@@ -43,6 +43,16 @@ let firebaseAppInstance = null;
 let firebaseAuthInstance = null;
 let googleIdentityScriptPromise = null;
 let googleIdentityInitialized = false;
+// Distinguishes signOutOfFirebase()'s deliberate sign-out from an
+// unexpected one (expired/revoked session) for onFirebaseAuthChange's
+// second callback argument (issue #254). A timestamp, not a clear-on-read
+// flag: onFirebaseAuthChange() is called independently by several
+// subscribers (site-header.js, profile.js, firestore-sync.js), each
+// registering its own onAuthStateChanged listener - a flag one subscriber
+// clears after reading would leave the others unable to see it.
+let deliberateSignOutAt = 0;
+const DELIBERATE_SIGN_OUT_WINDOW_MS = 5000;
+let firebaseAuthResolutionPromise = null;
 
 function firebaseSdkUrl(name) {
   return `https://www.gstatic.com/firebasejs/${OSKARS_FIREBASE_SDK_VERSION}/firebase-${name}.js`;
@@ -110,6 +120,74 @@ window.ensureFirebaseApp = async function () {
  */
 window.getFirebaseCurrentUser = function () {
   return firebaseAuthInstance?.currentUser || null;
+};
+
+/**
+ * Resolves Firebase's initial persisted authentication state once, including
+ * explicit configuration, offline, timeout, and initialization failures for
+ * the account-required startup gate (issue #332).
+ * @param {{timeoutMs?: number}} [options] Initial-state timeout override.
+ * @returns {Promise<{status: 'signed-in'|'signed-out'|'unconfigured'|'offline'|'error', user?: Object, error?: string}>}
+ */
+window.resolveFirebaseAuthState = function (options = {}) {
+  if (!window.oskarsFirebaseConfigured())
+    return Promise.resolve({ status: "unconfigured" });
+  if (firebaseAuthResolutionPromise) return firebaseAuthResolutionPromise;
+  let timeoutMs = Number(options.timeoutMs) > 0
+    ? Number(options.timeoutMs)
+    : 15000;
+  firebaseAuthResolutionPromise = ensureFirebaseAuth()
+    .then(
+      (ready) =>
+        new Promise((resolve) => {
+          let settled = false;
+          let unsubscribe = () => {};
+          let timeout = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            unsubscribe();
+            resolve({
+              status: window.navigator?.onLine === false ? "offline" : "error",
+              error: "Timed out while checking the signed-in account.",
+            });
+          }, timeoutMs);
+          function finish(result) {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeout);
+            unsubscribe();
+            resolve(result);
+          }
+          unsubscribe = ready.authModule.onAuthStateChanged(
+            ready.auth,
+            (user) =>
+              finish(
+                user
+                  ? { status: "signed-in", user }
+                  : {
+                      status:
+                        window.navigator?.onLine === false
+                          ? "offline"
+                          : "signed-out",
+                    },
+              ),
+            (err) =>
+              finish({
+                status:
+                  window.navigator?.onLine === false ? "offline" : "error",
+                error: String(err?.message || err),
+              }),
+          );
+        }),
+    )
+    .catch((err) => {
+      reportFirebaseError(err);
+      return {
+        status: window.navigator?.onLine === false ? "offline" : "error",
+        error: String(err?.message || err),
+      };
+    });
+  return firebaseAuthResolutionPromise;
 };
 
 function loadGoogleIdentityScript() {
@@ -184,17 +262,33 @@ window.renderGoogleSignInButton = async function (container) {
   }
 };
 
-/** Signs the current user out, if Firebase is configured and initialized. */
+/**
+ * Signs the current user out, if Firebase is configured and initialized.
+ * Stamps deliberateSignOutAt first so onFirebaseAuthChange's subscribers
+ * can tell this apart from an unexpected sign-out (issue #254).
+ */
 window.signOutOfFirebase = async function () {
+  window.clearOskarsAccountNavigationHandoff?.();
   let ready = await ensureFirebaseAuth();
   if (!ready) return;
-  await ready.authModule.signOut(ready.auth);
+  deliberateSignOutAt = Date.now();
+  // Account-required deployments hide the hydrated private workspace before
+  // the asynchronous Firebase transition begins. If sign-out itself fails,
+  // reload to re-resolve the still-valid session instead of leaving a false
+  // locked screen in place (issue #335).
+  window.hidePrivateWorkspaceForAccountExit?.();
+  try {
+    await ready.authModule.signOut(ready.auth);
+  } catch (err) {
+    window.location?.reload?.();
+    throw err;
+  }
 };
 
 /**
  * Subscribes to sign-in state changes. A no-op (never calls back) when
  * Firebase isn't configured, so callers don't need their own guard.
- * @param {(user: Object|null) => void} callback Called with the current user, or null when signed out.
+ * @param {(user: Object|null, meta: {deliberate: boolean}) => void} callback Called with the current user (or null when signed out) and whether a null transition was a deliberate signOutOfFirebase() call vs. an unexpected/expired session (issue #254). `deliberate` is meaningless when `user` is non-null.
  * @returns {() => void} Unsubscribe function.
  */
 window.onFirebaseAuthChange = function (callback) {
@@ -206,7 +300,10 @@ window.onFirebaseAuthChange = function (callback) {
       if (!ready || cancelled) return;
       unsubscribe = ready.authModule.onAuthStateChanged(
         ready.auth,
-        callback,
+        (user) =>
+          callback(user, {
+            deliberate: Boolean(user) || Date.now() - deliberateSignOutAt < DELIBERATE_SIGN_OUT_WINDOW_MS,
+          }),
         reportFirebaseError,
       );
     })

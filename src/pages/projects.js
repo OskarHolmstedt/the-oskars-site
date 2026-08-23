@@ -360,7 +360,9 @@
       }
       let saving = window.save?.({ immediate: true, rebuild: false });
       if (saving?.then) await saving;
-      window.location.href = window.projectPageUrl(project.id);
+      window.location.href = window.prepareOskarsAccountNavigation(
+        window.projectPageUrl(project.id),
+      );
       return;
     }
     let sourceId = sourceLookup.get(

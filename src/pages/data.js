@@ -4,6 +4,7 @@ let ui = window.uiText || ((text) => text);
 let pendingGoogleImportProposal = null;
 let pendingJsonImportProposal = null;
 let pendingOfficialResultsProposal = null;
+let pendingOfficialResultsCannesProposal = null;
 let pendingLetterboxdImportProposal = null;
 
 function updateGoogleFoundationControls() {
@@ -512,6 +513,72 @@ async function applyOfficialResultsProposal() {
   button.textContent = ui("Applied to draft");
 }
 
+// Mirrors previewOfficialResultsFile/applyOfficialResultsProposal above for
+// a second official-results source (issue #342) - a separate panel/pending
+// proposal/button triplet rather than a shared dynamic picker, matching
+// this file's existing per-panel wiring style for every other import
+// source (Letterboxd, Google Sheets, JSON, Oscars).
+async function previewOfficialResultsCannesFile(event) {
+  let input = event.currentTarget;
+  let file = input.files?.[0];
+  let button = document.getElementById("officialResultsCannesApplyBtn");
+  let status = document.getElementById("officialResultsCannesStatus");
+  pendingOfficialResultsCannesProposal = null;
+  button.disabled = true;
+  if (!file) return;
+  if (status) status.textContent = ui("Reading and validating official results...");
+  try {
+    let proposal = window.proposeOfficialResultsImport(await file.text(), {
+      sourceId: "cannes",
+      sourceName: "Cannes Film Festival",
+      singleWinnerCategory: "Palme d'Or",
+      fileName: file.name,
+    });
+    pendingOfficialResultsCannesProposal = proposal;
+    window.showImportReport?.(
+      window.compactImportReport?.(proposal.report, { preview: true }) ||
+        proposal.report,
+    );
+    button.disabled = !proposal.allowed;
+    if (status)
+      status.textContent = proposal.allowed
+        ? ui(
+            "Official-results refresh is ready. No local data changed; review the report before applying.",
+          )
+        : `${ui("Proposal blocked.")} ${proposal.validation.errors.map((entry) => entry.message).join(" ")}`;
+  } catch (err) {
+    console.error("Official Cannes results preview failed", err);
+    if (status) status.textContent = err.message || String(err);
+  } finally {
+    input.value = "";
+  }
+}
+
+async function applyOfficialResultsCannesProposal() {
+  let button = document.getElementById("officialResultsCannesApplyBtn");
+  let status = document.getElementById("officialResultsCannesStatus");
+  if (!pendingOfficialResultsCannesProposal) return;
+  button.disabled = true;
+  button.textContent = ui("Applying...");
+  let result = await window.applyImportProposal(
+    pendingOfficialResultsCannesProposal,
+  );
+  if (!result.ok) {
+    if (status) status.textContent = result.errors.join(" ");
+    button.textContent = ui("Apply failed");
+    return;
+  }
+  pendingOfficialResultsCannesProposal = null;
+  if (status)
+    status.textContent = ui(
+      "Official results refreshed in the local draft. Publish canonical JSON separately.",
+    );
+  renderDataWorkspace();
+  button = document.getElementById("officialResultsCannesApplyBtn");
+  button.disabled = true;
+  button.textContent = ui("Applied to draft");
+}
+
 function handleAliasAction(event) {
   let openQueue = event.target.closest("[data-data-health-open-queue]");
   if (openQueue) {
@@ -830,6 +897,7 @@ async function runDangerZoneAction({
 
 async function initializeDataWorkspace() {
   await window.ensureOskarsData();
+  if (window.oskarsAccountAccessBlocked?.()) return;
   let settings = window.getPosterSettings();
   document.getElementById("tmdbCredentialInput").value =
     settings.tmdbCredential;
@@ -920,6 +988,12 @@ async function initializeDataWorkspace() {
   document
     .getElementById("officialResultsApplyBtn")
     .addEventListener("click", applyOfficialResultsProposal);
+  document
+    .getElementById("officialResultsCannesInput")
+    .addEventListener("change", previewOfficialResultsCannesFile);
+  document
+    .getElementById("officialResultsCannesApplyBtn")
+    .addEventListener("click", applyOfficialResultsCannesProposal);
   document
     .getElementById("dismissImportReport")
     .addEventListener("click", window.hideImportReport);
@@ -1105,7 +1179,11 @@ async function initializeDataWorkspace() {
 
 let legacyIntakeId = window.pageQueryParam?.("intake") || "";
 if (legacyIntakeId) {
-  window.location.replace(window.intakePageUrl(legacyIntakeId));
+  window.location.replace(
+    window.prepareOskarsAccountNavigation(
+      window.intakePageUrl(legacyIntakeId),
+    ),
+  );
 } else {
   initializeDataWorkspace().catch((err) => {
     console.error("Failed to initialize The Oskars Data", err);

@@ -101,6 +101,29 @@
           <p id="officialResultsStatus" class="data-panel-status"></p>
         </section>
 
+        <section class="data-panel">
+          <h2>Official Cannes results</h2>
+          <p>
+            Preview a single-winner-per-year TSV (Year, Film, Director,
+            Country, SourceCategory columns) as the Cannes Film Festival's
+            top-prize history. This refresh never changes personal awards,
+            ranks, films, or edit history.
+          </p>
+          <div class="data-actions">
+            <label class="button-link"
+              >Preview Cannes file<input
+                id="officialResultsCannesInput"
+                type="file"
+                accept="text/tab-separated-values,text/plain,text/csv,.tsv,.txt,.csv"
+                hidden
+            /></label>
+            <button id="officialResultsCannesApplyBtn" type="button" disabled>
+              Apply reviewed refresh
+            </button>
+          </div>
+          <p id="officialResultsCannesStatus" class="data-panel-status"></p>
+        </section>
+
         <div class="data-panel-stack">
           <section class="data-panel">
             <h2>Backup &amp; restore</h2>

@@ -103,6 +103,9 @@ function dataHealthMissingQueues() {
     window.ensurePeopleIndex?.() || state.peopleById || {},
   ).filter((person) => person?.id && person.name);
   let watchlist = (state.watchlist || []).filter((item) => item?.title);
+  let otherWatched = (state.watchedOther || []).filter(
+    (film) => film?.id && film.title,
+  );
   let archiveFilms = films.filter((film) => !film.watchlistItem);
   let watchedFilms = new Map(archiveFilms.map((film) => [film.id, film]));
   (state.watchedOther || []).forEach((film) => {
@@ -177,6 +180,25 @@ function dataHealthMissingQueues() {
       [...watchedFilms.values()]
         .filter((film) => !window.normalizePosterRecord?.(film.poster))
         .map(filmEntry),
+    ),
+    dataHealthQueue(
+      // A watchedOther entry is only browsable today through its director's
+      // or franchise's "Other watched" section (issue #290) - one with
+      // neither link is otherwise invisible outside search and Data Health,
+      // so this queue exists to make that state visible rather than silent
+      // (issue #67).
+      "watchedOtherUnlinked",
+      "Other watched entries with no franchise or director link",
+      "",
+      otherWatched
+        .filter(
+          (film) =>
+            !film.franchises?.length &&
+            !film.director &&
+            !film.directors?.length,
+        )
+        .map(filmEntry),
+      "sheet",
     ),
     dataHealthQueue(
       "watchlistDirectors",

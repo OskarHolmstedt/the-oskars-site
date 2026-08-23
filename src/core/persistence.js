@@ -20,6 +20,7 @@ let databasePromise = null;
 let loadPromise = null;
 let saveTimer = null;
 let saveWaiters = [];
+let saveNeedsWorkspaceSync = false;
 let persistenceTabId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 let lastSeenWriteCounter = 0;
 let staleWriteDetected = false;
@@ -50,6 +51,7 @@ function staleWriteError() {
 // mode — viewing another owner's profile must never persist, even on a
 // deployment whose baked mode would otherwise allow it.
 function persistenceAllowed() {
+  if (window.oskarsAccountAccessBlocked?.()) return false;
   if (window.state?.isPublicProfileView) return false;
   return window.oskarsCapabilities ? window.oskarsCapabilities().canPersistPrivateState : true;
 }
@@ -277,7 +279,7 @@ function readDatabaseState(database) {
   });
 }
 
-function writeRecoveryDatabase(database, snapshot, reason) {
+function writeRecoveryDatabase(database, snapshot, options = {}) {
   return new Promise((resolve, reject) => {
     let transaction = database.transaction(
       window.OSKARS_STATE_STORE,
@@ -288,8 +290,11 @@ function writeRecoveryDatabase(database, snapshot, reason) {
       .put(
         {
           workspace: snapshot,
-          reason: String(reason || "workspace-replacement"),
+          reason: String(options.reason || "workspace-replacement"),
           savedAt: new Date().toISOString(),
+          ...(options.accountUid
+            ? { accountUid: String(options.accountUid) }
+            : {}),
         },
         window.OSKARS_RECOVERY_STATE_KEY,
       );
@@ -297,6 +302,24 @@ function writeRecoveryDatabase(database, snapshot, reason) {
     transaction.onerror = () =>
       reject(transaction.error || new Error("Could not save recovery workspace."));
     transaction.onabort = transaction.onerror;
+  });
+}
+
+function recoveryAccountUid(options = {}) {
+  return String(
+    options.accountUid ||
+      window.state?.draftMetadata?.remoteSync?.uid ||
+      window.getOskarsBrowserAccountUid?.() ||
+      "",
+  );
+}
+
+function recoveryVisibleToCurrentAccount(recovery) {
+  if (!recovery || !window.oskarsAccountCanAccessRecovery) return true;
+  return window.oskarsAccountCanAccessRecovery({
+    currentUid: window.getFirebaseCurrentUser?.()?.uid,
+    browserUid: window.getOskarsBrowserAccountUid?.(),
+    recoveryUid: recovery.accountUid,
   });
 }
 
@@ -398,20 +421,26 @@ function writeFallbackState(snapshot, options = {}) {
  * @param {Object} snapshot Browser workspace envelope.
  * @param {Object} [options] Recovery metadata.
  * @param {string} [options.reason] Replacement reason.
+ * @param {string} [options.accountUid] Account that owns this recovery.
  * @returns {Promise<boolean>} Whether recovery was retained.
  */
 window.saveRecoveryWorkspace = async function (snapshot, options = {}) {
   if (!persistenceAllowed()) return false;
   try {
+    let accountUid = recoveryAccountUid(options);
     let database = await openStateDatabase();
     if (database)
-      return await writeRecoveryDatabase(database, snapshot, options.reason);
+      return await writeRecoveryDatabase(database, snapshot, {
+        reason: options.reason,
+        accountUid,
+      });
     localStorage.setItem(
       window.OSKARS_FALLBACK_RECOVERY_KEY,
       JSON.stringify({
         workspace: snapshot,
         reason: String(options.reason || "workspace-replacement"),
         savedAt: new Date().toISOString(),
+        ...(accountUid ? { accountUid } : {}),
       }),
     );
     return true;
@@ -429,9 +458,13 @@ window.saveRecoveryWorkspace = async function (snapshot, options = {}) {
 window.readRecoveryWorkspace = async function () {
   try {
     let database = await openStateDatabase();
-    if (database) return await readRecoveryDatabase(database);
+    if (database) {
+      let recovery = await readRecoveryDatabase(database);
+      return recoveryVisibleToCurrentAccount(recovery) ? recovery : null;
+    }
     let stored = localStorage.getItem(window.OSKARS_FALLBACK_RECOVERY_KEY);
-    return stored ? JSON.parse(stored) : null;
+    let recovery = stored ? JSON.parse(stored) : null;
+    return recoveryVisibleToCurrentAccount(recovery) ? recovery : null;
   } catch (err) {
     console.error("Could not read recovery workspace", err);
     return null;
@@ -459,6 +492,8 @@ async function flushScheduledSave() {
   }
   if (!saveWaiters.length) return true;
   let waiters = saveWaiters.splice(0);
+  let shouldScheduleWorkspaceSync = saveNeedsWorkspaceSync;
+  saveNeedsWorkspaceSync = false;
   let saved = false;
   try {
     let database = await openStateDatabase();
@@ -479,7 +514,9 @@ async function flushScheduledSave() {
         {
           label: "Back up now",
           run: () => {
-            window.location.href = "data.html";
+            window.location.href = window.prepareOskarsAccountNavigation(
+              "data.html",
+            );
           },
         },
       ]);
@@ -512,7 +549,7 @@ async function flushScheduledSave() {
   // burst of edits produces one sync pass rather than one per save. A
   // no-op (never defined) when Firestore sync hasn't loaded or the user
   // isn't signed in - scheduleWorkspaceSync itself checks both.
-  if (saved) window.scheduleWorkspaceSync?.();
+  if (saved && shouldScheduleWorkspaceSync) window.scheduleWorkspaceSync?.();
   waiters.forEach((resolve) => resolve(saved));
   return saved;
 }
@@ -525,6 +562,7 @@ async function flushScheduledSave() {
  * @param {Object} [options] Save controls.
  * @param {boolean} [options.rebuild] Whether to force, skip, or conditionally perform an aggregate rebuild.
  * @param {boolean} [options.immediate] Whether to flush the IndexedDB queue immediately.
+ * @param {boolean} [options.scheduleSync=true] Whether this local write represents a change that should schedule cloud synchronization. Sync-internal bookkeeping passes false to avoid save/sync trigger loops.
  * @returns {boolean|Promise<boolean>} Save result or queued save result.
  */
 window.save = function (options = {}) {
@@ -543,7 +581,7 @@ window.save = function (options = {}) {
       writeFallbackState(window.getBrowserPersistenceState());
       doneSnapshot?.();
       storageStatus("Saved using fallback storage", "warning");
-      window.scheduleWorkspaceSync?.();
+      if (options.scheduleSync !== false) window.scheduleWorkspaceSync?.();
       return true;
     } catch (err) {
       if (err?.code === "OSKARS_STALE_STATE") {
@@ -556,6 +594,7 @@ window.save = function (options = {}) {
     }
   }
   storageStatus("Saving…", "saving");
+  if (options.scheduleSync !== false) saveNeedsWorkspaceSync = true;
   let promise = new Promise((resolve) => saveWaiters.push(resolve));
   if (options.immediate) flushScheduledSave();
   else {
@@ -581,6 +620,7 @@ window.flushOskarsSave = flushScheduledSave;
  * @param {Object} [options] User-facing status messages.
  * @param {string} [options.message] IndexedDB success message.
  * @param {string} [options.fallbackMessage] localStorage success message.
+ * @param {boolean} [options.scheduleSync=true] Whether replacement should schedule cloud reconciliation.
  * @returns {Promise<boolean>} Whether replacement state was persisted.
  */
 window.replaceStoredState = async function (nextState, options = {}) {
@@ -629,7 +669,8 @@ window.replaceStoredState = async function (nextState, options = {}) {
   // local data while signed in never reconciles with the cloud on its own -
   // the local "fresh empty device" bookkeeping is set, but nothing schedules
   // the sync pass that would act on it.
-  if (saved) window.scheduleWorkspaceSync?.();
+  if (saved && options.scheduleSync !== false)
+    window.scheduleWorkspaceSync?.();
   loadPromise = window.state;
   return saved;
 };

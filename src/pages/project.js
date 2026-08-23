@@ -299,35 +299,41 @@
         .querySelector("[data-project-sort]")
         ?.addEventListener("change", (event) => {
           queueOrderEditMode = false;
-          window.location.href = projectUrl({
-            sort: event.target.value,
-            order: window.defaultOrderForProjectSort(event.target.value),
-            queuePage: 1,
-            watchedPage: 1,
-          });
+          window.location.href = window.prepareOskarsAccountNavigation(
+            projectUrl({
+              sort: event.target.value,
+              order: window.defaultOrderForProjectSort(event.target.value),
+              queuePage: 1,
+              watchedPage: 1,
+            }),
+          );
         });
       container
         .querySelector("[data-project-queue-order-edit-toggle]")
         ?.addEventListener("click", () => {
           queueOrderEditMode = !queueOrderEditMode;
-          window.location.href = projectUrl({ sort: "project", queuePage: 1 });
+          window.location.href = window.prepareOskarsAccountNavigation(
+            projectUrl({ sort: "project", queuePage: 1 }),
+          );
         });
       container
         .querySelector("[data-project-manage-films]")
         ?.addEventListener("click", () => {
           manageFilms = !manageFilms;
-          window.location.href = projectUrl({
-            manage: manageFilms ? "films" : "",
-          });
+          window.location.href = window.prepareOskarsAccountNavigation(
+            projectUrl({ manage: manageFilms ? "films" : "" }),
+          );
         });
 
       container
         .querySelectorAll("[data-project-queue-page]")
         .forEach((button) => {
           button.addEventListener("click", () => {
-            window.location.href = projectUrl({
-              queuePage: Number(button.dataset.projectQueuePage) || 1,
-            });
+            window.location.href = window.prepareOskarsAccountNavigation(
+              projectUrl({
+                queuePage: Number(button.dataset.projectQueuePage) || 1,
+              }),
+            );
           });
         });
 
@@ -335,9 +341,11 @@
         .querySelectorAll("[data-project-watched-page]")
         .forEach((button) => {
           button.addEventListener("click", () => {
-            window.location.href = projectUrl({
-              watchedPage: Number(button.dataset.projectWatchedPage) || 1,
-            });
+            window.location.href = window.prepareOskarsAccountNavigation(
+              projectUrl({
+                watchedPage: Number(button.dataset.projectWatchedPage) || 1,
+              }),
+            );
           });
         });
 
@@ -361,10 +369,9 @@
       container
         .querySelector("[data-project-tier-filter]")
         ?.addEventListener("change", (event) => {
-          window.location.href = projectUrl({
-            tier: event.target.value,
-            queuePage: 1,
-          });
+          window.location.href = window.prepareOskarsAccountNavigation(
+            projectUrl({ tier: event.target.value, queuePage: 1 }),
+          );
         });
       container
         .querySelector("[data-restore-project-dismissed]")
@@ -417,7 +424,9 @@
         ?.addEventListener("click", async () => {
           if (!window.deleteProject?.(project.id, { save: false })) return;
           await saveProjectAction({ rebuild: false });
-          window.location.href = "projects.html";
+          window.location.href = window.prepareOskarsAccountNavigation(
+            "projects.html",
+          );
         });
     }
 

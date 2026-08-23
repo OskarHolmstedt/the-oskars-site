@@ -35,6 +35,7 @@
     "awards-year",
     "compare",
     "presentation",
+    "community",
     "completion",
     "stats",
     "projects",
@@ -91,6 +92,7 @@
     if (entry === "watchlist-film" || entry === "watchlist-merge")
       return "watchlist";
     if (entry === "project" || entry === "projects") return "projects";
+    if (entry === "community") return "community";
     if (entry === "home") return "home";
     return "";
   }
@@ -131,6 +133,7 @@
       elsewhere: locale === "sv" ? "Annat" : "Elsewhere",
       discover: locale === "sv" ? "Upptäck" : "Discover",
       compare: locale === "sv" ? "Jämför" : "Compare",
+      community: locale === "sv" ? "Gemenskap" : "Community",
       showcase: locale === "sv" ? "Utställning" : "Showcase",
       completion: locale === "sv" ? "Färdigställande" : "Completion",
       statistics: locale === "sv" ? "Statistik" : "Statistics",
@@ -187,10 +190,33 @@
       <details class="site-menu">
         <summary aria-label="${text.menuAria}" title="${text.menuTitle}"><span></span><span></span><span></span></summary>
         <div class="site-menu-panel">
-          <section><h2>${text.elsewhere}</h2><div class="site-menu-links"><a href="discover.html">${text.discover}</a><a href="compare.html">${text.compare}</a><a href="presentation.html">${text.showcase}</a><a href="completion.html">${text.completion}</a><a href="stats.html">${text.statistics}</a><a href="people.html">${text.people}</a><a href="directors.html">${text.directors}</a><a href="tags.html">${text.tags}</a><a href="build.html">${text.build}</a><a href="intake.html">${text.intake}</a><a href="rate-watched.html">${text.rateWatched}</a><a href="editor.html">${text.editor}</a><a href="data.html">${text.data}</a></div></section>
+          <section><h2>${text.elsewhere}</h2><div class="site-menu-links"><a href="community.html">${text.community}</a><a href="discover.html">${text.discover}</a><a href="compare.html">${text.compare}</a><a href="presentation.html">${text.showcase}</a><a href="completion.html">${text.completion}</a><a href="stats.html">${text.statistics}</a><a href="people.html">${text.people}</a><a href="directors.html">${text.directors}</a><a href="tags.html">${text.tags}</a><a href="build.html">${text.build}</a><a href="intake.html">${text.intake}</a><a href="rate-watched.html">${text.rateWatched}</a><a href="editor.html">${text.editor}</a><a href="data.html">${text.data}</a></div></section>
         </div>
       </details>
     </div>`;
+    header
+      .querySelector("[data-theme-toggle]")
+      ?.addEventListener("click", (event) => {
+        let current = document.documentElement.dataset.theme;
+        let index = THEME_CYCLE.indexOf(current);
+        let next = THEME_CYCLE[(index + 1) % THEME_CYCLE.length] || "dark";
+        document.documentElement.dataset.theme = next;
+        try {
+          localStorage.setItem("oskars-theme", next);
+        } catch (err) {}
+        event.currentTarget.textContent = THEME_ICON[next] || "☾";
+      });
+    header
+      .querySelector("[data-language-toggle]")
+      ?.addEventListener("click", () => {
+        try {
+          localStorage.setItem(
+            "oskars-locale",
+            locale === "sv" ? "en" : "sv",
+          );
+        } catch (err) {}
+        window.location?.reload?.();
+      });
   }
 
   renderStaticSiteHeader();
@@ -209,7 +235,6 @@
     "src/core/urls.js",
     "src/ui/page-utils.js",
     "src/ui/i18n.js",
-    "src/core/firebase-client.js",
     "src/ui/site-header.js",
   ];
 
@@ -308,6 +333,7 @@
       ? ["src/domain/films.js"]
       : []),
     "src/domain/stats.js",
+    ...(entry === "community" ? ["src/domain/community.js"] : []),
     ...(entry === "compare" ? ["src/domain/compare-targets.js"] : []),
     ...(entry === "presentation" ? ["src/domain/presentation-packs.js"] : []),
     "src/domain/people/index.js",
@@ -474,6 +500,14 @@
       renderBlockedMessage("Configuration error", runtimeModeResult.error);
       return;
     }
+    let accessPolicyResult = window.resolveAccessPolicy(
+      window.OSKARS_ACCESS_POLICY,
+    );
+    window.OSKARS_RESOLVED_ACCESS_POLICY = accessPolicyResult.policy;
+    if (!accessPolicyResult.valid) {
+      renderBlockedMessage("Configuration error", accessPolicyResult.error);
+      return;
+    }
     let capabilities = window.runtimeModeCapabilities(runtimeModeResult.mode);
     let activeProfileSlug = window.resolveActiveProfileSlug?.();
     if (!capabilities.allowOwnerPages || activeProfileSlug) {
@@ -498,11 +532,43 @@
     // Non-secret, unlike config.local.js — see docs/google-signin-firestore-decision.md.
     // Optional: absent until the owner sets up a real Firebase project (issue #255).
     await loadScript("firebase.config.js", true);
+    // Account access is resolved before state/persistence dependencies load,
+    // so a signed-out public deployment cannot briefly hydrate private
+    // IndexedDB data while Firebase initializes (issue #332).
+    await loadScript("src/core/firebase-client.js");
+    await loadScript("src/core/account-access.js");
+    if (
+      window.runtimeAccountAccessRequired(
+        runtimeModeResult.mode,
+        accessPolicyResult.policy,
+      ) &&
+      !activeProfileSlug
+    ) {
+      // A valid one-use handoff is consumed synchronously before the browser
+      // can paint the loading gate. resolveOskarsAccountAccess() reuses that
+      // in-memory result and starts authoritative Firebase revalidation.
+      let trustedNavigationUid =
+        window.consumeOskarsAccountNavigationHandoff?.() || "";
+      if (!trustedNavigationUid)
+        window.renderOskarsAccountGate({ status: "loading" });
+      let access = await window.resolveOskarsAccountAccess();
+      if (!access.allowed) {
+        window.renderOskarsAccountGate(access);
+        return;
+      }
+      window.OSKARS_ACCOUNT_ACCESS_BLOCKED = false;
+      window.monitorRequiredAccountSession?.(
+        access.user?.uid || access.boundUid,
+      );
+    }
     for (let dependency of headerDependencies) await loadScript(dependency);
     window.renderSiteHeader?.();
     for (let dependency of dependencies) await loadScript(dependency);
-    let pageLoadsOwnData = ["home", "editor", "data"].includes(entry);
-    if (!pageLoadsOwnData) await window.ensureOskarsData();
+    let pageLoadsOwnData = ["home", "editor", "data", "community"].includes(entry);
+    if (!pageLoadsOwnData) {
+      await window.ensureOskarsData();
+      if (window.oskarsAccountAccessBlocked?.()) return;
+    }
     await loadScript(
       entry === "home"
         ? "src/pages/home.js"

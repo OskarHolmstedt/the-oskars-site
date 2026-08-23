@@ -224,7 +224,7 @@ window.projectSourceRecord = function (sourceType, sourceId) {
     };
   }
   if (sourceType === "official-results")
-    return window.officialOscarProjectSource?.(sourceId) || null;
+    return window.officialCollectionProjectSource?.(sourceId) || null;
   if (sourceType === "watch-goal")
     return window.watchGoalProjectSource?.(sourceId) || null;
   return null;
@@ -323,7 +323,9 @@ window.startProjectFromSourceAndOpen = async function (sourceType, sourceId) {
   if (!project) return null;
   let saving = window.save?.({ immediate: true, rebuild: false });
   if (saving?.then) await saving;
-  window.location.href = window.projectPageUrl(project.id);
+  window.location.href = window.prepareOskarsAccountNavigation(
+    window.projectPageUrl(project.id),
+  );
   return project;
 };
 
@@ -538,16 +540,30 @@ window.projectIsOpen = function (project) {
   return !["archived", "complete"].includes(project?.status);
 };
 
+// A project's official-type filmRefs always come from one
+// upsertProjectFromSource("official-results", scopeId) call, so they
+// always share one source in practice - but this builds a completion
+// model per distinct sourceId actually present (issue #343), computed
+// once each, rather than assuming a single global one. A ref missing
+// sourceId (pre-#343 data) falls back to Academy Awards, matching every
+// filmRef.type === "official" ever created before this.
+function officialCompletionsForRefs(filmRefs) {
+  let bySourceId = new Map();
+  (filmRefs || []).forEach((ref) => {
+    if (ref.type !== "official") return;
+    let sourceId = ref.sourceId || "academy-awards";
+    if (!bySourceId.has(sourceId))
+      bySourceId.set(sourceId, window.officialCollectionCompletion?.(sourceId));
+  });
+  return bySourceId;
+}
+
 /** Tests whether a project contains a film identity. @param {ProjectRecord} project Project. @param {Object} [identity] Film ids. @returns {boolean} Whether contained. */
 window.projectMatchesFilm = function (
   project,
   { archiveId = "", watchlistId = "", watchedId = "" } = {},
 ) {
-  let officialCompletion = (project?.filmRefs || []).some(
-    (ref) => ref.type === "official",
-  )
-    ? window.officialOscarCompletion?.()
-    : null;
+  let officialCompletions = officialCompletionsForRefs(project?.filmRefs);
   return (project?.filmRefs || []).some((ref) => {
     if (archiveId && ref.type === "archive" && ref.id === archiveId)
       return true;
@@ -560,6 +576,9 @@ window.projectMatchesFilm = function (
       return window.findWatchlistArchiveFilm?.(item)?.id === archiveId;
     }
     if (ref.type === "official") {
+      let officialCompletion = officialCompletions.get(
+        ref.sourceId || "academy-awards",
+      );
       let record = window.resolveProjectFilmRef(ref, { officialCompletion });
       if (archiveId && record?.film?.id === archiveId) return true;
       if (watchedId && record?.film?.id === watchedId) return true;
@@ -642,7 +661,8 @@ window.resolveProjectFilmRef = function (ref, options = {}) {
   }
   if (ref?.type === "official") {
     let completion =
-      options.officialCompletion || window.officialOscarCompletion?.();
+      options.officialCompletion ||
+      window.officialCollectionCompletion?.(ref.sourceId || "academy-awards");
     let official = completion?.filmsById?.get(ref.id);
     if (!official) return null;
     if (official.watchedFilm) {
@@ -820,13 +840,13 @@ window.projectPosterDeckFilms = function (progress, limit = 5) {
 /** Calculates resolved records, counts, and next items for a project. @param {ProjectRecord} project Project. @returns {Object} Progress model. */
 window.projectProgress = function (project) {
   let missingRefs = [];
-  let officialCompletion = (project?.filmRefs || []).some(
-    (ref) => ref.type === "official",
-  )
-    ? window.officialOscarCompletion?.()
-    : null;
+  let officialCompletions = officialCompletionsForRefs(project?.filmRefs);
   let records = (project?.filmRefs || [])
     .map((ref, index) => {
+      let officialCompletion =
+        ref.type === "official"
+          ? officialCompletions.get(ref.sourceId || "academy-awards")
+          : null;
       let record = window.resolveProjectFilmRef(ref, { officialCompletion });
       if (!record) missingRefs.push(Object.assign({ index }, ref));
       return record ? Object.assign(record, { index }) : null;

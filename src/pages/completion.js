@@ -1,4 +1,4 @@
-/** @file Renders the Oscar, watch-goal, bracket, and known-film completion dashboard. */
+/** @file Renders the official-results (issue #344: every populated source, not just Oscars), watch-goal, bracket, and known-film completion dashboard. */
 
 (function () {
   let escape = window.pageEscape;
@@ -17,24 +17,52 @@
   // independent of watch progress below.
   let bracketCompletion = window.awardBracketCompletion();
   let bracketCategoryCompletion = window.awardBracketCategoryCompletion();
-  let oscarCompletion = window.officialOscarCompletion();
+  // One completion section per populated official-results source (issue
+  // #344), not just Oscars - academy-awards sorts first to keep this page's
+  // established section order, any other source follows in whatever order
+  // Object.keys() returns (import order). The "oscar-*"/"official-oscar-*"
+  // CSS classes below are deliberately kept as-is and reused for every
+  // source: they're generic styling hooks now, not Oscar-specific, and
+  // renaming them would touch styles/app.css and a long tail of test
+  // literals for zero functional or visible benefit.
+  let officialSourceIds = Object.keys(
+    window.state?.officialResults || {},
+  ).sort((a, b) => (a === "academy-awards" ? -1 : b === "academy-awards" ? 1 : 0));
+  let officialCompletions = new Map(
+    officialSourceIds.map((sourceId) => [
+      sourceId,
+      window.officialCollectionCompletion(sourceId),
+    ]),
+  );
   let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
-  const OSCAR_WATCHLIST_TIER_KEY = "oskars-oscar-watchlist-tier";
-  function preferredOscarWatchlistTier() {
+  function officialWatchlistTierKey(sourceId) {
+    return `oskars-official-watchlist-tier-${sourceId}`;
+  }
+  function preferredOfficialWatchlistTier(sourceId) {
     try {
       return (
         window.normalizeWatchlistTier(
-          localStorage.getItem(OSCAR_WATCHLIST_TIER_KEY),
+          localStorage.getItem(officialWatchlistTierKey(sourceId)),
         ) || "C"
       );
     } catch (err) {
       return "C";
     }
   }
-  let oscarWatchlistTier = preferredOscarWatchlistTier();
-  let oscarWatchlistStatus = "";
-  let pendingOscarWatchlistPlan = null;
-  let lastOscarWatchlistAddition = null;
+  let officialWatchlistTiers = new Map(
+    officialSourceIds.map((sourceId) => [
+      sourceId,
+      preferredOfficialWatchlistTier(sourceId),
+    ]),
+  );
+  // Status and last-addition stay independent per source (each section's own
+  // watchlist action shouldn't clobber another section's), but only one
+  // needs-review dialog is ever open at a time, so that stays a single value
+  // carrying its own sourceId/scopeId (officialCollectionWatchlistPlan()'s
+  // return already has both).
+  let officialWatchlistStatuses = new Map();
+  let lastOfficialWatchlistAdditions = new Map();
+  let pendingOfficialWatchlistPlan = null;
   // Watch-count goals per period: how many films have actually been watched
   // from each year/decade/century against a flat target, separate from
   // award nominee coverage above.
@@ -42,7 +70,7 @@
   let watchGoalDecades = window.watchGoalProgress("decade");
   let watchGoalCenturies = window.watchGoalProgress("century");
   finishCollectTimer?.(
-    `${hub.directors.length} directors, ${hub.franchises.length} franchises, ${hub.projects.length} projects, ${oscarCompletion.films.length} official Oscar film(s), ${bracketCompletion.length} bracket period(s), ${watchGoalYears.length}/${watchGoalDecades.length}/${watchGoalCenturies.length} year/decade/century goal(s)`,
+    `${hub.directors.length} directors, ${hub.franchises.length} franchises, ${hub.projects.length} projects, ${officialSourceIds.map((sourceId) => officialCompletions.get(sourceId).films.length).join("/")} official film(s) by source, ${bracketCompletion.length} bracket period(s), ${watchGoalYears.length}/${watchGoalDecades.length}/${watchGoalCenturies.length} year/decade/century goal(s)`,
   );
 
   const PAGE_SIZE = 10;
@@ -51,16 +79,24 @@
 
   // Per-section sort state, toggled by table headers or grid controls.
   // `dir` is 1 for ascending, -1 for descending.
+  function officialPeriodsSortSection(sourceId) {
+    return `officialPeriods:${sourceId}`;
+  }
   let sortState = {
     directors: { key: "percent", dir: -1 },
     franchises: { key: "percent", dir: -1 },
     projects: { key: "percent", dir: -1 },
-    oscarPeriods: { key: "nomineePercent", dir: -1 },
     brackets: { key: "percent", dir: -1 },
     watchGoalYears: { key: "percent", dir: -1 },
     watchGoalDecades: { key: "percent", dir: -1 },
     watchGoalCenturies: { key: "percent", dir: -1 },
   };
+  officialSourceIds.forEach((sourceId) => {
+    sortState[officialPeriodsSortSection(sourceId)] = {
+      key: "nomineePercent",
+      dir: -1,
+    };
+  });
   let sortDefaultDir = {
     name: 1,
     period: 1,
@@ -480,16 +516,16 @@
     return `<div class="completion-subsection"><h3>${escape(label)}</h3>${watchGoalTable(section, rows, periodType)}</div>`;
   }
 
-  function oscarGroupProgress(group) {
+  function officialGroupProgress(group) {
     return `<div class="oscar-completion-progress"><b>${group.watchedCount} / ${group.total}</b>${meterHtml(group.percent)}</div>`;
   }
 
-  function oscarProjectAction(group, label) {
+  function officialProjectAction(sourceId, group, label) {
     let action = minimalSourceProjectAction("official-results", group.sourceId);
-    return `<div class="oscar-project-action"><span>${escape(label)}</span><div>${action}${oscarWatchlistButton(group)}</div></div>`;
+    return `<div class="oscar-project-action"><span>${escape(label)}</span><div>${action}${officialWatchlistButton(sourceId, group)}</div></div>`;
   }
 
-  function oscarProjectButton(group, options = {}) {
+  function officialProjectButton(group, options = {}) {
     return minimalSourceProjectAction(
       "official-results",
       group.sourceId,
@@ -497,11 +533,11 @@
     );
   }
 
-  function oscarWatchlistButton(group, options = {}) {
+  function officialWatchlistButton(sourceId, group, options = {}) {
     if (!canEdit) return "";
-    let plan = window.officialOscarWatchlistPlan?.(
+    let plan = window.officialCollectionWatchlistPlan?.(
       group.sourceId,
-      oscarCompletion,
+      officialCompletions.get(sourceId),
     );
     if (!plan || (!plan.ready.length && !plan.needsReview.length)) return "";
     let label = plan.ready.length
@@ -515,48 +551,50 @@
           review: plan.needsReview.length,
         })
       : ui("Add unseen films to tier {tier}", {
-          tier: oscarWatchlistTier,
+          tier: officialWatchlistTiers.get(sourceId),
         });
     return `<button type="button" class="sort-order-button completion-watchlist-action" data-add-oscar-watchlist="${escape(group.sourceId)}" title="${escape(title)}">${escape(label)}</button>`;
   }
 
-  function oscarWatchlistActionPair(group, options = {}) {
-    return `${oscarProjectButton(group, options)}${oscarWatchlistButton(group, {
+  function officialWatchlistActionPair(sourceId, group, options = {}) {
+    return `${officialProjectButton(group, options)}${officialWatchlistButton(sourceId, group, {
       shortLabel: true,
     })}`;
   }
 
-  function oscarSummaryCard(title, subtitle, group) {
-    return `<article class="oscar-completion-card"><header><div><span class="eyebrow">${escape(ui("Oscar completion"))}</span><h3>${escape(title)}</h3><p>${escape(subtitle)}</p></div>${oscarGroupProgress(group)}</header>${oscarProjectAction(group, ui("Collection project"))}</article>`;
+  function officialSummaryCard(sourceId, eyebrow, title, subtitle, group) {
+    return `<article class="oscar-completion-card"><header><div><span class="eyebrow">${escape(eyebrow)}</span><h3>${escape(title)}</h3><p>${escape(subtitle)}</p></div>${officialGroupProgress(group)}</header>${officialProjectAction(sourceId, group, ui("Collection project"))}</article>`;
   }
 
-  function oscarCategoryMetric(group, label) {
-    return `<div class="oscar-category-metric"><div class="oscar-category-metric-header"><span><b>${escape(label)}</b><strong>${group.watchedCount} / ${group.total}</strong></span><div class="oscar-category-actions">${oscarWatchlistActionPair(group)}</div></div>${meterHtml(group.percent)}</div>`;
+  function officialCategoryMetric(sourceId, group, label) {
+    return `<div class="oscar-category-metric"><div class="oscar-category-metric-header"><span><b>${escape(label)}</b><strong>${group.watchedCount} / ${group.total}</strong></span><div class="oscar-category-actions">${officialWatchlistActionPair(sourceId, group)}</div></div>${meterHtml(group.percent)}</div>`;
   }
 
-  function oscarPeriodRowValue(row, key) {
+  function officialPeriodRowValue(row, key) {
     if (key === "period") return row.period || "";
     if (key === "winnerPercent") return row.winners.percent || 0;
     return row.nominees.percent || 0;
   }
 
-  function oscarPeriodCompletion(periods) {
+  function officialPeriodCompletion(sourceId, periods) {
+    let sortSection = officialPeriodsSortSection(sourceId);
     let incomplete = periods.filter(
       (period) => period.nominees.watchedCount < period.nominees.total,
     );
     let completeCount = periods.length - incomplete.length;
-    let sorted = sortRows(incomplete, "oscarPeriods", oscarPeriodRowValue);
-    let page = paginateRows(sorted, "oscarPeriods", ui("periods"));
+    let sorted = sortRows(incomplete, sortSection, officialPeriodRowValue);
+    let page = paginateRows(sorted, sortSection, ui("periods"));
     let rows = page.rows
       .map((period) => {
-        let projectAction = oscarWatchlistActionPair(
+        let projectAction = officialWatchlistActionPair(
+          sourceId,
           period.nominees,
           projectColumnActionOptions(),
         );
         return `<tr>
     <td><a class="period-link" href="${escape(period.href)}"><strong>${escape(period.period)}</strong></a></td>
-    <td class="completion-cell">${oscarGroupProgress(period.winners)}</td>
-    <td class="completion-cell">${oscarGroupProgress(period.nominees)}</td>
+    <td class="completion-cell">${officialGroupProgress(period.winners)}</td>
+    <td class="completion-cell">${officialGroupProgress(period.nominees)}</td>
     <td>${projectAction}</td>
   </tr>`;
       })
@@ -566,14 +604,14 @@
       : "";
     let content = page.rows.length
       ? layout === "grid"
-        ? `${periodGridControls("oscarPeriods", [
+        ? `${periodGridControls(sortSection, [
           { value: "period", label: ui("Period") },
           { value: "winnerPercent", label: ui("Winners") },
           { value: "nomineePercent", label: ui("Nominees") },
         ])}${periodGrid(
           page.rows
             .map(
-              (period) => `<article class="completion-period-card completion-oscar-period-card"><header><h4><a href="${escape(period.href)}">${escape(period.period)}</a></h4><div class="oscar-category-actions">${oscarWatchlistActionPair(period.nominees)}</div></header><div class="completion-oscar-period-metrics"><div><span>${escape(ui("Winners"))}</span>${oscarGroupProgress(period.winners)}</div><div><span>${escape(ui("Nominees"))}</span>${oscarGroupProgress(period.nominees)}</div></div></article>`,
+              (period) => `<article class="completion-period-card completion-oscar-period-card"><header><h4><a href="${escape(period.href)}">${escape(period.period)}</a></h4><div class="oscar-category-actions">${officialWatchlistActionPair(sourceId, period.nominees)}</div></header><div class="completion-oscar-period-metrics"><div><span>${escape(ui("Winners"))}</span>${officialGroupProgress(period.winners)}</div><div><span>${escape(ui("Nominees"))}</span>${officialGroupProgress(period.nominees)}</div></div></article>`,
             )
             .join(""),
           "completion-oscar-period-grid",
@@ -581,47 +619,50 @@
         )}`
         : window.renderLeaderboardTable({
           headers: [
-            sortHeader("oscarPeriods", "period", ui("Period")),
-            sortHeader("oscarPeriods", "winnerPercent", ui("Winners watched")),
-            sortHeader("oscarPeriods", "nomineePercent", ui("Nominees watched")),
+            sortHeader(sortSection, "period", ui("Period")),
+            sortHeader(sortSection, "winnerPercent", ui("Winners watched")),
+            sortHeader(sortSection, "nomineePercent", ui("Nominees watched")),
             escape(ui("Actions")),
           ],
           rows,
           classes: "completion-table",
         })
-      : `<p class="completion-empty">${escape(ui("Every official Oscar period is fully watched."))}</p>`;
+      : `<p class="completion-empty">${escape(ui("Every official period is fully watched."))}</p>`;
     return `${content}${page.controls}${completeNote}`;
   }
 
-  function oscarCategoryGrid(categories) {
+  function officialCategoryGrid(sourceId, categories) {
     if (!categories.length)
-      return `<p class="completion-empty">${escape(ui("No official Academy Awards data imported yet."))}</p>`;
+      return `<p class="completion-empty">${escape(ui("No official data imported yet for this source."))}</p>`;
     return fixedCategoryGrid(
       categories,
       (row) => `<article class="browse-index-card category-index-card completion-category-card completion-oscar-category-card${row.category === "Best Picture" ? " full-width" : ""}">
     <h2><a href="${escape(window.categoryPageUrl(row.category))}&view=official">${escape(window.localizedCategoryName?.(row.category) || row.category)}</a></h2>
-    <div class="completion-category-progress">${oscarCategoryMetric(row.winners, ui("Winners"))}${oscarCategoryMetric(row.nominees, ui("Nominees"))}</div>
+    <div class="completion-category-progress">${officialCategoryMetric(sourceId, row.winners, ui("Winners"))}${officialCategoryMetric(sourceId, row.nominees, ui("Nominees"))}</div>
   </article>`,
       "completion-oscar-category-grid",
     );
   }
 
-  function oscarCompletionHtml() {
-    if (!oscarCompletion.source || !oscarCompletion.periodKeys.length)
-      return `<p class="completion-empty">${escape(ui("No official Academy Awards data imported yet."))}</p>`;
-    let firstPeriod = oscarCompletion.periodKeys[0];
-    let lastPeriod =
-      oscarCompletion.periodKeys[oscarCompletion.periodKeys.length - 1];
-    let overallPlan = window.officialOscarWatchlistPlan?.(
-      oscarCompletion.nominees.sourceId,
-      oscarCompletion,
+  function officialCompletionHtml(sourceId, completion) {
+    if (!completion.source || !completion.periodKeys.length)
+      return `<p class="completion-empty">${escape(ui("No official data imported yet for this source."))}</p>`;
+    let displayName = window.officialSourceDisplayName(sourceId, completion);
+    let firstPeriod = completion.periodKeys[0];
+    let lastPeriod = completion.periodKeys[completion.periodKeys.length - 1];
+    let overallPlan = window.officialCollectionWatchlistPlan?.(
+      completion.nominees.sourceId,
+      completion,
     );
+    let tier = officialWatchlistTiers.get(sourceId);
+    let status = officialWatchlistStatuses.get(sourceId) || "";
+    let lastAddition = lastOfficialWatchlistAdditions.get(sourceId) || null;
     let tierOptions = window.WATCHLIST_TIERS.map(
-      (tier) =>
-        `<option value="${tier}"${tier === oscarWatchlistTier ? " selected" : ""}>${tier}</option>`,
+      (option) =>
+        `<option value="${option}"${option === tier ? " selected" : ""}>${option}</option>`,
     ).join("");
     let watchlistTools = canEdit
-      ? `<div class="oscar-watchlist-tools"><label><span>${escape(ui("Add unseen to interest tier"))}</span><select data-oscar-watchlist-tier>${tierOptions}</select></label><span>${escape(ui("Unambiguous scopes add immediately."))}</span></div>${oscarWatchlistStatus ? `<p class="data-panel-status oscar-watchlist-status" role="status" data-oscar-watchlist-status>${escape(oscarWatchlistStatus)}${lastOscarWatchlistAddition?.length ? ` <button type="button" class="link-button" data-undo-oscar-watchlist>${escape(ui("Undo"))}</button>` : ""}</p>` : ""}`
+      ? `<div class="oscar-watchlist-tools"><label><span>${escape(ui("Add unseen to interest tier"))}</span><select data-oscar-watchlist-tier="${escape(sourceId)}">${tierOptions}</select></label><span>${escape(ui("Unambiguous scopes add immediately."))}</span></div>${status ? `<p class="data-panel-status oscar-watchlist-status" role="status" data-oscar-watchlist-status="${escape(sourceId)}">${escape(status)}${lastAddition?.length ? ` <button type="button" class="link-button" data-undo-oscar-watchlist="${escape(sourceId)}">${escape(ui("Undo"))}</button>` : ""}</p>` : ""}`
       : "";
     let reviewQueue = overallPlan?.needsReview.length
       ? `<details class="oscar-watchlist-review"><summary>${escape(ui("{count} films need year review", { count: overallPlan.needsReview.length }))}</summary><p>${escape(ui("Multi-year ceremonies stay out of the watchlist until their release year is known."))}</p><div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Film"))}</th><th>${escape(ui("Ceremony"))}</th><th>${escape(ui("Possible years"))}</th></tr></thead><tbody>${overallPlan.needsReview
@@ -630,49 +671,58 @@
           )
           .join("")}</tbody></table></div></details>`
       : "";
-    return `${watchlistTools}<p class="completion-note oscar-completion-scope">${escape(ui("Based on {count} imported Academy Awards periods, {first}–{last}.", {
-      count: oscarCompletion.periodKeys.length,
+    return `${watchlistTools}<p class="completion-note oscar-completion-scope">${escape(ui("Based on {count} imported {source} periods, {first}–{last}.", {
+      count: completion.periodKeys.length,
+      source: displayName,
       first: firstPeriod,
       last: lastPeriod,
-    }))}</p>${reviewQueue}<div class="oscar-completion-highlights">${oscarSummaryCard(
-      ui("Oscar-winning films watched"),
+    }))}</p>${reviewQueue}<div class="oscar-completion-highlights">${officialSummaryCard(
+      sourceId,
+      ui("{source} completion", { source: displayName }),
+      ui("{source}-winning films watched", { source: displayName }),
       ui("Distinct films that won at least one imported category."),
-      oscarCompletion.winners,
-    )}${oscarSummaryCard(
-      ui("Oscar-nominated films watched"),
+      completion.winners,
+    )}${officialSummaryCard(
+      sourceId,
+      ui("{source} completion", { source: displayName }),
+      ui("{source}-nominated films watched", { source: displayName }),
       ui("Distinct nominated films, including winners."),
-      oscarCompletion.nominees,
-    )}</div><div class="completion-subsection"><h3>${escape(ui("Years"))}</h3>${oscarPeriodCompletion(oscarCompletion.periods)}</div><div class="completion-subsection"><h3>${escape(ui("By category"))}</h3>${oscarCategoryGrid(oscarCompletion.categories)}</div>`;
+      completion.nominees,
+    )}</div><div class="completion-subsection"><h3>${escape(ui("Years"))}</h3>${officialPeriodCompletion(sourceId, completion.periods)}</div><div class="completion-subsection"><h3>${escape(ui("By category"))}</h3>${officialCategoryGrid(sourceId, completion.categories)}</div>`;
   }
 
-  function oscarWatchlistDialog() {
-    let plan = pendingOscarWatchlistPlan;
+  function officialWatchlistDialog() {
+    let plan = pendingOfficialWatchlistPlan;
     if (!plan) return "";
+    let tier = officialWatchlistTiers.get(plan.sourceId);
     let reviewRows = plan.needsReview
       .slice(0, 20)
       .map(
         (candidate) => `<li><strong>${escape(candidate.title)}</strong> · ${escape(candidate.periodKey)} (${escape(candidate.possibleYears.join(" / "))})</li>`,
       )
       .join("");
-    return `<dialog id="oscarWatchlistDialog" class="oscar-watchlist-dialog"><form method="dialog"><h2>${escape(ui("Add unseen Oscar films?"))}</h2><p>${escape(ui("{ready} films are ready for tier {tier}. {review} need year review and will be skipped.", {
+    return `<dialog id="oscarWatchlistDialog-${escape(plan.sourceId)}" class="oscar-watchlist-dialog" data-official-watchlist-dialog="${escape(plan.sourceId)}"><form method="dialog"><h2>${escape(ui("Add unseen films?"))}</h2><p>${escape(ui("{ready} films are ready for tier {tier}. {review} need year review and will be skipped.", {
       ready: plan.ready.length,
-      tier: oscarWatchlistTier,
+      tier,
       review: plan.needsReview.length,
     }))}</p>${reviewRows ? `<details open><summary>${escape(ui("Needs review"))}</summary><ul>${reviewRows}</ul></details>` : ""}<div class="dialog-actions"><button type="button" data-cancel-oscar-watchlist>${escape(ui("Cancel"))}</button>${plan.ready.length ? `<button type="button" data-confirm-oscar-watchlist>${escape(ui("Add {count} films", { count: plan.ready.length }))}</button>` : ""}</div></form></dialog>`;
   }
 
-  function updateOscarWatchlistStatus(message) {
-    oscarWatchlistStatus = message;
-    let status = container.querySelector("[data-oscar-watchlist-status]");
+  function updateOfficialWatchlistStatus(sourceId, message) {
+    officialWatchlistStatuses.set(sourceId, message);
+    let status = container.querySelector(
+      `[data-oscar-watchlist-status="${sourceId}"]`,
+    );
     if (status) status.firstChild.textContent = message;
   }
 
-  async function enrichOscarWatchlistItems(items) {
+  async function enrichOfficialWatchlistItems(sourceId, items) {
     if (!items.length || typeof window.fetch !== "function") return;
     let settings = window.getPosterSettings?.() || {};
     let metadata = { attempted: 0, found: 0, failed: 0 };
     if (settings.tmdbCredential && window.fetchWatchlistMetadata) {
-      updateOscarWatchlistStatus(
+      updateOfficialWatchlistStatus(
+        sourceId,
         ui("Fetching metadata for {count} films…", { count: items.length }),
       );
       metadata = await window.fetchWatchlistMetadata(items, {
@@ -680,7 +730,8 @@
         limit: items.length,
         concurrency: 3,
         onProgress(done, total) {
-          updateOscarWatchlistStatus(
+          updateOfficialWatchlistStatus(
+            sourceId,
             ui("Fetching metadata: {done}/{total}", { done, total }),
           );
         },
@@ -689,7 +740,8 @@
     let posterCandidates = items.filter((item) => !item.poster);
     let posters = { attempted: 0, found: 0, failed: 0 };
     if (posterCandidates.length && window.fetchWatchlistPosters) {
-      updateOscarWatchlistStatus(
+      updateOfficialWatchlistStatus(
+        sourceId,
         ui("Fetching posters for {count} films…", {
           count: posterCandidates.length,
         }),
@@ -699,51 +751,70 @@
         limit: posterCandidates.length,
         concurrency: 3,
         onProgress(done, total) {
-          updateOscarWatchlistStatus(
+          updateOfficialWatchlistStatus(
+            sourceId,
             ui("Fetching posters: {done}/{total}", { done, total }),
           );
         },
       });
     }
-    oscarWatchlistStatus = ui(
-      "Added {count} films. Found metadata for {metadata} and posters for {posters}.",
-      {
-        count: items.length,
-        metadata: metadata.found,
-        posters: posters.found,
-      },
+    officialWatchlistStatuses.set(
+      sourceId,
+      ui(
+        "Added {count} films. Found metadata for {metadata} and posters for {posters}.",
+        {
+          count: items.length,
+          metadata: metadata.found,
+          posters: posters.found,
+        },
+      ),
     );
     render();
   }
 
-  async function addOscarWatchlistSource(sourceId) {
-    let plan = window.officialOscarWatchlistPlan?.(sourceId);
+  async function addOfficialWatchlistSource(scopeId) {
+    let plan = window.officialCollectionWatchlistPlan?.(scopeId);
     if (!plan) return;
-    oscarWatchlistStatus = ui("Adding {count} films…", {
-      count: plan.ready.length,
-    });
-    pendingOscarWatchlistPlan = null;
-    render();
-    let result = window.applyOfficialOscarWatchlistPlan?.(
+    let sourceId = plan.sourceId;
+    officialWatchlistStatuses.set(
       sourceId,
-      oscarWatchlistTier,
+      ui("Adding {count} films…", { count: plan.ready.length }),
+    );
+    pendingOfficialWatchlistPlan = null;
+    render();
+    let result = window.applyOfficialCollectionWatchlistPlan?.(
+      scopeId,
+      officialWatchlistTiers.get(sourceId),
     );
     if (!result?.ok) {
-      oscarWatchlistStatus = result?.reason || ui("Films could not be added.");
+      officialWatchlistStatuses.set(
+        sourceId,
+        result?.reason || ui("Films could not be added."),
+      );
       render();
       return;
     }
     if (result.persisted?.then) await result.persisted;
-    lastOscarWatchlistAddition = result.added.map((item) => item.id);
-    oscarCompletion = window.officialOscarCompletion();
-    oscarWatchlistStatus = result.added.length
-      ? ui("Added {count} films to tier {tier}.", {
-          count: result.added.length,
-          tier: result.tier,
-        })
-      : ui("No new films to add.");
+    lastOfficialWatchlistAdditions.set(
+      sourceId,
+      result.added.map((item) => item.id),
+    );
+    officialCompletions.set(
+      sourceId,
+      window.officialCollectionCompletion(sourceId),
+    );
+    officialWatchlistStatuses.set(
+      sourceId,
+      result.added.length
+        ? ui("Added {count} films to tier {tier}.", {
+            count: result.added.length,
+            tier: result.tier,
+          })
+        : ui("No new films to add."),
+    );
     render();
-    if (result.added.length) await enrichOscarWatchlistItems(result.added);
+    if (result.added.length)
+      await enrichOfficialWatchlistItems(sourceId, result.added);
   }
 
   function completionSection(id, title, subtitle, bodyHtml) {
@@ -768,12 +839,46 @@
     (row) => row.watchedCount >= row.target,
   ).length;
 
+  function officialSummaryStatItems() {
+    return officialSourceIds
+      .map((sourceId) => {
+        let completion = officialCompletions.get(sourceId);
+        let displayName = window.officialSourceDisplayName(sourceId, completion);
+        return `
+  <span><b>${completion.winners.watchedCount}/${completion.winners.total}</b> ${escape(ui("{source}-winning films watched", { source: displayName }))}</span>
+  <span><b>${completion.nominees.watchedCount}/${completion.nominees.total}</b> ${escape(ui("{source}-nominated films watched", { source: displayName }))}</span>`;
+      })
+      .join("");
+  }
+
+  function officialCompletionSections() {
+    return officialSourceIds
+      .map((sourceId) => {
+        let completion = officialCompletions.get(sourceId);
+        let displayName = window.officialSourceDisplayName(sourceId, completion);
+        return completionSection(
+          sourceId,
+          ui("{source} film completion", { source: displayName }),
+          ui(
+            "Films watched from the imported official {source} winners and nominees — overall, by year, and by category.",
+            { source: displayName },
+          ),
+          officialCompletionHtml(sourceId, completion),
+        );
+      })
+      .join("");
+  }
+
+  function anyOfficialNomineesTotal() {
+    return officialSourceIds.some(
+      (sourceId) => officialCompletions.get(sourceId).nominees.total,
+    );
+  }
+
   function render() {
     let summaryHtml = window.renderDetailStats({
       classes: "completion-summary",
-      itemsHtml: `
-  <span><b>${oscarCompletion.winners.watchedCount}/${oscarCompletion.winners.total}</b> ${escape(ui("Oscar-winning films watched"))}</span>
-  <span><b>${oscarCompletion.nominees.watchedCount}/${oscarCompletion.nominees.total}</b> ${escape(ui("Oscar-nominated films watched"))}</span>
+      itemsHtml: `${officialSummaryStatItems()}
   <span><b>${hub.directors.length}</b> ${escape(ui("Directors in progress"))}</span>
   <span><b>${hub.franchises.length}</b> ${escape(ui("Franchises in progress"))}</span>
   <span><b>${hub.projects.length}</b> ${escape(ui("Projects in progress"))}</span>
@@ -785,7 +890,7 @@
 
     container.innerHTML = `<header class="completion-hero">
   <h1>${escape(ui("Completion"))}</h1>
-  <p>${escape(ui("Oscar completion covers every imported official nominee. Director, franchise, and project completion covers known films in the archive and watchlist."))}</p>
+  <p>${escape(ui("Official completion covers every imported official nominee, per source. Director, franchise, and project completion covers known films in the archive and watchlist."))}</p>
   ${summaryHtml}
 </header>
 <div class="completion-view-toolbar"><span>${escape(ui("Completion display"))}</span>${window.renderFilmViewToggle({
@@ -838,20 +943,15 @@ ${completionSection(
     emptyText: ui("No projects yet"),
   }),
 )}
-${completionSection(
-  "oscars",
-  ui("Oscar film completion"),
-  ui("Films watched from the imported official Academy Awards winners and nominees — overall, by year, and by category."),
-  oscarCompletionHtml(),
-)}
+${officialCompletionSections()}
 ${completionSection(
   "brackets",
   ui("Award brackets"),
   ui("How much of each imported award period's category slots are filled in — data entry, not watch progress."),
   `${bracketCompletionTable(bracketCompletion)}<div class="completion-subsection completion-bracket-categories"><h3>${escape(ui("By category"))}</h3><p>${escape(ui("Annual award slots across years with at least one watched film."))}</p>${bracketCategoryCompletionGrid(bracketCategoryCompletion)}</div>`,
 )}
-${inProgressTotal || oscarCompletion.nominees.total ? "" : `<div class="detail-empty"><h2>${escape(ui("Nothing in progress."))}</h2><p>${escape(ui("Import a watchlist or start a project to track completion."))}</p></div>`}
-${oscarWatchlistDialog()}`;
+${inProgressTotal || anyOfficialNomineesTotal() ? "" : `<div class="detail-empty"><h2>${escape(ui("Nothing in progress."))}</h2><p>${escape(ui("Import a watchlist or start a project to track completion."))}</p></div>`}
+${officialWatchlistDialog()}`;
 
     container
       .querySelectorAll(".completion-section .leaderboard-wrap")
@@ -862,7 +962,7 @@ ${oscarWatchlistDialog()}`;
   let finishRenderTimer = window.startOskarsPerformance?.("completion:render");
   render();
   finishRenderTimer?.(
-    `${inProgressTotal} in progress, ${hub.completeDirectors + hub.completeFranchises + hub.completeProjects} complete, ${oscarCompletion.nominees.watchedCount}/${oscarCompletion.nominees.total} official Oscar films watched, ${bracketCompletion.length} bracket period(s)`,
+    `${inProgressTotal} in progress, ${hub.completeDirectors + hub.completeFranchises + hub.completeProjects} complete, ${officialSourceIds.map((sourceId) => `${officialCompletions.get(sourceId).nominees.watchedCount}/${officialCompletions.get(sourceId).nominees.total}`).join(", ")} official films watched by source, ${bracketCompletion.length} bracket period(s)`,
   );
 
   container.addEventListener("click", async (event) => {
@@ -870,40 +970,51 @@ ${oscarWatchlistDialog()}`;
       "[data-add-oscar-watchlist]",
     );
     if (addWatchlistButton) {
-      let sourceId = addWatchlistButton.dataset.addOscarWatchlist;
-      let plan = window.officialOscarWatchlistPlan?.(sourceId);
+      let scopeId = addWatchlistButton.dataset.addOscarWatchlist;
+      let plan = window.officialCollectionWatchlistPlan?.(scopeId);
       if (!plan) return;
       if (plan.needsReview.length) {
-        pendingOscarWatchlistPlan = plan;
+        pendingOfficialWatchlistPlan = plan;
         render();
-        let dialog = container.querySelector("#oscarWatchlistDialog");
+        let dialog = container.querySelector(
+          `[data-official-watchlist-dialog="${plan.sourceId}"]`,
+        );
         if (dialog?.showModal) dialog.showModal();
         else dialog?.setAttribute("open", "");
-      } else await addOscarWatchlistSource(sourceId);
+      } else await addOfficialWatchlistSource(scopeId);
       return;
     }
     if (event.target.closest("[data-confirm-oscar-watchlist]")) {
-      let sourceId = pendingOscarWatchlistPlan?.sourceId;
-      if (sourceId) await addOscarWatchlistSource(sourceId);
+      let scopeId = pendingOfficialWatchlistPlan?.scopeId;
+      if (scopeId) await addOfficialWatchlistSource(scopeId);
       return;
     }
     if (event.target.closest("[data-cancel-oscar-watchlist]")) {
-      pendingOscarWatchlistPlan = null;
+      pendingOfficialWatchlistPlan = null;
       render();
       return;
     }
-    if (event.target.closest("[data-undo-oscar-watchlist]")) {
-      let result = window.undoOfficialOscarWatchlistAdd?.(
-        lastOscarWatchlistAddition || [],
+    let undoButton = event.target.closest("[data-undo-oscar-watchlist]");
+    if (undoButton) {
+      let sourceId = undoButton.dataset.undoOscarWatchlist;
+      let result = window.undoOfficialCollectionWatchlistAdd?.(
+        sourceId,
+        lastOfficialWatchlistAdditions.get(sourceId) || [],
       );
       if (result?.persisted?.then) await result.persisted;
-      lastOscarWatchlistAddition = null;
-      oscarCompletion = window.officialOscarCompletion();
-      oscarWatchlistStatus = result?.ok
-        ? ui("Removed {count} recently added films.", {
-            count: result.removed.length,
-          })
-        : result?.reason || ui("Undo failed.");
+      lastOfficialWatchlistAdditions.delete(sourceId);
+      officialCompletions.set(
+        sourceId,
+        window.officialCollectionCompletion(sourceId),
+      );
+      officialWatchlistStatuses.set(
+        sourceId,
+        result?.ok
+          ? ui("Removed {count} recently added films.", {
+              count: result.removed.length,
+            })
+          : result?.reason || ui("Undo failed."),
+      );
       render();
       return;
     }
@@ -957,11 +1068,12 @@ ${oscarWatchlistDialog()}`;
   container.addEventListener("change", (event) => {
     let tierInput = event.target.closest("[data-oscar-watchlist-tier]");
     if (tierInput) {
+      let sourceId = tierInput.dataset.oscarWatchlistTier;
       let tier = window.normalizeWatchlistTier?.(tierInput.value);
       if (tier) {
-        oscarWatchlistTier = tier;
+        officialWatchlistTiers.set(sourceId, tier);
         try {
-          localStorage.setItem(OSCAR_WATCHLIST_TIER_KEY, tier);
+          localStorage.setItem(officialWatchlistTierKey(sourceId), tier);
         } catch (err) {}
       }
       return;

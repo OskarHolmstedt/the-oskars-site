@@ -137,6 +137,8 @@
  * @property {string} [sourceCategory] Source category retained when several historical categories map to one app category.
  * @property {string} [recipient] Credited recipient text.
  * @property {string} [detail] Role, work, or other credited detail.
+ * @property {string} [country] Production country/countries, comma-joined in source order.
+ * @property {string} [originalTitle] Original-language title, when it differs from sourceTitle.
  * @property {{id: string, title: string, year: string}} [filmRef] Existing canonical film match.
  */
 
@@ -415,6 +417,7 @@
  * @typedef {Object} ProjectFilmRef
  * @property {'archive'|'watchlist'|'watched'|'official'} type Which store or official-results collection `id` points into.
  * @property {string} id Film or watchlist item id.
+ * @property {string} [sourceId] Official-results source id `id` resolves against (type "official" only; a project's official refs always come from one source). Missing on refs created before issue #343 - resolvers default those to "academy-awards".
  * @property {number} projectOrder Queue position local to this project.
  */
 
@@ -453,9 +456,10 @@
  */
 
 /**
- * Overall Academy Awards watched-film completion model.
- * @typedef {Object} OfficialOscarCompletion
- * @property {OfficialResultsSource|null} source Imported Academy Awards source.
+ * Overall watched-film completion model for one official-results source.
+ * @typedef {Object} OfficialCollectionCompletion
+ * @property {string} sourceId Official-results source id this model was built for.
+ * @property {OfficialResultsSource|null} source Imported source.
  * @property {string[]} periodKeys Imported source periods with nominations.
  * @property {OfficialFilmCompletionRecord[]} films Distinct period-scoped films.
  * @property {Map<string, OfficialFilmCompletionRecord>} filmsById Film lookup.
@@ -463,13 +467,13 @@
  * @property {Object} nominees Overall nominated-film completion group.
  * @property {Object[]} periods Per-period winner and nominee completion groups.
  * @property {Object[]} categories Per-category winner and nominee groups.
- * @property {Object|null} bestPicture Best Picture category group.
  */
 
 /**
- * Non-persisted plan for adding one official Academy Awards collection to the watchlist.
- * @typedef {Object} OfficialOscarWatchlistPlan
- * @property {string} sourceId Official-results collection source id.
+ * Non-persisted plan for adding one official-results collection to the watchlist.
+ * @typedef {Object} OfficialCollectionWatchlistPlan
+ * @property {string} scopeId Source-prefixed scope id the plan was built for.
+ * @property {string} sourceId Official-results source id.
  * @property {string} sourceLabel Human-readable collection label.
  * @property {string} sourceHref Link back to the source scope.
  * @property {Object[]} ready Unambiguous unseen films ready to add.
@@ -964,6 +968,20 @@
  * The global application state (`window.state`). Browser persistence separates
  * canonical draft data, draft metadata, device preferences, and local state;
  * everything under "Derived" is rebuilt after every load.
+ * @typedef {Object} WorkspaceRemoteSync
+ * @property {string} uid Firebase account that owns every stored baseline and conflict.
+ * @property {Record<string, Record<string, string>>} shards Last-agreed shard revisions by section.
+ * @property {Object[]} conflicts Pending explicit conflict decisions.
+ * @property {string} [lastSyncAt]
+ * @property {string} [lastSyncReason]
+ * @property {number} [lastPushCount]
+ * @property {number} [lastPullCount]
+ * @property {boolean} [hadError]
+ * @property {boolean} [unauthorized]
+ * @property {{consecutiveFailures: number, delayMs: number, retryAfter: string}} [retry]
+ */
+
+/**
  * @typedef {Object} OskarsState
  * @property {number} dataVersion Migration marker.
  * @property {number} creditSchemaVersion Migration marker.
@@ -1012,7 +1030,7 @@
  *   Stable reviewed pair keys for resumable year heats and broader finals.
  * @property {{years: Record<string, Record<string, {status: 'complete'|'none', reviewedAt: string}>>}} awardReviews
  *   Explicit annual ballot completion, including reviewed-none categories.
- * @property {{baseRevision: string, dirty: boolean, changedAt?: string, reason?: string, publishedRevision?: string, reconciliationStatus?: string, requiredAction?: string, lastCanonicalCheckAt?: string, publication?: PublicationAttempt}|null} draftMetadata Local unpublished-draft, publication attempt, and canonical reconciliation marker. Always null for a public-profile viewer state (issue #256) - that state is never a private draft.
+ * @property {{baseRevision: string, dirty: boolean, changedAt?: string, reason?: string, publishedRevision?: string, reconciliationStatus?: string, requiredAction?: string, lastCanonicalCheckAt?: string, publication?: PublicationAttempt, remoteSync?: WorkspaceRemoteSync}|null} draftMetadata Local unpublished-draft, publication attempt, canonical reconciliation marker, and account-bound sync baseline. Always null for a public-profile viewer state (issue #256) - that state is never a private draft.
  * @property {boolean} isPublicProfileView Set by `hydratePublicProfileState()`
  *   (issue #256) when state was hydrated from another owner's published
  *   public-profile document rather than a private canonical/workspace
@@ -1349,7 +1367,9 @@ function buildDraftMetadata(existing, baseRevision, defaultReason) {
     ...(existing.publication
       ? { publication: window.cloneRecord(existing.publication) }
       : {}),
-    // Per-shard Firestore sync bookkeeping (issue #248) - deliberately NOT
+    // Per-shard Firestore sync bookkeeping and observable bounded-backoff
+    // diagnostics, including the Firebase UID that owns every baseline
+    // (issues #248, #333, and #335) - deliberately NOT
     // carried by intentionalClearDraftMetadata() (persistence.js) or
     // publishedCanonicalWorkspace() (reconciliation.js), both of which
     // build fresh metadata objects without it: a full local clear or a

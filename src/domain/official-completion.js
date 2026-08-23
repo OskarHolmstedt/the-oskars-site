@@ -1,7 +1,7 @@
-/** @file Derives watched-film completion and project collections from imported Academy Awards results. */
+/** @file Derives watched-film completion and project collections from any imported official-results source (issue #343) - Academy Awards by default, but every exported function accepts an explicit source id so a second source (e.g. Cannes, issue #342) never shares scope ids, watchlist tags, or project filmRefs with another. */
 
 (function () {
-  const SOURCE_ID = "academy-awards";
+  const DEFAULT_SOURCE_ID = "academy-awards";
 
   /** Expands an official annual or historical span key into represented release years. @param {string} periodKey Official period key. @returns {string[]} Four-digit years. */
   window.officialResultPeriodYears = function (periodKey) {
@@ -75,13 +75,24 @@
     };
   }
 
-  function officialSourceId(category, scope) {
-    return category ? `category:${category}:${scope}` : `all:${scope}`;
+  // Every derived scope id is prefixed with the source id (issue #343) so a
+  // second populated official-results source's "all:winners"-shaped ids
+  // never collide with another source's - officialCollectionProjectSource()
+  // parses this same prefix back off to know which source's completion
+  // model a given scope id belongs to.
+  function officialSourceId(sourceId, category, scope) {
+    return category
+      ? `${sourceId}:category:${category}:${scope}`
+      : `${sourceId}:all:${scope}`;
   }
 
-  /** Builds the current overall and per-category Academy Awards film-completion model. @returns {OfficialOscarCompletion} Completion model. */
-  window.officialOscarCompletion = function () {
-    let source = window.state?.officialResults?.[SOURCE_ID];
+  function officialPeriodSourceId(sourceId, period, scope) {
+    return `${sourceId}:period:${period}:${scope}`;
+  }
+
+  /** Builds the current overall and per-category film-completion model for one official-results source. @param {string} [sourceId] Official source id, defaults to Academy Awards. @returns {OfficialCollectionCompletion} Completion model. */
+  window.officialCollectionCompletion = function (sourceId = DEFAULT_SOURCE_ID) {
+    let source = window.state?.officialResults?.[sourceId];
     let watchedByTitle = recordsByTitle(watchedRecords());
     let watchlistByTitle = recordsByTitle(window.state?.watchlist || []);
     let filmsById = new Map();
@@ -189,11 +200,11 @@
           categoryFilms.filter((film) =>
             film.winnerCategories.includes(category),
           ),
-          officialSourceId(category, "winners"),
+          officialSourceId(sourceId, category, "winners"),
         ),
         nominees: completionGroup(
           categoryFilms,
-          officialSourceId(category, "nominees"),
+          officialSourceId(sourceId, category, "nominees"),
         ),
       };
     });
@@ -207,23 +218,24 @@
         href: candidateHref(period),
         winners: completionGroup(
           periodFilms.filter((film) => film.winner),
-          `period:${period}:winners`,
+          officialPeriodSourceId(sourceId, period, "winners"),
         ),
         nominees: completionGroup(
           periodFilms,
-          `period:${period}:nominees`,
+          officialPeriodSourceId(sourceId, period, "nominees"),
         ),
       };
     });
     let winners = completionGroup(
       films.filter((film) => film.winner),
-      officialSourceId("", "winners"),
+      officialSourceId(sourceId, "", "winners"),
     );
     let nominees = completionGroup(
       films,
-      officialSourceId("", "nominees"),
+      officialSourceId(sourceId, "", "nominees"),
     );
     return {
+      sourceId,
       source: source || null,
       periodKeys: orderedPeriodKeys,
       films,
@@ -232,32 +244,50 @@
       nominees,
       periods,
       categories,
-      bestPicture:
-        categories.find((entry) => entry.category === "Best Picture") || null,
     };
   };
 
-  /** Resolves one official collection source into its project label and films. @param {string} sourceId Official source id. @param {OfficialOscarCompletion} [completion] Existing completion model. @returns {Object|null} Project source. */
-  window.officialOscarProjectSource = function (sourceId, completion) {
-    let model = completion || window.officialOscarCompletion();
-    let scope = String(sourceId || "").endsWith(":winners")
+  // "Oscar(s)" is this app's established short name for the Academy Awards
+  // source (used throughout src/ui/i18n.js's existing copy) - preserved
+  // literally here rather than falling back to the source's own stored
+  // .name ("Academy Awards") to avoid a silent copy change for the one
+  // source every existing user and test already knows. Any other source
+  // uses its stored display name. Exposed on window so completion.js
+  // (issue #344) can reuse this exact rule for its own source-aware
+  // headings rather than re-deriving it.
+  window.officialSourceDisplayName = function (sourceId, model) {
+    return sourceId === DEFAULT_SOURCE_ID
+      ? "Oscar"
+      : model.source?.name || sourceId;
+  };
+
+  // Must match completion.js's own completionSection(sourceId, ...) id
+  // exactly (issue #344), or a "start project"/watchlist link back to the
+  // section would silently 404 its anchor.
+  function officialCompletionAnchorId(sourceId) {
+    return `completion-${sourceId}`;
+  }
+
+  /** Resolves one completion scope id into its project label and films. @param {string} scopeId Scope id returned by officialCollectionCompletion() (source-prefixed: "sourceId:all:winners", "sourceId:category:X:winners", or "sourceId:period:Y:winners"). @param {OfficialCollectionCompletion} [completion] Existing completion model for that same source; resolved automatically from the scope id's source prefix when omitted. @returns {Object|null} Project source. */
+  window.officialCollectionProjectSource = function (scopeId, completion) {
+    let raw = String(scopeId || "");
+    let separator = raw.indexOf(":");
+    if (separator < 0) return null;
+    let sourceId = raw.slice(0, separator);
+    let rest = raw.slice(separator + 1);
+    let model = completion || window.officialCollectionCompletion(sourceId);
+    let scope = rest.endsWith(":winners")
       ? "winners"
-      : String(sourceId || "").endsWith(":nominees")
+      : rest.endsWith(":nominees")
         ? "nominees"
         : "";
     if (!scope) return null;
     let category = "";
     let period = "";
-    if (String(sourceId).startsWith("category:"))
-      category = String(sourceId).slice(
-        "category:".length,
-        -(`:${scope}`.length),
-      );
-    if (String(sourceId).startsWith("period:"))
-      period = String(sourceId).slice(
-        "period:".length,
-        -(`:${scope}`.length),
-      );
+    if (rest.startsWith("category:"))
+      category = rest.slice("category:".length, -(`:${scope}`.length));
+    if (rest.startsWith("period:"))
+      period = rest.slice("period:".length, -(`:${scope}`.length));
     let periodGroup = period
       ? model.periods.find((entry) => entry.period === period)
       : null;
@@ -267,22 +297,25 @@
         ? periodGroup[scope]
         : model[scope];
     if (!group) return null;
+    let displayName = officialSourceDisplayName(sourceId, model);
     let label = category
       ? `${category} ${scope}`
       : period
-        ? `${period} Oscar ${scope}`
+        ? `${period} ${displayName} ${scope}`
       : scope === "winners"
-        ? "Oscar winners"
-        : "Oscar-nominated films";
+        ? `${displayName} winners`
+        : `${displayName}-nominated films`;
     return {
       name: label,
       sourceLabel: label,
       sourceHref:
-        periodGroup?.href || "completion.html#completion-oscars",
+        periodGroup?.href ||
+        `completion.html#${officialCompletionAnchorId(sourceId)}`,
       films: group.films,
       filmRefs: group.films.map((film) => ({
         type: "official",
         id: film.id,
+        sourceId,
       })),
     };
   };
@@ -299,10 +332,11 @@
     };
   }
 
-  /** Plans one official-results collection's unseen watchlist additions without mutating state. @param {string} sourceId Official collection source id. @param {OfficialOscarCompletion} [completion] Existing completion model. @returns {OfficialOscarWatchlistPlan|null} Bulk-add plan. */
-  window.officialOscarWatchlistPlan = function (sourceId, completion) {
-    let model = completion || window.officialOscarCompletion();
-    let source = window.officialOscarProjectSource(sourceId, model);
+  /** Plans one official-results collection's unseen watchlist additions without mutating state. @param {string} scopeId Scope id (source-prefixed, see officialCollectionProjectSource()). @param {OfficialCollectionCompletion} [completion] Existing completion model for that same source. @returns {OfficialCollectionWatchlistPlan|null} Bulk-add plan. */
+  window.officialCollectionWatchlistPlan = function (scopeId, completion) {
+    let sourceId = String(scopeId || "").split(":")[0];
+    let model = completion || window.officialCollectionCompletion(sourceId);
+    let source = window.officialCollectionProjectSource(scopeId, model);
     if (!source) return null;
     let evidenceByTitle = new Map();
     model.films.forEach((film) => {
@@ -363,6 +397,7 @@
       if (!ready.has(itemId)) ready.set(itemId, candidate);
     });
     return {
+      scopeId,
       sourceId,
       sourceLabel: source.sourceLabel,
       sourceHref: source.sourceHref,
@@ -373,9 +408,21 @@
     };
   };
 
-  /** Adds every currently unambiguous unseen film in an official-results collection to the watchlist. @param {string} sourceId Official collection source id. @param {string} tier Destination interest tier. @param {Object} [options] Persistence controls. @returns {Object} Bulk-add result. */
-  window.applyOfficialOscarWatchlistPlan = function (
-    sourceId,
+  // "Oscars" is this app's established watchlist tag for the Academy
+  // Awards source, already present on real user watchlist data - preserved
+  // literally (as is the "oscars"-normalized undo match below) rather than
+  // deriving it from the source's stored .name, which would silently stop
+  // matching existing tagged items. Any other source is tagged with its
+  // stored display name.
+  function officialWatchlistTag(sourceId, model) {
+    return sourceId === DEFAULT_SOURCE_ID
+      ? "Oscars"
+      : model.source?.name || sourceId;
+  }
+
+  /** Adds every currently unambiguous unseen film in an official-results collection to the watchlist. @param {string} scopeId Scope id (source-prefixed, see officialCollectionProjectSource()). @param {string} tier Destination interest tier. @param {Object} [options] Persistence controls. @returns {Object} Bulk-add result. */
+  window.applyOfficialCollectionWatchlistPlan = function (
+    scopeId,
     tier,
     options = {},
   ) {
@@ -384,8 +431,12 @@
     let normalizedTier = window.normalizeWatchlistTier?.(tier);
     if (!normalizedTier)
       return { ok: false, reason: "Choose an interest tier." };
-    let plan = window.officialOscarWatchlistPlan(sourceId);
-    if (!plan) return { ok: false, reason: "Oscar collection not found." };
+    let plan = window.officialCollectionWatchlistPlan(scopeId);
+    if (!plan) return { ok: false, reason: "Official collection not found." };
+    let tag = officialWatchlistTag(
+      plan.sourceId,
+      window.officialCollectionCompletion(plan.sourceId),
+    );
     let added = [];
     window.state.watchlist ||= [];
     plan.ready.forEach((candidate) => {
@@ -393,7 +444,7 @@
         title: candidate.title,
         year: candidate.year,
         tier: normalizedTier,
-        tags: ["Oscars"],
+        tags: [tag],
       });
       if (!item || window.findWatchlistItemById?.(item.id)) return;
       window.state.watchlist.push(item);
@@ -402,9 +453,9 @@
     if (!added.length)
       return { ok: true, added, plan, tier: normalizedTier, persisted: null };
     window.recomputeWatchlistOrder?.();
-    window.markAggregatesDirty?.("official Oscar films added to watchlist");
+    window.markAggregatesDirty?.(`official ${tag} films added to watchlist`);
     window.recordEdit?.({
-      type: "official Oscar watchlist added",
+      type: "official watchlist added",
       summary: `Added ${added.length} film(s) from ${plan.sourceLabel} to tier ${normalizedTier}`,
       sheetHint: "Watchlist",
       changes: [
@@ -412,7 +463,8 @@
         { field: "tier", before: "", after: normalizedTier },
       ],
       context: {
-        sourceId,
+        scopeId,
+        sourceId: plan.sourceId,
         tier: normalizedTier,
         watchlistIds: added.map((item) => item.id),
       },
@@ -424,33 +476,40 @@
     return { ok: true, added, plan, tier: normalizedTier, persisted };
   };
 
-  /** Removes a just-added official Oscar watchlist batch. @param {string[]} ids Watchlist ids returned by the bulk add. @param {Object} [options] Persistence controls. @returns {Object} Undo result. */
-  window.undoOfficialOscarWatchlistAdd = function (ids, options = {}) {
+  /** Removes a just-added official watchlist batch for one source. @param {string} sourceId Official collection source id (decides which watchlist tag to match). @param {string[]} ids Watchlist ids returned by the bulk add. @param {Object} [options] Persistence controls. @returns {Object} Undo result. */
+  window.undoOfficialCollectionWatchlistAdd = function (
+    sourceId,
+    ids,
+    options = {},
+  ) {
     if (window.oskarsCapabilities && !window.oskarsCapabilities().canEdit)
       return { ok: false, reason: "Watchlist editing is unavailable." };
+    let tag = window.normalizeTitle(
+      officialWatchlistTag(sourceId, window.officialCollectionCompletion(sourceId)),
+    );
     let targets = new Set((ids || []).map(String));
     let removed = [];
     window.state.watchlist = (window.state.watchlist || []).filter((item) => {
       let id = item.id || window.watchlistItemId?.(item);
-      let isOscarAddition = (item.tags || []).some(
-        (tag) => window.normalizeTitle(tag) === "oscars",
+      let isMatchingAddition = (item.tags || []).some(
+        (itemTag) => window.normalizeTitle(itemTag) === tag,
       );
-      if (!targets.has(id) || !isOscarAddition) return true;
+      if (!targets.has(id) || !isMatchingAddition) return true;
       removed.push(item);
       return false;
     });
     if (!removed.length)
       return { ok: true, removed, persisted: null };
     window.recomputeWatchlistOrder?.();
-    window.markAggregatesDirty?.("official Oscar watchlist addition undone");
+    window.markAggregatesDirty?.("official watchlist addition undone");
     window.recordEdit?.({
-      type: "official Oscar watchlist add undone",
-      summary: `Removed ${removed.length} recently added Oscar film(s) from the watchlist`,
+      type: "official watchlist add undone",
+      summary: `Removed ${removed.length} recently added film(s) from the watchlist`,
       sheetHint: "Watchlist",
       changes: [
         { field: "films removed", before: String(removed.length), after: "0" },
       ],
-      context: { watchlistIds: removed.map((item) => item.id) },
+      context: { sourceId, watchlistIds: removed.map((item) => item.id) },
     });
     let persisted =
       options.save === false

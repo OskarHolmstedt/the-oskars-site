@@ -1,4 +1,4 @@
-/** @file Builds isolated, previewed official-results refresh proposals from bracket or historical long-form exports. */
+/** @file Builds isolated, previewed official-results refresh proposals from bracket-shaped, historical long-form, or categoryless single-winner exports. */
 
 const OFFICIAL_LONG_FORM_CATEGORIES = [
   [/^BEST PICTURE$/, "Best Picture"],
@@ -172,6 +172,97 @@ function officialParseLongForm(rows, report, blockError) {
   return [...periods.values()].sort((a, b) => a.year.localeCompare(b.year));
 }
 
+function officialSingleWinnerInput(rows) {
+  let headers = (rows[0] || []).map(officialCleanCell);
+  return ["Year", "Film", "SourceCategory"].every((header) =>
+    headers.includes(header),
+  );
+}
+
+// For a categoryless canon (one winner per year, no competing categories -
+// Cannes' top prize, for example): every row already *is* the winner, so
+// there's no Winner/CanonicalCategory-mapping work the long-form parser
+// needs. Every parsed nomination shares one constant `category` (passed in,
+// not hardcoded here, so this shape stays reusable for a future canon) so
+// unwatched-winner tracking groups them as one collection even when the
+// source's own award name changed over time (e.g. Cannes' "Grand Prix"
+// years before "Palme d'Or") - that history is retained in `sourceCategory`
+// instead, the same field the long-form parser uses for the same purpose.
+// A year can hold more than one winner (Cannes 1946 alone had nine), so
+// periods accumulate nominations rather than rejecting a repeated year.
+function officialParseSingleWinner(rows, report, blockError, category) {
+  let headers = (rows[0] || []).map(officialCleanCell);
+  let column = Object.fromEntries(headers.map((header, index) => [header, index]));
+  let required = ["Year", "Film", "Director", "Country", "SourceCategory"];
+  let missing = required.filter((header) => column[header] === undefined);
+  if (missing.length) {
+    let message = `Single-winner header is missing: ${missing.join(", ")}.`;
+    officialResultsIssue(report, { message });
+    blockError("$officialResults.headers", message);
+    return [];
+  }
+
+  let periods = new Map();
+  let duplicateKeys = new Map();
+  rows.slice(1).forEach((row, offset) => {
+    if (!row.some((cell) => officialCleanCell(cell))) return;
+    let rowNumber = offset + 2;
+    let value = (header) => officialCleanCell(row[column[header]]);
+    let year = value("Year");
+    let sourceCategory = value("SourceCategory");
+    let sourceTitle = value("Film");
+    if (!/^\d{4}(?:\/\d{2})?$/.test(year) || !sourceCategory || !sourceTitle) {
+      let message = "Row is missing a valid year, film title, or source category.";
+      report.skipped += 1;
+      report.skippedDetails.push({
+        source: report.source,
+        rowNumber,
+        reason: message,
+        values: [year, sourceCategory, sourceTitle],
+      });
+      blockError(`$officialResults.rows[${rowNumber}]`, message);
+      return;
+    }
+    let recipient = value("Director");
+    let country = value("Country");
+    let originalTitle = column.OriginalTitle !== undefined ? value("OriginalTitle") : "";
+    let nomination = {
+      category,
+      sourceCategory,
+      winner: true,
+      sourceTitle,
+      ...(recipient ? { recipient } : {}),
+      ...(country ? { country } : {}),
+      ...(originalTitle ? { originalTitle } : {}),
+    };
+    let duplicateKey = [year, sourceTitle]
+      .map((part) => part.toLowerCase())
+      .join("");
+    if (duplicateKeys.has(duplicateKey)) {
+      let message = `Duplicate nomination (also row ${duplicateKeys.get(duplicateKey)}).`;
+      officialResultsIssue(report, { period: year, title: sourceTitle, message });
+      blockError(`$officialResults.rows[${rowNumber}]`, message);
+      return;
+    }
+    duplicateKeys.set(duplicateKey, rowNumber);
+    let period = periods.get(year);
+    if (!period) {
+      period = { year, periodType: "years", sourceUrl: "", nominations: [] };
+      periods.set(year, period);
+    }
+    period.nominations.push(nomination);
+  });
+
+  periods.forEach((period) => {
+    period.nominations.sort(
+      (a, b) =>
+        a.sourceTitle.localeCompare(b.sourceTitle) ||
+        String(a.recipient || "").localeCompare(String(b.recipient || "")),
+    );
+  });
+  return [...periods.values()].sort((a, b) => a.year.localeCompare(b.year));
+}
+
 function officialResultsFilmCandidates(source) {
   let byId = new Map();
   Object.values(source.years || {}).forEach((period) => {
@@ -221,8 +312,11 @@ function officialResultsIssue(report, finding) {
 
 /**
  * Builds a non-mutating refresh proposal for one official awards source.
- * @param {string} raw Bracket-shaped TSV or Academy historical long-form TSV/CSV export.
+ * @param {string} raw Bracket-shaped, historical long-form, or categoryless single-winner TSV/CSV export.
  * @param {Object} [options] Source identity and display configuration.
+ * @param {string} [options.sourceId] Stable source id, defaults to "academy-awards".
+ * @param {string} [options.sourceName] Display name, defaults to "Academy Awards".
+ * @param {string} [options.singleWinnerCategory] App category name every row shares in single-winner input (defaults to `sourceName`); ignored for the other two input shapes.
  * @returns {ImportProposal} Reviewed canonical refresh proposal.
  */
 window.proposeOfficialResultsImport = function (raw, options = {}) {
@@ -275,6 +369,9 @@ window.proposeOfficialResultsImport = function (raw, options = {}) {
   let parsedPeriods = [];
   if (officialLongFormInput(rows)) {
     parsedPeriods = officialParseLongForm(rows, report, blockError);
+  } else if (officialSingleWinnerInput(rows)) {
+    let category = String(options.singleWinnerCategory || options.sourceName || "Winner").trim();
+    parsedPeriods = officialParseSingleWinner(rows, report, blockError, category);
   } else {
     let blocks = window.splitBracketSheetBlocks(rows, { sheetStartRow: 1 });
     if (!blocks.length) {
@@ -369,6 +466,10 @@ window.proposeOfficialResultsImport = function (raw, options = {}) {
           : {}),
         ...(nomination.recipient ? { recipient: nomination.recipient } : {}),
         ...(nomination.detail ? { detail: nomination.detail } : {}),
+        ...(nomination.country ? { country: nomination.country } : {}),
+        ...(nomination.originalTitle
+          ? { originalTitle: nomination.originalTitle }
+          : {}),
       };
       if (match.film) {
         record.filmRef = {

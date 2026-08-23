@@ -19,7 +19,17 @@
       return `<h2>${ui("Sign in")}</h2><p>${ui("Cloud sync isn't set up for this deployment yet.")}</p>`;
     }
     if (user) {
-      return `<h2>${ui("Sign in")}</h2><p>${ui("Signed in as {name}.", { name: escape(user.displayName || user.email || ui("your Google account")) })}</p><div class="data-actions"><button id="profileSignOutBtn" type="button">${ui("Sign out")}</button></div>`;
+      let required = window.oskarsRequiredAccountSession?.();
+      let syncAccess = window.getWorkspaceSyncAccountAccess?.() || {
+        allowed: false,
+        status: "unlinked",
+      };
+      let lineageAction = "";
+      if (syncAccess.status === "unlinked")
+        lineageAction = `<p>${ui("This local workspace is not attached to a cloud account yet. Connect it explicitly before any upload or download.")}</p><div class="data-actions"><button id="profileAttachAccountBtn" type="button">${ui("Connect this workspace to this account")}</button></div>`;
+      else if (syncAccess.status === "different-account")
+        lineageAction = `<p class="data-panel-status">${ui("Cloud actions are locked because this workspace belongs to another account.")}</p>`;
+      return `<h2>${ui("Sign in")}</h2><p>${ui("Signed in as {name}.", { name: escape(user.displayName || user.email || ui("your Google account")) })}</p>${required ? `<p>${ui("Signing out locks this private archive immediately. Sign back into the same account to reopen it.")}</p>` : ""}${lineageAction}<div class="data-actions"><button id="profileSignOutBtn" type="button">${ui(required ? "Sign out and lock" : "Sign out")}</button>${required ? `<button id="profileSwitchAccountBtn" type="button">${ui("Switch accounts safely")}</button>` : ""}</div><p id="profileAccountStatus" class="data-panel-status"></p>`;
     }
     return `<h2>${ui("Sign in")}</h2><p>${ui("Sign in with Google to sync this workspace across your devices.")}</p><div id="profileSignInButton"></div>`;
   }
@@ -32,12 +42,70 @@
     if (signInContainer) window.renderGoogleSignInButton?.(signInContainer);
     document
       .getElementById("profileSignOutBtn")
-      ?.addEventListener("click", () => window.signOutOfFirebase?.());
+      ?.addEventListener("click", async () => {
+        let required = window.oskarsRequiredAccountSession?.();
+        if (
+          window.confirm(
+            ui(
+              required
+                ? "Sign out and lock this browser's private archive? Nothing is deleted; the same account can reopen it later."
+                : "Stop cloud sync and continue locally? You can sign in again anytime - nothing local is lost either way.",
+            ),
+          )
+        )
+          await window.signOutOfFirebase?.();
+      });
+    document
+      .getElementById("profileAttachAccountBtn")
+      ?.addEventListener("click", async (event) => {
+        event.currentTarget.disabled = true;
+        let result = await window.attachOskarsWorkspaceToCurrentAccount?.();
+        if (result?.ok) render();
+        else {
+          event.currentTarget.disabled = false;
+          let status = document.getElementById("profileAccountStatus");
+          if (status)
+            status.textContent = ui(
+              "Could not connect this workspace: {reason}",
+              { reason: result?.reason || "unknown error" },
+            );
+        }
+      });
+    document
+      .getElementById("profileSwitchAccountBtn")
+      ?.addEventListener("click", runSafeAccountSwitch);
+  }
+
+  async function runSafeAccountSwitch() {
+    if (
+      !window.confirm(
+        ui(
+          "Switch accounts? A full backup downloads first, an account-bound recovery is retained, and this archive is removed from the active browser before sign-out. Cloud data is not deleted.",
+        ),
+      )
+    )
+      return;
+    let button = document.getElementById("profileSwitchAccountBtn");
+    let status = document.getElementById("profileAccountStatus");
+    button.disabled = true;
+    button.textContent = ui("Preparing safe switch...");
+    let result = await window.prepareOskarsAccountSwitch?.();
+    if (!result?.ok) {
+      button.disabled = false;
+      button.textContent = ui("Switch accounts safely");
+      status.textContent = ui("Could not prepare account switch: {reason}", {
+        reason: result?.reason || "unknown error",
+      });
+      return;
+    }
+    status.textContent = ui("Backup retained. Locking this browser and signing out...");
+    await window.signOutOfFirebase?.();
   }
 
   function updateCloudSyncPanelVisibility(user) {
     let panel = document.getElementById("cloudSyncPanel");
-    if (panel) panel.hidden = !user;
+    if (panel)
+      panel.hidden = !user || !window.getWorkspaceSyncAccountAccess?.().allowed;
   }
 
   function publicProfileNameHtml(user) {
@@ -120,8 +188,19 @@
         "{count} item(s) changed on this device and elsewhere - see below to choose which version to keep.",
         { count: result.conflicts.length },
       );
+    } else if (result.unauthorized) {
+      status.textContent = ui(
+        "This account isn't authorized for cloud sync on this deployment. Changes stay saved locally on this device.",
+      );
     } else if (result.hadError) {
       status.textContent = ui("Cloud sync hit an error - it will retry automatically.");
+    } else if (
+      result.reason === "unlinked" ||
+      result.reason === "different-account"
+    ) {
+      status.textContent = ui(
+        "Cloud sync is locked until this workspace is attached to the signed-in account.",
+      );
     } else if (result.pushedCount || result.pulledCount) {
       status.textContent = ui(
         "Synced: {pushed} shard(s) uploaded, {pulled} shard(s) downloaded.",
@@ -184,12 +263,82 @@
     window.hideImportReport?.();
   }
 
+  function accountDeletionHtml() {
+    return `<h2>${ui("Delete cloud account data")}</h2>
+      <p>${ui("Permanently deletes every document Firestore holds for this account - every synced section and this device's sync history. A full backup downloads first. This is final; there is no admin-side recovery once it verifies removal.")}</p>
+      <div class="data-actions"><button id="accountDeletionBtn" type="button">${ui("Delete cloud account data")}</button></div>
+      <p id="accountDeletionStatus" class="data-panel-status"></p>`;
+  }
+
+  function updateAccountDeletionPanelVisibility(user) {
+    let panel = document.getElementById("accountDeletionPanel");
+    if (panel)
+      panel.hidden = !user || !window.getWorkspaceSyncAccountAccess?.().allowed;
+  }
+
+  function renderAccountDeletionPanel(user) {
+    let container = document.getElementById("accountDeletionPanel");
+    if (!container) return;
+    container.innerHTML = accountDeletionHtml();
+    document
+      .getElementById("accountDeletionBtn")
+      ?.addEventListener("click", runAccountDeletion);
+  }
+
+  async function runAccountDeletion() {
+    let publicProfileName = (window.state.publicProfileDisplayName || "").trim();
+    let warning = publicProfileName
+      ? ui(
+          "A public profile ({name}) may currently be published. Deleting your cloud account data does NOT take it down - that needs the separate revocation step on the Data page's publish panel. ",
+          { name: publicProfileName },
+        )
+      : "";
+    if (
+      !window.confirm(
+        warning +
+          ui(
+            "This downloads a full backup, then permanently deletes every document Firestore holds for this account. It cannot be undone. Continue?",
+          ),
+      )
+    )
+      return;
+
+    let button = document.getElementById("accountDeletionBtn");
+    let status = document.getElementById("accountDeletionStatus");
+    button.disabled = true;
+    button.textContent = ui("Deleting...");
+    let stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    window.downloadDataSnapshot?.(`oskars-pre-deletion-backup-${stamp}.json`);
+
+    let result = await window.deleteCloudAccountData?.();
+    if (result?.ok) {
+      status.textContent = ui(
+        "Deleted and verified {count} section(s). Signing out - your local archive is untouched.",
+        { count: result.sections.length },
+      );
+      await window.signOutOfFirebase?.();
+    } else {
+      let failed = (result?.sections || [])
+        .filter((s) => !s.ok)
+        .map((s) => s.sectionKey);
+      status.textContent = failed.length
+        ? ui("Could not verify deletion for: {sections}. Nothing was signed out - try again.", {
+            sections: failed.join(", "),
+          })
+        : ui("Deletion failed. Nothing was signed out - try again.");
+      button.disabled = false;
+      button.textContent = ui("Delete cloud account data");
+    }
+  }
+
   function render() {
     let finishRenderTimer = window.startOskarsPerformance?.("profile:render");
     let user = window.getFirebaseCurrentUser?.() || null;
     renderAuthSection(user);
     renderPublicProfileNamePanel(user);
     updateCloudSyncPanelVisibility(user);
+    renderAccountDeletionPanel(user);
+    updateAccountDeletionPanelVisibility(user);
     renderConflicts();
     finishRenderTimer?.();
   }

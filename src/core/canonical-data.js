@@ -568,7 +568,7 @@ function canonicalValidateProjects(errors, projects) {
           errors,
           ref,
           refPath,
-          new Set(["id", "projectOrder", "rank", "type"]),
+          new Set(["id", "projectOrder", "rank", "sourceId", "type"]),
         );
         canonicalCheckString(errors, ref.id, `${refPath}.id`, true);
         if (
@@ -579,6 +579,8 @@ function canonicalValidateProjects(errors, projects) {
             `${refPath}.type`,
             "must be archive, watchlist, watched, or official",
           );
+        if (ref.sourceId !== undefined)
+          canonicalCheckString(errors, ref.sourceId, `${refPath}.sourceId`);
       });
     });
   });
@@ -639,9 +641,11 @@ function canonicalValidateOfficialResults(errors, sources) {
           nominationPath,
           new Set([
             "category",
+            "country",
             "detail",
             "filmRef",
             "id",
+            "originalTitle",
             "recipient",
             "sourceTitle",
             "sourceCategory",
@@ -656,7 +660,7 @@ function canonicalValidateOfficialResults(errors, sources) {
             true,
           ),
         );
-        ["recipient", "detail", "sourceCategory"].forEach((field) => {
+        ["recipient", "detail", "sourceCategory", "country", "originalTitle"].forEach((field) => {
           if (nomination[field] !== undefined)
             canonicalCheckString(
               errors,

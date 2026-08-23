@@ -2,6 +2,7 @@
 
 async function initializeEditor() {
   await window.ensureOskarsData();
+  if (window.oskarsAccountAccessBlocked?.()) return;
   let finishRenderTimer = window.startOskarsPerformance?.("editor:render");
   document.body.dataset.editorReady = "true";
   finishRenderTimer?.(

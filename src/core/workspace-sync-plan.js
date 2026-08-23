@@ -1,12 +1,13 @@
 /**
  * @file Pure three-way per-shard sync planning for Firestore workspace sync
- * (issue #248): compares this device's current local shard content against
- * the last value it and the remote account agreed on, and against the
- * remote's current content, deciding push/pull/conflict/noop per shard.
- * Never merges conflicting content and never resolves a genuine concurrent
- * change silently - see docs/firestore-workspace-sync-decision.md. No
- * Firestore access; every input here is a plain revision string, so this
- * file is fully unit-testable without a network or emulator.
+ * (issues #248 and #333): compares this device's current local shard content
+ * against the last value it and the remote account agreed on, validates that
+ * manifest-driven shard reads form one coherent revision set, and computes
+ * bounded retry backoff diagnostics. Never merges conflicting content or
+ * resolves a genuine concurrent change silently - see
+ * docs/firestore-workspace-sync-decision.md. No Firestore access; every input
+ * is plain data, so this file is fully unit-testable without a network or
+ * emulator.
  */
 
 /**
@@ -99,6 +100,84 @@ window.planWorkspaceSectionSync = function (input) {
     else if (plan.action === "conflict") conflictKeys.push(shardKey);
   });
   return { shardKeys, plans, pushKeys, deleteKeys, pullKeys, conflictKeys };
+};
+
+/**
+ * Checks that shard documents fetched from one manifest still belong to that
+ * same manifest after the reads complete. Both the complete manifest and each
+ * requested shard's stored revision must agree; a listed-but-missing shard or
+ * an unlisted-but-present shard is inconsistent too.
+ * @param {Object} input
+ * @param {{shardKeys?: string[], shardRevisions?: Record<string, string>}} input.beforeManifest Manifest used to plan the read.
+ * @param {{shardKeys?: string[], shardRevisions?: Record<string, string>}} input.afterManifest Manifest reread after the shard documents.
+ * @param {Record<string, {exists: boolean, revision?: string}>} input.shardRecords Requested shard existence/revision observations.
+ * @param {string[]} input.shardKeys Shard documents requested for this read.
+ * @returns {boolean} Whether the observations form one coherent revision set.
+ */
+window.workspaceSyncSectionReadIsConsistent = function (input) {
+  let before = input.beforeManifest || {};
+  let after = input.afterManifest || {};
+  let beforeKeys = [...new Set(before.shardKeys || [])].sort();
+  let afterKeys = [...new Set(after.shardKeys || [])].sort();
+  if (beforeKeys.join("\u0000") !== afterKeys.join("\u0000")) return false;
+
+  let beforeRevisions = before.shardRevisions || {};
+  let afterRevisions = after.shardRevisions || {};
+  let revisionKeys = [
+    ...new Set([...Object.keys(beforeRevisions), ...Object.keys(afterRevisions)]),
+  ];
+  if (
+    revisionKeys.some(
+      (key) => String(beforeRevisions[key] || "") !== String(afterRevisions[key] || ""),
+    )
+  )
+    return false;
+
+  let listedKeys = new Set(beforeKeys);
+  let records = input.shardRecords || {};
+  return (input.shardKeys || []).every((shardKey) => {
+    let record = records[shardKey] || { exists: false };
+    if (!listedKeys.has(shardKey)) return record.exists !== true;
+    let expectedRevision = String(beforeRevisions[shardKey] || "");
+    return (
+      Boolean(expectedRevision) &&
+      record.exists === true &&
+      String(record.revision || "") === expectedRevision
+    );
+  });
+};
+
+/**
+ * Advances persisted automatic-sync backoff through a short bounded ladder.
+ * Event triggers consult retryAfter; no timer repeatedly wakes a failing tab.
+ * @param {Object} input
+ * @param {number} [input.previousFailures] Prior consecutive failure count.
+ * @param {number} [input.nowMs] Clock value for deterministic testing.
+ * @returns {{consecutiveFailures: number, delayMs: number, retryAfter: string}} Observable retry state.
+ */
+window.nextWorkspaceSyncBackoff = function (input = {}) {
+  let delays = [2000, 10000, 60000];
+  let previousFailures = Math.max(0, Number(input.previousFailures) || 0);
+  let consecutiveFailures = Math.min(previousFailures + 1, delays.length);
+  let delayMs = delays[consecutiveFailures - 1];
+  let nowMs = Number.isFinite(input.nowMs) ? input.nowMs : Date.now();
+  return {
+    consecutiveFailures,
+    delayMs,
+    retryAfter: new Date(nowMs + delayMs).toISOString(),
+  };
+};
+
+/**
+ * Returns the remaining delay recorded by nextWorkspaceSyncBackoff().
+ * @param {{retryAfter?: string}|null} retry Persisted retry state.
+ * @param {number} [nowMs] Clock value for deterministic testing.
+ * @returns {number} Remaining delay in milliseconds, never negative.
+ */
+window.workspaceSyncBackoffRemainingMs = function (retry, nowMs = Date.now()) {
+  let retryAt = Date.parse(retry?.retryAfter || "");
+  if (!Number.isFinite(retryAt)) return 0;
+  return Math.max(0, retryAt - nowMs);
 };
 
 /**

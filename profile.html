@@ -15,8 +15,10 @@
           <h1>Account</h1>
           <p>
             Sign in with Google to keep this workspace synced across every
-            device signed into the same account. Signing in is optional -
-            everything still works locally without it.
+            device signed into the same account. In the Shared Edition,
+            signing out locks the private browser archive until the same
+            account returns; private deployments may keep account access
+            optional.
           </p>
         </div>
       </div>
@@ -44,6 +46,7 @@
           </div>
           <p id="cloudSyncStatus" class="data-panel-status"></p>
         </section>
+        <section id="accountDeletionPanel" class="data-panel" hidden></section>
         <section
           id="importReport"
           class="data-panel import-report import-report-panel"

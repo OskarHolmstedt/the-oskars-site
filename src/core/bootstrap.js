@@ -236,6 +236,21 @@ window.ensureOskarsData = async function () {
       return window.state;
     }
   }
+  // An account-gated deployment permits anonymous public-profile loading,
+  // but a missing/invalid profile must not fall through into the browser's
+  // private local workspace while signed out. Resolve the ordinary editable
+  // boundary only after the public fetch failed and before window.load()
+  // touches IndexedDB (issue #332).
+  if (profileLoadAttempted) {
+    let access = await window.resolveOskarsAccountAccess?.();
+    if (access && !access.allowed) {
+      window.renderOskarsAccountGate?.(access);
+      doneEnsure?.();
+      return window.state;
+    }
+    window.OSKARS_ACCOUNT_ACCESS_BLOCKED = false;
+    window.monitorRequiredAccountSession?.();
+  }
   let loading = window.load();
   if (loading?.then) await loading;
   let loadInfo = window.getPersistenceLoadInfo?.() || {
@@ -446,6 +461,7 @@ window.ensureOskarsData = async function () {
   // below would otherwise silently overwrite it with something misleading
   // like "Local mode · Empty archive".
   if (!profileLoadAttempted) await showReconciliationStatus(reconciliationPlan);
+  window.noteOskarsDataReadyForSync?.();
   doneEnsure?.();
   return state;
 };

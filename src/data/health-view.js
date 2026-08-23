@@ -94,6 +94,8 @@ window.renderDataHealth = function (
       filmPosters: "Posters improve watched-film card and grid views.",
       watchlistPosters: "Posters keep large watchlist grids scannable.",
       personPortraits: "Portraits improve person pages and comparisons.",
+      watchedOtherUnlinked:
+        "Otherwise only findable through search - link a franchise or director in the source sheet.",
     };
     return details[queue.id] || "";
   }

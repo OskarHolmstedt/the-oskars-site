@@ -97,7 +97,9 @@
     document
       .getElementById("onboardingImportBackup")
       .addEventListener("click", () => {
-        window.location.href = "data.html#letterboxdImport";
+        window.location.href = window.prepareOskarsAccountNavigation(
+          "data.html#letterboxdImport",
+        );
       });
   };
 })();

@@ -1,5 +1,6 @@
 {
-  "artifactSchemaVersion": 1,
+  "accessPolicy": "account",
+  "artifactSchemaVersion": 2,
   "runtimeMode": "local",
-  "sourceCommit": "2a4ea10aa647aa2b9043ab341f503def8e0c45d6"
+  "sourceCommit": "8fc53082f33e81af8f6cf8a160e10abe51e7bd30"
 }

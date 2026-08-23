@@ -8,7 +8,11 @@
  * stay pure and side-effect-free; this is the only file that touches the
  * network, mirroring how firebase-client.js is the only file that touches
  * the Firebase Auth SDK. See docs/firestore-workspace-sync-decision.md for
- * the full design and its rationale.
+ * the full design and its rationale, and
+ * docs/cloud-sync-eligibility-decision.md (issue #336) for the separate
+ * `permission-denied` classification this file surfaces when
+ * `firestore.rules`' eligibility allowlist denies an authenticated-but-
+ * ineligible or revoked account.
  */
 
 let firestoreModulePromise = null;
@@ -16,6 +20,7 @@ let firestoreDbInstance = null;
 let workspaceSyncInFlight = null;
 let workspaceSyncQueued = false;
 let pushDebounceTimer = null;
+const MAX_CONSISTENT_READ_ATTEMPTS = 3;
 
 const RETRYABLE_FIRESTORE_ERROR_CODES = new Set([
   "unavailable",
@@ -96,20 +101,104 @@ async function readSectionManifest(firestoreModule, db, uid, sectionKey) {
   };
 }
 
-async function fetchShardValues(firestoreModule, db, uid, sectionKey, shardKeys) {
+async function fetchShardRecords(firestoreModule, db, uid, sectionKey, shardKeys) {
   let entries = await Promise.all(
     shardKeys.map(async (shardKey) => {
       let snapshot = await firestoreModule.getDoc(
         sectionShardRef(firestoreModule, db, uid, sectionKey, shardKey),
       );
-      return [shardKey, snapshot.exists() ? snapshot.data()?.value : undefined];
+      let data = snapshot.exists() ? snapshot.data() || {} : {};
+      return [
+        shardKey,
+        {
+          exists: snapshot.exists(),
+          value: snapshot.exists() ? data.value : undefined,
+          revision: snapshot.exists() ? String(data.revision || "") : "",
+        },
+      ];
     }),
   );
+  return Object.fromEntries(entries);
+}
+
+/**
+ * Fetches requested shards and accepts them only when their stored revisions
+ * and a post-read manifest still match the manifest used to start the read.
+ */
+async function fetchShardValuesMatchingManifest(
+  firestoreModule,
+  db,
+  uid,
+  sectionKey,
+  manifest,
+  shardKeys,
+) {
+  let records = await fetchShardRecords(
+    firestoreModule,
+    db,
+    uid,
+    sectionKey,
+    shardKeys,
+  );
+  let afterManifest = await readSectionManifest(
+    firestoreModule,
+    db,
+    uid,
+    sectionKey,
+  );
+  if (
+    !window.workspaceSyncSectionReadIsConsistent({
+      beforeManifest: manifest,
+      afterManifest,
+      shardRecords: records,
+      shardKeys,
+    })
+  ) {
+    let error = new Error(
+      `Cloud section changed while reading ${sectionKey}; no shard values were applied`,
+    );
+    error.code = "OSKARS_SYNC_READ_RACE";
+    error.sectionKey = sectionKey;
+    throw error;
+  }
   let values = {};
-  entries.forEach(([shardKey, value]) => {
-    if (value !== undefined) values[shardKey] = value;
+  Object.entries(records).forEach(([shardKey, record]) => {
+    if (record.exists) values[shardKey] = record.value;
   });
   return values;
+}
+
+/**
+ * Repeats a complete manifest-shards-manifest read after a detected race,
+ * bounded so a continuously changing section cannot hold the caller open.
+ */
+async function readSectionSnapshotWithRetry(
+  firestoreModule,
+  db,
+  uid,
+  sectionKey,
+  requestedShardKeys,
+) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= MAX_CONSISTENT_READ_ATTEMPTS; attempt += 1) {
+    let manifest = await readSectionManifest(firestoreModule, db, uid, sectionKey);
+    let shardKeys = requestedShardKeys || manifest.shardKeys;
+    try {
+      let values = await fetchShardValuesMatchingManifest(
+        firestoreModule,
+        db,
+        uid,
+        sectionKey,
+        manifest,
+        shardKeys,
+      );
+      return { manifest, values, attempts: attempt };
+    } catch (err) {
+      if (err?.code !== "OSKARS_SYNC_READ_RACE") throw err;
+      lastError = err;
+    }
+  }
+  throw lastError;
 }
 
 /**
@@ -169,6 +258,15 @@ function isRetryableFirestoreError(err) {
   return RETRYABLE_FIRESTORE_ERROR_CODES.has(String(err?.code || "").replace(/^firestore\//, ""));
 }
 
+// Distinguishes a firestore.rules denial (issue #336's eligibility
+// allowlist, or the underlying tenant-isolation rule) from every other
+// failure - never retryable, and not a transient/offline condition, so it
+// deserves its own explanation rather than folding into the generic
+// hadError "will retry" message below.
+function isUnauthorizedFirestoreError(err) {
+  return String(err?.code || "").replace(/^firestore\//, "") === "permission-denied";
+}
+
 /**
  * Pushes one section's dirty shards with bounded exponential-backoff retry
  * on transient failures. After the final attempt fails (including a
@@ -179,7 +277,7 @@ function isRetryableFirestoreError(err) {
  * silently assumed successful without checking - see
  * docs/canonical-publication-decision.md's identical "uncertain until
  * verified" posture for Sheets write-back, applied here to Firestore.
- * @returns {Promise<{ok: boolean, conflict?: boolean, verifiedAfterError?: boolean, error?: Error}>}
+ * @returns {Promise<{ok: boolean, conflict?: boolean, verifiedAfterError?: boolean, unauthorized?: boolean, error?: Error}>}
  */
 async function pushSectionWithRetryAndVerification(firestoreModule, db, uid, sectionKey, batch) {
   let attempt = 0;
@@ -194,6 +292,12 @@ async function pushSectionWithRetryAndVerification(firestoreModule, db, uid, sec
       if (isRetryableFirestoreError(err) && attempt < maxAttempts) {
         await delay(300 * 2 ** attempt);
         continue;
+      }
+      // A denied write's own manifest re-read below is denied identically,
+      // so there's nothing to verify - the write cannot have landed.
+      if (isUnauthorizedFirestoreError(err)) {
+        console.error(`Cloud sync push denied for section ${sectionKey}`, err);
+        return { ok: false, unauthorized: true, error: err };
       }
       let manifest = await readSectionManifest(firestoreModule, db, uid, sectionKey).catch(
         () => null,
@@ -256,7 +360,27 @@ function remoteSyncState() {
   return window.state.draftMetadata?.remoteSync || { shards: {}, conflicts: [] };
 }
 
-async function processSectionSync(firestoreModule, db, uid, sectionKey, canonical) {
+function currentWorkspaceSyncAccountAccess(user = currentFirebaseUser()) {
+  return window.planOskarsWorkspaceAccount?.({
+    currentUid: user?.uid,
+    browserUid: window.getOskarsBrowserAccountUid?.(),
+    syncUid: remoteSyncState().uid,
+  }) || { allowed: false, status: "unlinked" };
+}
+
+/** Returns the account-lineage guard used by every Firestore operation. @returns {Object} */
+window.getWorkspaceSyncAccountAccess = function () {
+  return currentWorkspaceSyncAccountAccess();
+};
+
+async function processSectionSync(
+  firestoreModule,
+  db,
+  uid,
+  sectionKey,
+  canonical,
+  consistentReadAttempt = 1,
+) {
   let manifest = await readSectionManifest(firestoreModule, db, uid, sectionKey);
   let { shards: localShards, revisions: localShardRevisions } = shardRevisionsOf(
     sectionKey,
@@ -281,6 +405,7 @@ async function processSectionSync(firestoreModule, db, uid, sectionKey, canonica
     conflicts: [],
     pulledValue: undefined,
     hadError: false,
+    unauthorized: false,
     lastSyncedShardRevisions,
   };
 
@@ -295,7 +420,14 @@ async function processSectionSync(firestoreModule, db, uid, sectionKey, canonica
 
   if (plan.pullKeys.length) {
     try {
-      let pulledValues = await fetchShardValues(firestoreModule, db, uid, sectionKey, plan.pullKeys);
+      let pulledValues = await fetchShardValuesMatchingManifest(
+        firestoreModule,
+        db,
+        uid,
+        sectionKey,
+        manifest,
+        plan.pullKeys,
+      );
       let mergedShardValues = { ...localShards };
       plan.pullKeys.forEach((shardKey) => {
         if (shardKey in pulledValues) mergedShardValues[shardKey] = pulledValues[shardKey];
@@ -305,7 +437,24 @@ async function processSectionSync(firestoreModule, db, uid, sectionKey, canonica
       result.pulledValue = window.reassembleWorkspaceSection(sectionKey, mergedShardValues);
       result.pulledCount = plan.pullKeys.length;
     } catch (err) {
-      console.error(`Cloud sync pull failed for section ${sectionKey}`, err);
+      if (
+        err?.code === "OSKARS_SYNC_READ_RACE" &&
+        consistentReadAttempt < MAX_CONSISTENT_READ_ATTEMPTS
+      )
+        return processSectionSync(
+          firestoreModule,
+          db,
+          uid,
+          sectionKey,
+          canonical,
+          consistentReadAttempt + 1,
+        );
+      if (isUnauthorizedFirestoreError(err)) {
+        console.error(`Cloud sync pull denied for section ${sectionKey}`, err);
+        result.unauthorized = true;
+      } else {
+        console.error(`Cloud sync pull failed for section ${sectionKey}`, err);
+      }
       result.hadError = true;
     }
   }
@@ -373,6 +522,7 @@ async function processSectionSync(firestoreModule, db, uid, sectionKey, canonica
         );
       } else {
         result.hadError = true;
+        if (pushed.unauthorized) result.unauthorized = true;
       }
     }
   }
@@ -396,8 +546,30 @@ async function processSectionSync(firestoreModule, db, uid, sectionKey, canonica
 
 async function performWorkspaceSync(options = {}) {
   if (!window.oskarsPersistenceAllowed?.()) return { ok: true, reason: "not-allowed" };
+  if (window.OSKARS_DATA_READY !== true) return { ok: true, reason: "not-ready" };
   let user = currentFirebaseUser();
   if (!user) return { ok: true, reason: "signed-out" };
+  let syncReason = String(options.reason || "");
+  let previousRemoteSync = remoteSyncState();
+  let accountAccess = currentWorkspaceSyncAccountAccess(user);
+  if (!accountAccess.allowed)
+    return { ok: false, reason: accountAccess.status };
+  let claimedAccount = Boolean(accountAccess.claim);
+  let retryRemainingMs = window.workspaceSyncBackoffRemainingMs?.(
+    previousRemoteSync.retry,
+  );
+  if (
+    syncReason !== "manual" &&
+    syncReason !== "conflict-resolution" &&
+    retryRemainingMs > 0
+  ) {
+    return {
+      ok: false,
+      reason: "backoff",
+      retryAfter: previousRemoteSync.retry.retryAfter,
+      retryRemainingMs,
+    };
+  }
   let ready = await ensureFirestoreDb();
   if (!ready) return { ok: false, reason: "unconfigured" };
   let { firestoreModule, db } = ready;
@@ -409,7 +581,7 @@ async function performWorkspaceSync(options = {}) {
     sectionKeys.map((sectionKey) =>
       processSectionSync(firestoreModule, db, uid, sectionKey, canonical).catch((err) => {
         console.error(`Cloud sync failed for section ${sectionKey}`, err);
-        return { sectionKey, pushedCount: 0, pulledCount: 0, conflicts: [], hadError: true, lastSyncedShardRevisions: remoteSyncState().shards?.[sectionKey] || {} };
+        return { sectionKey, pushedCount: 0, pulledCount: 0, conflicts: [], hadError: true, unauthorized: false, lastSyncedShardRevisions: remoteSyncState().shards?.[sectionKey] || {} };
       }),
     ),
   );
@@ -420,6 +592,7 @@ async function performWorkspaceSync(options = {}) {
   let pushedCount = 0;
   let pulledCount = 0;
   let hadError = false;
+  let unauthorized = false;
   sectionResults.forEach((result) => {
     nextShards[result.sectionKey] = result.lastSyncedShardRevisions;
     if (result.pulledValue !== undefined) pulledSectionValues[result.sectionKey] = result.pulledValue;
@@ -427,31 +600,66 @@ async function performWorkspaceSync(options = {}) {
     pushedCount += result.pushedCount;
     pulledCount += result.pulledCount;
     hadError = hadError || result.hadError;
+    unauthorized = unauthorized || Boolean(result.unauthorized);
   });
 
   applyPulledSectionValues(pulledSectionValues);
 
+  let retry =
+    hadError && !unauthorized
+      ? window.nextWorkspaceSyncBackoff?.({
+          previousFailures: previousRemoteSync.retry?.consecutiveFailures,
+        })
+      : null;
+
   window.state.draftMetadata = {
     ...(window.state.draftMetadata || {}),
     remoteSync: {
+      uid: user.uid,
       shards: nextShards,
       lastSyncAt: new Date().toISOString(),
-      lastSyncReason: String(options.reason || ""),
+      lastSyncReason: syncReason,
       lastPushCount: pushedCount,
       lastPullCount: pulledCount,
       conflicts,
       hadError,
+      unauthorized,
+      ...(retry ? { retry } : {}),
     },
   };
 
   let stateChanged = Object.keys(pulledSectionValues).length > 0;
-  if (stateChanged || pushedCount || conflicts.length || hadError) {
-    let saving = window.save({ immediate: true, rebuild: false });
+  let clearedPriorFailure = Boolean(
+    previousRemoteSync.hadError ||
+      previousRemoteSync.unauthorized ||
+      previousRemoteSync.retry,
+  );
+  if (
+    stateChanged ||
+    pushedCount ||
+    conflicts.length ||
+    hadError ||
+    clearedPriorFailure ||
+    claimedAccount
+  ) {
+    let saving = window.save({
+      immediate: true,
+      rebuild: false,
+      scheduleSync: false,
+    });
     if (saving?.then) await saving;
   }
 
-  window.reportWorkspaceSyncStatus?.({ pushedCount, pulledCount, conflicts, hadError, stateChanged });
-  return { ok: !hadError, pushedCount, pulledCount, conflicts, hadError };
+  window.reportWorkspaceSyncStatus?.({ pushedCount, pulledCount, conflicts, hadError, unauthorized, stateChanged });
+  return {
+    ok: !hadError,
+    pushedCount,
+    pulledCount,
+    conflicts,
+    hadError,
+    unauthorized,
+    ...(retry ? { retry } : {}),
+  };
 }
 
 /**
@@ -491,12 +699,24 @@ window.runWorkspaceSync = function (options = {}) {
  * rather than one per keystroke. A no-op when signed out or unconfigured.
  */
 window.scheduleWorkspaceSync = function () {
-  if (!currentFirebaseUser()) return;
+  if (window.OSKARS_DATA_READY !== true || !currentFirebaseUser()) return;
   if (pushDebounceTimer) clearTimeout(pushDebounceTimer);
   pushDebounceTimer = setTimeout(() => {
     pushDebounceTimer = null;
     window.runWorkspaceSync({ reason: "after-save" });
   }, 2000);
+};
+
+/**
+ * Marks private state as fully hydrated and starts the first cloud sync only
+ * after IndexedDB loading, migration, repair, and any required local save have
+ * completed. This prevents an early auth callback from syncing the empty
+ * initial state over a pre-account browser archive.
+ */
+window.noteOskarsDataReadyForSync = function () {
+  if (window.OSKARS_DATA_READY === true) return;
+  window.OSKARS_DATA_READY = true;
+  if (currentFirebaseUser()) window.runWorkspaceSync({ reason: "data-ready" });
 };
 
 /**
@@ -506,11 +726,13 @@ window.scheduleWorkspaceSync = function () {
  * @returns {Array<{sectionKey: string, shardKey: string, localRevision: string, remoteRevision: string}>}
  */
 window.getWorkspaceSyncConflicts = function () {
+  if (!currentWorkspaceSyncAccountAccess().allowed) return [];
   return remoteSyncState().conflicts || [];
 };
 
 function recordShardSynced(sectionKey, shardKey, revision) {
   let remoteSync = window.cloneRecord(remoteSyncState());
+  remoteSync.uid = currentFirebaseUser()?.uid || remoteSync.uid || "";
   remoteSync.shards = remoteSync.shards || {};
   remoteSync.shards[sectionKey] = remoteSync.shards[sectionKey] || {};
   if (revision) remoteSync.shards[sectionKey][shardKey] = revision;
@@ -535,15 +757,31 @@ function recordShardSynced(sectionKey, shardKey, revision) {
  */
 window.resolveWorkspaceSyncConflict = async function (sectionKey, shardKey, resolution) {
   let user = currentFirebaseUser();
+  let accountAccess = currentWorkspaceSyncAccountAccess(user);
+  if (!accountAccess.allowed)
+    return { ok: false, reason: accountAccess.status };
   let ready = user ? await ensureFirestoreDb() : null;
   if (!ready || !user) return { ok: false, reason: "unavailable" };
   let { firestoreModule, db } = ready;
   let uid = user.uid;
-  let manifest = await readSectionManifest(firestoreModule, db, uid, sectionKey);
-  let remoteRevision = manifest.shardRevisions[shardKey] || "";
 
   if (resolution === "keep-remote") {
-    let pulledValues = await fetchShardValues(firestoreModule, db, uid, sectionKey, [shardKey]);
+    let remoteRead;
+    try {
+      remoteRead = await readSectionSnapshotWithRetry(
+        firestoreModule,
+        db,
+        uid,
+        sectionKey,
+        [shardKey],
+      );
+    } catch (err) {
+      if (err?.code === "OSKARS_SYNC_READ_RACE")
+        return { ok: false, reason: "changed-again" };
+      throw err;
+    }
+    let remoteRevision = remoteRead.manifest.shardRevisions[shardKey] || "";
+    let pulledValues = remoteRead.values;
     let canonical = window.getCanonicalData(window.state, { clone: false });
     let { shards: localShards } = window.chunkWorkspaceSection(sectionKey, canonical[sectionKey]);
     let mergedShardValues = { ...localShards };
@@ -553,11 +791,18 @@ window.resolveWorkspaceSyncConflict = async function (sectionKey, shardKey, reso
       [sectionKey]: window.reassembleWorkspaceSection(sectionKey, mergedShardValues),
     });
     recordShardSynced(sectionKey, shardKey, remoteRevision);
-    let saving = window.save({ immediate: true, rebuild: false });
+    let saving = window.save({
+      immediate: true,
+      rebuild: false,
+      scheduleSync: false,
+    });
     if (saving?.then) await saving;
+    window.runWorkspaceSync({ reason: "conflict-resolution" });
     return { ok: true };
   }
 
+  let manifest = await readSectionManifest(firestoreModule, db, uid, sectionKey);
+  let remoteRevision = manifest.shardRevisions[shardKey] || "";
   let canonical = window.getCanonicalData(window.state, { clone: false });
   let { shards: localShards } = window.chunkWorkspaceSection(sectionKey, canonical[sectionKey]);
   let localExists = shardKey in localShards;
@@ -570,8 +815,13 @@ window.resolveWorkspaceSyncConflict = async function (sectionKey, shardKey, reso
   });
   if (!pushed.ok) return { ok: false, reason: pushed.conflict ? "changed-again" : "error" };
   recordShardSynced(sectionKey, shardKey, newRevision);
-  let saving = window.save({ immediate: true, rebuild: false });
+  let saving = window.save({
+    immediate: true,
+    rebuild: false,
+    scheduleSync: false,
+  });
   if (saving?.then) await saving;
+  window.runWorkspaceSync({ reason: "conflict-resolution" });
   return { ok: true };
 };
 
@@ -586,10 +836,14 @@ window.resolveWorkspaceSyncConflict = async function (sectionKey, shardKey, reso
  * time rather than a dedicated multi-conflict review page, proportionate
  * to a personal archive where concurrent edits to the same shard are rare).
  * A quiet, uneventful pass (nothing pushed, pulled, or conflicted) reports
- * nothing, leaving the prior "Saved locally" status visible.
- * @param {{pushedCount: number, pulledCount: number, conflicts: Array, hadError: boolean}} outcome
+ * nothing, leaving the prior "Saved locally" status visible. A denied
+ * request (issue #336: this account isn't on the deployment's cloud-sync
+ * eligibility allowlist, or was just revoked from it) reports a distinct,
+ * non-retrying message rather than the generic transient-failure one -
+ * changes stay saved locally either way, just unsynced.
+ * @param {{pushedCount: number, pulledCount: number, conflicts: Array, hadError: boolean, unauthorized?: boolean}} outcome
  */
-window.reportWorkspaceSyncStatus = function ({ pushedCount, pulledCount, conflicts, hadError }) {
+window.reportWorkspaceSyncStatus = function ({ pushedCount, pulledCount, conflicts, hadError, unauthorized }) {
   if (conflicts && conflicts.length) {
     let first = conflicts[0];
     let label =
@@ -610,11 +864,145 @@ window.reportWorkspaceSyncStatus = function ({ pushedCount, pulledCount, conflic
     ]);
     return;
   }
+  if (unauthorized) {
+    window.showStorageStatus?.(
+      "Cloud sync unavailable for this account — changes are saved locally on this device only",
+      "warning",
+    );
+    return;
+  }
   if (hadError) {
     window.showStorageStatus?.("Cloud sync paused — will retry", "warning");
     return;
   }
   if (pushedCount || pulledCount) window.showStorageStatus?.("Synced to cloud", "saved");
+};
+
+/**
+ * Deletes one document with the same bounded-retry posture as
+ * pushSectionWithRetryAndVerification, adapted for deletes: there's no
+ * revision precondition to violate, so any failure past retry is verified
+ * by re-reading the document rather than trusting the error - a delete
+ * must never be reported as failed when it actually landed, nor reported
+ * as succeeded when the document is still there (issue #254).
+ * @returns {Promise<{ok: boolean, verifiedAfterError?: boolean}>}
+ */
+async function deleteDocWithRetryAndVerification(firestoreModule, ref) {
+  let attempt = 0;
+  let maxAttempts = 3;
+  while (true) {
+    attempt += 1;
+    try {
+      await firestoreModule.deleteDoc(ref);
+      return { ok: true };
+    } catch (err) {
+      if (isRetryableFirestoreError(err) && attempt < maxAttempts) {
+        await delay(300 * 2 ** attempt);
+        continue;
+      }
+      let stillExists = await firestoreModule
+        .getDoc(ref)
+        .then((snap) => snap.exists())
+        .catch(() => true);
+      if (!stillExists) return { ok: true, verifiedAfterError: true };
+      console.error("Cloud account deletion failed for a document", ref.path, err);
+      return { ok: false, error: err };
+    }
+  }
+}
+
+/**
+ * Deletes every shard plus the manifest for one section, using the
+ * manifest's own shardKeys as the authoritative enumeration - the same
+ * list performWorkspaceSync/fetchCanonicalDataFromCloud already trust,
+ * so nothing needs guessing.
+ * @returns {Promise<{sectionKey: string, ok: boolean, shardCount: number, failedCount: number}>}
+ */
+async function deleteSectionRemoteData(firestoreModule, db, uid, sectionKey) {
+  let manifest = await readSectionManifest(firestoreModule, db, uid, sectionKey);
+  let refs = manifest.shardKeys.map((shardKey) =>
+    sectionShardRef(firestoreModule, db, uid, sectionKey, shardKey),
+  );
+  refs.push(sectionManifestRef(firestoreModule, db, uid, sectionKey));
+  let results = await Promise.all(
+    refs.map((ref) => deleteDocWithRetryAndVerification(firestoreModule, ref)),
+  );
+  return {
+    sectionKey,
+    ok: results.every((r) => r.ok),
+    shardCount: manifest.shardKeys.length,
+    failedCount: results.filter((r) => !r.ok).length,
+  };
+}
+
+/**
+ * Permanently deletes every Firestore document this account owns (every
+ * section's manifest and shards) and verifies removal, satisfying issue
+ * #254's "deletion enumerates and verifies removal of owned remote data."
+ * Data-only: never calls Firebase Auth's account-deletion API (see
+ * docs/account-deletion-decision.md) - the signed-in identity is left
+ * intact but empty, so signing back in later just bootstraps fresh.
+ *
+ * On full success, this device's remoteSync shard bookkeeping is reset to
+ * empty while retaining the owning UID, rather than left stale - critical,
+ * not cosmetic: a stale
+ * lastSyncedShardRevisions after the remote is wiped would make
+ * planWorkspaceShardSync see every untouched shard as remote-changed
+ * (remote revision now "" vs. the old synced hash) with local unchanged,
+ * which resolves to a *pull* - and a pull of a shard the remote no longer
+ * has deletes it from local state too (processSectionSync's pull branch).
+ * Left unfixed, the very next sign-in/reconnect/focus sync after a
+ * deletion would silently wipe local data - exactly what this issue exists
+ * to prevent. Resetting to empty instead lands every shard on the
+ * never-synced bootstrap path, which re-pushes local content as the new
+ * baseline.
+ * @returns {Promise<{ok: boolean, sections: Array<{sectionKey: string, ok: boolean, shardCount: number, failedCount: number}>}>}
+ */
+window.deleteCloudAccountData = async function () {
+  if (!window.oskarsPersistenceAllowed?.()) return { ok: false, reason: "not-allowed", sections: [] };
+  let user = currentFirebaseUser();
+  if (!user) return { ok: false, reason: "signed-out", sections: [] };
+  let accountAccess = currentWorkspaceSyncAccountAccess(user);
+  if (!accountAccess.allowed)
+    return { ok: false, reason: accountAccess.status, sections: [] };
+  let ready = await ensureFirestoreDb();
+  if (!ready) return { ok: false, reason: "unconfigured", sections: [] };
+  let { firestoreModule, db } = ready;
+  let uid = user.uid;
+
+  // Close the window where an unrelated debounced/in-flight sync could
+  // race a delete against the data this is about to wipe.
+  if (pushDebounceTimer) {
+    clearTimeout(pushDebounceTimer);
+    pushDebounceTimer = null;
+  }
+  if (workspaceSyncInFlight) await workspaceSyncInFlight.catch(() => {});
+
+  let sectionKeys = window.OSKARS_CANONICAL_SECTION_KEYS || [];
+  let sections = await Promise.all(
+    sectionKeys.map((sectionKey) =>
+      deleteSectionRemoteData(firestoreModule, db, uid, sectionKey).catch((err) => {
+        console.error(`Cloud account deletion failed for section ${sectionKey}`, err);
+        return { sectionKey, ok: false, shardCount: 0, failedCount: 1, error: err };
+      }),
+    ),
+  );
+  let ok = sections.every((s) => s.ok);
+
+  if (ok) {
+    window.state.draftMetadata = {
+      ...(window.state.draftMetadata || {}),
+      remoteSync: { uid, shards: {}, conflicts: [] },
+    };
+    let saving = window.save({
+      immediate: true,
+      rebuild: false,
+      scheduleSync: false,
+    });
+    if (saving?.then) await saving;
+  }
+
+  return { ok, sections };
 };
 
 /**
@@ -630,6 +1018,9 @@ window.reportWorkspaceSyncStatus = function ({ pushedCount, pulledCount, conflic
 window.fetchCanonicalDataFromCloud = async function () {
   let user = currentFirebaseUser();
   if (!user) return { ok: false, error: "signed-out" };
+  let accountAccess = currentWorkspaceSyncAccountAccess(user);
+  if (!accountAccess.allowed)
+    return { ok: false, error: accountAccess.status };
   let ready = await ensureFirestoreDb();
   if (!ready) return { ok: false, error: "unconfigured" };
   let { firestoreModule, db } = ready;
@@ -638,15 +1029,16 @@ window.fetchCanonicalDataFromCloud = async function () {
     let sectionKeys = window.OSKARS_CANONICAL_SECTION_KEYS || [];
     let sections = await Promise.all(
       sectionKeys.map(async (sectionKey) => {
-        let manifest = await readSectionManifest(firestoreModule, db, uid, sectionKey);
-        let shardValues = await fetchShardValues(
+        let remoteRead = await readSectionSnapshotWithRetry(
           firestoreModule,
           db,
           uid,
           sectionKey,
-          manifest.shardKeys,
         );
-        return [sectionKey, window.reassembleWorkspaceSection(sectionKey, shardValues)];
+        return [
+          sectionKey,
+          window.reassembleWorkspaceSection(sectionKey, remoteRead.values),
+        ];
       }),
     );
     let canonical = { canonicalSchemaVersion: window.OSKARS_CANONICAL_SCHEMA_VERSION };
@@ -665,13 +1057,24 @@ window.fetchCanonicalDataFromCloud = async function () {
 // persistence itself is disallowed (runWorkspaceSync/scheduleWorkspaceSync
 // both check that). Not a live onSnapshot listener anywhere here -
 // real-time collaboration is an explicit non-goal (#243).
-window.onFirebaseAuthChange?.((user) => {
-  if (user) window.runWorkspaceSync({ reason: "sign-in" });
+window.onFirebaseAuthChange?.((user, meta) => {
+  if (user && window.OSKARS_DATA_READY === true)
+    window.runWorkspaceSync({ reason: "sign-in" });
+  else if (meta && meta.deliberate === false)
+    window.showStorageStatus?.(
+      "Session ended — your local work is safe. Sign in again anytime.",
+      "warning",
+    );
 });
 window.addEventListener?.("online", () => {
-  if (currentFirebaseUser()) window.runWorkspaceSync({ reason: "reconnect" });
+  if (currentFirebaseUser() && window.OSKARS_DATA_READY === true)
+    window.runWorkspaceSync({ reason: "reconnect" });
 });
 document.addEventListener?.("visibilitychange", () => {
-  if (document.visibilityState === "visible" && currentFirebaseUser())
+  if (
+    document.visibilityState === "visible" &&
+    currentFirebaseUser() &&
+    window.OSKARS_DATA_READY === true
+  )
     window.runWorkspaceSync({ reason: "focus" });
 });

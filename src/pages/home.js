@@ -221,6 +221,7 @@
   window
     .ensureOskarsData()
     .then(() => {
+      if (window.oskarsAccountAccessBlocked?.()) return;
       if (
         window.shouldShowOnboarding({
           runtimeMode: window.getRuntimeMode(),

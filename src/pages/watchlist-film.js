@@ -431,10 +431,11 @@
         return;
       }
       await result.persisted;
-      window.location.href =
+      window.location.href = window.prepareOskarsAccountNavigation(
         result.target.type === "archive"
           ? window.filmPageUrl(result.target.id)
-          : window.intakePageUrl(result.workflow.id);
+          : window.intakePageUrl(result.workflow.id),
+      );
       return;
     }
     let form = event.target.closest("#watchlistFilmForm");

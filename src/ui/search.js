@@ -66,6 +66,30 @@
       }),
     );
 
+    // Standalone watched works with no archive appearance (issue #67) - they
+    // share the ranked archive's own film detail page (issue #290), so the
+    // target/href shape matches the "Film" entries above exactly; only the
+    // type label and richer searchable text (director, franchise
+    // memberships) differ, since these entries have no poster/awards page of
+    // their own to surface that context.
+    (window.state.watchedOther || []).forEach((film) =>
+      entries.push({
+        type: "Other watched",
+        name: film.title,
+        meta: film.year || "",
+        searchText: [
+          film.director || (film.directors || []).join(", "),
+          film.swedishTitle || "",
+          window.formatFranchiseMemberships?.(film.franchises) || "",
+        ]
+          .filter(Boolean)
+          .join(" "),
+        year: film.year || "",
+        target: { type: "watched-other", id: film.id },
+        href: window.filmPageUrl(film.id),
+      }),
+    );
+
     (window.state.watchlist || []).forEach((item) => {
       let archiveFilm = window.findWatchlistArchiveFilm?.(item);
       let film = window.watchlistFilmLike?.(item, archiveFilm) || item;

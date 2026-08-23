@@ -137,6 +137,7 @@
     if (path === "watchlist-film.html") return "watchlist";
     if (path === "projects.html" || path === "project.html") return "projects";
     if (path === "compare.html") return "compare";
+    if (path === "community.html") return "community";
     if (path === "data.html") return "data";
     if (path === "editor.html") return "editor";
     if (path === "index.html" || !path) return "home";
@@ -250,7 +251,7 @@
     return `<div class="site-menu-account" data-auth-status>${authStatusInnerHtml(escape)}</div>
     <section class="site-menu-categories"><h2>${escape(headerText("menu.categories", "Categories"))}</h2><div class="site-menu-links"><a href="categories.html"><b>${escape(headerText("menu.browseCategories", "Browse all categories"))}</b></a>${categories}</div></section>
     <section><h2>${escape(headerText("menu.periods", "Periods"))}</h2><div class="site-menu-links site-menu-periods"><a href="periods.html"><b>${escape(headerText("menu.browsePeriods", "Browse all periods"))}</b></a>${periodLinks}</div></section>
-    <section><h2>${escape(headerText("menu.elsewhere", "Elsewhere"))}</h2><div class="site-menu-links"><a href="discover.html">${escape(headerText("menu.discover", "Discover"))}</a><a href="compare.html">${escape(headerText("nav.compare", "Compare"))}</a><a href="presentation.html">${escape(headerText("menu.showcase", "Showcase"))}</a><a href="completion.html">${escape(headerText("menu.completion", "Completion"))}</a><a href="stats.html">${escape(headerText("menu.statistics", "Statistics"))}</a><a href="people.html">${escape(headerText("menu.people", "People"))}</a><a href="directors.html">${escape(headerText("menu.directors", "Directors"))}</a><a href="tags.html">${escape(headerText("menu.tags", "Tags"))}</a>${ownerLinks}</div></section>`;
+    <section><h2>${escape(headerText("menu.elsewhere", "Elsewhere"))}</h2><div class="site-menu-links"><a href="community.html">${escape(headerText("menu.community", "Community"))}</a><a href="discover.html">${escape(headerText("menu.discover", "Discover"))}</a><a href="compare.html">${escape(headerText("nav.compare", "Compare"))}</a><a href="presentation.html">${escape(headerText("menu.showcase", "Showcase"))}</a><a href="completion.html">${escape(headerText("menu.completion", "Completion"))}</a><a href="stats.html">${escape(headerText("menu.statistics", "Statistics"))}</a><a href="people.html">${escape(headerText("menu.people", "People"))}</a><a href="directors.html">${escape(headerText("menu.directors", "Directors"))}</a><a href="tags.html">${escape(headerText("menu.tags", "Tags"))}</a>${ownerLinks}</div></section>`;
   }
 
   function updateLanguageToggle(button) {
@@ -372,7 +373,19 @@
       header.dataset.authDelegationBound = "true";
       header.addEventListener("click", async (event) => {
         if (event.target.closest("[data-google-sign-out]")) {
-          await window.signOutOfFirebase?.();
+          if (
+            window.confirm(
+              headerText(
+                window.oskarsRequiredAccountSession?.()
+                  ? "auth.confirmSignOutRequired"
+                  : "auth.confirmSignOut",
+                window.oskarsRequiredAccountSession?.()
+                  ? "Sign out and lock this browser's private archive? Nothing is deleted; the same account can reopen it later."
+                  : "Stop cloud sync and continue locally? You can sign in again anytime.",
+              ),
+            )
+          )
+            await window.signOutOfFirebase?.();
         }
       });
     }
@@ -459,7 +472,10 @@
       let match = searchMatchList.length
         ? searchMatchList[activeResultIndex >= 0 ? activeResultIndex : 0]
         : siteSearchMatches(getSearchEntries(), searchInput.value)[0];
-      if (match) window.location.href = match.href;
+      if (match)
+        window.location.href = window.prepareOskarsAccountNavigation(
+          match.href,
+        );
     });
     searchForm?.addEventListener("focusout", () => {
       setTimeout(() => {

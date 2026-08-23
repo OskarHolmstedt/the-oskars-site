@@ -147,7 +147,10 @@
 
   container.addEventListener("change", (event) => {
     let select = event.target.closest("[data-rate-watched-year]");
-    if (select) window.location.href = pageUrl(select.value);
+    if (select)
+      window.location.href = window.prepareOskarsAccountNavigation(
+        pageUrl(select.value),
+      );
   });
 
   container.addEventListener("submit", async (event) => {

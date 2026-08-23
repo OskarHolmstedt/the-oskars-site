@@ -196,9 +196,26 @@
   }
 
   rebuildPeriodViewModel();
+  // Academy Awards first (the primary source, and the only one with a
+  // personal-pick comparison), then every other populated source
+  // alphabetically - matches completion.js's own source ordering.
+  let officialSourceIds =
+    type === "year"
+      ? Object.keys(window.state?.officialResults || {}).sort(
+          (left, right) =>
+            (left === "academy-awards" ? -1 : right === "academy-awards" ? 1 : 0) ||
+            left.localeCompare(right),
+        )
+      : [];
   let officialResult =
     type === "year" ? window.officialResultsPeriod(key) : null;
-  let hasOfficialResults = Boolean(officialResult);
+  let officialResultsBySource = officialSourceIds
+    .map((sourceId) => ({
+      sourceId,
+      result: window.officialResultsPeriod(key, sourceId),
+    }))
+    .filter((entry) => entry.result);
+  let hasOfficialResults = officialResultsBySource.length > 0;
   let countryValues = [
     ...new Set(
       allFilms.flatMap((film) => window.countryListValues(film.country)),
@@ -1126,7 +1143,9 @@
         periodCompareValues(left, right, periodOrder, periodDirection, false),
       );
     }
-    let officialNominations = officialResult?.period?.nominations || [];
+    let officialNominations = officialResultsBySource.flatMap(
+      (entry) => entry.result.period?.nominations || [],
+    );
     let pageTotal =
       viewMode === "official"
         ? officialNominations.length
@@ -1293,11 +1312,19 @@
     ${viewMode === "films" || viewMode === "other" || viewMode === "rewatch" || viewMode === "watchlist" ? `<div class="detail-toolbar">${periodOrderControls()}<div class="period-toolbar-actions">${viewMode === "films" ? `<button type="button" class="sort-order-button sort-order-button--icon period-film-scope-toggle${scope === "all" ? " is-active" : ""}" title="${periodEscape(ui(scope === "all" ? "Showing all films" : "Showing nominees only"))}" aria-label="${periodEscape(ui("Toggle films shown"))}" aria-pressed="${scope === "all" ? "true" : "false"}" data-period-film-scope-toggle ${hasNominees ? "" : "disabled"}>${periodEscape(ui("All"))}</button>` : ""}${(viewMode === "films" || viewMode === "rewatch") && layout === "grid" ? `<a class="sort-order-button" href="${periodEscape(periodViewUrl({ showAwards: !showAwards }))}">${periodEscape(showAwards ? ui("Hide awards") : ui("Show awards"))}</a>` : ""}${window.renderFilmViewToggle({ view: layout, listUrl: periodViewUrl({ layout: "list" }), gridUrl: periodViewUrl({ layout: "grid" }), escape: periodEscape, classes: "period-film-view-toggle", ariaLabel: ui("Period film display") })}</div></div>` : ""}
     ${
       viewMode === "official"
-        ? window.renderPeriodOfficialResults({
-            ...officialResult,
-            personalComparison: officialComparison,
-            escape: periodEscape,
-          })
+        ? officialResultsBySource
+            .map((entry) =>
+              window.renderPeriodOfficialResults({
+                ...entry.result,
+                // Personal-pick comparison only exists for Academy Awards
+                // (issue #345 non-goal: other sources have no personal
+                // category counterpart to compare against).
+                personalComparison:
+                  entry.sourceId === "academy-awards" ? officialComparison : null,
+                escape: periodEscape,
+              }),
+            )
+            .join("")
         : viewMode === "rewatch"
           ? `${renderRewatchTierFilter()}<fieldset class="period-filter-controls"><legend>${periodEscape(ui("Rewatchlist filters"))}</legend>${filmRuntimeFilterInputsHtml()}</fieldset>${pagination}${pageTotal ? (layout === "grid" ? `<div class="film-grid period-film-grid">${filmCards}</div>` : renderPeriodFilmList(visibleFilmPage, { showRewatchTier: true })) : `<p class="detail-empty">${periodEscape(ui("No films are marked for rewatch yet."))}</p>`}${pagination}`
         : viewMode === "other"
@@ -1659,7 +1686,9 @@
     }
     let card = event.target.closest("[data-open-film-id]");
     if (!card || event.target.closest("a,button,input,label")) return;
-    window.location.href = window.filmPageUrl(card.dataset.openFilmId);
+    window.location.href = window.prepareOskarsAccountNavigation(
+      window.filmPageUrl(card.dataset.openFilmId),
+    );
   });
   container.addEventListener("submit", (event) => {
     let form = event.target.closest("[data-decade-merge-form]");
@@ -1917,6 +1946,8 @@
     let card = event.target.closest("[data-open-film-id]");
     if (!card || event.target.closest("a,button,input,label")) return;
     event.preventDefault();
-    window.location.href = window.filmPageUrl(card.dataset.openFilmId);
+    window.location.href = window.prepareOskarsAccountNavigation(
+      window.filmPageUrl(card.dataset.openFilmId),
+    );
   });
 })();

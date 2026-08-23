@@ -426,11 +426,13 @@
   container
     .querySelector?.("[data-tag-sort]")
     ?.addEventListener("change", (event) => {
-      window.location.href = tagViewUrl({
-        sort: event.target.value,
-        order: window.defaultOrderForFilmAxis(event.target.value),
-        resetPages: true,
-      });
+      window.location.href = window.prepareOskarsAccountNavigation(
+        tagViewUrl({
+          sort: event.target.value,
+          order: window.defaultOrderForFilmAxis(event.target.value),
+          resetPages: true,
+        }),
+      );
     });
   container.addEventListener("click", (event) => {
     let watchedButton = event.target.closest?.("[data-tag-watched-page]");
@@ -439,31 +441,39 @@
     let button = watchedButton || watchlistButton || combinedButton;
     if (!button) return;
     event.preventDefault();
-    window.location.href = tagViewUrl(
-      watchedButton
-        ? { watchedPage: button.dataset.tagWatchedPage }
-        : watchlistButton
-          ? { watchlistPage: button.dataset.tagWatchlistPage }
-          : { page: button.dataset.tagCombinedPage },
+    window.location.href = window.prepareOskarsAccountNavigation(
+      tagViewUrl(
+        watchedButton
+          ? { watchedPage: button.dataset.tagWatchedPage }
+          : watchlistButton
+            ? { watchlistPage: button.dataset.tagWatchlistPage }
+            : { page: button.dataset.tagCombinedPage },
+      ),
     );
   });
   container
     .querySelector?.("[data-tag-watchlist-order-edit-toggle]")
     ?.addEventListener("click", () => {
       watchlistOrderEditMode = !watchlistOrderEditMode;
-      window.location.href = tagViewUrl();
+      window.location.href = window.prepareOskarsAccountNavigation(
+        tagViewUrl(),
+      );
     });
   container
     .querySelector?.("[data-tag-local-rank-edit-toggle]")
     ?.addEventListener("click", () => {
       localRankEditMode = !localRankEditMode;
-      window.location.href = tagViewUrl();
+      window.location.href = window.prepareOskarsAccountNavigation(
+        tagViewUrl(),
+      );
     });
   window.bindWatchlistBulkTierControl({
     container,
     entries: () => watchlistItems,
     rerender: () => {
-      window.location.href = tagViewUrl();
+      window.location.href = window.prepareOskarsAccountNavigation(
+        tagViewUrl(),
+      );
     },
   });
   window.createOrderEditController({
@@ -477,7 +487,9 @@
       window.moveWatchlistItemWithinTier?.(from.id, target.id, position),
     rerender: () => {
       window.save?.({ immediate: true, rebuild: false });
-      window.location.href = tagViewUrl();
+      window.location.href = window.prepareOskarsAccountNavigation(
+        tagViewUrl(),
+      );
     },
   });
   window.createOrderEditController({
@@ -498,7 +510,9 @@
         : { ok: false },
     rerender: () => {
       window.save?.({ immediate: true, rebuild: false });
-      window.location.href = tagViewUrl();
+      window.location.href = window.prepareOskarsAccountNavigation(
+        tagViewUrl(),
+      );
     },
   });
   window.bindEntityNoteEditor(container);
