@@ -156,21 +156,131 @@
       conflicts
         .map(
           (conflict) =>
-            `<div class="cloud-sync-conflict-row"><span>${escape(conflict.sectionKey)} / ${escape(conflict.shardKey)}</span><button type="button" data-resolve="keep-local" data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Keep this device's version")}</button><button type="button" data-resolve="keep-remote" data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Use the other device's version")}</button></div>`,
+            `<div class="cloud-sync-conflict-item"><div class="cloud-sync-conflict-row"><span>${escape(conflict.sectionKey)} / ${escape(conflict.shardKey)}</span><button type="button" data-preview data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Preview changes")}</button><button type="button" data-resolve="keep-local" data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Keep this device's version")}</button><button type="button" data-resolve="keep-remote" data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Use the other device's version")}</button></div><div class="cloud-sync-conflict-preview" hidden></div></div>`,
         )
         .join("");
   }
 
+  // Bounded record list rendering shared by the added/removed/changed
+  // groups: first 5 entries visible, the rest behind a native <details> (no
+  // new JS state needed), plus a plain overflow note if the diff itself
+  // already truncated beyond its own cap (issue #334 - "bounded... allow
+  // expansion when detail is needed", not a raw per-record dump).
+  function conflictPreviewGroupHtml(label, group) {
+    if (!group || !group.total) return "";
+    let visible = group.entries.slice(0, 5);
+    let rest = group.entries.slice(5);
+    let restHtml = rest.length
+      ? `<details><summary>${ui("+{count} more", { count: rest.length })}</summary><ul>${rest.map((entry) => `<li>${escape(entry.label)}</li>`).join("")}</ul></details>`
+      : "";
+    let truncatedHtml =
+      group.total > group.entries.length
+        ? `<p class="cloud-sync-conflict-preview-truncated">${ui("(+{count} more not shown)", { count: group.total - group.entries.length })}</p>`
+        : "";
+    return `<div class="cloud-sync-conflict-preview-group"><h4>${escape(label)}</h4><ul>${visible.map((entry) => `<li>${escape(entry.label)}</li>`).join("")}</ul>${restHtml}${truncatedHtml}</div>`;
+  }
+
+  function renderConflictPreview(container, diff) {
+    if (diff.kind === "opaque") {
+      container.innerHTML = `<p>${ui("This section's content differs between devices. Individual changes can't be previewed for this data type.")}</p>`;
+      return;
+    }
+    if (!diff.changed) {
+      container.innerHTML = `<p>${ui("No content differences found.")}</p>`;
+      return;
+    }
+    let groups =
+      conflictPreviewGroupHtml(
+        ui("The other device's version would add"),
+        { entries: diff.added, total: diff.addedTotal },
+      ) +
+      conflictPreviewGroupHtml(
+        ui("Using the other device's version would discard"),
+        { entries: diff.removed, total: diff.removedTotal },
+      ) +
+      conflictPreviewGroupHtml(
+        ui("The other device's version would change"),
+        { entries: diff.changedRecords, total: diff.changedTotal },
+      );
+    container.innerHTML =
+      groups ||
+      `<p>${ui("Content differs, but no individual record changes were found (a field outside per-record tracking may differ).")}</p>`;
+  }
+
+  async function handleConflictPreviewClick(button) {
+    let section = button.dataset.section;
+    let shard = button.dataset.shard;
+    let container = button
+      .closest(".cloud-sync-conflict-item")
+      ?.querySelector(".cloud-sync-conflict-preview");
+    if (!container) return;
+    button.disabled = true;
+    container.hidden = false;
+    container.innerHTML = `<p>${ui("Loading preview...")}</p>`;
+    let result = await window.previewWorkspaceSyncConflict?.(section, shard);
+    button.disabled = false;
+    if (!result?.ok) {
+      container.innerHTML = `<p>${ui("Could not load preview. Try again.")}</p>`;
+      return;
+    }
+    renderConflictPreview(container, result.diff);
+  }
+
+  async function restoreSyncConflictRecovery(status) {
+    if (
+      typeof window.confirm === "function" &&
+      !window.confirm(
+        ui("Restore the workspace content retained before this conflict was resolved?"),
+      )
+    )
+      return;
+    let restored = await window.restoreRecoveryWorkspace?.();
+    if (restored && typeof window.location?.reload === "function") {
+      window.location.reload();
+      return;
+    }
+    if (status)
+      status.textContent = restored
+        ? ui("Restored.")
+        : ui("Nothing to restore.");
+  }
+
   async function handleConflictResolveClick(event) {
+    let preview = event.target.closest("[data-preview]");
+    if (preview) {
+      await handleConflictPreviewClick(preview);
+      return;
+    }
     let button = event.target.closest("[data-resolve]");
     if (!button) return;
+    if (
+      button.dataset.resolve === "keep-remote" &&
+      typeof window.confirm === "function" &&
+      !window.confirm(
+        ui("Use the other device's version? This device's current version will be retained for recovery."),
+      )
+    )
+      return;
     button.disabled = true;
-    await window.resolveWorkspaceSyncConflict?.(
+    let result = await window.resolveWorkspaceSyncConflict?.(
       button.dataset.section,
       button.dataset.shard,
       button.dataset.resolve,
     );
     renderConflicts();
+    if (result?.ok && button.dataset.resolve === "keep-remote") {
+      let status = document.getElementById("cloudSyncStatus");
+      if (status && (await window.readRecoveryWorkspace?.())) {
+        let restoreLink = document.createElement("button");
+        restoreLink.type = "button";
+        restoreLink.textContent = ui("Restore previous");
+        restoreLink.addEventListener("click", () =>
+          restoreSyncConflictRecovery(status),
+        );
+        status.textContent = "";
+        status.append(`${ui("Resolved.")} `, restoreLink);
+      }
+    }
   }
 
   async function runManualCloudSync() {

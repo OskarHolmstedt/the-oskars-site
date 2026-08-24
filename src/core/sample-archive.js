@@ -135,6 +135,7 @@ window.OSKARS_SAMPLE_ARCHIVE = {
   watchlistProjectSources: {},
   peopleAliases: {},
   rejectedPersonAliases: [],
+  declinedOfficialWatchlistAdds: [],
   personPortraits: {},
   franchiseLinks: {},
   directorLinks: {},

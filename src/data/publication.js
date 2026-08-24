@@ -12,7 +12,16 @@ function publicationRecordCount(value) {
   return value === undefined || value === null ? 0 : 1;
 }
 
-function publicationRecords(value) {
+/**
+ * Extracts [identity, record] pairs from an array or map, for per-record
+ * change detection. Identity is a record's own id, or "title:year" for
+ * films, or its map key. Exported so other pure diff logic (issue #334's
+ * shard-level conflict preview, src/core/workspace-sections.js) can reuse
+ * the exact same identity convention instead of re-deriving it.
+ * @param {Array|Object} value Collection to extract records from.
+ * @returns {Array<[string, *]>} Identity/record pairs.
+ */
+window.publicationRecords = function (value) {
   if (Array.isArray(value))
     return value.map((record, index) => [
       String(record?.id || `${record?.title || "record"}:${record?.year || index}`),
@@ -20,11 +29,11 @@ function publicationRecords(value) {
     ]);
   if (value && typeof value === "object") return Object.entries(value);
   return [["$value", value]];
-}
+};
 
 function publicationChangedRecordCount(before, after) {
-  let beforeRecords = new Map(publicationRecords(before));
-  let afterRecords = new Map(publicationRecords(after));
+  let beforeRecords = new Map(window.publicationRecords(before));
+  let afterRecords = new Map(window.publicationRecords(after));
   let identities = new Set([...beforeRecords.keys(), ...afterRecords.keys()]);
   return [...identities].filter(
     (identity) =>

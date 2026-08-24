@@ -3,9 +3,8 @@
 let ui = window.uiText || ((text) => text);
 let pendingGoogleImportProposal = null;
 let pendingJsonImportProposal = null;
-let pendingOfficialResultsProposal = null;
-let pendingOfficialResultsCannesProposal = null;
 let pendingLetterboxdImportProposal = null;
+let opinionRebuildComparisonRevealed = false;
 
 function updateGoogleFoundationControls() {
   let option = document.querySelector(
@@ -28,6 +27,7 @@ function renderDataWorkspace() {
   window.renderPublicProfilePublication?.(
     document.getElementById("publicProfilePublicationView"),
   );
+  renderOpinionRebuildView(document.getElementById("opinionRebuildView"));
   updateGoogleFoundationControls();
   window.renderDataHealth(document.getElementById("dataHealthView"), {
     refresh: true,
@@ -67,6 +67,72 @@ function editLogTimeLabel(value) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function opinionRebuildRowsHtml(rows, emptyText, rowHtml) {
+  if (!rows.length) return `<p class="data-panel-status">${editLogEscape(emptyText)}</p>`;
+  return `<ul class="opinion-rebuild-differences">${rows
+    .slice(0, 20)
+    .map(rowHtml)
+    .join("")}</ul>`;
+}
+
+function renderOpinionRebuildComparison(comparison) {
+  let ratingChanges = comparison.ratingRows.filter((row) => row.delta !== 0);
+  let rankChanges = comparison.rankRows.filter((row) => row.delta !== 0);
+  return `<div class="opinion-rebuild-comparison">
+    <section><h3>${editLogEscape(ui("Biggest rating changes"))}</h3>${opinionRebuildRowsHtml(
+      ratingChanges,
+      ui("No rebuilt rating changes to compare yet."),
+      (row) => `<li><strong>${editLogEscape(row.title)}</strong><span>${row.before.toFixed(1)} → ${row.after.toFixed(1)} ★</span></li>`,
+    )}</section>
+    <section><h3>${editLogEscape(ui("Biggest ranking moves"))}</h3>${opinionRebuildRowsHtml(
+      rankChanges,
+      ui("No confirmed rebuilt ranks to compare yet."),
+      (row) => `<li><strong>${editLogEscape(row.title)}</strong><span>${editLogEscape(row.scope)} #${row.before} → #${row.after}</span></li>`,
+    )}</section>
+    <section><h3>${editLogEscape(ui("Award placement changes"))}</h3>${opinionRebuildRowsHtml(
+      comparison.awardRows,
+      ui("No award placement changes to compare yet."),
+      (row) => {
+        let record = row.after || row.before;
+        return `<li><strong>${editLogEscape(record.title)}</strong><span>${editLogEscape(record.year)} · ${editLogEscape(record.category)} · ${row.before ? editLogEscape(ui("removed")) : editLogEscape(ui("added"))} #${record.placement}</span></li>`;
+      },
+    )}</section>
+  </div>`;
+}
+
+function renderOpinionRebuildView(container) {
+  if (!container) return;
+  let comparison = window.compareOpinionRebuild?.();
+  if (!comparison) {
+    container.classList.remove("opinion-rebuild-active");
+    container.innerHTML = `<div>
+      <h2>${editLogEscape(ui("Blind opinion rebuild"))}</h2>
+      <p>${editLogEscape(ui("Hide your current ratings, rankings, personal awards, and other opinions while you rebuild them from scratch. The originals stay private and can be restored or deliberately compared at any time."))}</p>
+    </div><div class="data-actions"><button id="startOpinionRebuildBtn" type="button">${editLogEscape(ui("Start blind rebuild"))}</button></div>`;
+    return;
+  }
+  container.classList.add("opinion-rebuild-active");
+  let complete = comparison.status === "complete";
+  let comparisonVisible = complete || opinionRebuildComparisonRevealed;
+  let started = editLogTimeLabel(comparison.startedAt);
+  container.innerHTML = `<div class="opinion-rebuild-heading">
+    <div><p class="eyebrow">${editLogEscape(ui(complete ? "Blind rebuild complete" : "Blind rebuild active"))}</p><h2>${editLogEscape(ui(complete ? "Compare your original and rebuilt opinions" : "Your original opinions are hidden"))}</h2><p>${editLogEscape(ui(complete ? "The rebuilt opinions are now active. Your private baseline remains available here until you close this comparison." : "Started {date}. Ordinary pages use only the opinions you add during this rebuild.", { date: started }))}</p></div>
+    ${complete ? "" : `<a class="button-link" href="build.html">${editLogEscape(ui("Continue rebuilding"))}</a>`}
+  </div>
+  <div class="opinion-rebuild-progress">
+    <div><b>${comparison.currentRated}</b><span>${editLogEscape(ui("ratings rebuilt"))}</span></div>
+    <div><b>${comparison.comparedRanks}</b><span>${editLogEscape(ui("ranks comparable"))}</span></div>
+    <div><b>${comparison.currentAwardCount}</b><span>${editLogEscape(ui("award placements rebuilt"))}</span></div>
+  </div>
+  <p class="data-panel-status">${editLogEscape(ui("The baseline contains {ratings} ratings and {awards} award placements.", { ratings: comparison.baselineRated, awards: comparison.baselineAwardCount }))}</p>
+  <div class="data-actions">
+    ${complete ? "" : `<button id="toggleOpinionRebuildComparisonBtn" type="button">${editLogEscape(ui(opinionRebuildComparisonRevealed ? "Hide comparison" : "Compare progress"))}</button>`}
+    <button id="restoreOpinionRebuildBtn" type="button" class="button-secondary">${editLogEscape(ui("Restore original opinions"))}</button>
+    ${complete ? `<button id="closeOpinionRebuildBtn" type="button">${editLogEscape(ui("Close comparison"))}</button>` : `<button id="finishOpinionRebuildBtn" type="button">${editLogEscape(ui("Finish and compare"))}</button>`}
+  </div>
+  ${comparisonVisible ? renderOpinionRebuildComparison(comparison) : ""}`;
 }
 
 function editLogTargetLink(entry) {
@@ -455,130 +521,6 @@ async function applyLetterboxdImportProposal() {
   button.textContent = ui("Applied to draft");
 }
 
-async function previewOfficialResultsFile(event) {
-  let input = event.currentTarget;
-  let file = input.files?.[0];
-  let button = document.getElementById("officialResultsApplyBtn");
-  let status = document.getElementById("officialResultsStatus");
-  pendingOfficialResultsProposal = null;
-  button.disabled = true;
-  if (!file) return;
-  if (status) status.textContent = ui("Reading and validating official results...");
-  try {
-    let proposal = window.proposeOfficialResultsImport(await file.text(), {
-      fileName: file.name,
-    });
-    pendingOfficialResultsProposal = proposal;
-    window.showImportReport?.(
-      window.compactImportReport?.(proposal.report, { preview: true }) ||
-        proposal.report,
-    );
-    button.disabled = !proposal.allowed;
-    if (status)
-      status.textContent = proposal.allowed
-        ? ui(
-            "Official-results refresh is ready. No local data changed; review the report before applying.",
-          )
-        : `${ui("Proposal blocked.")} ${proposal.validation.errors.map((entry) => entry.message).join(" ")}`;
-  } catch (err) {
-    console.error("Official results preview failed", err);
-    if (status) status.textContent = err.message || String(err);
-  } finally {
-    input.value = "";
-  }
-}
-
-async function applyOfficialResultsProposal() {
-  let button = document.getElementById("officialResultsApplyBtn");
-  let status = document.getElementById("officialResultsStatus");
-  if (!pendingOfficialResultsProposal) return;
-  button.disabled = true;
-  button.textContent = ui("Applying...");
-  let result = await window.applyImportProposal(
-    pendingOfficialResultsProposal,
-  );
-  if (!result.ok) {
-    if (status) status.textContent = result.errors.join(" ");
-    button.textContent = ui("Apply failed");
-    return;
-  }
-  pendingOfficialResultsProposal = null;
-  if (status)
-    status.textContent = ui(
-      "Official results refreshed in the local draft. Publish canonical JSON separately.",
-    );
-  renderDataWorkspace();
-  button = document.getElementById("officialResultsApplyBtn");
-  button.disabled = true;
-  button.textContent = ui("Applied to draft");
-}
-
-// Mirrors previewOfficialResultsFile/applyOfficialResultsProposal above for
-// a second official-results source (issue #342) - a separate panel/pending
-// proposal/button triplet rather than a shared dynamic picker, matching
-// this file's existing per-panel wiring style for every other import
-// source (Letterboxd, Google Sheets, JSON, Oscars).
-async function previewOfficialResultsCannesFile(event) {
-  let input = event.currentTarget;
-  let file = input.files?.[0];
-  let button = document.getElementById("officialResultsCannesApplyBtn");
-  let status = document.getElementById("officialResultsCannesStatus");
-  pendingOfficialResultsCannesProposal = null;
-  button.disabled = true;
-  if (!file) return;
-  if (status) status.textContent = ui("Reading and validating official results...");
-  try {
-    let proposal = window.proposeOfficialResultsImport(await file.text(), {
-      sourceId: "cannes",
-      sourceName: "Cannes Film Festival",
-      singleWinnerCategory: "Palme d'Or",
-      fileName: file.name,
-    });
-    pendingOfficialResultsCannesProposal = proposal;
-    window.showImportReport?.(
-      window.compactImportReport?.(proposal.report, { preview: true }) ||
-        proposal.report,
-    );
-    button.disabled = !proposal.allowed;
-    if (status)
-      status.textContent = proposal.allowed
-        ? ui(
-            "Official-results refresh is ready. No local data changed; review the report before applying.",
-          )
-        : `${ui("Proposal blocked.")} ${proposal.validation.errors.map((entry) => entry.message).join(" ")}`;
-  } catch (err) {
-    console.error("Official Cannes results preview failed", err);
-    if (status) status.textContent = err.message || String(err);
-  } finally {
-    input.value = "";
-  }
-}
-
-async function applyOfficialResultsCannesProposal() {
-  let button = document.getElementById("officialResultsCannesApplyBtn");
-  let status = document.getElementById("officialResultsCannesStatus");
-  if (!pendingOfficialResultsCannesProposal) return;
-  button.disabled = true;
-  button.textContent = ui("Applying...");
-  let result = await window.applyImportProposal(
-    pendingOfficialResultsCannesProposal,
-  );
-  if (!result.ok) {
-    if (status) status.textContent = result.errors.join(" ");
-    button.textContent = ui("Apply failed");
-    return;
-  }
-  pendingOfficialResultsCannesProposal = null;
-  if (status)
-    status.textContent = ui(
-      "Official results refreshed in the local draft. Publish canonical JSON separately.",
-    );
-  renderDataWorkspace();
-  button = document.getElementById("officialResultsCannesApplyBtn");
-  button.disabled = true;
-  button.textContent = ui("Applied to draft");
-}
-
 function handleAliasAction(event) {
   let openQueue = event.target.closest("[data-data-health-open-queue]");
   if (openQueue) {
@@ -895,12 +837,101 @@ async function runDangerZoneAction({
   }, 1400);
 }
 
+async function persistOpinionRebuildChange() {
+  let saving = window.save({ immediate: true, rebuild: false });
+  if (saving?.then) await saving;
+  renderDataWorkspace();
+}
+
+async function handleOpinionRebuildAction(event) {
+  if (event.target.closest("#toggleOpinionRebuildComparisonBtn")) {
+    opinionRebuildComparisonRevealed = !opinionRebuildComparisonRevealed;
+    renderOpinionRebuildView(document.getElementById("opinionRebuildView"));
+    return;
+  }
+  if (event.target.closest("#startOpinionRebuildBtn")) {
+    if (
+      !confirm(
+        ui(
+          "Start a blind opinion rebuild? Your current opinions will be stored privately and hidden from ordinary pages while you rebuild. A backup downloads first.",
+        ),
+      )
+    )
+      return;
+    window.downloadDataSnapshot?.(
+      `oskars-data-backup-before-blind-rebuild-${new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")}.json`,
+    );
+    window.startOpinionRebuild();
+    opinionRebuildComparisonRevealed = false;
+    await persistOpinionRebuildChange();
+    return;
+  }
+  if (event.target.closest("#restoreOpinionRebuildBtn")) {
+    if (
+      !confirm(
+        ui(
+          "Restore the original opinions? Opinions added during this rebuild will be discarded, while factual archive changes stay. A backup of the current rebuild downloads first.",
+        ),
+      )
+    )
+      return;
+    window.downloadDataSnapshot?.(
+      `oskars-data-backup-before-opinion-restore-${new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")}.json`,
+    );
+    window.restoreOpinionRebuildBaseline();
+    opinionRebuildComparisonRevealed = false;
+    await persistOpinionRebuildChange();
+    return;
+  }
+  if (event.target.closest("#finishOpinionRebuildBtn")) {
+    if (
+      !confirm(
+        ui(
+          "Finish the blind rebuild and compare with the originals? Rebuilt opinions become final, while the private baseline stays available until you close the comparison. A backup downloads first.",
+        ),
+      )
+    )
+      return;
+    window.downloadDataSnapshot?.(
+      `oskars-data-backup-before-opinion-rebuild-finish-${new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")}.json`,
+    );
+    window.finishOpinionRebuild();
+    opinionRebuildComparisonRevealed = true;
+    await persistOpinionRebuildChange();
+    return;
+  }
+  if (event.target.closest("#closeOpinionRebuildBtn")) {
+    if (
+      !confirm(
+        ui(
+          "Close this comparison? The rebuilt opinions stay, but the original baseline will be removed after a backup downloads.",
+        ),
+      )
+    )
+      return;
+    window.downloadDataSnapshot?.(
+      `oskars-data-backup-before-opinion-comparison-close-${new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")}.json`,
+    );
+    window.discardOpinionRebuildBaseline();
+    opinionRebuildComparisonRevealed = false;
+    await persistOpinionRebuildChange();
+  }
+}
+
 async function initializeDataWorkspace() {
   await window.ensureOskarsData();
   if (window.oskarsAccountAccessBlocked?.()) return;
-  let settings = window.getPosterSettings();
-  document.getElementById("wikimediaFallbackInput").checked =
-    settings.wikimediaFallback;
+  document
+    .getElementById("opinionRebuildView")
+    ?.addEventListener("click", handleOpinionRebuildAction);
   let googleSheetsStatus = document.getElementById("googleSheetsStatus");
   if (googleSheetsStatus && !window.googleSheetsImportConfigured()) {
     googleSheetsStatus.textContent = ui(
@@ -981,18 +1012,6 @@ async function initializeDataWorkspace() {
     .getElementById("jsonImportApplyBtn")
     .addEventListener("click", applyJsonImportProposal);
   document
-    .getElementById("officialResultsInput")
-    .addEventListener("change", previewOfficialResultsFile);
-  document
-    .getElementById("officialResultsApplyBtn")
-    .addEventListener("click", applyOfficialResultsProposal);
-  document
-    .getElementById("officialResultsCannesInput")
-    .addEventListener("change", previewOfficialResultsCannesFile);
-  document
-    .getElementById("officialResultsCannesApplyBtn")
-    .addEventListener("click", applyOfficialResultsCannesProposal);
-  document
     .getElementById("dismissImportReport")
     .addEventListener("click", window.hideImportReport);
   document
@@ -1007,21 +1026,6 @@ async function initializeDataWorkspace() {
   document
     .getElementById("metadataBatchReport")
     .addEventListener("click", window.handleMetadataBatchReportAction);
-  document
-    .getElementById("imageSettingsForm")
-    .addEventListener("submit", (event) => {
-      event.preventDefault();
-      window.savePosterSettings({
-        wikimediaFallback: document.getElementById("wikimediaFallbackInput")
-          .checked,
-      });
-      event.currentTarget.querySelector("button").textContent = ui("Saved");
-      setTimeout(() => {
-        event.currentTarget.querySelector("button").textContent = ui(
-          "Save image settings",
-        );
-      }, 1200);
-    });
   document
     .getElementById("metadataBatchBtn")
     .addEventListener("click", window.runMetadataBatch);

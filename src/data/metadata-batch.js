@@ -177,10 +177,7 @@ function metadataBatchElements() {
 }
 
 function metadataBatchSettings() {
-  return window.savePosterSettings({
-    wikimediaFallback: document.getElementById("wikimediaFallbackInput")
-      .checked,
-  });
+  return window.getPosterSettings();
 }
 
 function emptyMetadataBatchResult() {
@@ -249,7 +246,11 @@ async function runMetadataBatchType(type, options) {
 }
 
 function metadataBatchRequiresTmdb(type) {
-  return type.includes("metadata") || type === "person-portraits";
+  return (
+    type.includes("metadata") ||
+    type.includes("posters") ||
+    type === "person-portraits"
+  );
 }
 
 // Explicit retry of this session's failed lookups for one queue type

@@ -15,12 +15,8 @@
           <p>
             Review Letterboxd, Google Sheets, and JSON proposals, publish
             canonical data, keep a portable backup, inspect health, and
-            configure image retrieval.
+            fetch TMDB images.
           </p>
-        </div>
-        <div class="data-actions">
-          <a class="button-link" href="intake.html">Open Intake</a>
-          <a class="button-link" href="editor.html">Open Editor</a>
         </div>
       </div>
 
@@ -78,52 +74,6 @@
           <p id="googleSheetsStatus" class="data-panel-status"></p>
         </section>
 
-        <section class="data-panel">
-          <h2>Official Oscars results</h2>
-          <p>
-            Preview a bracket-shaped TSV or the long-form historical Oscars
-            export as official winners and nominees. Only categories used by
-            this app are retained. This refresh never changes personal awards,
-            ranks, films, or edit history.
-          </p>
-          <div class="data-actions">
-            <label class="button-link"
-              >Preview official file<input
-                id="officialResultsInput"
-                type="file"
-                accept="text/tab-separated-values,text/plain,text/csv,.tsv,.txt,.csv"
-                hidden
-            /></label>
-            <button id="officialResultsApplyBtn" type="button" disabled>
-              Apply reviewed refresh
-            </button>
-          </div>
-          <p id="officialResultsStatus" class="data-panel-status"></p>
-        </section>
-
-        <section class="data-panel">
-          <h2>Official Cannes results</h2>
-          <p>
-            Preview a single-winner-per-year TSV (Year, Film, Director,
-            Country, SourceCategory columns) as the Cannes Film Festival's
-            top-prize history. This refresh never changes personal awards,
-            ranks, films, or edit history.
-          </p>
-          <div class="data-actions">
-            <label class="button-link"
-              >Preview Cannes file<input
-                id="officialResultsCannesInput"
-                type="file"
-                accept="text/tab-separated-values,text/plain,text/csv,.tsv,.txt,.csv"
-                hidden
-            /></label>
-            <button id="officialResultsCannesApplyBtn" type="button" disabled>
-              Apply reviewed refresh
-            </button>
-          </div>
-          <p id="officialResultsCannesStatus" class="data-panel-status"></p>
-        </section>
-
         <div class="data-panel-stack">
           <section class="data-panel">
             <h2>Backup &amp; restore</h2>
@@ -158,6 +108,7 @@
           </section>
           <section id="canonicalPublicationView" class="data-panel"></section>
           <section id="publicProfilePublicationView" class="data-panel"></section>
+          <section id="opinionRebuildView" class="data-panel"></section>
           <section class="data-panel data-danger-zone">
             <div>
               <h2>Clear local data</h2>
@@ -260,16 +211,6 @@
                   max="2100"
               /></label>
               <button type="submit">Remove awards</button>
-            </form>
-          </section>
-          <section class="data-panel">
-            <h2>Image settings</h2>
-            <form id="imageSettingsForm" class="data-form">
-              <label
-                ><input id="wikimediaFallbackInput" type="checkbox" checked />
-                Use Wikimedia for film posters when TMDB is unavailable</label
-              >
-              <button type="submit">Save image settings</button>
             </form>
           </section>
           <section class="data-panel">

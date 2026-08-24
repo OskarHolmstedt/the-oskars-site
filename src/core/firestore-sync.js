@@ -56,6 +56,13 @@ function delay(ms) {
 function firestoreSdkUrl() {
   return `https://www.gstatic.com/firebasejs/${window.OSKARS_FIREBASE_SDK_VERSION || "12.17.1"}/firebase-firestore.js`;
 }
+// Exposed for src/core/shared-archive-sync.js (a separate, read-only pull
+// path against a different Firestore location) to reuse the exact same
+// SDK-loading/error-classification mechanics below, instead of a second
+// copy that could drift. Generic Firestore plumbing, not per-user sync
+// business logic, so promoting these four doesn't change this file's role
+// as "the only file that touches /users/<uid>/sections/...".
+window.firestoreSdkUrl = firestoreSdkUrl;
 
 /**
  * Loads the Firestore SDK and attaches it to the shared signed-in Firebase
@@ -74,6 +81,7 @@ async function ensureFirestoreDb() {
   if (!firestoreDbInstance) firestoreDbInstance = firestoreModule.getFirestore(appReady.app);
   return { firestoreModule, db: firestoreDbInstance };
 }
+window.ensureFirestoreDb = ensureFirestoreDb;
 
 function currentFirebaseUser() {
   return window.getFirebaseCurrentUser?.() || null;
@@ -257,6 +265,7 @@ async function pushSectionTransaction(firestoreModule, db, uid, sectionKey, batc
 function isRetryableFirestoreError(err) {
   return RETRYABLE_FIRESTORE_ERROR_CODES.has(String(err?.code || "").replace(/^firestore\//, ""));
 }
+window.isRetryableFirestoreError = isRetryableFirestoreError;
 
 // Distinguishes a firestore.rules denial (issue #336's eligibility
 // allowlist, or the underlying tenant-isolation rule) from every other
@@ -266,6 +275,7 @@ function isRetryableFirestoreError(err) {
 function isUnauthorizedFirestoreError(err) {
   return String(err?.code || "").replace(/^firestore\//, "") === "permission-denied";
 }
+window.isUnauthorizedFirestoreError = isUnauthorizedFirestoreError;
 
 /**
  * Pushes one section's dirty shards with bounded exponential-backoff retry
@@ -746,10 +756,12 @@ function recordShardSynced(sectionKey, shardKey, revision) {
 /**
  * Resolves one recorded conflict by an explicit owner choice - never
  * automatic. "keep-remote" adopts the cloud value for this shard,
- * discarding this device's conflicting local content. "keep-local"
- * force-pushes this device's current content, re-checking the remote
- * revision at write time (not from the stale conflict snapshot), so a
- * third concurrent change is caught fresh instead of blindly overwritten.
+ * discarding this device's conflicting local content - retained first via
+ * saveRecoveryWorkspace (issue #334), a hard precondition that aborts the
+ * replacement if retention itself fails. "keep-local" force-pushes this
+ * device's current content, re-checking the remote revision at write time
+ * (not from the stale conflict snapshot), so a third concurrent change is
+ * caught fresh instead of blindly overwritten.
  * @param {string} sectionKey Section the conflicted shard belongs to.
  * @param {string} shardKey Conflicted shard key.
  * @param {'keep-local'|'keep-remote'} resolution Owner's explicit choice.
@@ -787,6 +799,16 @@ window.resolveWorkspaceSyncConflict = async function (sectionKey, shardKey, reso
     let mergedShardValues = { ...localShards };
     if (shardKey in pulledValues) mergedShardValues[shardKey] = pulledValues[shardKey];
     else delete mergedShardValues[shardKey];
+    // Hard precondition, same shape as applyImportProposal's own
+    // recovery-before-replace guard (src/data/import-proposals.js) and the
+    // pattern docs/firestore-workspace-sync-decision.md already names for
+    // this exact case: this device's conflicting shard content must be
+    // retained before it's discarded, not just fetched and merged away.
+    let retained = await window.saveRecoveryWorkspace(
+      window.getBrowserPersistenceState(),
+      { reason: `workspace-sync-conflict:${sectionKey}:${shardKey}` },
+    );
+    if (!retained) return { ok: false, reason: "recovery-failed" };
     applyPulledSectionValues({
       [sectionKey]: window.reassembleWorkspaceSection(sectionKey, mergedShardValues),
     });
@@ -823,6 +845,51 @@ window.resolveWorkspaceSyncConflict = async function (sectionKey, shardKey, reso
   if (saving?.then) await saving;
   window.runWorkspaceSync({ reason: "conflict-resolution" });
   return { ok: true };
+};
+
+/**
+ * Fetches both sides of a conflicted shard and summarizes what differs,
+ * for an informed choice before resolveWorkspaceSyncConflict (issue #334).
+ * Read-only - nothing is written or applied. Reuses the exact same local-
+ * shard computation and remote fetch (readSectionSnapshotWithRetry) that
+ * resolveWorkspaceSyncConflict's own branches already perform.
+ * @param {string} sectionKey Section the conflicted shard belongs to.
+ * @param {string} shardKey Conflicted shard key.
+ * @returns {Promise<{ok: boolean, reason?: string, diff?: Object}>}
+ */
+window.previewWorkspaceSyncConflict = async function (sectionKey, shardKey) {
+  let user = currentFirebaseUser();
+  let accountAccess = currentWorkspaceSyncAccountAccess(user);
+  if (!accountAccess.allowed)
+    return { ok: false, reason: accountAccess.status };
+  let ready = user ? await ensureFirestoreDb() : null;
+  if (!ready || !user) return { ok: false, reason: "unavailable" };
+  let { firestoreModule, db } = ready;
+  let uid = user.uid;
+
+  let canonical = window.getCanonicalData(window.state, { clone: false });
+  let { shards: localShards } = window.chunkWorkspaceSection(sectionKey, canonical[sectionKey]);
+  let localValue = localShards[shardKey];
+
+  let remoteRead;
+  try {
+    remoteRead = await readSectionSnapshotWithRetry(
+      firestoreModule,
+      db,
+      uid,
+      sectionKey,
+      [shardKey],
+    );
+  } catch (err) {
+    if (err?.code === "OSKARS_SYNC_READ_RACE")
+      return { ok: false, reason: "changed-again" };
+    throw err;
+  }
+  let remoteValue = remoteRead.values[shardKey];
+  return {
+    ok: true,
+    diff: window.workspaceShardRecordDiff(sectionKey, localValue, remoteValue),
+  };
 };
 
 /**

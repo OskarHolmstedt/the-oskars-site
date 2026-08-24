@@ -462,6 +462,7 @@ window.ensureOskarsData = async function () {
   // like "Local mode · Empty archive".
   if (!profileLoadAttempted) await showReconciliationStatus(reconciliationPlan);
   window.noteOskarsDataReadyForSync?.();
+  window.noteOskarsDataReadyForSharedArchivePull?.();
   doneEnsure?.();
   return state;
 };

@@ -669,6 +669,44 @@ window.setWatchlistMetadata = function (id, values, options = {}) {
 };
 
 /**
+ * Removes one item from the watchlist entirely (as opposed to marking it
+ * watched, which is a transition, not a removal). Always records the id
+ * into `state.declinedOfficialWatchlistAdds` (issue: shared official-results
+ * archive) so the shared archive's automatic reconciliation never re-adds
+ * this exact title+year again - harmless to record for a non-official item,
+ * since that reconciliation only ever consults the set for official
+ * candidates. This exclusion is scoped to that one automatic path only: a
+ * manual re-add (the existing Completion-page "Add unseen" button) or any
+ * other import path is never blocked by it.
+ * @param {string} id Watchlist identifier.
+ * @param {Object} [options] Logging and persistence options.
+ * @returns {boolean} Whether an item was removed.
+ */
+window.removeWatchlistItem = function (id, options = {}) {
+  let item = window.findWatchlistItemById(id);
+  if (!item) return false;
+  item.id ||= window.watchlistItemId(item);
+  state.watchlist = (state.watchlist || []).filter(
+    (candidate) => candidate !== item,
+  );
+  state.declinedOfficialWatchlistAdds ||= [];
+  if (!state.declinedOfficialWatchlistAdds.includes(item.id))
+    state.declinedOfficialWatchlistAdds.push(item.id);
+  if (options.log !== false && window.recordEdit)
+    window.recordEdit({
+      type: "watchlist removed",
+      summary: `${item.title || "Watchlist film"} (${item.year || ""})`,
+      sheetHint: "Watchlist",
+      changes: [{ field: "watchlist", before: item.title || "", after: "" }],
+      context: { watchlistId: item.id },
+    });
+  window.recomputeWatchlistOrder?.();
+  window.markAggregatesDirty?.("watchlist item removed");
+  if (options.save !== false) window.save();
+  return true;
+};
+
+/**
  * Assigns a tier to selected watchlist items and restores canonical ordering.
  * @param {string[]} ids Watchlist identifiers.
  * @param {string} tier Target tier.

@@ -15,10 +15,12 @@ const CANONICAL_TOP_LEVEL_KEYS = [
   "intakeWorkflows",
   "rankingReviews",
   "awardReviews",
+  "opinionRebuildSession",
   "projects",
   "watchlistProjectSources",
   "peopleAliases",
   "rejectedPersonAliases",
+  "declinedOfficialWatchlistAdds",
   "personPortraits",
   "franchiseLinks",
   "directorLinks",
@@ -144,6 +146,55 @@ const CANONICAL_WORKFLOW_FIELDS = new Set([
   "summary",
 ]);
 
+const CANONICAL_OPINION_REBUILD_FIELDS = new Set([
+  "schemaVersion",
+  "status",
+  "startedAt",
+  "finishedAt",
+  "films",
+  "watchlist",
+  "watchedOther",
+  "entityNotes",
+  "localRanks",
+  "rankingReviews",
+  "awardReviews",
+  "sourceConflicts",
+]);
+const CANONICAL_OPINION_REBUILD_FILM_FIELDS = new Set([
+  "awards",
+  "rating",
+  "ratingValue",
+  "ratingModifier",
+  "rank",
+  "yearRank",
+  "decadeRank",
+  "centuryRank",
+  "allTimeRank",
+  "suppressAllTimeRank",
+  "rankingGroupId",
+  "rankingGroupTitle",
+  "rankConfirmed",
+  "review",
+  "wantToRewatch",
+  "rewatchTier",
+  "musicScore",
+  "musicRating",
+  "musicRatingValue",
+  "franchiseRanks",
+]);
+const CANONICAL_OPINION_REBUILD_WATCHLIST_FIELDS = new Set([
+  "tier",
+  "order",
+  "franchiseRanks",
+]);
+const CANONICAL_OPINION_REBUILD_WATCHED_FIELDS = new Set([
+  "rating",
+  "ratingValue",
+  "wantToRewatch",
+  "rewatchTier",
+  "franchiseRanks",
+]);
+
 const CANONICAL_SECRET_KEY =
   /^(?:api[-_]?key|access[-_]?token|client[-_]?secret|credential|oauth[-_]?token)$/i;
 
@@ -166,10 +217,12 @@ function canonicalEmptyDocument() {
     intakeWorkflows: [],
     rankingReviews: { years: {}, decades: {}, centuries: {}, allTime: {} },
     awardReviews: { years: {} },
+    opinionRebuildSession: null,
     projects: [],
     watchlistProjectSources: {},
     peopleAliases: {},
     rejectedPersonAliases: [],
+    declinedOfficialWatchlistAdds: [],
     personPortraits: {},
     franchiseLinks: {},
     directorLinks: {},
@@ -203,10 +256,13 @@ function canonicalLegacyMigration(source) {
   migrated.intakeWorkflows = source.intakeWorkflows || [];
   migrated.rankingReviews = source.rankingReviews || migrated.rankingReviews;
   migrated.awardReviews = source.awardReviews || migrated.awardReviews;
+  migrated.opinionRebuildSession = source.opinionRebuildSession || null;
   migrated.projects = source.projects || [];
   migrated.watchlistProjectSources = source.watchlistProjectSources || {};
   migrated.peopleAliases = source.peopleAliases || {};
   migrated.rejectedPersonAliases = source.rejectedPersonAliases || [];
+  migrated.declinedOfficialWatchlistAdds =
+    source.declinedOfficialWatchlistAdds || [];
   migrated.personPortraits = source.personPortraits || {};
   migrated.franchiseLinks = source.franchiseLinks || {};
   migrated.directorLinks = source.directorLinks || {};
@@ -960,6 +1016,84 @@ window.validateCanonicalData = function (source) {
   if (source.awardReviews !== undefined)
     canonicalCheckRecord(errors, source.awardReviews, "$.awardReviews");
   if (
+    source.opinionRebuildSession !== null &&
+    source.opinionRebuildSession !== undefined
+  ) {
+    if (
+      canonicalCheckRecord(
+        errors,
+        source.opinionRebuildSession,
+        "$.opinionRebuildSession",
+      )
+    ) {
+      let session = source.opinionRebuildSession;
+      canonicalCheckAllowedFields(
+        errors,
+        session,
+        "$.opinionRebuildSession",
+        CANONICAL_OPINION_REBUILD_FIELDS,
+      );
+      if (session.schemaVersion !== 1)
+        canonicalError(
+          errors,
+          "$.opinionRebuildSession.schemaVersion",
+          "must be 1",
+        );
+      if (!["active", "complete"].includes(session.status))
+        canonicalError(
+          errors,
+          "$.opinionRebuildSession.status",
+          "must be active or complete",
+        );
+      if (typeof session.startedAt !== "string" || !session.startedAt)
+        canonicalError(
+          errors,
+          "$.opinionRebuildSession.startedAt",
+          "must be a non-empty string",
+        );
+      if (
+        session.status === "complete" &&
+        (typeof session.finishedAt !== "string" || !session.finishedAt)
+      )
+        canonicalError(
+          errors,
+          "$.opinionRebuildSession.finishedAt",
+          "must be a non-empty string for a completed rebuild",
+        );
+      [
+        "films",
+        "watchlist",
+        "watchedOther",
+        "entityNotes",
+        "localRanks",
+        "rankingReviews",
+        "awardReviews",
+      ].forEach((key) =>
+        canonicalCheckRecord(
+          errors,
+          session[key],
+          `$.opinionRebuildSession.${key}`,
+        ),
+      );
+      canonicalCheckArray(
+        errors,
+        session.sourceConflicts,
+        "$.opinionRebuildSession.sourceConflicts",
+      );
+      [
+        ["films", CANONICAL_OPINION_REBUILD_FILM_FIELDS],
+        ["watchlist", CANONICAL_OPINION_REBUILD_WATCHLIST_FIELDS],
+        ["watchedOther", CANONICAL_OPINION_REBUILD_WATCHED_FIELDS],
+      ].forEach(([key, allowed]) => {
+        Object.entries(session[key] || {}).forEach(([recordId, snapshot]) => {
+          let path = `$.opinionRebuildSession.${key}.${recordId}`;
+          if (canonicalCheckRecord(errors, snapshot, path))
+            canonicalCheckAllowedFields(errors, snapshot, path, allowed);
+        });
+      });
+    }
+  }
+  if (
     canonicalCheckArray(
       errors,
       source.rejectedPersonAliases,
@@ -968,6 +1102,21 @@ window.validateCanonicalData = function (source) {
     source.rejectedPersonAliases.some((value) => typeof value !== "string")
   )
     canonicalError(errors, "$.rejectedPersonAliases", "must contain only strings");
+  if (
+    canonicalCheckArray(
+      errors,
+      source.declinedOfficialWatchlistAdds,
+      "$.declinedOfficialWatchlistAdds",
+    ) &&
+    source.declinedOfficialWatchlistAdds.some(
+      (value) => typeof value !== "string",
+    )
+  )
+    canonicalError(
+      errors,
+      "$.declinedOfficialWatchlistAdds",
+      "must contain only strings",
+    );
   canonicalCheckArray(errors, source.editLog, "$.editLog");
   canonicalCheckJson(errors, source, "$");
   return { valid: errors.length === 0, errors };
@@ -1011,10 +1160,12 @@ window.getCanonicalData = function (source = window.state, options = {}) {
     intakeWorkflows: source.intakeWorkflows || [],
     rankingReviews: source.rankingReviews || canonicalEmptyDocument().rankingReviews,
     awardReviews: source.awardReviews || canonicalEmptyDocument().awardReviews,
+    opinionRebuildSession: source.opinionRebuildSession || null,
     projects: source.projects || [],
     watchlistProjectSources: source.watchlistProjectSources || {},
     peopleAliases: source.peopleAliases || {},
     rejectedPersonAliases: source.rejectedPersonAliases || [],
+    declinedOfficialWatchlistAdds: source.declinedOfficialWatchlistAdds || [],
     personPortraits: source.personPortraits || {},
     franchiseLinks: source.franchiseLinks || {},
     directorLinks: source.directorLinks || {},
@@ -1086,10 +1237,12 @@ window.canonicalDataToRuntimeState = function (source) {
     intakeWorkflows: canonical.intakeWorkflows,
     rankingReviews: canonical.rankingReviews,
     awardReviews: canonical.awardReviews,
+    opinionRebuildSession: canonical.opinionRebuildSession,
     projects: canonical.projects,
     watchlistProjectSources: canonical.watchlistProjectSources,
     peopleAliases: canonical.peopleAliases,
     rejectedPersonAliases: canonical.rejectedPersonAliases,
+    declinedOfficialWatchlistAdds: canonical.declinedOfficialWatchlistAdds,
     personPortraits: canonical.personPortraits,
     franchiseLinks: canonical.franchiseLinks,
     directorLinks: canonical.directorLinks,
@@ -1141,15 +1294,20 @@ const CANONICAL_OPT_IN_SECTIONS = new Set(["localRanks"]);
 // watchlistProjectSources reference private watchlist items by id and
 // would otherwise leak their existence; entityNotes is the app's literal
 // "notes" feature; rejectedPersonAliases is internal curation housekeeping
-// with no public value.
+// with no public value; declinedOfficialWatchlistAdds references the
+// private watchlist the same way watchlistProjectSources does, and is
+// itself just curation housekeeping for the shared-archive auto-add
+// reconciliation, with no public value either.
 const CANONICAL_PRIVATE_SECTIONS = new Set([
   "watchlist",
   "intakeWorkflows",
   "rankingReviews",
   "awardReviews",
+  "opinionRebuildSession",
   "projects",
   "watchlistProjectSources",
   "rejectedPersonAliases",
+  "declinedOfficialWatchlistAdds",
   "entityNotes",
   "editLog",
 ]);

@@ -22,7 +22,17 @@ const OFFICIAL_LONG_FORM_CATEGORIES = [
   [/^COSTUME DESIGN(?: \(|$)/, "Best Costume Design"],
 ];
 
+// A source whose own curation already produced an exact canonical app
+// category name (e.g. Guldbaggen's category-families.json mapping,
+// scripts/apply-guldbagge-category-families.py) is used as-is, without
+// running it through the raw-AMPAS-string regex table below - that table
+// exists to canonicalize Academy Awards' own raw official category text
+// ("BEST PICTURE", "MUSIC (Original Score)", ...), which a pre-mapped
+// source's CanonicalCategory column was never going to match anyway (wrong
+// case, wrong language). This generalizes to any future source that does
+// its own pre-mapping, with no source-specific option needed here.
 function officialLongFormCategory(sourceCategory) {
+  if (window.categoryOrder?.includes(sourceCategory)) return sourceCategory;
   let match = OFFICIAL_LONG_FORM_CATEGORIES.find(([pattern]) =>
     pattern.test(sourceCategory),
   );
@@ -66,8 +76,17 @@ function officialParseLongForm(rows, report, blockError) {
     let sourceCategory = value("CanonicalCategory");
     let category = officialLongFormCategory(sourceCategory);
     let winnerCell = value("Winner").toLowerCase();
-    if (!/^\d{4}(?:\/\d{2})?$/.test(year) || !ceremony || !sourceCategory) {
-      let message = "Row is missing a valid ceremony, year, or canonical category.";
+    // Ceremony's own column stays required in the header (Academy's real
+    // data always carries it, and the header check below still rejects a
+    // file missing that column entirely), but a blank per-row value no
+    // longer skips the row: a source whose input just doesn't record a
+    // ceremony number for every year (e.g. Guldbaggen's Wikipedia scrape,
+    // where roughly a third of ceremonies were never numbered in the
+    // source) still has real winners/nominees worth keeping.
+    // OfficialResultsPeriod.ceremony is already documented as optional for
+    // exactly this reason.
+    if (!/^\d{4}(?:\/\d{2})?$/.test(year) || !sourceCategory) {
+      let message = "Row is missing a valid year or canonical category.";
       report.skipped += 1;
       report.skippedDetails.push({
         source: report.source,
@@ -263,32 +282,6 @@ function officialParseSingleWinner(rows, report, blockError, category) {
   return [...periods.values()].sort((a, b) => a.year.localeCompare(b.year));
 }
 
-function officialResultsFilmCandidates(source) {
-  let byId = new Map();
-  Object.values(source.years || {}).forEach((period) => {
-    (period.films || []).forEach((film) => {
-      if (film?.id && !byId.has(film.id)) byId.set(film.id, film);
-    });
-  });
-  (source.watchedFilms || source.watchedOther || []).forEach((film) => {
-    if (film?.id && !byId.has(film.id)) byId.set(film.id, film);
-  });
-  return [...byId.values()];
-}
-
-function officialResultsFilmMatch(candidates, sourceTitle, periodKey) {
-  let normalized = window.normalizeTitle(sourceTitle);
-  let representedYears = new Set(window.officialResultPeriodYears(periodKey));
-  let matches = candidates.filter(
-    (film) =>
-      window.normalizeTitle(film.normalizedTitle || film.title) === normalized &&
-      representedYears.has(String(film.year || "")),
-  );
-  return matches.length === 1
-    ? { film: matches[0], ambiguous: false }
-    : { film: null, ambiguous: matches.length > 1 };
-}
-
 function officialNominationId(nomination) {
   return `official:${window.canonicalDataRevision({
     category: nomination.category,
@@ -329,7 +322,7 @@ window.proposeOfficialResultsImport = function (raw, options = {}) {
     .replace(/\r/g, "\n")
     .split("\n")
     .map((line) => line.split("\t"));
-  let candidates = officialResultsFilmCandidates(baseState);
+  let candidates = window.officialResultsFilmCandidates(baseState);
   let report = {
     source: `${sourceName} official results`,
     filmsParsed: 0,
@@ -451,7 +444,7 @@ window.proposeOfficialResultsImport = function (raw, options = {}) {
 
   parsedPeriods.forEach((parsed) => {
     let nominations = parsed.nominations.map((nomination) => {
-      let match = officialResultsFilmMatch(
+      let match = window.officialResultsFilmMatch(
         candidates,
         nomination.sourceTitle,
         parsed.year,

@@ -230,7 +230,7 @@
         ${directorHtml ? `<p>${escape(ui("by"))} ${directorHtml}</p>` : ""}
         ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}`,
       actionsHtml: canEdit
-        ? `<button type="button" data-mark-watchlist-watched>${escape(ui("Mark as watched"))}</button><button type="button" data-edit-watchlist-film>${escape(ui("Edit"))}</button><details class="detail-header-more"${moreToolsOpen ? " open" : ""}><summary class="button-link">${escape(ui("More"))}</summary><div class="detail-header-more-panel"><button type="button" data-enrich-watchlist-film="${escape(item.id)}">${escape(ui("Find metadata"))}</button><button type="button" data-find-watchlist-poster="${escape(item.id)}">${escape(film.poster ? ui("Refresh poster") : ui("Find poster"))}</button><button type="button" data-load-watchlist-poster-options="${escape(item.id)}">${escape(posterOptions.length ? ui("Reload poster options") : ui("Browse posters"))}</button></div></details>`
+        ? `<button type="button" data-mark-watchlist-watched>${escape(ui("Mark as watched"))}</button><button type="button" data-edit-watchlist-film>${escape(ui("Edit"))}</button><details class="detail-header-more"${moreToolsOpen ? " open" : ""}><summary class="button-link">${escape(ui("More"))}</summary><div class="detail-header-more-panel"><button type="button" data-enrich-watchlist-film="${escape(item.id)}">${escape(ui("Find metadata"))}</button><button type="button" data-find-watchlist-poster="${escape(item.id)}">${escape(film.poster ? ui("Refresh poster") : ui("Find poster"))}</button><button type="button" data-load-watchlist-poster-options="${escape(item.id)}">${escape(posterOptions.length ? ui("Reload poster options") : ui("Browse posters"))}</button><button type="button" class="danger-button" data-remove-watchlist-film="${escape(item.id)}">${escape(ui("Remove from watchlist"))}</button></div></details>`
         : "",
     })}
     ${tagHtml ? `<section class="film-tags"><h2>${escape(ui("Tags"))}</h2><div class="film-tag-list">${tagHtml}</div></section>` : ""}
@@ -297,6 +297,26 @@
     }
     if (event.target.closest("[data-edit-watchlist-film]")) {
       renderEdit();
+      return;
+    }
+    let removeButton = event.target.closest("[data-remove-watchlist-film]");
+    if (removeButton) {
+      let item = window.findWatchlistItemById(itemId);
+      if (!item) return;
+      if (
+        !confirm(
+          ui("Remove {title} from the watchlist? This can't be undone here.", {
+            title: item.title,
+          }),
+        )
+      )
+        return;
+      window.removeWatchlistItem(itemId, { save: false });
+      let saving = window.save({ immediate: true, rebuild: true });
+      if (saving?.then) await saving;
+      window.location.href = window.prepareOskarsAccountNavigation(
+        `${window.periodPageUrl("alltime", "alltime")}&view=watchlist`,
+      );
       return;
     }
     if (event.target.closest("[data-cancel-watchlist-edit]")) {

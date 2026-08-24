@@ -396,6 +396,62 @@
     "All decades": { sv: "Alla årtionden" },
     "Narrow period": { sv: "Begränsa period" },
     "Delete opinions": { sv: "Radera åsikter" },
+    "Blind opinion rebuild": { sv: "Blind ombyggnad av åsikter" },
+    "Hide your current ratings, rankings, personal awards, and other opinions while you rebuild them from scratch. The originals stay private and can be restored or deliberately compared at any time.": {
+      sv: "Dölj dina nuvarande betyg, rankningar, personliga priser och andra åsikter medan du bygger om dem från grunden. Originalen förblir privata och kan återställas eller jämföras medvetet när som helst.",
+    },
+    "Start blind rebuild": { sv: "Starta blind ombyggnad" },
+    "Blind rebuild active": { sv: "Blind ombyggnad aktiv" },
+    "Blind rebuild complete": { sv: "Blind ombyggnad slutförd" },
+    "Your original opinions are hidden": {
+      sv: "Dina ursprungliga åsikter är dolda",
+    },
+    "Compare your original and rebuilt opinions": {
+      sv: "Jämför dina ursprungliga och ombyggda åsikter",
+    },
+    "The rebuilt opinions are now active. Your private baseline remains available here until you close this comparison.": {
+      sv: "De ombyggda åsikterna är nu aktiva. Din privata baslinje finns kvar här tills du stänger jämförelsen.",
+    },
+    "Started {date}. Ordinary pages use only the opinions you add during this rebuild.": {
+      sv: "Startad {date}. Vanliga sidor använder bara de åsikter du lägger till under den här ombyggnaden.",
+    },
+    "Continue rebuilding": { sv: "Fortsätt bygga om" },
+    "ratings rebuilt": { sv: "betyg ombyggda" },
+    "ranks comparable": { sv: "rankningar jämförbara" },
+    "award placements rebuilt": { sv: "prisplaceringar ombyggda" },
+    "The baseline contains {ratings} ratings and {awards} award placements.": {
+      sv: "Baslinjen innehåller {ratings} betyg och {awards} prisplaceringar.",
+    },
+    "Hide comparison": { sv: "Dölj jämförelse" },
+    "Compare progress": { sv: "Jämför framsteg" },
+    "Restore original opinions": { sv: "Återställ ursprungliga åsikter" },
+    "Finish and compare": { sv: "Slutför och jämför" },
+    "Close comparison": { sv: "Stäng jämförelsen" },
+    "Biggest rating changes": { sv: "Största betygsförändringarna" },
+    "Biggest ranking moves": { sv: "Största rankningsförflyttningarna" },
+    "Award placement changes": { sv: "Förändringar av prisplaceringar" },
+    "No rebuilt rating changes to compare yet.": {
+      sv: "Inga ombyggda betygsförändringar att jämföra ännu.",
+    },
+    "No confirmed rebuilt ranks to compare yet.": {
+      sv: "Inga bekräftade ombyggda rankningar att jämföra ännu.",
+    },
+    "No award placement changes to compare yet.": {
+      sv: "Inga förändringar av prisplaceringar att jämföra ännu.",
+    },
+    removed: { sv: "borttagen" },
+    "Start a blind opinion rebuild? Your current opinions will be stored privately and hidden from ordinary pages while you rebuild. A backup downloads first.": {
+      sv: "Starta en blind ombyggnad av åsikter? Dina nuvarande åsikter lagras privat och döljs från vanliga sidor medan du bygger om. En säkerhetskopia laddas ner först.",
+    },
+    "Restore the original opinions? Opinions added during this rebuild will be discarded, while factual archive changes stay. A backup of the current rebuild downloads first.": {
+      sv: "Återställ de ursprungliga åsikterna? Åsikter som lagts till under ombyggnaden tas bort, medan faktiska arkivändringar behålls. En säkerhetskopia av den aktuella ombyggnaden laddas ner först.",
+    },
+    "Finish the blind rebuild and compare with the originals? Rebuilt opinions become final, while the private baseline stays available until you close the comparison. A backup downloads first.": {
+      sv: "Slutför den blinda ombyggnaden och jämför med originalen? De ombyggda åsikterna blir slutgiltiga, medan den privata baslinjen finns kvar tills du stänger jämförelsen. En säkerhetskopia laddas ner först.",
+    },
+    "Close this comparison? The rebuilt opinions stay, but the original baseline will be removed after a backup downloads.": {
+      sv: "Stäng den här jämförelsen? De ombyggda åsikterna behålls, men den ursprungliga baslinjen tas bort efter att en säkerhetskopia laddats ner.",
+    },
     "Deleting...": { sv: "Raderar..." },
     Deleted: { sv: "Raderat" },
     "Delete all personal opinion data? This removes every award placement, rating, personal score, review, interest tier, and note, and resets the all-time order to the rating/release-year/title default. Films, watch history, and metadata stay. A backup downloads first.":
@@ -1600,6 +1656,10 @@
     "Reload poster options": { sv: "Ladda om poster-val" },
     Remove: { sv: "Ta bort" },
     "Remove {title}": { sv: "Ta bort {title}" },
+    "Remove from watchlist": { sv: "Ta bort från watchlist" },
+    "Remove {title} from the watchlist? This can't be undone here.": {
+      sv: "Ta bort {title} från watchlisten? Det går inte att ångra här.",
+    },
     Reorder: { sv: "Ordna" },
     Reopen: { sv: "Öppna igen" },
     "Return home": { sv: "Tillbaka hem" },
@@ -2094,8 +2154,8 @@
         sv: "Porträtt förbättrar personsidor och jämförelsevyer. Kan hämtas från TMDB.",
       },
     Posters: { sv: "Posters" },
-    "Posters improve card/grid views. Fetchable from TMDB/Wikimedia.": {
-      sv: "Posters förbättrar kort- och rutnätsvyer. Kan hämtas från TMDB/Wikimedia.",
+    "Posters improve card/grid views. Fetchable from TMDB.": {
+      sv: "Posters förbättrar kort- och rutnätsvyer. Kan hämtas från TMDB.",
     },
     "Ranked-list films missing medium": {
       sv: "Ranked-list-filmer utan medium",
@@ -2142,9 +2202,9 @@
       {
         sv: "Watchlist-metadata hjälper regissörs-, franchise- och projektsidor att inkludera osedda filmer korrekt.",
       },
-    "Watchlist posters keep large watchlist grids scannable. Fetchable from TMDB/Wikimedia.":
+    "Watchlist posters keep large watchlist grids scannable. Fetchable from TMDB.":
       {
-        sv: "Watchlist-posters gör stora watchlist-rutnät lättare att skanna. Kan hämtas från TMDB/Wikimedia.",
+        sv: "Watchlist-posters gör stora watchlist-rutnät lättare att skanna. Kan hämtas från TMDB.",
       },
     "Watchlist/watched overlap": { sv: "Watchlist/sedda överlappar" },
     "year score": { sv: "årspoäng" },
@@ -2496,6 +2556,45 @@
       },
     "Keep this device's version": { sv: "Behåll den här enhetens version" },
     "Use the other device's version": { sv: "Använd den andra enhetens version" },
+    "Preview changes": { sv: "Förhandsgranska ändringar" },
+    "Loading preview...": { sv: "Laddar förhandsgranskning..." },
+    "Could not load preview. Try again.": {
+      sv: "Kunde inte ladda förhandsgranskning. Försök igen.",
+    },
+    "This section's content differs between devices. Individual changes can't be previewed for this data type.":
+      {
+        sv: "Innehållet i den här sektionen skiljer sig mellan enheter. Enskilda ändringar kan inte förhandsgranskas för denna datatyp.",
+      },
+    "No content differences found.": {
+      sv: "Inga innehållsskillnader hittades.",
+    },
+    "Content differs, but no individual record changes were found (a field outside per-record tracking may differ).":
+      {
+        sv: "Innehållet skiljer sig, men inga enskilda postförändringar hittades (ett fält utanför per-post-spårning kan skilja sig).",
+      },
+    "The other device's version would add": {
+      sv: "Den andra enhetens version skulle lägga till",
+    },
+    "Using the other device's version would discard": {
+      sv: "Att använda den andra enhetens version skulle förkasta",
+    },
+    "The other device's version would change": {
+      sv: "Den andra enhetens version skulle ändra",
+    },
+    "+{count} more": { sv: "+{count} till" },
+    "(+{count} more not shown)": { sv: "(+{count} till visas inte)" },
+    "Use the other device's version? This device's current version will be retained for recovery.":
+      {
+        sv: "Använd den andra enhetens version? Den här enhetens nuvarande version kommer att behållas för återställning.",
+      },
+    "Resolved.": { sv: "Löst." },
+    "Restore previous": { sv: "Återställ föregående" },
+    "Restore the workspace content retained before this conflict was resolved?":
+      {
+        sv: "Återställ arbetsytans innehåll som behölls innan den här konflikten löstes?",
+      },
+    "Restored.": { sv: "Återställd." },
+    "Nothing to restore.": { sv: "Inget att återställa." },
     "Sync now": { sv: "Synkronisera nu" },
     "Syncing...": { sv: "Synkroniserar..." },
     "{count} item(s) changed on this device and elsewhere - see below to choose which version to keep.":

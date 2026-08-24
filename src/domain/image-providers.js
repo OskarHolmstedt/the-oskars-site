@@ -1,5 +1,5 @@
 /**
- * @file Implements resilient TMDB and Wikimedia lookup requests and provider-specific result shaping.
+ * @file Implements resilient TMDB lookup requests and provider-specific result shaping.
  */
 
 // TMDB TV references: a stored tmdbId is either a plain movie id (all
@@ -362,42 +362,5 @@ window.lookupTmdbPersonPortrait = async function (person, credential, fetchFn) {
     source: "tmdb",
     sourceUrl: `https://www.themoviedb.org/person/${match.id}`,
     providerId: match.id,
-  });
-};
-
-/** Finds a Wikimedia poster for a film. @param {FilmRecord} film Film. @param {Function} fetchFn Fetch implementation. @returns {Promise<PosterRecord|null>} Poster. */
-window.lookupWikimediaPoster = async function (film, fetchFn) {
-  let search = `intitle:\"${film.title}\" ${film.year || ""} film`.trim();
-  let params = new URLSearchParams({
-    action: "query",
-    generator: "search",
-    gsrsearch: search,
-    gsrnamespace: "0",
-    gsrlimit: "6",
-    prop: "pageimages|info|pageterms",
-    piprop: "thumbnail|original",
-    pithumbsize: "780",
-    inprop: "url",
-    wbptterms: "description",
-    redirects: "1",
-    format: "json",
-    formatversion: "2",
-    origin: "*",
-  });
-  let data = await window.requestPosterJson(
-    fetchFn,
-    `https://en.wikipedia.org/w/api.php?${params}`,
-    {},
-    "Wikimedia",
-    3,
-  );
-  let match = window.selectWikimediaPoster(film, data.query?.pages);
-  if (!match) return null;
-  return window.normalizePosterRecord({
-    url: match.thumbnail?.source || match.original?.source,
-    source: "wikimedia",
-    sourceUrl:
-      match.fullurl || `https://en.wikipedia.org/?curid=${match.pageid}`,
-    providerId: match.pageid,
   });
 };

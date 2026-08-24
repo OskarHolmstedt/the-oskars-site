@@ -14,7 +14,7 @@ window.posterSourceLabel = function (poster) {
 };
 
 // Only the single-focus 'detail' variant (a page's own hero poster/portrait,
-// never repeated in a list/grid) links out to its TMDB/Wikimedia source -
+// never repeated in a list/grid) links out to its stored provider source -
 // list/grid thumbnails (card/thumb/hub/winner/progression/...) are a plain,
 // unlinked image; the row/card's own title text is already the click target,
 // so the thumbnail doesn't need to be a link (internal or external) too.

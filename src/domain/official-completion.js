@@ -21,6 +21,43 @@
     return years;
   };
 
+  // Moved from src/data/official-results.js (issue: shared official-results
+  // archive) so the shared-archive pull can re-attach a per-viewer filmRef
+  // to canon-only (filmRef-stripped) shared nominations without loading
+  // official-results.js's much heavier import-parsing code on every page -
+  // this file already loads unconditionally on every entry, that one only
+  // loads on the data entry. Behavior is unchanged from the original;
+  // official-results.js's own proposeOfficialResultsImport() now calls
+  // these same two functions via window instead of a local copy.
+
+  /** Collects every distinct canonical film in this source's archive/watched/watchlist for title+year matching. @param {Object} source Runtime or canonical state. @returns {Object[]} Candidate films. */
+  window.officialResultsFilmCandidates = function (source) {
+    let byId = new Map();
+    Object.values(source.years || {}).forEach((period) => {
+      (period.films || []).forEach((film) => {
+        if (film?.id && !byId.has(film.id)) byId.set(film.id, film);
+      });
+    });
+    (source.watchedFilms || source.watchedOther || []).forEach((film) => {
+      if (film?.id && !byId.has(film.id)) byId.set(film.id, film);
+    });
+    return [...byId.values()];
+  };
+
+  /** Resolves one official source title to at most one unambiguous canonical film for the given period. @param {Object[]} candidates Result of officialResultsFilmCandidates(). @param {string} sourceTitle Official nomination's source title. @param {string} periodKey Official period key. @returns {{film: Object|null, ambiguous: boolean}} Match result. */
+  window.officialResultsFilmMatch = function (candidates, sourceTitle, periodKey) {
+    let normalized = window.normalizeTitle(sourceTitle);
+    let representedYears = new Set(window.officialResultPeriodYears(periodKey));
+    let matches = candidates.filter(
+      (film) =>
+        window.normalizeTitle(film.normalizedTitle || film.title) === normalized &&
+        representedYears.has(String(film.year || "")),
+    );
+    return matches.length === 1
+      ? { film: matches[0], ambiguous: false }
+      : { film: null, ambiguous: matches.length > 1 };
+  };
+
   function officialResultFilmTitles(sourceTitle) {
     return String(sourceTitle || "")
       .split("|")
@@ -420,7 +457,7 @@
       : model.source?.name || sourceId;
   }
 
-  /** Adds every currently unambiguous unseen film in an official-results collection to the watchlist. @param {string} scopeId Scope id (source-prefixed, see officialCollectionProjectSource()). @param {string} tier Destination interest tier. @param {Object} [options] Persistence controls. @returns {Object} Bulk-add result. */
+  /** Adds every currently unambiguous unseen film in an official-results collection to the watchlist. @param {string} scopeId Scope id (source-prefixed, see officialCollectionProjectSource()). @param {string} tier Destination interest tier. @param {Object} [options] Persistence controls. @param {Set<string>|string[]} [options.excludeItemIds] Watchlist-item ids to skip even though the plan considers them ready - used by the shared official-results archive's automatic reconciliation to honor a user's earlier explicit removal; never set by the manual Completion-page button, so a manual re-add is never blocked by a prior decline. @returns {Object} Bulk-add result. */
   window.applyOfficialCollectionWatchlistPlan = function (
     scopeId,
     tier,
@@ -437,6 +474,7 @@
       plan.sourceId,
       window.officialCollectionCompletion(plan.sourceId),
     );
+    let excludeItemIds = new Set(options.excludeItemIds || []);
     let added = [];
     window.state.watchlist ||= [];
     plan.ready.forEach((candidate) => {
@@ -446,7 +484,8 @@
         tier: normalizedTier,
         tags: [tag],
       });
-      if (!item || window.findWatchlistItemById?.(item.id)) return;
+      if (!item || excludeItemIds.has(item.id)) return;
+      if (window.findWatchlistItemById?.(item.id)) return;
       window.state.watchlist.push(item);
       added.push(item);
     });
@@ -474,6 +513,64 @@
         ? null
         : window.save?.({ immediate: true, rebuild: true });
     return { ok: true, added, plan, tier: normalizedTier, persisted };
+  };
+
+  function officialWatchlistTierKey(sourceId) {
+    return `oskars-official-watchlist-tier-${sourceId}`;
+  }
+
+  // Mirrors src/pages/completion.js's own preferredOfficialWatchlistTier()
+  // exactly (same key, same "C" fallback) so a user who's already used the
+  // manual "Add unseen" button gets a consistent tier from the automatic
+  // reconciliation, and a user who never opened Completion gets the same
+  // neutral default they'd see there. Duplicated rather than shared because
+  // that file is page-only (completion.html) while this one loads on every
+  // entry - a three-line localStorage read isn't worth a cross-layer
+  // dependency the other direction.
+  function preferredOfficialWatchlistTier(sourceId) {
+    try {
+      return (
+        window.normalizeWatchlistTier(
+          localStorage.getItem(officialWatchlistTierKey(sourceId)),
+        ) || "C"
+      );
+    } catch (err) {
+      return "C";
+    }
+  }
+
+  /**
+   * Automatically adds every currently unambiguous unseen nominated film
+   * (winners and nominees) across every populated official-results source
+   * to the watchlist - the shared archive's automatic reconciliation
+   * (issue: shared official-results archive). Ambiguous multi-year matches
+   * are left for the existing manual Completion-page flow, exactly as the
+   * manual "Add unseen" button already leaves them. Ids in
+   * `state.declinedOfficialWatchlistAdds` are never re-added here, though
+   * they remain reachable through that same manual button or any other
+   * import path.
+   * @param {Object} [options] Persistence controls, forwarded per-source.
+   * @returns {{sourceResults: Object[], addedTotal: number}} Per-source apply results.
+   */
+  window.autoAddUnseenOfficialResultsToWatchlist = function (options = {}) {
+    let declinedIds = new Set(window.state?.declinedOfficialWatchlistAdds || []);
+    let sourceResults = Object.keys(window.state?.officialResults || {}).map(
+      (sourceId) => {
+        let scopeId = officialSourceId(sourceId, "", "nominees");
+        let tier = preferredOfficialWatchlistTier(sourceId);
+        let result = window.applyOfficialCollectionWatchlistPlan(scopeId, tier, {
+          ...options,
+          save: false,
+          excludeItemIds: declinedIds,
+        });
+        return { sourceId, scopeId, ...result };
+      },
+    );
+    let addedTotal = sourceResults.reduce(
+      (total, result) => total + (result.added?.length || 0),
+      0,
+    );
+    return { sourceResults, addedTotal };
   };
 
   /** Removes a just-added official watchlist batch for one source. @param {string} sourceId Official collection source id (decides which watchlist tag to match). @param {string[]} ids Watchlist ids returned by the bulk add. @param {Object} [options] Persistence controls. @returns {Object} Undo result. */

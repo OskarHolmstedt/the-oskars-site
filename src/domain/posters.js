@@ -2,8 +2,6 @@
  * @file Owns image-provider settings and film/person metadata, poster, and portrait lookup application.
  */
 
-window.POSTER_SETTINGS_KEY = "oskarsPosterSettings";
-
 // Every TMDB request is routed through a Cloudflare Worker that holds the
 // real key server-side (issue #347; see
 // docs/tmdb-shared-key-proxy-decision.md) so the key never ships in this
@@ -18,32 +16,17 @@ window.TMDB_API_BASE =
     ? "https://api.themoviedb.org/3"
     : "https://oskars-tmdb-proxy.oskarholmstedt.workers.dev/3");
 
-/** Returns saved image-provider settings with local configuration overrides. @returns {Object} Provider settings. */
+/** Returns the configured TMDB provider settings. @returns {Object} Provider settings. */
 window.getPosterSettings = function () {
   // Not a real credential in the default (proxied) case - the Worker
   // ignores whatever this sends and injects its own secret regardless.
   // This placeholder only exists to satisfy resolveProviderCall's
   // non-empty-credential check below.
-  let tmdbCredential = String(
-    window.OSKARS_LOCAL_CONFIG?.tmdbCredential || "proxied",
-  );
-  try {
-    let saved = JSON.parse(
-      localStorage.getItem(window.POSTER_SETTINGS_KEY) || "{}",
-    );
-    return { tmdbCredential, wikimediaFallback: saved.wikimediaFallback !== false };
-  } catch (err) {
-    return { tmdbCredential, wikimediaFallback: true };
-  }
-};
-
-/** Saves the mutable image-provider preference (Wikimedia fallback; the TMDB credential is fixed). @param {Object} settings Provider settings. @returns {Object} Saved settings. */
-window.savePosterSettings = function (settings) {
-  localStorage.setItem(
-    window.POSTER_SETTINGS_KEY,
-    JSON.stringify({ wikimediaFallback: settings?.wikimediaFallback !== false }),
-  );
-  return window.getPosterSettings();
+  return {
+    tmdbCredential: String(
+      window.OSKARS_LOCAL_CONFIG?.tmdbCredential || "proxied",
+    ),
+  };
 };
 
 /** Validates and normalizes an image reference. @param {PosterRecord|Object|null} poster Image input. @returns {PosterRecord|null} Image record. */
@@ -64,7 +47,7 @@ window.normalizePosterRecord = function (poster) {
 
 /**
  * Resolves the merged provider settings and fetch implementation shared by
- * every TMDB/Wikimedia lookup entry point, applying the caller's per-call
+ * every TMDB lookup entry point, applying the caller's per-call
  * overrides on top of saved settings and throwing the caller's own error
  * text when a required TMDB credential or fetch implementation is missing.
  * @param {Object} [options] Caller options (settings override, fetchFn override).
@@ -287,30 +270,14 @@ window.loadFilmMetadata = async function (filmId, options = {}) {
   return metadata;
 };
 
-/** Looks up a film poster using configured provider precedence. @param {FilmRecord} film Film. @param {Object} [options] Provider controls. @returns {Promise<PosterRecord|null>} Poster. */
+/** Looks up a film poster from TMDB. @param {FilmRecord} film Film. @param {Object} [options] Provider controls. @returns {Promise<PosterRecord|null>} Poster. */
 window.lookupFilmPoster = async function (film, options = {}) {
   if (!film?.title)
     throw new Error("A film title is required for poster lookup.");
   let { settings, fetchFn } = window.resolveProviderCall(options, {
     fetchError: "Poster lookup requires browser network access.",
   });
-  let tmdbError = null;
-  try {
-    let poster = await window.lookupTmdbPoster(
-      film,
-      settings.tmdbCredential,
-      fetchFn,
-    );
-    if (poster) return poster;
-  } catch (err) {
-    tmdbError = err;
-  }
-  if (settings.wikimediaFallback) {
-    let poster = await window.lookupWikimediaPoster(film, fetchFn);
-    if (poster) return poster;
-  }
-  if (tmdbError) throw tmdbError;
-  return null;
+  return window.lookupTmdbPoster(film, settings.tmdbCredential, fetchFn);
 };
 
 /** Applies a poster to source copies of a film. @param {string} filmId Film id. @param {PosterRecord} poster Poster. @param {Object} [options] Save controls. @returns {boolean} Whether changed. */

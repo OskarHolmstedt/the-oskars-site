@@ -29,6 +29,7 @@ const WORKSPACE_SECTION_SPECS = {
   watchedFilms: { kind: "array", chunkSize: SINGLE_SHARD },
   intakeWorkflows: { kind: "array", chunkSize: SINGLE_SHARD },
   rejectedPersonAliases: { kind: "array", chunkSize: SINGLE_SHARD },
+  declinedOfficialWatchlistAdds: { kind: "array", chunkSize: SINGLE_SHARD },
   projects: { kind: "array", chunkSize: SINGLE_SHARD },
   editLog: { kind: "array", chunkSize: EDIT_LOG_ENTRIES_PER_SHARD },
   personPortraits: { kind: "map", chunkSize: PERSON_PORTRAITS_PER_SHARD },
@@ -40,6 +41,7 @@ const WORKSPACE_SECTION_SPECS = {
   localRanks: { kind: "opaque" },
   rankingReviews: { kind: "opaque" },
   awardReviews: { kind: "opaque" },
+  opinionRebuildSession: { kind: "opinion-rebuild" },
 };
 
 // A future canonical section added to CANONICAL_TOP_LEVEL_KEYS without a
@@ -258,6 +260,44 @@ function reassembleMapSection(shardValuesByKey) {
   return merged;
 }
 
+function chunkOpinionRebuildSection(session) {
+  if (!workspaceIsRecord(session))
+    return { shardKeys: ["meta"], shards: { meta: null } };
+  let shardKeys = ["meta"];
+  let shards = {
+    meta: Object.fromEntries(
+      Object.entries(session).filter(
+        ([key]) => !["films", "watchlist", "watchedOther"].includes(key),
+      ),
+    ),
+  };
+  [
+    ["films", 150],
+    ["watchlist", WATCHLIST_ITEMS_PER_SHARD],
+    ["watchedOther", WATCHLIST_ITEMS_PER_SHARD],
+  ].forEach(([key, chunkSize]) => {
+    chunkMapBySortedKeys(session[key], chunkSize).forEach((chunk, index) => {
+      let shardKey = `${key}::${index}`;
+      shardKeys.push(shardKey);
+      shards[shardKey] = chunk;
+    });
+  });
+  return { shardKeys, shards };
+}
+
+function reassembleOpinionRebuildSection(shardValuesByKey) {
+  if (shardValuesByKey.meta === null) return null;
+  let session = { ...(shardValuesByKey.meta || {}) };
+  ["films", "watchlist", "watchedOther"].forEach((prefix) => {
+    session[prefix] = {};
+    Object.keys(shardValuesByKey)
+      .filter((key) => key.startsWith(`${prefix}::`))
+      .sort(compareShardKeys)
+      .forEach((key) => Object.assign(session[prefix], shardValuesByKey[key] || {}));
+  });
+  return session;
+}
+
 function chunkOpaqueSection(value) {
   return { shardKeys: ["0"], shards: { "0": value === undefined ? null : value } };
 }
@@ -278,6 +318,8 @@ window.chunkWorkspaceSection = function (sectionKey, sectionValue) {
   if (!spec) throw new Error(`Unknown workspace section: ${sectionKey}`);
   if (spec.kind === "years") return chunkYearsSection(sectionValue);
   if (spec.kind === "official-results") return chunkOfficialResultsSection(sectionValue);
+  if (spec.kind === "opinion-rebuild")
+    return chunkOpinionRebuildSection(sectionValue);
   if (spec.kind === "array") return chunkArraySection(sectionValue, spec.chunkSize);
   if (spec.kind === "map") return chunkMapSection(sectionValue, spec.chunkSize);
   return chunkOpaqueSection(sectionValue);
@@ -297,6 +339,8 @@ window.reassembleWorkspaceSection = function (sectionKey, shardValuesByKey) {
   if (spec.kind === "years") return reassembleYearsSection(shardValuesByKey);
   if (spec.kind === "official-results")
     return reassembleOfficialResultsSection(shardValuesByKey);
+  if (spec.kind === "opinion-rebuild")
+    return reassembleOpinionRebuildSection(shardValuesByKey);
   if (spec.kind === "array") return reassembleArraySection(shardValuesByKey);
   if (spec.kind === "map") return reassembleMapSection(shardValuesByKey);
   return reassembleOpaqueSection(shardValuesByKey);
@@ -312,4 +356,94 @@ window.reassembleWorkspaceSection = function (sectionKey, shardValuesByKey) {
  */
 window.workspaceShardRevision = function (shardValue) {
   return window.canonicalDataRevision(shardValue);
+};
+
+// Caps each of added/removed/changed at this many entries in
+// workspaceShardRecordDiff's output - "bounded... allow expansion when
+// detail is needed" (issue #334), not a raw per-record dump. The true
+// count survives separately (addedTotal etc.) so a caller can note
+// "+N more" rather than silently truncating.
+const SHARD_DIFF_RECORD_CAP = 20;
+
+function workspaceShardDiffableCollection(kind, shardValue) {
+  if (kind === "years") return shardValue?.films || [];
+  if (kind === "official-results") return shardValue?.periods || {};
+  if (kind === "array") return shardValue || [];
+  if (kind === "map") return shardValue || {};
+  return null;
+}
+
+function workspaceShardRecordLabel(identity, record) {
+  return String(record?.title || record?.name || identity);
+}
+
+function workspaceShardRecordEntries(identities, records, cap) {
+  let entries = identities.map((identity) => ({
+    identity,
+    label: workspaceShardRecordLabel(identity, records.get(identity)),
+  }));
+  return { entries: entries.slice(0, cap), total: entries.length };
+}
+
+/**
+ * Summarizes what adopting a shard's remote value would add, remove (i.e.
+ * discard from this device), or change relative to its local value -
+ * issue #334's informed conflict-resolution preview. Reuses the same
+ * per-record identity/change-detection idiom
+ * window.canonicalPublicationChanges already uses for the whole-archive
+ * publication preview (src/data/publication.js), applied one level down
+ * to a single shard's own record collection.
+ * @param {string} sectionKey One of window.OSKARS_CANONICAL_SECTION_KEYS.
+ * @param {*} localValue This device's shard value (undefined if absent).
+ * @param {*} remoteValue The other device's shard value (undefined if absent).
+ * @returns {{kind: string, changed: boolean, added?: Array<{identity: string, label: string}>,
+ *   addedTotal?: number, removed?: Array<{identity: string, label: string}>,
+ *   removedTotal?: number, changedRecords?: Array<{identity: string, label: string}>,
+ *   changedTotal?: number}} Bounded diff summary. "opaque" kinds (5 of 18
+ *   sections don't decompose into records) return only {kind, changed}.
+ */
+window.workspaceShardRecordDiff = function (sectionKey, localValue, remoteValue) {
+  let kind = WORKSPACE_SECTION_SPECS[sectionKey]?.kind;
+  let changed =
+    window.canonicalDataRevision(localValue) !==
+    window.canonicalDataRevision(remoteValue);
+  if (kind === "opaque" || kind === "opinion-rebuild" || !kind)
+    return { kind: "opaque", changed };
+  let localRecords = new Map(
+    window.publicationRecords(workspaceShardDiffableCollection(kind, localValue)),
+  );
+  let remoteRecords = new Map(
+    window.publicationRecords(workspaceShardDiffableCollection(kind, remoteValue)),
+  );
+  let addedIdentities = [];
+  let removedIdentities = [];
+  let changedIdentities = [];
+  new Set([...localRecords.keys(), ...remoteRecords.keys()]).forEach((identity) => {
+    let hasLocal = localRecords.has(identity);
+    let hasRemote = remoteRecords.has(identity);
+    if (hasRemote && !hasLocal) addedIdentities.push(identity);
+    else if (hasLocal && !hasRemote) removedIdentities.push(identity);
+    else if (
+      window.canonicalDataRevision(localRecords.get(identity)) !==
+      window.canonicalDataRevision(remoteRecords.get(identity))
+    )
+      changedIdentities.push(identity);
+  });
+  let added = workspaceShardRecordEntries(addedIdentities, remoteRecords, SHARD_DIFF_RECORD_CAP);
+  let removed = workspaceShardRecordEntries(removedIdentities, localRecords, SHARD_DIFF_RECORD_CAP);
+  let changedEntries = workspaceShardRecordEntries(
+    changedIdentities,
+    remoteRecords,
+    SHARD_DIFF_RECORD_CAP,
+  );
+  return {
+    kind,
+    changed,
+    added: added.entries,
+    addedTotal: added.total,
+    removed: removed.entries,
+    removedTotal: removed.total,
+    changedRecords: changedEntries.entries,
+    changedTotal: changedEntries.total,
+  };
 };

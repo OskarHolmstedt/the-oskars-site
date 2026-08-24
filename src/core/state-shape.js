@@ -982,6 +982,23 @@
  */
 
 /**
+ * Private opinion-only baseline retained during one blind rebuild.
+ * @typedef {Object} OpinionRebuildSession
+ * @property {number} schemaVersion
+ * @property {'active'|'complete'} status
+ * @property {string} startedAt ISO timestamp.
+ * @property {string} [finishedAt] ISO completion timestamp.
+ * @property {Record<string, Object>} films Opinion fields keyed by film id.
+ * @property {Record<string, Object>} watchlist Opinion fields keyed by watchlist id.
+ * @property {Record<string, Object>} watchedOther Opinion fields keyed by standalone watched id.
+ * @property {Object} entityNotes
+ * @property {Object} localRanks
+ * @property {Object} rankingReviews
+ * @property {Object} awardReviews
+ * @property {Object[]} sourceConflicts
+ */
+
+/**
  * @typedef {Object} OskarsState
  * @property {number} dataVersion Migration marker.
  * @property {number} creditSchemaVersion Migration marker.
@@ -1023,6 +1040,11 @@
  *   entries fall back to that implicit order (`mergeLocalRankOrder`,
  *   `src/domain/local-rank.js`).
  * @property {string[]} rejectedPersonAliases
+ * @property {string[]} declinedOfficialWatchlistAdds Watchlist-item ids a
+ *   user explicitly removed after the shared official-results archive's
+ *   automatic reconciliation added them - excluded from future automatic
+ *   re-adds for that same id, but never blocks a manual re-add or any
+ *   other import path from bringing the title back.
  * @property {WatchlistItem[]} watchlist
  * @property {WatchedOtherEntry[]} watchedOther
  * @property {WatchedFilmIntake[]} intakeWorkflows Versioned watched-film intake records.
@@ -1030,6 +1052,8 @@
  *   Stable reviewed pair keys for resumable year heats and broader finals.
  * @property {{years: Record<string, Record<string, {status: 'complete'|'none', reviewedAt: string}>>}} awardReviews
  *   Explicit annual ballot completion, including reviewed-none categories.
+ * @property {OpinionRebuildSession|null} opinionRebuildSession Private baseline
+ *   retained while the owner rebuilds the active opinion layer blind.
  * @property {{baseRevision: string, dirty: boolean, changedAt?: string, reason?: string, publishedRevision?: string, reconciliationStatus?: string, requiredAction?: string, lastCanonicalCheckAt?: string, publication?: PublicationAttempt, remoteSync?: WorkspaceRemoteSync}|null} draftMetadata Local unpublished-draft, publication attempt, canonical reconciliation marker, and account-bound sync baseline. Always null for a public-profile viewer state (issue #256) - that state is never a private draft.
  * @property {boolean} isPublicProfileView Set by `hydratePublicProfileState()`
  *   (issue #256) when state was hydrated from another owner's published
@@ -1118,11 +1142,13 @@ window.createEmptyState = function () {
       tags: {},
     },
     rejectedPersonAliases: [],
+    declinedOfficialWatchlistAdds: [],
     watchlist: [],
     watchedOther: [],
     intakeWorkflows: [],
     rankingReviews: { years: {}, decades: {}, centuries: {}, allTime: {} },
     awardReviews: { years: {} },
+    opinionRebuildSession: null,
     draftMetadata: null,
     isPublicProfileView: false,
     publicProfileMeta: null,
@@ -1201,6 +1227,7 @@ window.getSerializableState = function () {
     entityNotes: window.state.entityNotes,
     localRanks: window.state.localRanks,
     rejectedPersonAliases: window.state.rejectedPersonAliases,
+    declinedOfficialWatchlistAdds: window.state.declinedOfficialWatchlistAdds || [],
     watchlist: window.state.watchlist,
     watchedOther: window.state.watchedOther || [],
     intakeWorkflows: window.state.intakeWorkflows || [],
@@ -1208,6 +1235,7 @@ window.getSerializableState = function () {
       years: {}, decades: {}, centuries: {}, allTime: {},
     },
     awardReviews: window.state.awardReviews || { years: {} },
+    opinionRebuildSession: window.state.opinionRebuildSession || null,
     draftMetadata: window.state.draftMetadata || null,
     importFoundation: window.state.importFoundation || null,
     sourceConflicts: window.state.sourceConflicts || [],

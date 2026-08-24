@@ -1,5 +1,5 @@
 /**
- * @file Scores TMDB and Wikimedia search results against film or person identity.
+ * @file Scores TMDB search results against film or person identity.
  */
 
 function posterYear(value) {
@@ -7,7 +7,7 @@ function posterYear(value) {
 }
 
 // Comparison-only title normalization for matching against external sources
-// (TMDB, Wikimedia). NOT the same as window.normalizeTitle, which also
+// from TMDB. NOT the same as window.normalizeTitle, which also
 // derives persisted film/person/franchise IDs and must stay stable. This one
 // additionally folds accent marks and the apostrophe/dash character variants
 // that differ between locally-typed titles and what these APIs return (e.g.
@@ -113,62 +113,4 @@ window.selectTmdbPersonPortrait = function (person, results) {
     })
     .sort((left, right) => right.score - left.score);
   return matches[0]?.score >= 100 ? matches[0].result : null;
-};
-
-/** Selects the best Wikimedia film page with an image. @param {FilmRecord} film Film. @param {Object[]} pages Pages. @returns {Object|null} Page. */
-window.selectWikimediaPoster = function (film, pages) {
-  let title = looseComparableTitle(film?.title);
-  let year = String(film?.year || "");
-  let matches = (pages || [])
-    .filter((page) => {
-      let image = page?.thumbnail || page?.original;
-      let description = String(
-        page?.terms?.description?.[0] || "",
-      ).toLowerCase();
-      let imageName = String(page?.pageimage || "").toLowerCase();
-      let filmDescription =
-        /\b(film|movie|motion picture|documentary|animated short)\b/.test(
-          description,
-        );
-      let matchingYear =
-        !year ||
-        String(page.title || "").includes(year) ||
-        description.includes(year);
-      let portrait =
-        !image?.width || !image?.height || image.height / image.width >= 1.2;
-      let bookDescription =
-        /\b(book|novel)\b/.test(description) && !filmDescription;
-      let bookImage =
-        /(?:book|novel|edition|cover)[_. -]/.test(imageName) &&
-        !imageName.includes("poster");
-      let likelyBookCover = bookDescription || bookImage;
-      return (
-        image?.source &&
-        filmDescription &&
-        matchingYear &&
-        portrait &&
-        !likelyBookCover
-      );
-    })
-    .map((page, index) => {
-      let pageTitle = looseComparableTitle(page.title).replace(
-        /\s*\([^)]*film\)\s*$/,
-        "",
-      );
-      let description = normalizeTitle(page.terms?.description?.[0]);
-      let score =
-        (pageTitle === title
-          ? 100
-          : pageTitle.includes(title) || title.includes(pageTitle)
-            ? 30
-            : 0) +
-        (year &&
-        (String(page.title || "").includes(year) || description.includes(year))
-          ? 50
-          : 0) -
-        Number(page.index || index);
-      return { page, score };
-    })
-    .sort((left, right) => right.score - left.score);
-  return matches[0]?.score >= 80 ? matches[0].page : null;
 };

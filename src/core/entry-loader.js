@@ -336,6 +336,7 @@
     ...(["editor", "data", "intake", "awards-year"].includes(entry)
       ? ["src/domain/films.js"]
       : []),
+    ...(entry === "data" ? ["src/domain/opinion-rebuild.js"] : []),
     "src/domain/stats.js",
     ...(entry === "community" ? ["src/domain/community.js"] : []),
     ...(entry === "compare" ? ["src/domain/compare-targets.js"] : []),
@@ -404,7 +405,6 @@
           "src/data/import-proposals.js",
           "src/imports/zip.js",
           "src/imports/letterboxd.js",
-          "src/data/official-results.js",
           "src/data/google-sheets.js",
         ]
       : entry === "profile"
@@ -424,6 +424,7 @@
       : []),
     "src/core/migrations.js",
     "src/core/firestore-sync.js",
+    "src/core/shared-archive-sync.js",
     "src/core/bootstrap.js",
   ];
 

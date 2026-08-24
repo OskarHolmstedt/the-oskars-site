@@ -78,6 +78,11 @@ function transferSectionCounts(source) {
     { key: "entityNotes", label: "Entity notes", count: noteCount },
     { key: "localRanks", label: "Local rank orders", count: localRankCount },
     {
+      key: "opinionRebuildSession",
+      label: "Blind opinion rebuild",
+      count: source?.opinionRebuildSession ? 1 : 0,
+    },
+    {
       key: "editLog",
       label: "Edit log entries",
       count: countOf(source?.editLog),
