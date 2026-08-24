@@ -33,7 +33,7 @@ window.parseTmdbReference = function (value) {
  * Builds the TMDB API path segment for a parsed reference (movie, whole
  * series, one season, or one episode).
  * @param {{mediaType: string, id: string, season: number|null, episode: number|null}} reference Parsed reference.
- * @returns {string} Path segment appended after "https://api.themoviedb.org/3/".
+ * @returns {string} Path segment appended after window.TMDB_API_BASE + "/".
  */
 window.tmdbResourcePath = function (reference) {
   if (reference.mediaType !== "tv")
@@ -177,7 +177,7 @@ window.lookupTmdbPoster = async function (film, credential, fetchFn) {
     );
     let data = await window.requestPosterJson(
       fetchFn,
-      `https://api.themoviedb.org/3/search/movie?${params}`,
+      `${window.TMDB_API_BASE}/search/movie?${params}`,
       { headers },
       "TMDB",
       2,
@@ -212,7 +212,7 @@ window.lookupTmdbPosterOptions = async function (
   let reference = window.parseTmdbReference(match.id);
   let data = await window.requestPosterJson(
     fetchFn,
-    `https://api.themoviedb.org/3/${window.tmdbResourcePath(reference)}/images?${apiParams}`,
+    `${window.TMDB_API_BASE}/${window.tmdbResourcePath(reference)}/images?${apiParams}`,
     { headers },
     "TMDB",
     2,
@@ -272,7 +272,7 @@ window.lookupTmdbMovieSearch = async function (film, credential, fetchFn) {
     );
     let data = await window.requestPosterJson(
       fetchFn,
-      `https://api.themoviedb.org/3/search/movie?${params}`,
+      `${window.TMDB_API_BASE}/search/movie?${params}`,
       { headers },
       "TMDB",
       2,
@@ -331,7 +331,7 @@ window.lookupTmdbMovieDetails = async function (tmdbId, credential, fetchFn) {
   let headers = window.tmdbAuthHeaders(credential, params);
   return window.requestPosterJson(
     fetchFn,
-    `https://api.themoviedb.org/3/${window.tmdbResourcePath(reference)}?${params}`,
+    `${window.TMDB_API_BASE}/${window.tmdbResourcePath(reference)}?${params}`,
     { headers },
     "TMDB",
     2,
@@ -350,7 +350,7 @@ window.lookupTmdbPersonPortrait = async function (person, credential, fetchFn) {
   let headers = window.tmdbAuthHeaders(credential, params);
   let data = await window.requestPosterJson(
     fetchFn,
-    `https://api.themoviedb.org/3/search/person?${params}`,
+    `${window.TMDB_API_BASE}/search/person?${params}`,
     { headers },
     "TMDB",
     2,

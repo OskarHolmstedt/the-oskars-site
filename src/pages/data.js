@@ -899,8 +899,6 @@ async function initializeDataWorkspace() {
   await window.ensureOskarsData();
   if (window.oskarsAccountAccessBlocked?.()) return;
   let settings = window.getPosterSettings();
-  document.getElementById("tmdbCredentialInput").value =
-    settings.tmdbCredential;
   document.getElementById("wikimediaFallbackInput").checked =
     settings.wikimediaFallback;
   let googleSheetsStatus = document.getElementById("googleSheetsStatus");
@@ -1014,7 +1012,6 @@ async function initializeDataWorkspace() {
     .addEventListener("submit", (event) => {
       event.preventDefault();
       window.savePosterSettings({
-        tmdbCredential: document.getElementById("tmdbCredentialInput").value,
         wikimediaFallback: document.getElementById("wikimediaFallbackInput")
           .checked,
       });

@@ -4,33 +4,46 @@
 
 window.POSTER_SETTINGS_KEY = "oskarsPosterSettings";
 
+// Every TMDB request is routed through a Cloudflare Worker that holds the
+// real key server-side (issue #347; see
+// docs/tmdb-shared-key-proxy-decision.md) so the key never ships in this
+// public JS bundle. config.local.js can override both fields together to
+// point at a local `wrangler dev` server instead, or override just
+// tmdbCredential alone to call TMDB directly with a personal key (skipping
+// the proxy entirely) - the same override this app used before the proxy
+// existed.
+window.TMDB_API_BASE =
+  window.OSKARS_LOCAL_CONFIG?.tmdbApiBase ||
+  (window.OSKARS_LOCAL_CONFIG?.tmdbCredential
+    ? "https://api.themoviedb.org/3"
+    : "https://oskars-tmdb-proxy.oskarholmstedt.workers.dev/3");
+
 /** Returns saved image-provider settings with local configuration overrides. @returns {Object} Provider settings. */
 window.getPosterSettings = function () {
-  let defaults = {
-    tmdbCredential: String(window.OSKARS_LOCAL_CONFIG?.tmdbCredential || ""),
-    wikimediaFallback: true,
-  };
+  // Not a real credential in the default (proxied) case - the Worker
+  // ignores whatever this sends and injects its own secret regardless.
+  // This placeholder only exists to satisfy resolveProviderCall's
+  // non-empty-credential check below.
+  let tmdbCredential = String(
+    window.OSKARS_LOCAL_CONFIG?.tmdbCredential || "proxied",
+  );
   try {
     let saved = JSON.parse(
       localStorage.getItem(window.POSTER_SETTINGS_KEY) || "{}",
     );
-    return {
-      tmdbCredential: String(saved.tmdbCredential || defaults.tmdbCredential),
-      wikimediaFallback: saved.wikimediaFallback !== false,
-    };
+    return { tmdbCredential, wikimediaFallback: saved.wikimediaFallback !== false };
   } catch (err) {
-    return defaults;
+    return { tmdbCredential, wikimediaFallback: true };
   }
 };
 
-/** Saves mutable image-provider preferences. @param {Object} settings Provider settings. @returns {Object} Saved settings. */
+/** Saves the mutable image-provider preference (Wikimedia fallback; the TMDB credential is fixed). @param {Object} settings Provider settings. @returns {Object} Saved settings. */
 window.savePosterSettings = function (settings) {
-  let value = {
-    tmdbCredential: String(settings?.tmdbCredential || "").trim(),
-    wikimediaFallback: settings?.wikimediaFallback !== false,
-  };
-  localStorage.setItem(window.POSTER_SETTINGS_KEY, JSON.stringify(value));
-  return value;
+  localStorage.setItem(
+    window.POSTER_SETTINGS_KEY,
+    JSON.stringify({ wikimediaFallback: settings?.wikimediaFallback !== false }),
+  );
+  return window.getPosterSettings();
 };
 
 /** Validates and normalizes an image reference. @param {PosterRecord|Object|null} poster Image input. @returns {PosterRecord|null} Image record. */

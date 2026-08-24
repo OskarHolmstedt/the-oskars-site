@@ -43,6 +43,10 @@
   ]);
   if (!pageEntries.has(entry))
     throw new Error(`Unknown application entry: ${entry}`);
+  // Exposed so account-access.js (loaded later, issue #346) can identify
+  // the current page before any page controller loads, to pick a
+  // signed-out teaser for the six primary-nav destinations.
+  window.OSKARS_ENTRY = entry;
 
   // Light/dark/papyrus cycle (issue #152); papyrus is only ever reached by
   // explicit toggle, never inferred from prefers-color-scheme.

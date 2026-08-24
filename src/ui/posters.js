@@ -201,9 +201,7 @@ window.posterPickerErrorText = function (error) {
   let ui = window.uiText || ((text) => text);
   let message = String(error?.message || error || "");
   if (/credential/i.test(message))
-    return ui(
-      "Save a TMDB credential under Data → Image settings, then try again.",
-    );
+    return ui("TMDB is unavailable right now. Try again later.");
   if (/network|fetch|load failed|failed to fetch/i.test(message))
     return ui(
       "TMDB could not be reached. Check your connection and try again.",

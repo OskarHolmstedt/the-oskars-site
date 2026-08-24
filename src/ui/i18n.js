@@ -478,8 +478,8 @@
     "No TMDB posters were found for this film.": {
       sv: "Inga TMDB-posters hittades för den här filmen.",
     },
-    "Save a TMDB credential under Data → Image settings, then try again.": {
-      sv: "Spara en TMDB-nyckel under Data → Bildinställningar och försök igen.",
+    "TMDB is unavailable right now. Try again later.": {
+      sv: "TMDB är inte tillgängligt just nu. Försök igen senare.",
     },
     "TMDB could not be reached. Check your connection and try again.": {
       sv: "TMDB kunde inte nås. Kontrollera din anslutning och försök igen.",

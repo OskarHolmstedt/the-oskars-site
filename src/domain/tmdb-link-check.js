@@ -20,7 +20,7 @@ async function fetchTmdbResource(kind, id, credential, fetchFn) {
     );
   let headers = window.tmdbAuthHeaders(credential, params);
   let response = await fetchFn(
-    `https://api.themoviedb.org/3/${kind}/${encodeURIComponent(id)}?${params}`,
+    `${window.TMDB_API_BASE}/${kind}/${encodeURIComponent(id)}?${params}`,
     { headers },
   );
   if (response.status === 404) return { exists: false };

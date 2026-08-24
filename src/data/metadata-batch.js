@@ -178,7 +178,6 @@ function metadataBatchElements() {
 
 function metadataBatchSettings() {
   return window.savePosterSettings({
-    tmdbCredential: document.getElementById("tmdbCredentialInput").value,
     wikimediaFallback: document.getElementById("wikimediaFallbackInput")
       .checked,
   });

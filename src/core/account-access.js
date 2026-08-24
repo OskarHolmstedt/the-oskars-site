@@ -1,8 +1,9 @@
 /**
  * @file Owns the account-required Shared Edition startup boundary (issue
- * #332, #335, #339, and #340): pure access/account-lineage planning, the
- * one-time browser/account attachment marker, bounded same-tab navigation
- * handoffs, safe account switching, and pre-hydration signed-out/gate surfaces.
+ * #332, #335, #339, #340, and #346): pure access/account-lineage planning,
+ * the one-time browser/account attachment marker, bounded same-tab
+ * navigation handoffs, safe account switching, and pre-hydration
+ * signed-out/gate surfaces.
  * Published public-profile URLs remain anonymous and bypass this boundary.
  */
 
@@ -413,32 +414,45 @@ function escapeGateText(value) {
   );
 }
 
-function signedOutHomeContent() {
+function welcomeHeroHtml({ eyebrow, heading, description }) {
   let posters = SIGNED_OUT_POSTERS.map(
     (poster, index) =>
       `<span class="account-welcome-poster" style="--welcome-offset:${(index - 2) * 63}px;--welcome-mobile-offset:${(index - 2) * 44}px;--welcome-rotate:${(index - 2) * 5}deg" title="${escapeGateText(poster.title)}"><img src="${poster.url}" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer"></span>`,
   ).join("");
-  return `<div class="account-welcome">
-    <section class="account-welcome-hero" aria-labelledby="accountWelcomeTitle">
+  return `<section class="account-welcome-hero" aria-labelledby="accountWelcomeTitle">
       <div class="account-welcome-copy">
-        <span class="eyebrow">Your personal film world</span>
-        <h1 id="accountWelcomeTitle">A home for the films you watch, rank, and remember.</h1>
-        <p>The Oskars turns a lifetime of watching into a living archive—your ratings, your awards, your watchlists, and the journeys still ahead.</p>
+        <span class="eyebrow">${eyebrow}</span>
+        <h1 id="accountWelcomeTitle">${heading}</h1>
+        <p>${description}</p>
       </div>
       <div class="account-welcome-visual">
         <div class="account-welcome-poster-deck" aria-hidden="true">${posters}</div>
         <p class="account-welcome-attribution">Poster images from <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer">TMDB</a>. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
       </div>
-    </section>
+    </section>`;
+}
+
+function welcomeSignInHtml() {
+  return `<section class="account-welcome-signin" aria-labelledby="accountWelcomeSignIn">
+      <div><span class="eyebrow">Private by design</span><h2 id="accountWelcomeSignIn">Bring your archive with you</h2><p>Sign in to open your private workspace and keep it synchronized with your account.</p></div>
+      <div class="account-welcome-signin-action"><div data-account-google-signin></div><p>No browser archive is loaded or uploaded until sign-in succeeds and you explicitly connect this browser.</p></div>
+    </section>`;
+}
+
+function signedOutHomeContent() {
+  return `<div class="account-welcome">
+    ${welcomeHeroHtml({
+      eyebrow: "Your personal film world",
+      heading: "A home for the films you watch, rank, and remember.",
+      description:
+        "The Oskars turns a lifetime of watching into a living archive—your ratings, your awards, your watchlists, and the journeys still ahead.",
+    })}
     <section class="account-welcome-features" aria-label="What The Oskars can do">
       <article><span aria-hidden="true">✦</span><h2>Keep your film life together</h2><p>Collect watched films, ratings, notes, people, franchises, and every detail you want to remember.</p></article>
       <article><span aria-hidden="true">★</span><h2>Build your own canon</h2><p>Rank films across years and eras, create personal award ballots, and see the taste that emerges.</p></article>
       <article><span aria-hidden="true">→</span><h2>Know what comes next</h2><p>Shape watchlists into focused projects, follow your progress, and always have a meaningful next film.</p></article>
     </section>
-    <section class="account-welcome-signin" aria-labelledby="accountWelcomeSignIn">
-      <div><span class="eyebrow">Private by design</span><h2 id="accountWelcomeSignIn">Bring your archive with you</h2><p>Sign in to open your private workspace and keep it synchronized with your account.</p></div>
-      <div class="account-welcome-signin-action"><div data-account-google-signin></div><p>No browser archive is loaded or uploaded until sign-in succeeds and you explicitly connect this browser.</p></div>
-    </section>
+    ${welcomeSignInHtml()}
   </div>`;
 }
 
@@ -447,6 +461,78 @@ function isSignedOutHome(access, host) {
     access?.status === "signed-out" &&
       host?.classList?.contains?.("home-shell"),
   );
+}
+
+// Signed-out previews for the six primary-nav destinations besides Home
+// (issue #346): a scaled-down version of home's hero (no features strip)
+// per page, replacing the generic gate on exactly these six so a visitor
+// sees what that specific page offers instead of an undifferentiated
+// sign-in prompt. Every other page (editor, data, intake, ...) keeps the
+// plain gate - reachability from the primary nav is what draws the line.
+const SIGNED_OUT_TEASERS = {
+  periods: {
+    eyebrow: "Every era, mapped",
+    heading: "Decades of awards, laid out year by year.",
+    description:
+      "Walk the full period matrix—every year, decade, and century—and open any of them onto its own awards, rankings, and film history.",
+  },
+  categories: {
+    eyebrow: "Category by category",
+    heading: "Every award category, its full history.",
+    description:
+      "Browse every category that shapes your personal Oskars and jump straight into any year's nominees, winners, and how your picks compare to the official record.",
+  },
+  franchises: {
+    eyebrow: "Series, sagas, and sequels",
+    heading: "Every franchise, tracked start to finish.",
+    description:
+      "See what you've watched, what's left, and how a whole series ranks against itself—from trilogies to decades-spanning sagas.",
+  },
+  watchlist: {
+    eyebrow: "What's next",
+    heading: "Your queue, ranked and ready.",
+    description:
+      "Hold everything you plan to watch with real interest tiers, then turn a filtered slice of it straight into your next watch project.",
+  },
+  watched: {
+    eyebrow: "Everything you've seen",
+    heading: "Every film you've watched, ranked and remembered.",
+    description:
+      "Your complete watched history in one place—ratings, rewatches, and the running average of the taste you've built over time.",
+  },
+  projects: {
+    eyebrow: "Guided journeys",
+    heading: "Turn a watchlist into a real plan.",
+    description:
+      "Queue up a director's filmography, a franchise, or a custom set as a workflow-ordered project, and follow your progress through it.",
+  },
+};
+
+/**
+ * Resolves which of the six primary-nav destinations (if any) the current
+ * page is, for picking a signed-out teaser. Watchlist and Watched share
+ * one entry (`period.html`) and are told apart only by the exact query
+ * string the header links to; any other `period.html` visit (a specific
+ * year, `view=official`, ...) deliberately falls through to the generic
+ * gate rather than guessing at a teaser.
+ * @returns {string} A `SIGNED_OUT_TEASERS` key, or `""` if none applies.
+ */
+function signedOutTeaserKey() {
+  let entry = String(window.OSKARS_ENTRY || "");
+  if (Object.prototype.hasOwnProperty.call(SIGNED_OUT_TEASERS, entry))
+    return entry;
+  if (entry === "period") {
+    let params = new URLSearchParams(window.location?.search || "");
+    if (params.get("type") === "alltime" && params.get("view") === "watchlist")
+      return "watchlist";
+    if (params.get("type") === "alltime" && params.get("view") === "films")
+      return "watched";
+  }
+  return "";
+}
+
+function signedOutTeaserContent(teaser) {
+  return `<div class="account-welcome">${welcomeHeroHtml(teaser)}${welcomeSignInHtml()}</div>`;
 }
 
 function gateContent(access) {
@@ -483,7 +569,16 @@ window.renderOskarsAccountGate = function (access, container) {
     container || document.querySelector?.("main") || document.body;
   if (!host) return;
   let signedOutHome = isSignedOutHome(access, host);
-  if (signedOutHome) {
+  // A teaser only applies on the same terms as home's own welcome - a
+  // reachable, informative surface for a plain signed-out visitor, not
+  // for any of the actionable states below (unlinked, different-account,
+  // ...) that still need the generic gate's specific instructions.
+  let teaserKey =
+    !signedOutHome && access?.status === "signed-out"
+      ? signedOutTeaserKey()
+      : "";
+  let signedOutLanding = signedOutHome || Boolean(teaserKey);
+  if (signedOutLanding) {
     header?.removeAttribute?.("data-site-header-pending");
     header?.setAttribute?.("data-account-landing", "");
   } else {
@@ -492,7 +587,9 @@ window.renderOskarsAccountGate = function (access, container) {
   }
   host.innerHTML = signedOutHome
     ? signedOutHomeContent()
-    : `<div class="account-gate">${gateContent(access)}</div>`;
+    : teaserKey
+      ? signedOutTeaserContent(SIGNED_OUT_TEASERS[teaserKey])
+      : `<div class="account-gate">${gateContent(access)}</div>`;
   let attach = host.querySelector?.("[data-account-attach]");
   attach?.addEventListener("click", () => {
     try {
