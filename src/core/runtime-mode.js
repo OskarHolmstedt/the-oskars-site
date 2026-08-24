@@ -9,7 +9,6 @@
  */
 
 window.OSKARS_RUNTIME_MODES = ["owner", "local", "viewer"];
-window.OSKARS_ACCESS_POLICIES = ["anonymous", "account"];
 
 /**
  * Resolves and validates a raw runtime-mode configuration value. Absent
@@ -33,40 +32,17 @@ window.resolveRuntimeMode = function (raw) {
 };
 
 /**
- * Resolves and validates the deployment's editable-workspace access policy.
- * An absent value preserves login-free behavior for existing owner and
- * self-hosted deployments; the public Shared Edition artifact explicitly
- * selects `account` during packaging (issue #332).
- * @param {*} raw Raw `window.OSKARS_ACCESS_POLICY` configuration value.
- * @returns {{policy: string, valid: boolean, error: string}} Resolved policy.
- */
-window.resolveAccessPolicy = function (raw) {
-  if (raw === undefined)
-    return { policy: "anonymous", valid: true, error: "" };
-  if (
-    typeof raw === "string" &&
-    window.OSKARS_ACCESS_POLICIES.includes(raw)
-  )
-    return { policy: raw, valid: true, error: "" };
-  return {
-    policy: "anonymous",
-    valid: false,
-    error:
-      `Invalid access policy configuration: ${JSON.stringify(raw)}. ` +
-      `Expected one of ${window.OSKARS_ACCESS_POLICIES.join(", ")}.`,
-  };
-};
-
-/**
  * Whether a deployment requires an authenticated account before opening an
- * editable workspace. Viewer sessions have no editable workspace, while the
- * owner checkout retains its established repository-backed workflow.
+ * editable workspace. Every `local` deployment requires an account - Google
+ * sign-in is mandatory for all use of this app, with no anonymous/offline
+ * option (a prior `OSKARS_ACCESS_POLICY` axis allowed opting out of this;
+ * removed). Viewer sessions have no editable workspace, while the owner
+ * checkout retains its established repository-backed workflow.
  * @param {string} mode Resolved runtime mode.
- * @param {string} policy Resolved access policy.
- * @returns {boolean} True only for account-gated local deployments.
+ * @returns {boolean} True only for local deployments.
  */
-window.runtimeAccountAccessRequired = function (mode, policy) {
-  return mode === "local" && policy === "account";
+window.runtimeAccountAccessRequired = function (mode) {
+  return mode === "local";
 };
 
 /**
@@ -111,14 +87,6 @@ window.getRuntimeMode = function () {
   return (
     window.OSKARS_RESOLVED_RUNTIME_MODE ||
     window.resolveRuntimeMode(window.OSKARS_RUNTIME_MODE).mode
-  );
-};
-
-/** Returns the cached or freshly resolved deployment access policy. @returns {string} */
-window.getAccessPolicy = function () {
-  return (
-    window.OSKARS_RESOLVED_ACCESS_POLICY ||
-    window.resolveAccessPolicy(window.OSKARS_ACCESS_POLICY).policy
   );
 };
 

@@ -549,7 +549,10 @@ async function flushScheduledSave() {
   // burst of edits produces one sync pass rather than one per save. A
   // no-op (never defined) when Firestore sync hasn't loaded or the user
   // isn't signed in - scheduleWorkspaceSync itself checks both.
-  if (saved && shouldScheduleWorkspaceSync) window.scheduleWorkspaceSync?.();
+  if (saved && shouldScheduleWorkspaceSync) {
+    window.scheduleWorkspaceSync?.();
+    window.scheduleSharedFilmMetadataSync?.();
+  }
   waiters.forEach((resolve) => resolve(saved));
   return saved;
 }
@@ -581,7 +584,10 @@ window.save = function (options = {}) {
       writeFallbackState(window.getBrowserPersistenceState());
       doneSnapshot?.();
       storageStatus("Saved using fallback storage", "warning");
-      if (options.scheduleSync !== false) window.scheduleWorkspaceSync?.();
+      if (options.scheduleSync !== false) {
+        window.scheduleWorkspaceSync?.();
+        window.scheduleSharedFilmMetadataSync?.();
+      }
       return true;
     } catch (err) {
       if (err?.code === "OSKARS_STALE_STATE") {
@@ -669,8 +675,10 @@ window.replaceStoredState = async function (nextState, options = {}) {
   // local data while signed in never reconciles with the cloud on its own -
   // the local "fresh empty device" bookkeeping is set, but nothing schedules
   // the sync pass that would act on it.
-  if (saved && options.scheduleSync !== false)
+  if (saved && options.scheduleSync !== false) {
     window.scheduleWorkspaceSync?.();
+    window.scheduleSharedFilmMetadataSync?.();
+  }
   loadPromise = window.state;
   return saved;
 };

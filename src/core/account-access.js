@@ -40,9 +40,10 @@ const SIGNED_OUT_POSTERS = [
 
 /**
  * Plans access to an editable browser workspace without reading or hydrating
- * that workspace.
+ * that workspace. Called only when this deployment's mode requires an
+ * account (`runtimeAccountAccessRequired()`) - Google sign-in is mandatory
+ * for every `local` deployment, with no anonymous/offline option.
  * @param {Object} input
- * @param {boolean} input.required Whether this deployment requires an account.
  * @param {string} [input.publicProfileSlug] Active anonymous public profile.
  * @param {boolean} [input.configured] Whether Firebase is configured.
  * @param {string} [input.authStatus] Resolved Firebase auth status.
@@ -52,8 +53,6 @@ const SIGNED_OUT_POSTERS = [
  * @returns {{allowed: boolean, status: string, user?: Object, boundUid?: string, error?: string}}
  */
 window.planOskarsAccountAccess = function (input) {
-  if (!input.required)
-    return { allowed: true, status: "anonymous-deployment" };
   if (input.publicProfileSlug)
     return { allowed: true, status: "public-profile" };
   if (!input.configured)
@@ -78,10 +77,7 @@ window.planOskarsAccountAccess = function (input) {
 };
 
 function accountAccessRequired() {
-  return window.runtimeAccountAccessRequired?.(
-    window.getRuntimeMode?.(),
-    window.getAccessPolicy?.(),
-  );
+  return window.runtimeAccountAccessRequired?.(window.getRuntimeMode?.());
 }
 
 function readBoundAccountUid() {
@@ -350,23 +346,22 @@ window.oskarsAccountCanAccessRecovery = function (input = {}) {
 };
 
 /**
- * Resolves account access without loading private persistence.
+ * Resolves account access without loading private persistence. Only called
+ * when this deployment's mode requires an account
+ * (`runtimeAccountAccessRequired()`) - entry-loader.js's own caller already
+ * checks that first.
  * @param {{publicProfileSlug?: string}} [options] Active public-profile entry.
  * @returns {Promise<{allowed: boolean, status: string, user?: Object, boundUid?: string, error?: string}>}
  */
 window.resolveOskarsAccountAccess = async function (options = {}) {
-  let required = accountAccessRequired();
-  if (!required || options.publicProfileSlug) {
-    if (options.publicProfileSlug)
-      window.clearOskarsAccountNavigationHandoff();
+  if (options.publicProfileSlug) {
+    window.clearOskarsAccountNavigationHandoff();
     return window.planOskarsAccountAccess({
-      required,
       publicProfileSlug: options.publicProfileSlug,
     });
   }
   let configured = Boolean(window.oskarsFirebaseConfigured?.());
-  if (!configured)
-    return window.planOskarsAccountAccess({ required, configured });
+  if (!configured) return window.planOskarsAccountAccess({ configured });
   let currentTarget = currentNavigationTarget();
   let handoffUid =
     trustedNavigationUid && trustedNavigationTarget === currentTarget
@@ -387,7 +382,6 @@ window.resolveOskarsAccountAccess = async function (options = {}) {
   }
   let auth = await window.resolveFirebaseAuthState?.();
   return window.planOskarsAccountAccess({
-    required,
     configured,
     authStatus: auth?.status,
     user: auth?.user,
@@ -643,9 +637,10 @@ window.hidePrivateWorkspaceForAccountExit = function () {
 };
 
 /**
- * Explicitly attaches the currently loaded workspace to the signed-in account.
- * Used by optional-account deployments; required-account deployments make the
- * same decision at the pre-persistence gate.
+ * Explicitly attaches the currently loaded workspace to the signed-in account,
+ * for a browser that reached the profile page already unlinked (the same
+ * attachment the pre-persistence gate offers via its own "Use this browser
+ * with..." action).
  * @returns {Promise<{ok: boolean, reason?: string}>}
  */
 window.attachOskarsWorkspaceToCurrentAccount = async function () {

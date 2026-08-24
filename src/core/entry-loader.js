@@ -425,6 +425,7 @@
     "src/core/migrations.js",
     "src/core/firestore-sync.js",
     "src/core/shared-archive-sync.js",
+    "src/core/shared-film-metadata-sync.js",
     "src/core/bootstrap.js",
   ];
 
@@ -505,14 +506,6 @@
       renderBlockedMessage("Configuration error", runtimeModeResult.error);
       return;
     }
-    let accessPolicyResult = window.resolveAccessPolicy(
-      window.OSKARS_ACCESS_POLICY,
-    );
-    window.OSKARS_RESOLVED_ACCESS_POLICY = accessPolicyResult.policy;
-    if (!accessPolicyResult.valid) {
-      renderBlockedMessage("Configuration error", accessPolicyResult.error);
-      return;
-    }
     let capabilities = window.runtimeModeCapabilities(runtimeModeResult.mode);
     let activeProfileSlug = window.resolveActiveProfileSlug?.();
     if (!capabilities.allowOwnerPages || activeProfileSlug) {
@@ -543,10 +536,7 @@
     await loadScript("src/core/firebase-client.js");
     await loadScript("src/core/account-access.js");
     if (
-      window.runtimeAccountAccessRequired(
-        runtimeModeResult.mode,
-        accessPolicyResult.policy,
-      ) &&
+      window.runtimeAccountAccessRequired(runtimeModeResult.mode) &&
       !activeProfileSlug
     ) {
       // A valid one-use handoff is consumed synchronously before the browser

@@ -58,7 +58,7 @@
       <h1>${escapeText(ui("Welcome to The Oskars"))}</h1>
       <p>${escapeText(
         ui(
-          "This copy runs entirely in your browser — nothing is uploaded, and no one else can see it. Your archive saves automatically to this browser only. Back it up anytime from the Data page, and you can clear it there to start over.",
+          "Your archive saves automatically to this browser and syncs to your signed-in account. Back it up anytime from the Data page, and you can clear it there to start over.",
         ),
       )}</p>
       <div class="onboarding-choices">

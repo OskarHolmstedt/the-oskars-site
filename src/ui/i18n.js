@@ -2878,9 +2878,9 @@
     "{from} onward": { sv: "{from} och framåt" },
     "through {to}": { sv: "till och med {to}" },
     "Welcome to The Oskars": { sv: "Välkommen till The Oskars" },
-    "This copy runs entirely in your browser — nothing is uploaded, and no one else can see it. Your archive saves automatically to this browser only. Back it up anytime from the Data page, and you can clear it there to start over.":
+    "Your archive saves automatically to this browser and syncs to your signed-in account. Back it up anytime from the Data page, and you can clear it there to start over.":
       {
-        sv: "Den här kopian körs helt i din webbläsare — inget laddas upp, och ingen annan kan se den. Ditt arkiv sparas automatiskt bara i den här webbläsaren. Säkerhetskopiera när som helst från Data-sidan, där du också kan rensa det för att börja om.",
+        sv: "Ditt arkiv sparas automatiskt i den här webbläsaren och synkas till ditt inloggade konto. Säkerhetskopiera när som helst från Data-sidan, där du också kan rensa det för att börja om.",
       },
     "Start with an empty archive": { sv: "Börja med ett tomt arkiv" },
     "Build your own archive from scratch — add films and awards yourself.": {

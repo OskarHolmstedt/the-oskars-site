@@ -1022,6 +1022,7 @@ window.setWatchlistTmdbMetadata = function (id, metadata, options = {}) {
   if (metadata.poster && (!item.poster || options.overwritePoster))
     item.poster = metadata.poster;
   window.markAggregatesDirty?.("watchlist metadata enriched");
+  window.pushSharedFilmMetadata?.(item, metadata);
   if (options.save !== false) window.save();
   return true;
 };

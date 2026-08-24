@@ -244,6 +244,7 @@ window.setFilmTmdbMetadata = function (filmId, metadata, options = {}) {
       });
     }
   }
+  window.pushSharedFilmMetadata?.(film, metadata);
   if (options.save !== false) window.save();
   return true;
 };

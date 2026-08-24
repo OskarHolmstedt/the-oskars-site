@@ -463,6 +463,7 @@ window.ensureOskarsData = async function () {
   if (!profileLoadAttempted) await showReconciliationStatus(reconciliationPlan);
   window.noteOskarsDataReadyForSync?.();
   window.noteOskarsDataReadyForSharedArchivePull?.();
+  window.noteOskarsDataReadyForSharedFilmMetadataSync?.();
   doneEnsure?.();
   return state;
 };
