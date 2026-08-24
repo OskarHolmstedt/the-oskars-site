@@ -53,11 +53,7 @@
     let candidates = window.officialResultsFilmCandidates(window.state);
     Object.entries(periods).forEach(([periodKey, period]) => {
       (period?.nominations || []).forEach((nomination) => {
-        let match = window.officialResultsFilmMatch(
-          candidates,
-          nomination.sourceTitle,
-          periodKey,
-        );
+        let match = window.officialResultsFilmMatch(candidates, nomination, periodKey);
         if (match.film) {
           nomination.filmRef = {
             id: match.film.id,

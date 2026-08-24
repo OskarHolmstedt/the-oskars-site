@@ -705,6 +705,7 @@ function canonicalValidateOfficialResults(errors, sources) {
             "recipient",
             "sourceTitle",
             "sourceCategory",
+            "tmdbId",
             "winner",
           ]),
         );
@@ -716,7 +717,7 @@ function canonicalValidateOfficialResults(errors, sources) {
             true,
           ),
         );
-        ["recipient", "detail", "sourceCategory", "country", "originalTitle"].forEach((field) => {
+        ["recipient", "detail", "sourceCategory", "country", "originalTitle", "tmdbId"].forEach((field) => {
           if (nomination[field] !== undefined)
             canonicalCheckString(
               errors,

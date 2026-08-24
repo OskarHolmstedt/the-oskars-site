@@ -274,10 +274,10 @@
           ["", "bracket", "ranking", "order", "interest"].includes(value),
       },
       scope: {
-        default: hasNominees ? "nominees" : "all",
+        default: "all",
         parse: (value) =>
           value === "all" || !hasNominees ? "all" : "nominees",
-        omit: (value, state) => state.viewMode !== "films" || value !== "all",
+        omit: (value, state) => state.viewMode !== "films" || value === "all",
       },
       mediumFilter: {
         param: "medium",
@@ -501,12 +501,12 @@
       },
       showAwards: {
         param: "awards",
-        default: true,
+        default: false,
         parse: (value) => value !== "0",
         serialize: (value) => (value ? "1" : "0"),
         omit: (value, state) =>
           (state.viewMode !== "films" && state.viewMode !== "rewatch") ||
-          value === true,
+          value === false,
       },
       filmPage: {
         param: "page",

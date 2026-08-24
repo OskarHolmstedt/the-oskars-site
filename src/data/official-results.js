@@ -446,7 +446,7 @@ window.proposeOfficialResultsImport = function (raw, options = {}) {
     let nominations = parsed.nominations.map((nomination) => {
       let match = window.officialResultsFilmMatch(
         candidates,
-        nomination.sourceTitle,
+        nomination,
         parsed.year,
       );
       let record = {

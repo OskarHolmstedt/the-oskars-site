@@ -44,9 +44,15 @@
     return [...byId.values()];
   };
 
-  /** Resolves one official source title to at most one unambiguous canonical film for the given period. @param {Object[]} candidates Result of officialResultsFilmCandidates(). @param {string} sourceTitle Official nomination's source title. @param {string} periodKey Official period key. @returns {{film: Object|null, ambiguous: boolean}} Match result. */
-  window.officialResultsFilmMatch = function (candidates, sourceTitle, periodKey) {
-    let normalized = window.normalizeTitle(sourceTitle);
+  /** Resolves one official nomination to at most one unambiguous canonical film for the given period. A resolved tmdbId (a canon fact, language/year-invariant) is checked first and wins outright when it matches exactly one candidate; otherwise falls back to the existing normalized-title + represented-year matching unchanged. @param {Object[]} candidates Result of officialResultsFilmCandidates(). @param {{sourceTitle: string, tmdbId?: string}} nomination Official nomination (or nomination-shaped object) carrying at least sourceTitle. @param {string} periodKey Official period key. @returns {{film: Object|null, ambiguous: boolean}} Match result. */
+  window.officialResultsFilmMatch = function (candidates, nomination, periodKey) {
+    let tmdbId = String(nomination?.tmdbId || "").trim();
+    if (tmdbId) {
+      let tmdbMatches = candidates.filter((film) => String(film.tmdbId || "") === tmdbId);
+      if (tmdbMatches.length === 1) return { film: tmdbMatches[0], ambiguous: false };
+      if (tmdbMatches.length > 1) return { film: null, ambiguous: true };
+    }
+    let normalized = window.normalizeTitle(nomination?.sourceTitle || "");
     let representedYears = new Set(window.officialResultPeriodYears(periodKey));
     let matches = candidates.filter(
       (film) =>
@@ -159,10 +165,12 @@
               watchedType: "",
               watchlistItem: null,
               href: candidateHref(periodKey),
+              tmdbId: "",
             };
             filmsById.set(id, film);
           }
           film.winner ||= Boolean(nomination.winner);
+          film.tmdbId ||= String(nomination.tmdbId || "");
           if (
             nomination.category &&
             !film.categories.includes(nomination.category)
@@ -366,6 +374,7 @@
       href: film.href,
       winner: Boolean(film.winner),
       categories: [...(film.categories || [])],
+      tmdbId: String(film.tmdbId || ""),
     };
   }
 
@@ -483,6 +492,7 @@
         year: candidate.year,
         tier: normalizedTier,
         tags: [tag],
+        ...(candidate.tmdbId ? { tmdbId: candidate.tmdbId } : {}),
       });
       if (!item || excludeItemIds.has(item.id)) return;
       if (window.findWatchlistItemById?.(item.id)) return;

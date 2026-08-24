@@ -139,6 +139,7 @@
  * @property {string} [detail] Role, work, or other credited detail.
  * @property {string} [country] Production country/countries, comma-joined in source order.
  * @property {string} [originalTitle] Original-language title, when it differs from sourceTitle.
+ * @property {string} [tmdbId] Resolved TMDB movie id - a canon fact (unlike filmRef), so it ships in the shared official-results archive and lets matching bypass title/year entirely once set.
  * @property {{id: string, title: string, year: string}} [filmRef] Existing canonical film match.
  */
 
