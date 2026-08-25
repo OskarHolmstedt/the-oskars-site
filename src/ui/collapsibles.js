@@ -46,6 +46,8 @@ window.enhanceCollapsibles = function (root) {
   root.querySelectorAll(".leaderboard-wrap").forEach((wrapper) => {
     if (wrapper.hasAttribute("data-collapsible-skip")) return;
     let heading = wrapper.previousElementSibling;
+    if (heading?.matches?.("[data-horizontal-scroll-controls]"))
+      heading = heading.previousElementSibling;
     if (heading?.matches?.("h2,h3,.health-section-heading")) {
       addToggle(wrapper, heading, heading.textContent.trim() || "table");
     } else {
@@ -60,4 +62,6 @@ window.enhanceCollapsibles = function (root) {
     if (heading && body)
       addToggle(body, heading, heading.textContent.trim() || "section");
   });
+
+  window.enhanceHorizontalScroll?.(root);
 };

@@ -146,6 +146,8 @@ legend {
 input,
 select,
 textarea {
+  box-sizing: border-box;
+  max-width: 100%;
   color: var(--ink);
 }
 
@@ -465,6 +467,11 @@ textarea {
 }
 
 @media (max-width: 720px) {
+  body {
+    min-height: calc(100vh - 24px);
+    margin: 0;
+    padding: 12px;
+  }
   .app-header {
     grid-template-columns: 1fr auto auto auto auto auto;
     min-height: 96px;
@@ -481,6 +488,12 @@ textarea {
     grid-row: 2;
     overflow-x: auto;
     padding-bottom: 2px;
+    scrollbar-width: thin;
+    overscroll-behavior-inline: contain;
+  }
+  .app-primary-nav.has-horizontal-overflow:not(.is-scroll-end) {
+    -webkit-mask-image: linear-gradient(to right, #000 88%, transparent);
+    mask-image: linear-gradient(to right, #000 88%, transparent);
   }
   .site-search {
     grid-column: 1 / -1;
@@ -1892,7 +1905,8 @@ textarea {
   gap: 8px;
   align-items: center;
 }
-.compare-action-list + .leaderboard-wrap {
+.compare-action-list + .leaderboard-wrap,
+.compare-action-list + .horizontal-scroll-controls + .leaderboard-wrap {
   margin-top: 10px;
 }
 .compare-award-cell {
@@ -2722,6 +2736,39 @@ textarea {
 /* Leaderboards, credits, score summaries, and data tables. */
 .leaderboard-wrap {
   overflow-x: auto;
+}
+
+.horizontal-scroll-controls {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .leaderboard-wrap.has-horizontal-overflow,
+  .period-year-grid-wrap.has-horizontal-overflow {
+    scrollbar-width: thin;
+    overscroll-behavior-inline: contain;
+  }
+  .leaderboard-wrap.has-horizontal-overflow:not(.is-scroll-end),
+  .period-year-grid-wrap.has-horizontal-overflow:not(.is-scroll-end) {
+    box-shadow: inset -12px 0 10px -12px var(--accent);
+  }
+  .horizontal-scroll-controls:not([hidden]) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin: 6px 0;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .horizontal-scroll-controls > span:last-child {
+    display: inline-flex;
+    gap: 4px;
+  }
+  .horizontal-scroll-controls button {
+    min-width: 34px;
+    padding: 3px 8px;
+  }
 }
 
 .leaderboard {
@@ -4785,7 +4832,8 @@ dialog h2 {
   margin-top: 0;
 }
 .tag-pagination + .tag-film-grid,
-.tag-pagination + .leaderboard-wrap {
+.tag-pagination + .leaderboard-wrap,
+.tag-pagination + .horizontal-scroll-controls + .leaderboard-wrap {
   margin-top: 0;
 }
 .tag-film-card .film-title {
@@ -4822,8 +4870,11 @@ dialog h2 {
   gap: 5px;
   color: var(--muted);
   font-size: 11px;
+  min-width: 0;
 }
+.discovery-filters input,
 .discovery-filters select {
+  width: 100%;
   min-width: 0;
   padding: 7px;
 }
@@ -4831,6 +4882,7 @@ dialog h2 {
   grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
 }
 .discovery-actions button {
@@ -4911,6 +4963,10 @@ dialog h2 {
   }
   .discovery-actions {
     grid-column: auto;
+    justify-content: stretch;
+  }
+  .discovery-actions button {
+    flex: 1 1 140px;
   }
 }
 /* Watchlist filters, tier/status UI, and archive matching. */
@@ -7861,6 +7917,9 @@ dialog h2 {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   font-size: 11px;
   pointer-events: none;
+}
+.storage-status[hidden] {
+  display: none;
 }
 .storage-status.saving {
   color: #555;

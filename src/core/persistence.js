@@ -121,6 +121,8 @@ function hasIndexedDB() {
   }
 }
 
+let storageStatusDismissTimer = null;
+
 function storageStatus(message, status, actions = []) {
   if (!document?.querySelector || !document?.createElement || !document.body)
     return;
@@ -133,6 +135,11 @@ function storageStatus(message, status, actions = []) {
     indicator.setAttribute("aria-live", "polite");
     document.body.appendChild(indicator);
   }
+  if (storageStatusDismissTimer) {
+    clearTimeout(storageStatusDismissTimer);
+    storageStatusDismissTimer = null;
+  }
+  indicator.hidden = false;
   indicator.className = `storage-status ${status || ""}`.trim();
   indicator.textContent = message;
   actions.forEach((action) => {
@@ -148,6 +155,12 @@ function storageStatus(message, status, actions = []) {
     button.textContent = "Reload";
     button.addEventListener("click", () => window.location.reload());
     indicator.appendChild(button);
+  }
+  if (status === "saved" && !actions.length) {
+    storageStatusDismissTimer = setTimeout(() => {
+      indicator.hidden = true;
+      storageStatusDismissTimer = null;
+    }, 2800);
   }
 }
 

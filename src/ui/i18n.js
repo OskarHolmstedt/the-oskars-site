@@ -2697,6 +2697,9 @@
       sv: "Ange ett namn för att se dess URL-slug.",
     },
     "Saved.": { sv: "Sparat." },
+    "More columns": { sv: "Fler kolumner" },
+    "Scroll left": { sv: "Rulla åt vänster" },
+    "Scroll right": { sv: "Rulla åt höger" },
     "Cleared.": { sv: "Rensat." },
     "Choose the original .zip file exported by Letterboxd.": {
       sv: "Välj den ursprungliga .zip-filen som exporterades av Letterboxd.",

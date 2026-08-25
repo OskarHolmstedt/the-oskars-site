@@ -359,6 +359,7 @@
     "src/ui/film-rating.js",
     "src/ui/sort-keys.js",
     "src/ui/people-credits.js",
+    "src/ui/scroll-affordance.js",
     "src/ui/collapsibles.js",
     "src/ui/award-credit.js",
     "src/ui/pagination.js",
@@ -571,6 +572,7 @@
           ? "src/editor/app.js"
           : `src/pages/${entry}.js`,
     );
+    window.enhanceHorizontalScroll?.(document);
     window.refreshOskarsBackdrop?.();
     window.renderPosterAttribution?.();
   })().catch(renderLoadError);

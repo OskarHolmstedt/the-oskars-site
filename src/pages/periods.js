@@ -65,6 +65,7 @@
     document.title = `${ui("Periods")} · The Oskars`;
     container.innerHTML = `${window.renderDetailHeader({ classes: "periods-header", mainHtml: `<h1>${escape(ui("Periods"))}</h1><p>${escape(ui("Move through the award brackets and film views at every scale."))}</p>` })}
     ${yearGrid(decades, new Set(years))}`;
+    window.enhanceHorizontalScroll?.(container);
     doneRender?.();
   }
 
