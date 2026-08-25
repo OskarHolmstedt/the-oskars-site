@@ -15,6 +15,15 @@
  * bounded by a global size cap and a per-user daily write cap, both
  * enforced in firestore.rules via transactionally-maintained counter
  * documents - never just trusted client behavior.
+ *
+ * A third path reads instead of writes: `window.trySharedFilmMetadata`
+ * looks up one film's doc by tmdbId before `lookupTmdbMovieMetadata`
+ * (src/domain/posters.js) would otherwise spend a TMDB "details" request
+ * on it - a free Firestore read for any film another eligible account has
+ * already looked up, which matters most right after a bulk import (a
+ * fresh Letterboxd jumpstart can easily involve hundreds of popular,
+ * already-shared films). Fails open (returns null) on any error or
+ * ineligibility, so the TMDB fallback always still runs.
  */
 
 (function () {
@@ -94,7 +103,19 @@
     return people;
   };
 
-  function sharedFilmMetadataPayload(film, metadata, people) {
+  /**
+   * Builds one film's shared-archive payload from its own stored fields,
+   * optionally overlaid with a just-applied fresh TMDB lookup. Exposed on
+   * window (not just used internally) so the same field derivation - not a
+   * second copy of it - backs both the browser push path and
+   * scripts/backfill-shared-film-metadata.mjs's bulk admin-credentialed
+   * write.
+   * @param {FilmRecord|WatchlistItem|WatchedOtherEntry} film Source record.
+   * @param {Object|null} metadata A just-applied TMDB lookup result, or null to derive everything from `film` alone.
+   * @param {Object} people Output of buildSharedFilmPeopleCredits(film).
+   * @returns {Object} Shared film-metadata document payload (minus timestamps).
+   */
+  window.sharedFilmMetadataPayload = function (film, metadata, people) {
     return {
       tmdbId: String(metadata?.tmdbId || film?.tmdbId || ""),
       title: String(film?.title || ""),
@@ -110,7 +131,7 @@
       people,
       schemaVersion: SHARED_FILM_METADATA_SCHEMA_VERSION,
     };
-  }
+  };
 
   async function performPushSharedFilmMetadata(film, metadata) {
     if (!window.oskarsPersistenceAllowed?.())
@@ -121,6 +142,15 @@
       return { ok: true, reason: "unlinked" };
     let tmdbId = String(metadata?.tmdbId || film?.tmdbId || "");
     if (!tmdbId) return { ok: true, reason: "no-tmdb-id" };
+    // The shared archive only ever supported plain movie ids - a TV
+    // reference ("TV:<seriesId>/S<season>E<episode>", parseTmdbReference,
+    // src/domain/image-providers.js) contains a "/", which Firestore reads
+    // as a path separator, not a valid document id. trySharedFilmMetadata
+    // (the read side) already restricts itself to mediaType "movie" for
+    // the same reason; this was the one write-side gap that let a TV
+    // entry reach here ungated.
+    if (window.parseTmdbReference?.(tmdbId).mediaType !== "movie")
+      return { ok: true, reason: "not-a-movie" };
 
     let ready = await window.ensureFirestoreDb?.();
     if (!ready) return { ok: false, reason: "unconfigured" };
@@ -190,6 +220,146 @@
     return performPushSharedFilmMetadata(film, metadata).catch((err) => {
       console.error("Shared film metadata push failed", err);
       return { ok: false, reason: "error", error: err };
+    });
+  };
+
+  const BACKFILL_STOP_REASONS = new Set([
+    "not-allowed",
+    "signed-out",
+    "unlinked",
+    "unconfigured",
+  ]);
+
+  /**
+   * Backfills the shared film-metadata archive from whatever this account's
+   * own archive already has locally - distinct from the ordinary push path
+   * above, which only fires as a side effect of a *fresh* TMDB lookup. A
+   * film enriched before the shared archive existed, or by the ambient
+   * per-page fetching this app used to do (removed - see
+   * APP_OVERVIEW.md's "visible fetch after a bulk import"), already has
+   * everything needed locally and was never pushed. Calling
+   * `pushSharedFilmMetadata(item)` with no `metadata` argument works
+   * correctly here: `sharedFilmMetadataPayload` already falls back to the
+   * item's own stored fields for every value, so nothing new needs
+   * building - this just calls the existing insert-if-missing path for
+   * every locally-known film/watchlist item with a tmdbId, bounded by the
+   * same daily-quota/global-cap enforcement `firestore.rules` already
+   * applies (an already-shared film costs nothing: the transaction returns
+   * before touching either counter).
+   *
+   * A large archive can easily exceed the 500/day per-user write quota in
+   * one run - that's expected, not an error, and the caller's progress
+   * report distinguishes "quota reached, resume tomorrow" from genuine
+   * failures so the UI can say so plainly rather than reporting a vague
+   * partial failure.
+   * @param {Object} [options] Batch controls.
+   * @param {number} [options.concurrency] Parallel transactions (default 4 - these are small Firestore transactions, not TMDB calls, so a higher concurrency than the TMDB batches is fine).
+   * @param {(done:number, total:number, item:Object) => void} [options.onProgress] Progress callback.
+   * @returns {Promise<{ok:boolean, attempted:number, created:number, alreadyShared:number, failed:number, stoppedReason:string}>}
+   */
+  window.runSharedArchiveBackfill = async function (options = {}) {
+    let candidates = [
+      ...Object.values(window.state?.filmsById || {}),
+      ...(window.state?.watchedOther || []),
+      ...(window.state?.watchlist || []),
+    ].filter((item) => item?.tmdbId);
+
+    let result = {
+      ok: true,
+      attempted: 0,
+      created: 0,
+      alreadyShared: 0,
+      failed: 0,
+      stoppedReason: "",
+    };
+    if (!candidates.length) return result;
+
+    let cursor = 0;
+    let stopped = false;
+    async function worker() {
+      while (!stopped && cursor < candidates.length) {
+        let item = candidates[cursor++];
+        let push = await window.pushSharedFilmMetadata(item);
+        result.attempted += 1;
+        if (push.reason === "created") {
+          result.created += 1;
+        } else if (push.reason === "already-shared") {
+          result.alreadyShared += 1;
+        } else if (
+          BACKFILL_STOP_REASONS.has(push.reason) ||
+          push.reason === "OSKARS_SHARED_METADATA_QUOTA" ||
+          push.reason === "OSKARS_SHARED_METADATA_CAP"
+        ) {
+          // A genuine stop condition, whenever it occurs: account-level
+          // gating (checked once per call, so a mid-run revocation stops
+          // things exactly as an initial one would) or a rate cap. Not
+          // counted as a failure - the report distinguishes this from
+          // errors so the UI can say "come back tomorrow" rather than
+          // "something went wrong".
+          stopped = true;
+          result.stoppedReason = push.reason;
+        } else {
+          result.failed += 1;
+        }
+        options.onProgress?.(result.attempted, candidates.length, item);
+      }
+    }
+    let concurrency = Math.min(
+      candidates.length,
+      Math.max(1, Number(options.concurrency) || 4),
+    );
+    await Promise.all(Array.from({ length: concurrency }, worker));
+    return result;
+  };
+
+  // Same shape lookupTmdbMovieMetadata's own TMDB details parsing returns
+  // (src/domain/posters.js) - director always, from whichever shared
+  // people-credit entries are tagged "Director" (buildSharedFilmPeopleCredits
+  // always includes the director(s), never any other profession's award
+  // status), so a caller can't tell the difference from a fresh TMDB fetch.
+  function directorNamesFromSharedPeople(people) {
+    return Object.values(people || {})
+      .filter((person) => (person.professions || []).includes("Director"))
+      .map((person) => person.name);
+  }
+
+  async function performLookupSharedFilmMetadata(tmdbId) {
+    if (!tmdbId) return null;
+    if (!window.oskarsPersistenceAllowed?.()) return null;
+    if (!currentFirebaseUser()) return null;
+    if (!window.getWorkspaceSyncAccountAccess?.().allowed) return null;
+    let ready = await window.ensureFirestoreDb?.();
+    if (!ready) return null;
+    let { firestoreModule, db } = ready;
+    let snapshot = await firestoreModule.getDoc(
+      firestoreModule.doc(db, "sharedFilmMetadata", String(tmdbId)),
+    );
+    if (!snapshot.exists()) return null;
+    let data = snapshot.data() || {};
+    return {
+      tmdbId: String(tmdbId),
+      director: directorNamesFromSharedPeople(data.people).join(", "),
+      country: data.country || "",
+      primaryCountry: data.primaryCountry || "",
+      swedishTitle: data.swedishTitle || "",
+      runtimeMinutes: Number(data.runtimeMinutes) || "",
+      poster: data.poster || null,
+    };
+  }
+
+  /**
+   * Looks up one film's already-shared TMDB metadata, avoiding a TMDB
+   * "details" request for it - called from `lookupTmdbMovieMetadata`
+   * (src/domain/posters.js) right after a tmdbId is known, before it would
+   * otherwise fetch details. Fails open: any error, ineligibility, or
+   * missing doc returns null so the caller's normal TMDB fetch still runs.
+   * @param {string} tmdbId Resolved TMDB movie id.
+   * @returns {Promise<Object|null>} Metadata shaped like lookupTmdbMovieMetadata's own return value, or null.
+   */
+  window.trySharedFilmMetadata = function (tmdbId) {
+    return performLookupSharedFilmMetadata(tmdbId).catch((err) => {
+      console.warn("Shared film metadata lookup failed", err);
+      return null;
     });
   };
 

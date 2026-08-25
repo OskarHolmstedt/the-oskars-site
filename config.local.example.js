@@ -1,15 +1,9 @@
-/** @file Documents the optional browser-local TMDB and Google Sheets configuration shape. */
+/** @file Documents the optional browser-local Google Sheets configuration shape. */
 
 window.OSKARS_LOCAL_CONFIG = {
-  // Optional: calls TMDB directly with your own key instead of going
-  // through the shared Cloudflare Worker proxy (cloudflare/tmdb-proxy/,
-  // docs/tmdb-shared-key-proxy-decision.md). Leave both unset to use the
-  // deployed proxy, the normal path for every real user.
-  tmdbCredential: "your-tmdb-api-key-or-read-token",
-  // Optional: only needed alongside tmdbCredential to point at something
-  // other than TMDB directly - e.g. a local `wrangler dev` server
-  // (http://localhost:8787/3) while testing the proxy itself.
-  // tmdbApiBase: "http://localhost:8787/3",
+  // Reveals a link to owner-data.html in source checkouts. Deployment
+  // artifacts exclude that page regardless of this example value.
+  ownerDataTools: false,
   googleClientId: "your-google-oauth-client-id.apps.googleusercontent.com",
   googleSheets: {
     spreadsheetId: "your-private-google-sheet-id",

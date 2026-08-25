@@ -1,6 +1,9 @@
 /**
- * @file Owns manual film creation, previewable nomination insertion, and
- * removal of opinion data.
+ * @file Owns previewable nomination insertion and removal of opinion data.
+ * Manual film creation used to live here too (window.addFilm) - removed in
+ * favor of Intake's guided workflow as the single path for adding a new
+ * watched film, since the Editor version bypassed Intake's rating/ranking/
+ * placement steps and (unlike Intake) never persisted the new film at all.
  */
 
 function nominationPeriodIdentity(periodType, periodKey) {
@@ -16,89 +19,6 @@ function nominationPeriodIdentity(periodType, periodKey) {
   }
   return key;
 }
-
-/** Creates a manually entered film in the all-time source. @param {Object} values Film form values. @returns {FilmRecord} Added canonical film. */
-window.addFilm = function (values) {
-  let title = String(values.title || "").trim();
-  let year = String(values.year || "").trim();
-  if (!title) throw new Error("Title is required.");
-  if (!/^\d{4}$/.test(year)) throw new Error("Year must contain four digits.");
-
-  let duplicate = Object.values(state.filmsById || {}).find(
-    (film) =>
-      String(film.year || "") === year &&
-      normalizeTitle(film.title) === normalizeTitle(title),
-  );
-  if (duplicate)
-    throw new Error(`${duplicate.title} (${year}) already exists.`);
-  if (
-    values.posterUrl &&
-    !/^https?:\/\//i.test(String(values.posterUrl).trim())
-  ) {
-    throw new Error("Poster URL must use HTTP or HTTPS.");
-  }
-
-  let film = {
-    title,
-    year,
-    director: String(values.director || "").trim(),
-    rating: String(values.rating || "").trim(),
-    country: String(values.country || "").trim(),
-    url: String(values.url || "").trim(),
-    poster: values.posterUrl
-      ? {
-          url: String(values.posterUrl).trim(),
-          source: "manual",
-          sourceUrl: "",
-          fetchedAt: new Date().toISOString(),
-        }
-      : null,
-    medium: values.medium || "unknown",
-    screenplayType: values.screenplayType || "unknown",
-    adaptationSource: window.normalizeAdaptationSource(values.adaptationSource),
-    liveAction:
-      values.medium === "animation"
-        ? "Animation"
-        : values.medium === "live-action"
-          ? "Live action"
-          : "",
-    adaptation:
-      values.screenplayType === "original"
-        ? "Original"
-        : values.screenplayType === "adapted"
-          ? "Adapted"
-          : "",
-    franchises: window.parseFranchiseMemberships(values.franchises),
-    tags: window.parseFilmTags(values.tags),
-    review: String(values.review || "").trim(),
-    awards: [],
-  };
-  window.normalizeFilmMetadata(film);
-  state.years.alltime ||= { films: [] };
-  state.years.alltime.films.push(film);
-  window.markAggregatesDirty?.("film added");
-  window.ensureAggregatesFresh?.();
-  let added = Object.values(state.filmsById).find(
-    (candidate) =>
-      String(candidate.year || "") === year &&
-      normalizeTitle(candidate.title) === normalizeTitle(title),
-  );
-  if (added && window.recordEdit) {
-    window.recordEdit({
-      type: "film added",
-      summary: `${added.title} (${added.year || ""})`,
-      sheetHint: "Film metadata / ranked list rows",
-      changes: [
-        { field: "title", before: "", after: added.title },
-        { field: "year", before: "", after: added.year || "" },
-        { field: "director", before: "", after: added.director || "" },
-        { field: "rating", before: "", after: added.rating || "" },
-      ],
-      context: { filmId: added.id },
-    });
-  }
-  return added;
-};
 
 function periodRankField(periodType) {
   return periodType === "years"

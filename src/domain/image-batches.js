@@ -73,43 +73,35 @@ function lookupFailureRecord(item, reason) {
  * eligibility test, lookup, and apply functions get plugged in.
  * @param {Object[]} rawItems Candidate items, unfiltered.
  * @param {Object} config Batch shape.
- * @param {boolean} [config.requiresCredential] Whether a configured TMDB credential gates eligibility entirely (candidates are empty without one).
  * @param {(item:Object) => string} config.idOf Resolves an item's dedup/session-attempt key.
- * @param {(item:Object, settings:Object) => boolean} config.eligible Whether an item currently needs a lookup.
+ * @param {(item:Object) => boolean} config.eligible Whether an item currently needs a lookup.
  * @param {Set<string>} config.attempts Session attempt-tracking set, mutated in place.
  * @param {string} config.failureType Session-failure-registry queue key.
  * @param {(item:Object, reason:string) => Object} config.failureRecord Builds a failure record for an item.
- * @param {(item:Object, context:{settings:Object, fetchFn:Function}) => Promise<*>} config.lookup Runs the network lookup for one item.
+ * @param {(item:Object, context:{fetchFn:Function}) => Promise<*>} config.lookup Runs the network lookup for one item.
  * @param {(item:Object, value:*) => boolean} config.apply Persists a successful lookup value; returns whether it was applied.
  * @param {string} config.notFoundReason Failure reason when a lookup resolves but finds or applies nothing.
  * @param {(item:Object) => string} config.warnMessage Console warning text for a caught lookup error.
  * @param {'poster'|'portrait'} [config.imageFailureType] When set, `result.failed` is also recorded against window.recordImageImportFailure on this type.
- * @param {(options:Object) => Object} [config.buildSettings] Overrides the default merged-settings computation.
- * @param {Object} [options] Caller options: settings, fetchFn, limit, force, concurrency, onProgress.
+ * @param {Object} [options] Caller options: fetchFn, limit, force, concurrency, onProgress.
  * @returns {Promise<MetadataBatchResult>} Batch result.
  */
 window.runBoundedLookupBatch = async function (rawItems, config, options = {}) {
-  let settings = config.buildSettings
-    ? config.buildSettings(options)
-    : Object.assign(window.getPosterSettings(), options.settings || {});
   let seen = new Set();
   let limit = Math.max(1, Number(options.limit) || 25);
   let skippedItems = [];
-  let eligible =
-    !config.requiresCredential || settings?.tmdbCredential
-      ? (rawItems || []).filter((item) => {
-          let id = config.idOf(item);
-          if (!config.eligible(item, settings) || seen.has(id)) return false;
-          seen.add(id);
-          if (!options.force && config.attempts.has(id)) {
-            skippedItems.push(
-              config.failureRecord(item, "Already attempted this session."),
-            );
-            return false;
-          }
-          return true;
-        })
-      : [];
+  let eligible = (rawItems || []).filter((item) => {
+    let id = config.idOf(item);
+    if (!config.eligible(item) || seen.has(id)) return false;
+    seen.add(id);
+    if (!options.force && config.attempts.has(id)) {
+      skippedItems.push(
+        config.failureRecord(item, "Already attempted this session."),
+      );
+      return false;
+    }
+    return true;
+  });
   let candidates = eligible.slice(0, limit);
   candidates.forEach((item) => config.attempts.add(config.idOf(item)));
 
@@ -121,6 +113,14 @@ window.runBoundedLookupBatch = async function (rawItems, config, options = {}) {
     failures: [],
     skippedItems,
   };
+  // Checkpointed with an immediate save every few finds, not just once at
+  // the end - a batch this size (default limit 25) can run long enough
+  // that navigating away mid-batch would otherwise silently discard
+  // everything already fetched, since apply() below always passes
+  // {save: false} and defers to this function's own save call.
+  const SAVE_CHECKPOINT_EVERY = 3;
+  let unsavedFinds = 0;
+
   let cursor = 0;
   async function worker() {
     while (cursor < candidates.length) {
@@ -128,12 +128,16 @@ window.runBoundedLookupBatch = async function (rawItems, config, options = {}) {
       let id = config.idOf(item);
       try {
         let value = await config.lookup(item, {
-          settings,
           fetchFn: options.fetchFn,
         });
         if (value && config.apply(item, value)) {
           result.found += 1;
           window.clearMetadataSessionFailure(config.failureType, id);
+          unsavedFinds += 1;
+          if (unsavedFinds >= SAVE_CHECKPOINT_EVERY) {
+            unsavedFinds = 0;
+            window.save({ immediate: true });
+          }
         } else {
           result.failed += 1;
           result.failures.push(config.failureRecord(item, config.notFoundReason));
@@ -167,8 +171,10 @@ window.runBoundedLookupBatch = async function (rawItems, config, options = {}) {
     window.recordImageImportFailure(config.imageFailureType, result.failed);
   // Failure-only batches store nothing durable; skipping the save keeps
   // read-only page loads write-free. Failure counters live in in-memory
-  // state and persist with the next genuine save.
-  if (result.found) window.save();
+  // state and persist with the next genuine save. Immediate, not the
+  // debounced default, so the batch's tail (whatever hasn't hit a
+  // checkpoint above) is guaranteed durable before this function returns.
+  if (result.found) window.save({ immediate: true });
   return result;
 };
 
@@ -177,7 +183,6 @@ window.fetchFilmMetadata = async function (films, options = {}) {
   return window.runBoundedLookupBatch(
     films,
     {
-      requiresCredential: true,
       idOf: (film) => film.id,
       eligible: (film) => window.filmNeedsMetadataLookup(film),
       attempts: filmMetadataLookupAttempts,
@@ -203,15 +208,11 @@ window.recordImageImportFailure = function (type, count = 1) {
   return window.state.imageImportStats[field];
 };
 
-/** Tests whether a film needs a poster or TMDB upgrade. @param {FilmRecord} film Film. @param {Object} [settings] Provider settings. @returns {boolean} Whether lookup is needed. */
-window.filmNeedsPosterLookup = function (
-  film,
-  settings = window.getPosterSettings(),
-) {
+/** Tests whether a film needs a poster or TMDB upgrade. @param {FilmRecord} film Film. @returns {boolean} Whether lookup is needed. */
+window.filmNeedsPosterLookup = function (film) {
   return (
     Boolean(film?.id) &&
-    (!film.poster ||
-      (settings.tmdbCredential && film.poster.source === "wikimedia"))
+    (!film.poster || film.poster.source === "wikimedia")
   );
 };
 
@@ -221,7 +222,7 @@ window.fetchFilmPosters = async function (films, options = {}) {
     films,
     {
       idOf: (film) => film.id,
-      eligible: (film, settings) => window.filmNeedsPosterLookup(film, settings),
+      eligible: (film) => window.filmNeedsPosterLookup(film),
       attempts: posterLookupAttempts,
       failureType: "film-posters",
       failureRecord: lookupFailureRecord,
@@ -241,7 +242,6 @@ window.fetchPersonPortraits = async function (people, options = {}) {
   return window.runBoundedLookupBatch(
     people,
     {
-      requiresCredential: true,
       idOf: (person) => person.id,
       eligible: (person) => Boolean(person?.id && !person.portrait),
       attempts: portraitLookupAttempts,
@@ -257,4 +257,3 @@ window.fetchPersonPortraits = async function (people, options = {}) {
     options,
   );
 };
-

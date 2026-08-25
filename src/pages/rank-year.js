@@ -78,7 +78,7 @@
     return `<div class="setup-year-category-row is-expanded">
       ${header}
       <div class="film-grid setup-year-pool-grid">${cards}</div>
-      <div class="setup-ranking-actions"><button type="button" data-setup-rank-confirm="${escape(key)}">${escape(ui("Confirm this order"))}</button><a class="button-link" href="ranking-review.html?type=years&amp;key=${escape(year)}">${escape(ui("Compare two at a time"))}</a></div>
+      <div class="setup-ranking-actions"><button type="button" data-setup-rank-confirm="${escape(key)}">${escape(ui("Keep this order"))}</button><a class="button-link" href="ranking-review.html?type=years&amp;key=${escape(year)}">${escape(ui("Compare two at a time"))}</a></div>
     </div>`;
   }
 

@@ -1,15 +1,19 @@
 /**
  * @file First-run onboarding choice screen for a fresh `local`-mode session
- * (issue #252): empty archive, sample archive, or import an existing
- * backup. Only rendered when `window.shouldShowOnboarding()` is true.
+ * (issue #252): import a Letterboxd export (the recommended path for most
+ * new users, headlined first), an empty archive, or sample data - with
+ * restoring a previous Oskars backup/canonical file as a lighter-weight
+ * link rather than a fourth competing card. Only rendered when
+ * `window.shouldShowOnboarding()` is true.
  */
 
 (function () {
   let escapeText = (value) => window.pageEscape(value);
   let ui = window.uiText || ((text) => text);
 
-  function choiceCard({ heading, body, buttonId, buttonLabel }) {
-    return `<article class="onboarding-choice">
+  function choiceCard({ eyebrow, heading, body, buttonId, buttonLabel, recommended }) {
+    return `<article class="onboarding-choice${recommended ? " onboarding-choice--recommended" : ""}">
+      ${eyebrow ? `<span class="eyebrow">${escapeText(eyebrow)}</span>` : ""}
       <h2>${escapeText(heading)}</h2>
       <p>${escapeText(body)}</p>
       <button type="button" class="button-link" id="${buttonId}">${escapeText(buttonLabel)}</button>
@@ -63,6 +67,16 @@
       )}</p>
       <div class="onboarding-choices">
         ${choiceCard({
+          eyebrow: ui("Recommended if you already track films elsewhere"),
+          heading: ui("Import your Letterboxd export"),
+          body: ui(
+            "Bring in watched films, ratings, diary dates, tags, and your watchlist in one step. Awards and rankings stay yours to set up here.",
+          ),
+          buttonId: "onboardingImportLetterboxd",
+          buttonLabel: ui("Import Letterboxd export"),
+          recommended: true,
+        })}
+        ${choiceCard({
           heading: ui("Start with an empty archive"),
           body: ui(
             "Build your own archive from scratch — add films and awards yourself.",
@@ -78,28 +92,25 @@
           buttonId: "onboardingStartSample",
           buttonLabel: ui("Load sample archive"),
         })}
-        ${choiceCard({
-          heading: ui("Import Letterboxd or a backup"),
-          body: ui(
-            "Start from an original Letterboxd export ZIP, an Oskars backup, or a canonical file on the Data page.",
-          ),
-          buttonId: "onboardingImportBackup",
-          buttonLabel: ui("Import existing data"),
-        })}
       </div>
+      <p class="onboarding-alternative">${escapeText(
+        ui(
+          "Restoring a previous Oskars backup or canonical file instead? ",
+        ),
+      )}<a href="${window.prepareOskarsAccountNavigation("data.html#backupRestore")}">${escapeText(ui("Go to the Data page."))}</a></p>
     </div>`;
+    document
+      .getElementById("onboardingImportLetterboxd")
+      .addEventListener("click", () => {
+        window.location.href = window.prepareOskarsAccountNavigation(
+          "data.html#letterboxdImport",
+        );
+      });
     document
       .getElementById("onboardingStartEmpty")
       .addEventListener("click", startEmpty);
     document
       .getElementById("onboardingStartSample")
       .addEventListener("click", startWithSample);
-    document
-      .getElementById("onboardingImportBackup")
-      .addEventListener("click", () => {
-        window.location.href = window.prepareOskarsAccountNavigation(
-          "data.html#letterboxdImport",
-        );
-      });
   };
 })();

@@ -1,6 +1,6 @@
 /**
  * @file Owns the shared nomination-placement plan contract, preview text,
- * confirmation boundary, stale-plan guard, and atomic application.
+ * visible review boundary, stale-plan guard, and atomic application.
  */
 
 (function () {
@@ -107,18 +107,50 @@
     return lines.join("\n");
   };
 
-  /**
-   * Shows a blocking alert or confirmation preview without applying the plan.
-   * @param {NominationPlacementPlan} plan Placement plan.
-   * @returns {boolean} Whether the user confirmed a valid plan.
-   */
-  window.confirmNominationPlacementPlan = function (plan) {
-    let text = window.nominationPlacementPlanText(plan);
+  /** Opens a focused placement review and calls the supplied action once accepted. @param {NominationPlacementPlan} plan Placement plan. @param {() => void} onApply Apply callback. @returns {boolean} Whether a valid review was opened. */
+  window.reviewNominationPlacementPlan = function (plan, onApply) {
     if (!plan.ok) {
-      window.alert?.(text);
+      window.alert?.(window.nominationPlacementPlanText(plan));
       return false;
     }
-    return window.confirm ? window.confirm(text) : true;
+    let escape = window.pageEscape || ((value) => String(value ?? ""));
+    let dialog = document.createElement("dialog");
+    dialog.className = "nomination-placement-review";
+    let heading = plan.heading
+      ? ui(plan.heading)
+      : plan.operation === "insert"
+        ? ui("Add nomination?")
+        : plan.operation === "merge"
+          ? ui("Merge annual category?")
+          : plan.operation === "delete"
+            ? ui("Delete nomination?")
+            : ui("Reorder nominations?");
+    let changes = plan.changes.length
+      ? `<ul>${plan.changes
+          .map(
+            (change) =>
+              `<li><strong>${escape(changeLabel(change))}: ${escape(change.title)}</strong><span>${escape(placementText(change.before))} → ${escape(placementText(change.after))}</span></li>`,
+          )
+          .join("")}</ul>`
+      : `<p>${escape(ui("No placement changes."))}</p>`;
+    let supportingSection = (title, items, classes = "") =>
+      items.length
+        ? `<section class="${escape(classes)}"><h3>${escape(ui(title))}</h3><ul>${items.map((item) => `<li>${escape(item)}</li>`).join("")}</ul></section>`
+        : "";
+    dialog.innerHTML = `<form method="dialog"><h2>${escape(heading)}</h2><p>${escape([plan.periodKey, plan.category].filter(Boolean).join(" · "))}</p>${changes}${supportingSection("Details", plan.notes)}${supportingSection("Warnings", plan.warnings, "nomination-placement-review-warning")}<div class="data-actions"><button type="submit" value="apply" data-nomination-review-apply>${escape(ui("Use these changes"))}</button><button type="submit" value="cancel">${escape(ui("Cancel"))}</button></div></form>`;
+    let finished = false;
+    function finish(apply) {
+      if (finished) return;
+      finished = true;
+      dialog.remove();
+      if (apply) onApply?.();
+    }
+    dialog.addEventListener("close", () => finish(dialog.returnValue === "apply"));
+    dialog.addEventListener("cancel", () => finish(false));
+    document.body.appendChild(dialog);
+    if (dialog.showModal) dialog.showModal();
+    else dialog.setAttribute("open", "");
+    return true;
   };
 
   function editLogChanges(plan) {
@@ -131,7 +163,7 @@
   }
 
   /**
-   * Atomically applies a confirmed, still-current placement plan, rebuilds
+   * Atomically applies a reviewed, still-current placement plan, rebuilds
    * derived state once, and records one complete edit-log entry.
    * @param {NominationPlacementPlan} plan Confirmed placement plan.
    * @returns {Object} Application outcome.

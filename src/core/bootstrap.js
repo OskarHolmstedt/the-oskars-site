@@ -6,11 +6,54 @@
 window.OSKARS_BUNDLED_DATA_VERSION = 6;
 
 /**
+ * Fetches and parses the first available published official-results
+ * document (`docs/official-results-file-split-decision.md`), using the
+ * same candidate-path fallback the personal snapshot fetch below uses.
+ * Required alongside the personal snapshot in owner mode - a missing or
+ * invalid official-results document fails the whole published-canonical
+ * fetch rather than silently falling back to a guess.
+ * @returns {Promise<{ok: boolean, data?: Object, error?: string, detail?: string}>}
+ */
+async function fetchOfficialResultsDocument() {
+  let candidates = [
+    "./oskars-data-official.json",
+    "./data/oskars-data-official.json",
+  ];
+  for (let path of candidates) {
+    let response;
+    try {
+      let doneFetch = window.startOskarsPerformance?.(`snapshot:fetch ${path}`);
+      response = await fetch(path, { cache: "no-store" });
+      doneFetch?.();
+    } catch (err) {
+      continue;
+    }
+    if (!response.ok) continue;
+    try {
+      let data =
+        typeof response.text === "function"
+          ? JSON.parse(await response.text())
+          : await response.json();
+      return { ok: true, data };
+    } catch (err) {
+      return { ok: false, error: "invalid", detail: String(err?.message || err) };
+    }
+  }
+  return {
+    ok: false,
+    error: window.navigator?.onLine === false ? "offline" : "unavailable",
+  };
+}
+
+/**
  * Fetches and validates the first available published canonical dataset.
  * @returns {Promise<{ok: boolean, data?: Object, revision?: string, path?: string, error?: string, detail?: string}>}
  *   Published result.
  */
 window.fetchPublishedCanonical = async function () {
+  let official = await fetchOfficialResultsDocument();
+  if (!official.ok)
+    return { ok: false, error: official.error, detail: official.detail };
   let candidates = ["./oskars-data.json", "./data/oskars-data.json"];
   for (let path of candidates) {
     let response;
@@ -24,13 +67,15 @@ window.fetchPublishedCanonical = async function () {
     if (!response.ok) continue;
     try {
       let doneJson = window.startOskarsPerformance?.(`snapshot:parse ${path}`);
-      let canonical;
-      if (typeof response.text === "function")
-        canonical = window.parseCanonicalData(await response.text());
-      else
-        canonical = window.assertCanonicalData(
-          window.migrateCanonicalData(await response.json()),
-        );
+      let personal =
+        typeof response.text === "function"
+          ? JSON.parse(await response.text())
+          : await response.json();
+      window.mergeOfficialResultsIntoCanonical(personal, official.data);
+      let canonical = window.assertCanonicalData(
+        window.migrateCanonicalData(personal),
+      );
+      window.applyOfficialMetadataGlobals(official.data);
       doneJson?.();
       return {
         ok: true,
@@ -97,18 +142,11 @@ async function replaceWithPublishedCanonical(canonical, revision, options = {}) 
 }
 
 /**
- * Replaces a stale local draft with the last validated published dataset after confirmation.
+ * Replaces a stale browser archive with the last validated published dataset.
  * @returns {Promise<boolean>} Whether published data replaced the draft.
  */
 window.usePublishedCanonical = async function () {
   if (!latestPublishedCanonical || !latestReconciliationPlan?.publishedRevision)
-    return false;
-  if (
-    typeof window.confirm === "function" &&
-    !window.confirm(
-      "Use the published dataset? Your current local workspace will be retained for recovery.",
-    )
-  )
     return false;
   let replaced = await replaceWithPublishedCanonical(
     latestPublishedCanonical,
@@ -121,15 +159,10 @@ window.usePublishedCanonical = async function () {
 };
 
 /**
- * Restores the retained pre-reconciliation workspace after confirmation.
+ * Restores the retained pre-publication browser archive.
  * @returns {Promise<boolean>} Whether recovery was restored.
  */
 window.restoreCanonicalRecovery = async function () {
-  if (
-    typeof window.confirm === "function" &&
-    !window.confirm("Restore the local workspace retained before reconciliation?")
-  )
-    return false;
   let restored = await window.restoreRecoveryWorkspace();
   if (restored && typeof window.location?.reload === "function")
     window.location.reload();
@@ -145,10 +178,10 @@ async function showReconciliationStatus(plan) {
         : "warning";
   let actions = [];
   if (plan.status === "stale")
-    actions.push({ label: "Use published", run: window.usePublishedCanonical });
+    actions.push({ label: "Use published archive", run: window.usePublishedCanonical });
   else if (plan.status === "clean" && (await window.readRecoveryWorkspace?.()))
     actions.push({
-      label: "Restore previous",
+      label: "Restore saved version",
       run: window.restoreCanonicalRecovery,
     });
   window.showStorageStatus?.(

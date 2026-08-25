@@ -718,15 +718,13 @@
 
   async function enrichOfficialWatchlistItems(sourceId, items) {
     if (!items.length || typeof window.fetch !== "function") return;
-    let settings = window.getPosterSettings?.() || {};
     let metadata = { attempted: 0, found: 0, failed: 0 };
-    if (settings.tmdbCredential && window.fetchWatchlistMetadata) {
+    if (window.fetchWatchlistMetadata) {
       updateOfficialWatchlistStatus(
         sourceId,
         ui("Fetching metadata for {count} films…", { count: items.length }),
       );
       metadata = await window.fetchWatchlistMetadata(items, {
-        settings,
         limit: items.length,
         concurrency: 3,
         onProgress(done, total) {
@@ -747,7 +745,6 @@
         }),
       );
       posters = await window.fetchWatchlistPosters(posterCandidates, {
-        settings,
         limit: posterCandidates.length,
         concurrency: 3,
         onProgress(done, total) {

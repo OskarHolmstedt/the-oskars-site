@@ -167,7 +167,15 @@
     return window.searchMatches(entries, query, { limit: 8 });
   }
 
-  function primaryNavHtml(active) {
+  function primaryPreviewHtml(section, escape) {
+    if (section === "periods")
+      return `<div class="primary-nav-preview primary-nav-preview--periods" aria-label="${escape(headerText("menu.periods", "Periods"))}"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.periods", "Periods"))}</strong><a href="periods.html">${escape(headerText("menu.browsePeriods", "Browse all periods"))} →</a></div>${window.renderPeriodIndexMatrix({ compact: true })}</div>`;
+    if (section === "categories")
+      return `<div class="primary-nav-preview primary-nav-preview--categories" aria-label="${escape(headerText("menu.categories", "Categories"))}"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.categories", "Categories"))}</strong><a href="categories.html">${escape(headerText("menu.browseCategories", "Browse all categories"))} →</a></div>${window.renderCategoryIndexBoard({ compact: true })}</div>`;
+    return "";
+  }
+
+  function primaryNavHtml(active, escape) {
     // Kept short and fixed so the header never wraps or resizes between pages.
     // Everything else (Discover, Compare, People, Directors, Tags, Editor,
     // Data) lives in the site-menu dropdown instead.
@@ -197,45 +205,18 @@
       ["projects", headerText("nav.projects", "Projects"), "projects.html"],
     ];
     return primaryItems
-      .map(([section, label, href]) =>
-        active === section
-          ? `<strong>${label}</strong>`
-          : `<a href="${href}">${label}</a>`,
-      )
+      .map(([section, label, href]) => {
+        let current = active === section;
+        let link = `<a class="primary-nav-link${current ? " is-active" : ""}" href="${href}"${current ? ' aria-current="page"' : ""}>${label}</a>`;
+        let preview = primaryPreviewHtml(section, escape);
+        return preview
+          ? `<span class="primary-nav-item primary-nav-item--${section}">${link}${preview}</span>`
+          : link;
+      })
       .join("");
   }
 
   function dynamicMenuHtml(escape) {
-    let categories = window
-      .getOrderedCategories()
-      .map(
-        (category) =>
-          `<a href="${escape(window.categoryPageUrl(category))}">${escape(window.localizedCategoryName?.(category) || category)}</a>`,
-      )
-      .join("");
-    let centuries = Object.keys(window.state?.periods?.centuries || {})
-      .filter((key) => key !== "unknown")
-      .sort(
-        (left, right) =>
-          Number(left.replace(/\D/g, "")) - Number(right.replace(/\D/g, "")),
-      );
-    let decades = Object.keys(window.state?.periods?.decades || {})
-      .filter((key) => key !== "unknown")
-      .sort(
-        (left, right) =>
-          Number(left.replace(/\D/g, "")) - Number(right.replace(/\D/g, "")),
-      );
-    let periodLinks = [
-      `<a href="${escape(window.periodPageUrl("alltime", "alltime"))}">${escape(headerText("period.allTime", "All-time"))}</a>`,
-      ...centuries.map(
-        (key) =>
-          `<a href="${escape(window.periodPageUrl("century", key))}">${escape(key)}</a>`,
-      ),
-      ...decades.map(
-        (key) =>
-          `<a href="${escape(window.periodPageUrl("decade", key))}">${escape(key)}</a>`,
-      ),
-    ].join("");
     // Owner-only entries (issue #256): entry-loader.js already removes these
     // from the initial static header before this dynamic render replaces
     // the whole panel, so this render must independently omit them too, or
@@ -249,8 +230,6 @@
       ? `<a href="build.html">${escape(headerText("nav.build", "Build your Oskars"))}</a><a href="intake.html">${escape(headerText("nav.intake", "Intake"))}</a><a href="rate-watched.html">${escape(headerText("nav.rateWatched", "Rate watched"))}</a><a href="editor.html">${escape(headerText("nav.editor", "Editor"))}</a><a href="data.html">${escape(headerText("nav.data", "Data"))}</a><a href="profile.html">${escape(headerText("nav.profile", "Account"))}</a>`
       : "";
     return `<div class="site-menu-account" data-auth-status>${authStatusInnerHtml(escape)}</div>
-    <section class="site-menu-categories"><h2>${escape(headerText("menu.categories", "Categories"))}</h2><div class="site-menu-links"><a href="categories.html"><b>${escape(headerText("menu.browseCategories", "Browse all categories"))}</b></a>${categories}</div></section>
-    <section><h2>${escape(headerText("menu.periods", "Periods"))}</h2><div class="site-menu-links site-menu-periods"><a href="periods.html"><b>${escape(headerText("menu.browsePeriods", "Browse all periods"))}</b></a>${periodLinks}</div></section>
     <section><h2>${escape(headerText("menu.elsewhere", "Elsewhere"))}</h2><div class="site-menu-links"><a href="community.html">${escape(headerText("menu.community", "Community"))}</a><a href="discover.html">${escape(headerText("menu.discover", "Discover"))}</a><a href="compare.html">${escape(headerText("nav.compare", "Compare"))}</a><a href="presentation.html">${escape(headerText("menu.showcase", "Showcase"))}</a><a href="completion.html">${escape(headerText("menu.completion", "Completion"))}</a><a href="stats.html">${escape(headerText("menu.statistics", "Statistics"))}</a><a href="people.html">${escape(headerText("menu.people", "People"))}</a><a href="directors.html">${escape(headerText("menu.directors", "Directors"))}</a><a href="tags.html">${escape(headerText("menu.tags", "Tags"))}</a>${ownerLinks}</div></section>`;
   }
 
@@ -373,15 +352,13 @@
       header.dataset.authDelegationBound = "true";
       header.addEventListener("click", async (event) => {
         if (event.target.closest("[data-google-sign-out]")) {
+          let required = window.oskarsRequiredAccountSession?.();
           if (
+            !required ||
             window.confirm(
               headerText(
-                window.oskarsRequiredAccountSession?.()
-                  ? "auth.confirmSignOutRequired"
-                  : "auth.confirmSignOut",
-                window.oskarsRequiredAccountSession?.()
-                  ? "Sign out and lock this browser's private archive? Nothing is deleted; the same account can reopen it later."
-                  : "Stop cloud sync and continue locally? You can sign in again anytime.",
+                "auth.confirmSignOutRequired",
+                "Sign out and lock this browser's private archive? Nothing is deleted; the same account can reopen it later.",
               ),
             )
           )
@@ -495,7 +472,7 @@
     }
     let escape = window.pageEscape || ((value) => String(value ?? ""));
     let active = currentSection();
-    let primary = primaryNavHtml(active);
+    let primary = primaryNavHtml(active, escape);
     header.removeAttribute("data-site-header-pending");
     if (
       !header.dataset.siteHeaderReady ||

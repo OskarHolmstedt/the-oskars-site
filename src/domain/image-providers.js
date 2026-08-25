@@ -49,22 +49,6 @@ window.tmdbResourcePath = function (reference) {
 // episode/{e}"), so tmdbResourcePath(reference) doubles as the public path
 // too — https://www.themoviedb.org/${tmdbResourcePath(reference)}.
 
-/**
- * Builds TMDB request headers for a credential, adding the credential to
- * `params` as `api_key` when it isn't a v4 read-access token (those start
- * with "eyJ" and go in the Authorization header instead).
- * @param {string} credential TMDB v3 API key or v4 read-access token.
- * @param {URLSearchParams} params Request params, mutated in place.
- * @returns {{accept: string, Authorization?: string}} Request headers.
- */
-window.tmdbAuthHeaders = function (credential, params) {
-  let headers = { accept: "application/json" };
-  if (String(credential).startsWith("eyJ"))
-    headers.Authorization = `Bearer ${credential}`;
-  else params.set("api_key", credential);
-  return headers;
-};
-
 /** Requests provider JSON with timeouts and retries. @param {Function} fetchFn Fetch implementation. @param {string} url URL. @param {Object} options Fetch options. @param {string} provider Provider label. @param {number} attempts Attempts. @returns {Promise<Object>} Parsed JSON. */
 window.requestPosterJson = async function (
   fetchFn,
@@ -133,15 +117,14 @@ window.tmdbMovieSearchTitleVariants = function (title) {
   });
 };
 
-function tmdbMovieSearchParams(film, credential, queryTitle) {
+function tmdbMovieSearchParams(film, queryTitle) {
   let params = new URLSearchParams({
     query: queryTitle || film.title,
     include_adult: "false",
     language: "en-US",
   });
   if (/^\d{4}$/.test(String(film.year || ""))) params.set("year", film.year);
-  let headers = window.tmdbAuthHeaders(credential, params);
-  return { params, headers };
+  return params;
 }
 
 /** Tests whether an ID-less record may use TMDB movie-title search. @param {FilmRecord|WatchedOtherEntry} film Film-like record. @returns {boolean} Whether movie search is appropriate. */
@@ -149,14 +132,12 @@ window.tmdbMovieSearchEligible = function (film) {
   return !/series\b/i.test(String(film?.type || "").trim());
 };
 
-/** Finds the best TMDB poster for a film. @param {FilmRecord} film Film. @param {string} credential Credential. @param {Function} fetchFn Fetch implementation. @returns {Promise<PosterRecord|null>} Poster. */
-window.lookupTmdbPoster = async function (film, credential, fetchFn) {
-  if (!credential) return null;
+/** Finds the best TMDB poster for a film. @param {FilmRecord} film Film. @param {Function} fetchFn Fetch implementation. @returns {Promise<PosterRecord|null>} Poster. */
+window.lookupTmdbPoster = async function (film, fetchFn) {
   if (film.tmdbId) {
     let reference = window.parseTmdbReference(film.tmdbId);
     let details = await window.lookupTmdbMovieDetails(
       film.tmdbId,
-      credential,
       fetchFn,
     );
     let posterPath = details.poster_path || details.still_path || "";
@@ -170,15 +151,11 @@ window.lookupTmdbPoster = async function (film, credential, fetchFn) {
   }
   if (!window.tmdbMovieSearchEligible(film)) return null;
   for (let queryTitle of window.tmdbMovieSearchTitleVariants(film.title)) {
-    let { params, headers } = tmdbMovieSearchParams(
-      film,
-      credential,
-      queryTitle,
-    );
+    let params = tmdbMovieSearchParams(film, queryTitle);
     let data = await window.requestPosterJson(
       fetchFn,
       `${window.TMDB_API_BASE}/search/movie?${params}`,
-      { headers },
+      { headers: { accept: "application/json" } },
       "TMDB",
       2,
     );
@@ -195,25 +172,22 @@ window.lookupTmdbPoster = async function (film, credential, fetchFn) {
   return null;
 };
 
-/** Lists ranked TMDB poster choices for a film. @param {FilmRecord} film Film. @param {string} credential Credential. @param {Function} fetchFn Fetch implementation. @param {Object} [options] Lookup controls. @returns {Promise<PosterRecord[]>} Posters. */
+/** Lists ranked TMDB poster choices for a film. @param {FilmRecord} film Film. @param {Function} fetchFn Fetch implementation. @param {Object} [options] Lookup controls. @returns {Promise<PosterRecord[]>} Posters. */
 window.lookupTmdbPosterOptions = async function (
   film,
-  credential,
   fetchFn,
   options = {},
 ) {
-  if (!credential) return [];
   let apiParams = new URLSearchParams({ include_image_language: "en,null" });
-  let headers = window.tmdbAuthHeaders(credential, apiParams);
   let match = film.tmdbId
     ? { id: film.tmdbId, poster_path: film.poster?.source === "tmdb" ? "" : "" }
-    : await window.lookupTmdbMovieSearch(film, credential, fetchFn);
+    : await window.lookupTmdbMovieSearch(film, fetchFn);
   if (!match?.id) return [];
   let reference = window.parseTmdbReference(match.id);
   let data = await window.requestPosterJson(
     fetchFn,
     `${window.TMDB_API_BASE}/${window.tmdbResourcePath(reference)}/images?${apiParams}`,
-    { headers },
+    { headers: { accept: "application/json" } },
     "TMDB",
     2,
   );
@@ -261,19 +235,15 @@ window.lookupTmdbPosterOptions = async function (
     .slice(0, Math.max(1, Number(options.limit) || 12));
 };
 
-/** Finds a TMDB movie using titles and alternative-title details. @param {FilmRecord} film Film. @param {string} credential Credential. @param {Function} fetchFn Fetch implementation. @returns {Promise<Object|null>} TMDB result. */
-window.lookupTmdbMovieSearch = async function (film, credential, fetchFn) {
-  if (!credential || !window.tmdbMovieSearchEligible(film)) return null;
+/** Finds a TMDB movie using titles and alternative-title details. @param {FilmRecord} film Film. @param {Function} fetchFn Fetch implementation. @returns {Promise<Object|null>} TMDB result. */
+window.lookupTmdbMovieSearch = async function (film, fetchFn) {
+  if (!window.tmdbMovieSearchEligible(film)) return null;
   for (let queryTitle of window.tmdbMovieSearchTitleVariants(film.title)) {
-    let { params, headers } = tmdbMovieSearchParams(
-      film,
-      credential,
-      queryTitle,
-    );
+    let params = tmdbMovieSearchParams(film, queryTitle);
     let data = await window.requestPosterJson(
       fetchFn,
       `${window.TMDB_API_BASE}/search/movie?${params}`,
-      { headers },
+      { headers: { accept: "application/json" } },
       "TMDB",
       2,
     );
@@ -291,7 +261,6 @@ window.lookupTmdbMovieSearch = async function (film, credential, fetchFn) {
       try {
         detailsById[result.id] = await window.lookupTmdbMovieDetails(
           result.id,
-          credential,
           fetchFn,
         );
       } catch (err) {
@@ -318,40 +287,35 @@ window.lookupTmdbMovieSearch = async function (film, credential, fetchFn) {
  * series/season/episode when the id uses the explicit "TV:" notation
  * (parseTmdbReference).
  * @param {string|number} tmdbId Stored TMDB id.
- * @param {string} credential Credential.
  * @param {Function} fetchFn Fetch implementation.
  * @returns {Promise<Object>} Details.
  */
-window.lookupTmdbMovieDetails = async function (tmdbId, credential, fetchFn) {
+window.lookupTmdbMovieDetails = async function (tmdbId, fetchFn) {
   let reference = window.parseTmdbReference(tmdbId);
   let params = new URLSearchParams({
     language: "en-US",
     append_to_response: "credits,alternative_titles,translations",
   });
-  let headers = window.tmdbAuthHeaders(credential, params);
   return window.requestPosterJson(
     fetchFn,
     `${window.TMDB_API_BASE}/${window.tmdbResourcePath(reference)}?${params}`,
-    { headers },
+    { headers: { accept: "application/json" } },
     "TMDB",
     2,
   );
 };
 
-/** Finds a TMDB portrait for a person. @param {PersonRecord} person Person. @param {string} credential Credential. @param {Function} fetchFn Fetch implementation. @returns {Promise<PosterRecord|null>} Portrait. */
-window.lookupTmdbPersonPortrait = async function (person, credential, fetchFn) {
-  if (!credential)
-    throw new Error("A TMDB credential is required for portrait lookup.");
+/** Finds a TMDB portrait for a person. @param {PersonRecord} person Person. @param {Function} fetchFn Fetch implementation. @returns {Promise<PosterRecord|null>} Portrait. */
+window.lookupTmdbPersonPortrait = async function (person, fetchFn) {
   let params = new URLSearchParams({
     query: person.name,
     include_adult: "false",
     language: "en-US",
   });
-  let headers = window.tmdbAuthHeaders(credential, params);
   let data = await window.requestPosterJson(
     fetchFn,
     `${window.TMDB_API_BASE}/search/person?${params}`,
-    { headers },
+    { headers: { accept: "application/json" } },
     "TMDB",
     2,
   );

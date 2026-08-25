@@ -7,6 +7,11 @@ function metadataBatchUi(text, values) {
   return window.uiText?.(text, values) ?? text;
 }
 
+function showMetadataBatchError(status, error) {
+  if (!status) return;
+  status.innerHTML = `${metadataBatchUi("Film details could not be fetched. Check your connection, then try the batch again.")}${window.renderTechnicalDetails?.({ text: error?.message || String(error) }) || ""}`;
+}
+
 function metadataBatchWatchedFilms() {
   let films = new Map();
   Object.values(window.state.filmsById || {}).forEach((film) =>
@@ -40,10 +45,9 @@ window.metadataBatchLabel = function (type) {
 /**
  * Counts items currently eligible for a metadata batch.
  * @param {string} type Batch type identifier.
- * @param {Object} settings Saved metadata and image-provider settings.
  * @returns {number} Number of eligible items.
  */
-window.metadataBatchPreviewCount = function (type, settings) {
+window.metadataBatchPreviewCount = function (type) {
   if (type === "film-metadata")
     return metadataBatchWatchedFilms().filter(window.filmNeedsMetadataLookup)
       .length;
@@ -53,11 +57,11 @@ window.metadataBatchPreviewCount = function (type, settings) {
     ).length;
   if (type === "film-posters")
     return metadataBatchWatchedFilms().filter((film) =>
-      window.filmNeedsPosterLookup(film, settings),
+      window.filmNeedsPosterLookup(film),
     ).length;
   if (type === "watchlist-posters")
     return (window.state.watchlist || []).filter((item) =>
-      window.watchlistNeedsPosterLookup(item, settings),
+      window.watchlistNeedsPosterLookup(item),
     ).length;
   if (type === "non-archive-metadata")
     return (window.state.watchlist || []).filter(
@@ -69,7 +73,7 @@ window.metadataBatchPreviewCount = function (type, settings) {
     return (window.state.watchlist || []).filter(
       (item) =>
         !window.findWatchlistArchiveFilm?.(item) &&
-        window.watchlistNeedsPosterLookup(item, settings),
+        window.watchlistNeedsPosterLookup(item),
     ).length;
   if (type === "person-portraits")
     return Object.values(
@@ -176,10 +180,6 @@ function metadataBatchElements() {
   };
 }
 
-function metadataBatchSettings() {
-  return window.getPosterSettings();
-}
-
 function emptyMetadataBatchResult() {
   return {
     attempted: 0,
@@ -245,14 +245,6 @@ async function runMetadataBatchType(type, options) {
   throw new Error(metadataBatchUi("Unknown metadata batch type."));
 }
 
-function metadataBatchRequiresTmdb(type) {
-  return (
-    type.includes("metadata") ||
-    type.includes("posters") ||
-    type === "person-portraits"
-  );
-}
-
 // Explicit retry of this session's failed lookups for one queue type
 // (issue #44). Reuses the shared batch progress/status elements; force
 // bypasses the per-session attempt guard for exactly the failed items.
@@ -274,14 +266,6 @@ window.retrySessionFailedLookups = async function (type) {
       );
     return;
   }
-  let settings = metadataBatchSettings();
-  if (!settings.tmdbCredential && metadataBatchRequiresTmdb(type)) {
-    if (status)
-      status.textContent = metadataBatchUi(
-        "Save a TMDB credential before fetching this batch.",
-      );
-    return;
-  }
   let filterIds = new Set(failures.map((failure) => String(failure.id)));
   setMetadataBatchDisabled(elements, true);
   prepareMetadataBatchUi(elements);
@@ -295,7 +279,6 @@ window.retrySessionFailedLookups = async function (type) {
     let result = await runMetadataBatchType(type, {
       limit: filterIds.size,
       filterIds,
-      settings,
       force: true,
       onProgress(done, total, item) {
         if (progress) {
@@ -327,7 +310,7 @@ window.retrySessionFailedLookups = async function (type) {
     window.renderDataWorkspace?.();
   } catch (err) {
     console.error("Session retry batch failed", err);
-    if (status) status.textContent = err.message || String(err);
+    showMetadataBatchError(status, err);
   } finally {
     setMetadataBatchDisabled(elements, false);
   }
@@ -364,15 +347,8 @@ window.runMetadataBatch = async function (runOptions = {}) {
     10000,
     Math.max(1, Number(elements.limitInput.value) || 25),
   );
-  let settings = metadataBatchSettings();
   let label = window.metadataBatchLabel(type);
-  let remaining = window.metadataBatchPreviewCount(type, settings);
-  if (!settings.tmdbCredential && metadataBatchRequiresTmdb(type)) {
-    status.textContent = metadataBatchUi(
-      "Save a TMDB credential before fetching this batch.",
-    );
-    return;
-  }
+  let remaining = window.metadataBatchPreviewCount(type);
   setMetadataBatchDisabled(elements, true);
   button.textContent = metadataBatchUi("Running...");
   prepareMetadataBatchUi(elements);
@@ -389,7 +365,6 @@ window.runMetadataBatch = async function (runOptions = {}) {
   try {
     let result = await runMetadataBatchType(type, {
       limit,
-      settings,
       force: Boolean(runOptions.force),
       onProgress(done, total, item) {
         progress.max = Math.max(1, total);
@@ -419,7 +394,7 @@ window.runMetadataBatch = async function (runOptions = {}) {
     window.renderDataWorkspace?.();
   } catch (err) {
     console.error("Metadata batch failed", err);
-    status.textContent = err.message || String(err);
+    showMetadataBatchError(status, err);
   } finally {
     setMetadataBatchDisabled(elements, false);
     button.textContent = metadataBatchUi("Start batch");
@@ -430,24 +405,16 @@ window.runMetadataBatch = async function (runOptions = {}) {
  * Runs every non-empty archive, watchlist, and portrait metadata queue.
  * @param {Object} [runOptions] Batch controls.
  * @param {boolean} [runOptions.force] Whether to retry previously attempted items.
- * @param {boolean} [runOptions.confirm] Whether to request confirmation.
  * @returns {Promise<void>} Completion after all selected queues finish.
  */
 window.runAllMetadataBatches = async function (runOptions = {}) {
   let elements = metadataBatchElements();
   let { everythingButton, progress, status } = elements;
-  let settings = metadataBatchSettings();
-  if (!settings.tmdbCredential) {
-    status.textContent = metadataBatchUi(
-      "Save a TMDB credential before fetching every missing metadata queue.",
-    );
-    return;
-  }
   let queue = metadataBatchTypes
     .map((type) => ({
       type,
       label: window.metadataBatchLabel(type),
-      remaining: window.metadataBatchPreviewCount(type, settings),
+      remaining: window.metadataBatchPreviewCount(type),
     }))
     .filter((item) => item.remaining > 0);
   let total = queue.reduce((sum, item) => sum + item.remaining, 0);
@@ -455,22 +422,6 @@ window.runAllMetadataBatches = async function (runOptions = {}) {
     status.textContent = metadataBatchUi("No metadata queues need fetching.");
     return;
   }
-  if (
-    runOptions.confirm !== false &&
-    !confirm(
-      metadataBatchUi(
-        "Fetch {items} across {queues}? This can take several minutes.",
-        {
-          items: window.uiCount?.(total, "item", "items") ?? `${total} items`,
-          queues:
-            window.uiCount?.(queue.length, "queue", "queues") ??
-            `${queue.length} queues`,
-        },
-      ),
-    )
-  )
-    return;
-
   setMetadataBatchDisabled(elements, true);
   prepareMetadataBatchUi(elements);
   everythingButton.textContent = metadataBatchUi("Fetching...");
@@ -495,7 +446,6 @@ window.runAllMetadataBatches = async function (runOptions = {}) {
       );
       let result = await runMetadataBatchType(item.type, {
         limit: item.remaining,
-        settings,
         force: Boolean(runOptions.force),
         onProgress(done, totalInQueue, currentItem) {
           progress.value = Math.min(total, completed + done);
@@ -527,10 +477,10 @@ window.runAllMetadataBatches = async function (runOptions = {}) {
     window.renderDataWorkspace?.();
   } catch (err) {
     console.error("Full metadata batch failed", err);
-    status.textContent = err.message || String(err);
+    showMetadataBatchError(status, err);
   } finally {
     setMetadataBatchDisabled(elements, false);
-    everythingButton.textContent = metadataBatchUi("Fetch all missing");
+    window.refreshMetadataBatchActionLabels?.();
   }
 };
 
@@ -538,24 +488,16 @@ window.runAllMetadataBatches = async function (runOptions = {}) {
  * Runs metadata and poster queues for watchlist films outside the archive.
  * @param {Object} [runOptions] Batch controls.
  * @param {boolean} [runOptions.force] Whether to retry previously attempted items.
- * @param {boolean} [runOptions.confirm] Whether to request confirmation.
  * @returns {Promise<void>} Completion after both selected queues finish.
  */
 window.runNonArchiveMetadataBatches = async function (runOptions = {}) {
   let elements = metadataBatchElements();
   let { nonArchiveButton, progress, status } = elements;
-  let settings = metadataBatchSettings();
-  if (!settings.tmdbCredential) {
-    status.textContent = metadataBatchUi(
-      "Save a TMDB credential before fetching not-watched films.",
-    );
-    return;
-  }
   let queue = nonArchiveMetadataBatchTypes
     .map((type) => ({
       type,
       label: window.metadataBatchLabel(type),
-      remaining: window.metadataBatchPreviewCount(type, settings),
+      remaining: window.metadataBatchPreviewCount(type),
     }))
     .filter((item) => item.remaining > 0);
   let total = queue.reduce((sum, item) => sum + item.remaining, 0);
@@ -565,21 +507,6 @@ window.runNonArchiveMetadataBatches = async function (runOptions = {}) {
     );
     return;
   }
-  if (
-    runOptions.confirm !== false &&
-    !confirm(
-      metadataBatchUi("Fetch {items}? This can take several minutes.", {
-        items:
-          window.uiCount?.(
-            total,
-            "not-watched metadata item",
-            "not-watched metadata items",
-          ) ?? `${total} not-watched metadata items`,
-      }),
-    )
-  )
-    return;
-
   setMetadataBatchDisabled(elements, true);
   prepareMetadataBatchUi(elements);
   nonArchiveButton.textContent = metadataBatchUi("Fetching...");
@@ -609,7 +536,6 @@ window.runNonArchiveMetadataBatches = async function (runOptions = {}) {
       );
       let result = await runMetadataBatchType(item.type, {
         limit: item.remaining,
-        settings,
         force: Boolean(runOptions.force),
         onProgress(done, totalInQueue, currentItem) {
           progress.value = Math.min(total, completed + done);
@@ -641,11 +567,34 @@ window.runNonArchiveMetadataBatches = async function (runOptions = {}) {
     window.renderDataWorkspace?.();
   } catch (err) {
     console.error("Not-watched metadata batch failed", err);
-    status.textContent = err.message || String(err);
+    showMetadataBatchError(status, err);
   } finally {
     setMetadataBatchDisabled(elements, false);
-    nonArchiveButton.textContent = metadataBatchUi("Fetch not-watched missing");
+    window.refreshMetadataBatchActionLabels?.();
   }
+};
+
+/** Updates the broad fetch actions with their current work counts. */
+window.refreshMetadataBatchActionLabels = function () {
+  let elements = metadataBatchElements();
+  let allCount = metadataBatchTypes.reduce(
+    (sum, type) => sum + window.metadataBatchPreviewCount(type),
+    0,
+  );
+  let nonArchiveCount = nonArchiveMetadataBatchTypes.reduce(
+    (sum, type) => sum + window.metadataBatchPreviewCount(type),
+    0,
+  );
+  if (elements.everythingButton)
+    elements.everythingButton.textContent = metadataBatchUi(
+      "Fetch all missing ({count})",
+      { count: allCount },
+    );
+  if (elements.nonArchiveButton)
+    elements.nonArchiveButton.textContent = metadataBatchUi(
+      "Fetch watchlist-only missing ({count})",
+      { count: nonArchiveCount },
+    );
 };
 
 /**
@@ -671,4 +620,86 @@ window.handleMetadataBatchReportAction = function (event) {
   if (batchType) batchType.value = lastMetadataBatch.type;
   if (batchLimit) batchLimit.value = lastMetadataBatch.limit;
   window.runMetadataBatch({ force: true });
+};
+
+/**
+ * Runs a visible, bounded film + watchlist metadata fetch as the Data
+ * page's own next step right after a bulk import (e.g. the Letterboxd
+ * jumpstart) - scrolls the Fetch metadata panel into view, states up
+ * front that this can take a while, and drives the same progress
+ * bar/status/report elements runMetadataBatch/runAllMetadataBatches above
+ * use, rather than running silently. (An earlier version of this ran
+ * headless in the background; deliberately reversed - period.js/category.js
+ * no longer fire opportunistic fetches on ordinary page loads either, so
+ * this Data-page flow is now the one place metadata fetching visibly
+ * happens, not scattered invisibly across browsing.) Reuses
+ * fetchFilmMetadata/fetchWatchlistMetadata unmodified -
+ * filmNeedsMetadataLookup/watchlistNeedsMetadataLookup already scope this
+ * to whatever's actually missing, so calling this after every import is
+ * always safe: an already-enriched archive is a cheap no-op, and
+ * lookupTmdbMovieMetadata itself checks the shared film-metadata archive
+ * before spending a TMDB request on anything another eligible account
+ * already looked up (shared-film-metadata-sync.js). Each item is saved
+ * within a few finds of completing (image-batches.js's own checkpointing),
+ * so navigating away only stops *further* progress - it doesn't discard
+ * what already finished.
+ * @param {Object} [options] Batch controls.
+ * @param {number} [options.limit] Max items fetched per pool (films,
+ *   watchlist), default 25 - matches the Data page's own "Start batch"
+ *   default rather than inventing a new number.
+ * @returns {Promise<void>} Completion after both pools finish and the UI is restored.
+ */
+window.runPostImportMetadataFetch = async function (options = {}) {
+  if (!window.oskarsPersistenceAllowed?.()) return;
+  let elements = metadataBatchElements();
+  let { status, progress } = elements;
+  let panel = document.getElementById("fetchMetadata");
+  panel?.scrollIntoView({ behavior: "smooth", block: "start" });
+  setMetadataBatchDisabled(elements, true);
+  prepareMetadataBatchUi(elements);
+  let limit = Math.max(1, Number(options.limit) || 25);
+  let queue = [{ type: "film-metadata" }, { type: "watchlist-metadata" }];
+  if (status)
+    status.textContent = metadataBatchUi(
+      "Next: fetching details for the films you just imported. This can take a while - already-fetched films are saved as it goes, but leaving this page pauses whatever's left until you come back.",
+    );
+  if (progress) progress.max = 1;
+  let results = [];
+  try {
+    for (let index = 0; index < queue.length; index++) {
+      let item = queue[index];
+      let label = window.metadataBatchLabel(item.type);
+      let result = await runMetadataBatchType(item.type, {
+        limit,
+        onProgress(done, total, currentItem) {
+          if (progress) progress.max = Math.max(1, total);
+          if (progress) progress.value = done;
+          let name = currentItem?.title || currentItem?.name || "";
+          if (status)
+            status.textContent = `${metadataBatchUi("Queue {index} / {total}:", { index: index + 1, total: queue.length })} ${done} / ${total} ${label}${name ? ` · ${name}` : ""}`;
+        },
+      });
+      results.push(result);
+    }
+    let combined = combineMetadataBatchResults(results);
+    if (status)
+      status.textContent = metadataBatchUi(
+        "Done: {attempted} attempted, {found} updated, {failed} failed{skippedNote}.",
+        {
+          attempted: combined.attempted,
+          found: combined.found,
+          failed: combined.failed,
+          skippedNote: combined.skipped
+            ? metadataBatchUi(", {count} skipped", { count: combined.skipped })
+            : "",
+        },
+      );
+    renderMetadataBatchReport(combined, { type: "all", limit });
+    window.renderDataWorkspace?.();
+  } catch (err) {
+    console.error("Post-import metadata fetch failed", err);
+    showMetadataBatchError(status, err);
+  } finally {
+    setMetadataBatchDisabled(elements, false);
+  }
 };

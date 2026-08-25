@@ -204,24 +204,18 @@ window.reconciliationStatusMessage = function (plan) {
     return plan.hasLocal
       ? "Local mode · No published archive"
       : "Local mode · Empty archive";
-  let published = plan.publishedRevision
-    ? `Published ${plan.publishedRevision.slice(0, 18)}`
-    : "Published revision unavailable";
-  if (plan.status === "clean") return `${published} · Local workspace clean`;
+  if (plan.status === "clean") return "This browser matches the published archive.";
   if (plan.status === "unpublished")
-    return `${published} · Unpublished local changes`;
+    return "This browser has changes that have not been published.";
   if (plan.status === "stale")
-    return (
-      `${published} · Local base ` +
-      `${String(plan.baseRevision || "unknown").slice(0, 18)} is stale — action required`
-    );
+    return "A newer published archive is available. You can use it here; this browser's current archive will be kept for recovery.";
   if (plan.status === "invalid")
-    return "Published data is invalid · Recoverable local workspace retained";
+    return "The published archive could not be used. This browser's archive is still safe.";
   if (plan.status === "unavailable")
     return plan.action === "retain-local"
-      ? "Published data unavailable · Using local workspace"
-      : "Published data unavailable · No local workspace found";
+      ? "The published archive is unavailable. Using this browser's saved archive."
+      : "The published archive is unavailable and this browser has no saved archive.";
   return plan.action === "retain-local"
-    ? "Offline · Using local workspace"
-    : "Offline · Published data is unavailable";
+    ? "You appear to be offline. Using this browser's saved archive."
+    : "You appear to be offline, and no saved archive is available.";
 };

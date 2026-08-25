@@ -11,17 +11,16 @@
 // Results are session-only; nothing is persisted.
 let mediaTypeCheckAttempts = new Set();
 
-async function fetchTmdbResource(kind, id, credential, fetchFn) {
+async function fetchTmdbResource(kind, id, fetchFn) {
   let params = new URLSearchParams({ language: "en-US" });
   if (kind === "movie")
     params.set(
       "append_to_response",
       "alternative_titles,translations,release_dates",
     );
-  let headers = window.tmdbAuthHeaders(credential, params);
   let response = await fetchFn(
     `${window.TMDB_API_BASE}/${kind}/${encodeURIComponent(id)}?${params}`,
-    { headers },
+    { headers: { accept: "application/json" } },
   );
   if (response.status === 404) return { exists: false };
   if (!response.ok) throw new Error(`TMDB request failed (${response.status})`);
@@ -179,13 +178,6 @@ window.tmdbMediaTypeSession = { checked: 0, issues: [] };
  * @returns {Promise<Object>} Check totals.
  */
 window.checkTmdbMediaTypes = async function (options = {}) {
-  let settings = Object.assign(
-    {},
-    window.getPosterSettings?.() || {},
-    options.settings || {},
-  );
-  if (!settings.tmdbCredential)
-    throw new Error("A TMDB credential is required for TMDB link checks.");
   let fetchFn = options.fetchFn || window.fetch?.bind(window);
   if (!fetchFn)
     throw new Error("TMDB link checks require browser network access.");
@@ -221,7 +213,6 @@ window.checkTmdbMediaTypes = async function (options = {}) {
         let movie = await fetchTmdbResource(
           "movie",
           film.tmdbId,
-          settings.tmdbCredential,
           fetchFn,
         );
         let tv = movie.exists
@@ -229,7 +220,6 @@ window.checkTmdbMediaTypes = async function (options = {}) {
           : await fetchTmdbResource(
               "tv",
               film.tmdbId,
-              settings.tmdbCredential,
               fetchFn,
             );
         let verdict = window.classifyTmdbMediaCheck(movie, tv, film);

@@ -3,9 +3,20 @@
  * (docs/shared-official-results-archive-decision.md) from
  * `/sharedArchive/officialResults[/shards/<key>]` and merges it into
  * `state.officialResults`, then automatically tops up the watchlist with
- * any newly-unwatched official nominee. Deliberately simpler than
- * firestore-sync.js's per-user engine: there is exactly one writer (the
- * owner's local publish script,
+ * any newly-unwatched official nominee. Also pulls the sibling
+ * `/sharedArchive/officialFilmMetadata` and
+ * `/sharedArchive/officialPeopleMetadata` flat-map sections
+ * (docs/official-results-file-split-decision.md) into the
+ * `OSKARS_BUNDLED_OFFICIAL_FILM_METADATA`/`..._PEOPLE_METADATA` globals,
+ * overwriting the bundled-JS defaults - the same "bundled default, live
+ * pull overwrites" pattern officialResults itself uses. Also pulls the
+ * sibling `/sharedArchive/sharedFilmMetadata` flat-map section
+ * (docs/shared-film-discovery-decision.md) into
+ * `OSKARS_SHARED_FILM_ARCHIVE`/`..._BY_DIRECTOR`
+ * (src/domain/shared-film-archive.js) - unlike the two above, this data has
+ * no bundled-JS default at all (it starts empty). Deliberately
+ * simpler than firestore-sync.js's per-user engine: there is exactly one
+ * writer (the owner's local publish script,
  * scripts/publish-shared-official-results-archive.mjs, which writes every
  * shard before the manifest), so a plain manifest-revision comparison is
  * always safe - no three-way diff, no push, no conflicts, and no
@@ -26,6 +37,9 @@
     return (
       window.state?.draftMetadata?.remoteSync?.sharedArchive || {
         shardRevisions: {},
+        filmMetadataShardRevisions: {},
+        peopleMetadataShardRevisions: {},
+        sharedFilmArchiveShardRevisions: {},
         lastCheckedAt: "",
       }
     );
@@ -68,16 +82,71 @@
     return periods;
   }
 
-  async function fetchSharedArchiveShards(firestoreModule, db, shardKeys) {
+  async function fetchSharedArchiveShards(
+    firestoreModule,
+    db,
+    shardKeys,
+    sectionKey = SHARED_ARCHIVE_SECTION_KEY,
+  ) {
     let entries = await Promise.all(
       shardKeys.map(async (shardKey) => {
         let snapshot = await firestoreModule.getDoc(
-          firestoreModule.doc(db, "sharedArchive", SHARED_ARCHIVE_SECTION_KEY, "shards", shardKey),
+          firestoreModule.doc(db, "sharedArchive", sectionKey, "shards", shardKey),
         );
         return [shardKey, snapshot.exists() ? snapshot.data()?.value : undefined];
       }),
     );
     return Object.fromEntries(entries.filter(([, value]) => value !== undefined));
+  }
+
+  /**
+   * Pulls one flat-map shared-archive section (officialFilmMetadata,
+   * officialPeopleMetadata) - simpler than the officialResults pull above
+   * since there's no per-source period structure, just a manifest of
+   * shard revisions and shards each holding a slice of the map. Any
+   * changed shard triggers a wholesale refetch-and-replace of the whole
+   * map (same "not worth a more precise incremental scheme" posture
+   * officialResults itself uses), so this can't silently keep stale
+   * entries around.
+   * @param {Object} firestoreModule Firestore SDK module.
+   * @param {Object} db Firestore instance.
+   * @param {string} sectionKey e.g. "officialFilmMetadata".
+   * @param {Record<string,string>} lastKnownRevisions Previously seen shard revisions.
+   * @returns {Promise<{ok:boolean, merged?:Object, shardRevisions?:Object, changed?:boolean, reason?:string}>}
+   */
+  async function pullFlatMapArchiveSection(firestoreModule, db, sectionKey, lastKnownRevisions) {
+    let manifestSnapshot;
+    try {
+      manifestSnapshot = await firestoreModule.getDoc(
+        firestoreModule.doc(db, "sharedArchive", sectionKey),
+      );
+    } catch (err) {
+      if (window.isUnauthorizedFirestoreError?.(err)) return { ok: true, reason: "unauthorized" };
+      return { ok: false, reason: "error", error: err };
+    }
+    if (!manifestSnapshot.exists()) return { ok: true, reason: "empty" };
+    let manifest = manifestSnapshot.data() || {};
+    let remoteShardKeys = Array.isArray(manifest.shardKeys) ? manifest.shardKeys : [];
+    let remoteShardRevisions =
+      manifest.shardRevisions && typeof manifest.shardRevisions === "object"
+        ? manifest.shardRevisions
+        : {};
+    let changed = remoteShardKeys.some(
+      (shardKey) => lastKnownRevisions[shardKey] !== remoteShardRevisions[shardKey],
+    );
+    if (!changed) changed = Object.keys(lastKnownRevisions).some((shardKey) => !(shardKey in remoteShardRevisions));
+    if (!changed) return { ok: true, reason: "up-to-date", shardRevisions: remoteShardRevisions };
+
+    let fetchedShardValues;
+    try {
+      fetchedShardValues = await fetchSharedArchiveShards(firestoreModule, db, remoteShardKeys, sectionKey);
+    } catch (err) {
+      if (window.isUnauthorizedFirestoreError?.(err)) return { ok: true, reason: "unauthorized" };
+      return { ok: false, reason: "error", error: err };
+    }
+    let merged = {};
+    remoteShardKeys.forEach((shardKey) => Object.assign(merged, fetchedShardValues[shardKey] || {}));
+    return { ok: true, changed: true, merged, shardRevisions: remoteShardRevisions };
   }
 
   async function performSharedArchivePull() {
@@ -89,6 +158,51 @@
     let ready = await window.ensureFirestoreDb?.();
     if (!ready) return { ok: false, reason: "unconfigured" };
     let { firestoreModule, db } = ready;
+
+    // Independent of officialResults' own change status below (a
+    // ceremony's nominations can be unchanged while a later assemble pass
+    // still adds new film/people metadata, or vice versa) - pulled first
+    // so neither section's early returns skip the other.
+    let priorState = sharedArchiveState();
+    let [filmPull, peoplePull, sharedFilmArchivePull] = await Promise.all([
+      pullFlatMapArchiveSection(
+        firestoreModule,
+        db,
+        "officialFilmMetadata",
+        priorState.filmMetadataShardRevisions || {},
+      ),
+      pullFlatMapArchiveSection(
+        firestoreModule,
+        db,
+        "officialPeopleMetadata",
+        priorState.peopleMetadataShardRevisions || {},
+      ),
+      pullFlatMapArchiveSection(
+        firestoreModule,
+        db,
+        "sharedFilmMetadata",
+        priorState.sharedFilmArchiveShardRevisions || {},
+      ),
+    ]);
+    if (filmPull.changed || peoplePull.changed)
+      window.applyOfficialMetadataGlobals({
+        films: filmPull.changed ? filmPull.merged : undefined,
+        people: peoplePull.changed ? peoplePull.merged : undefined,
+      });
+    if (sharedFilmArchivePull.changed)
+      window.applySharedFilmArchive(sharedFilmArchivePull.merged);
+    if (filmPull.shardRevisions || peoplePull.shardRevisions || sharedFilmArchivePull.shardRevisions)
+      recordSharedArchiveState({
+        ...(filmPull.shardRevisions && {
+          filmMetadataShardRevisions: filmPull.shardRevisions,
+        }),
+        ...(peoplePull.shardRevisions && {
+          peopleMetadataShardRevisions: peoplePull.shardRevisions,
+        }),
+        ...(sharedFilmArchivePull.shardRevisions && {
+          sharedFilmArchiveShardRevisions: sharedFilmArchivePull.shardRevisions,
+        }),
+      });
 
     let manifestSnapshot;
     try {

@@ -231,6 +231,7 @@
     "title",
     "year",
     "rating",
+    "runtime",
     "wins",
     "nominations",
     "score",
@@ -556,8 +557,6 @@
   let filmPage = initialViewState.filmPage;
   let visibleFilmPage = [];
   let visibleWatchlistPage = [];
-  let fetchedPosterPage = "";
-  let fetchedWatchlistPosterPage = "";
   let draggedAwardData = null;
   let draggedRankingData = null;
   let bulkTierControl = null;
@@ -905,6 +904,7 @@
       { value: "title", label: "Title" },
       ...(type !== "year" ? [{ value: "year", label: "Release year" }] : []),
       { value: "rating", label: "Rating" },
+      { value: "runtime", label: "Runtime" },
       { value: "wins", label: "Wins" },
       { value: "nominations", label: "Nominations" },
       { value: "score", label: "Score" },
@@ -1345,61 +1345,11 @@
     window.enhanceCollapsibles?.(container);
     window.syncWinnerPosterHeights?.(container);
     finishRenderTimer?.(`${type}:${key} ${viewMode}, ${pageTotal} item(s)`);
-    let posterPageKey = `${scope}|${mediumFilter}|${screenplayFilter}|${sourceFilter}|${countryFilter}|${exactRatingFilter}|${minimumRatingFilter}|${maximumRatingFilter}|${minimumRuntimeFilter}|${maximumRuntimeFilter}|${filmPage}`;
-    if (
-      (viewMode === "films" || viewMode === "rewatch") &&
-      typeof window.fetch === "function" &&
-      fetchedPosterPage !== posterPageKey
-    ) {
-      fetchedPosterPage = posterPageKey;
-      window
-        .fetchFilmPosters(visibleFilmPage, { limit: 25, concurrency: 3 })
-        .then((result) => {
-          if (result.found) {
-            allFilms.forEach((film) => {
-              let savedFilm = state.filmsById?.[film.id];
-              if (savedFilm?.poster) film.poster = savedFilm.poster;
-            });
-            render();
-          }
-        });
-    }
-    let watchlistPosterPageKey = `${type}|${key}|${watchlistTierFilter}|${filmPage}|${visibleWatchlistPage.map((entry) => entry.item.id || window.watchlistItemId(entry.item)).join(",")}`;
-    if (
-      viewMode === "watchlist" &&
-      visibleWatchlistPage.length &&
-      typeof window.fetch === "function" &&
-      fetchedWatchlistPosterPage !== watchlistPosterPageKey
-    ) {
-      fetchedWatchlistPosterPage = watchlistPosterPageKey;
-      window
-        .fetchWatchlistPosters(
-          visibleWatchlistPage.map((entry) => entry.item),
-          { limit: 25, concurrency: 3 },
-        )
-        .then((result) => {
-          if (result.found) render();
-        });
-    }
   }
 
   if ((state.watchlist || []).length || !window.ensureWatchlistData) render();
   else window.ensureWatchlistData().then(render);
   window.bindEntityNoteEditor(container);
-  if (typeof window.fetch === "function") {
-    let winningPeople = allFilms.flatMap((film) =>
-      (film.awards || [])
-        .filter(
-          (award) => awardInPeriod(award) && Number(award.placement) === 1,
-        )
-        .flatMap((award) => window.awardRecipientPeople(award)),
-    );
-    window
-      .fetchPersonPortraits(winningPeople, { limit: 25, concurrency: 3 })
-      .then((result) => {
-        if (result.found) render();
-      });
-  }
 
   function clearAwardDropTargets() {
     container
@@ -1408,19 +1358,19 @@
   }
 
   function commitNominationPlan(plan, options = {}) {
-    if (!plan || !window.confirmNominationPlacementPlan?.(plan)) return false;
-    let outcome = window.applyNominationPlacementPlan?.(plan);
-    if (!outcome?.ok) {
-      if (outcome?.reason) window.alert?.(outcome.reason);
-      return false;
-    }
-
-    rebuildPeriodViewModel();
-    if (!canEditBracket) editMode = false;
-    options.beforeRender?.();
-    render();
-    window.save?.({ immediate: true, rebuild: false });
-    return true;
+    if (!plan) return false;
+    return !!window.reviewNominationPlacementPlan?.(plan, () => {
+      let outcome = window.applyNominationPlacementPlan?.(plan);
+      if (!outcome?.ok) {
+        if (outcome?.reason) window.alert?.(outcome.reason);
+        return;
+      }
+      rebuildPeriodViewModel();
+      if (!canEditBracket) editMode = false;
+      options.beforeRender?.();
+      render();
+      window.save?.({ immediate: true, rebuild: false });
+    });
   }
 
   function commitAwardPlacementMove(from, targetCard) {

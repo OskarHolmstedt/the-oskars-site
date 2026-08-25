@@ -225,27 +225,32 @@
     return span;
   }
 
-  // Historical official results (issue #174): the inverse of period.js's
-  // per-year, all-categories official-results view - one category across
-  // every imported ceremony. Scans every source, not just "academy-awards"
-  // by name, in case another source is ever added.
-  function officialCategoryPeriods() {
-    let periodsByKey = new Map();
-    Object.values(state.officialResults || {}).forEach((source) => {
-      Object.entries(source.periods || {}).forEach(([periodKey, period]) => {
-        let nominations = (period.nominations || []).filter(
-          (nomination) => nomination.category === category,
-        );
-        if (!nominations.length) return;
-        nominations.forEach((nomination) =>
-          officialNominationSources.set(nomination, source.id),
-        );
-        let existing = periodsByKey.get(periodKey);
-        if (existing) existing.nominations.push(...nominations);
-        else periodsByKey.set(periodKey, { periodKey, source, period, nominations });
-      });
-    });
-    return [...periodsByKey.values()];
+  // Historical official results are grouped by source before ceremony so
+  // award bodies that share a year never appear to be one combined result.
+  function officialCategorySources() {
+    return Object.values(state.officialResults || {})
+      .map((source) => {
+        let periods = Object.entries(source.periods || {})
+          .map(([periodKey, period]) => {
+            let nominations = (period.nominations || []).filter(
+              (nomination) => nomination.category === category,
+            );
+            nominations.forEach((nomination) =>
+              officialNominationSources.set(nomination, source.id),
+            );
+            return { periodKey, period, nominations };
+          })
+          .filter((entry) => entry.nominations.length);
+        return { source, periods };
+      })
+      .filter((entry) => entry.periods.length)
+      .sort(
+        (left, right) =>
+          Number(right.source.id === "academy-awards") -
+            Number(left.source.id === "academy-awards") ||
+          left.source.name.localeCompare(right.source.name) ||
+          left.source.id.localeCompare(right.source.id),
+      );
   }
 
   function officialResultCreditParts(nomination, showSourceCategory) {
@@ -316,48 +321,62 @@
   }
 
   function renderOfficialResultsView() {
-    let periods = officialCategoryPeriods();
-    if (!periods.length)
-      return `<div class="detail-empty">${categoryEscape(ui("No official Academy Awards data for this category."))}</div>`;
-    let sections = periods
-      .slice()
-      .sort(
-        (left, right) =>
-          chronologyFactor *
-          (Number(left.period.ceremony) - Number(right.period.ceremony)),
-      )
-      .map(({ periodKey, source, period, nominations }) => {
-        let sourceCategories = new Set(
-          nominations.map((nomination) => nomination.sourceCategory).filter(Boolean),
-        );
-        let showSourceCategory = sourceCategories.size > 1;
-        let sortedNominations = nominations.slice().sort(
-          (left, right) =>
-            Number(right.winner) - Number(left.winner) ||
-            left.sourceTitle.localeCompare(right.sourceTitle),
-        );
-        let ceremony = period.ceremony
-          ? `${ui("Ceremony")} ${period.ceremony} · `
-          : "";
-        let body =
-          displayMode === "grid"
-            ? `<div class="category-winner-grid">${sortedNominations.map((nomination) => officialEntryCard(nomination, showSourceCategory, periodKey)).join("")}</div>`
-            : window.renderLeaderboardTable({
-                headers: [ui("Place"), ui("Film"), ui("Credit")].map(
-                  categoryEscape,
-                ),
-                rows: sortedNominations
-                  .map((nomination) =>
-                    officialResultRow(nomination, showSourceCategory, periodKey),
-                  )
-                  .join(""),
-                classes: "category-results",
-              });
-        return `<div class="category-period-result">
+    let sources = officialCategorySources();
+    if (!sources.length)
+      return `<div class="detail-empty">${categoryEscape(ui("No official results data for this category."))}</div>`;
+    let sections = sources
+      .map(({ source, periods }) => {
+        let periodSections = periods
+          .slice()
+          .sort(
+            (left, right) =>
+              chronologyFactor *
+              (Number(left.period.ceremony) - Number(right.period.ceremony)),
+          )
+          .map(({ periodKey, period, nominations }) => {
+            let sourceCategories = new Set(
+              nominations
+                .map((nomination) => nomination.sourceCategory)
+                .filter(Boolean),
+            );
+            let showSourceCategory = sourceCategories.size > 1;
+            let sortedNominations = nominations.slice().sort(
+              (left, right) =>
+                Number(right.winner) - Number(left.winner) ||
+                left.sourceTitle.localeCompare(right.sourceTitle),
+            );
+            let ceremony = period.ceremony
+              ? `${ui("Ceremony")} ${period.ceremony}`
+              : "";
+            let body =
+              displayMode === "grid"
+                ? `<div class="category-winner-grid">${sortedNominations.map((nomination) => officialEntryCard(nomination, showSourceCategory, periodKey)).join("")}</div>`
+                : window.renderLeaderboardTable({
+                    headers: [ui("Place"), ui("Film"), ui("Credit")].map(
+                      categoryEscape,
+                    ),
+                    rows: sortedNominations
+                      .map((nomination) =>
+                        officialResultRow(
+                          nomination,
+                          showSourceCategory,
+                          periodKey,
+                        ),
+                      )
+                      .join(""),
+                    classes: "category-results",
+                  });
+            return `<div class="category-period-result">
         <div><h3><a class="period-link" href="${categoryEscape(window.periodPageUrl("years", periodKey))}">${categoryEscape(periodKey)}</a></h3>
-        <p class="category-official-meta">${categoryEscape(ceremony)}${categoryEscape(source.name)}</p>
+        ${ceremony ? `<p class="category-official-meta">${categoryEscape(ceremony)}</p>` : ""}
         ${body}</div>
       </div>`;
+          })
+          .join("");
+        return `<section class="category-official-source" data-official-source="${categoryEscape(source.id)}" aria-label="${categoryEscape(source.name)}">
+        <header><span class="eyebrow">${categoryEscape(ui("Official results"))}</span><h2>${categoryEscape(source.name)}</h2></header>
+        <div class="category-official-source-history">${periodSections}</div>
+      </section>`;
       })
       .join("");
     return `<div class="category-official-results">${sections}</div>`;
@@ -567,16 +586,6 @@
   render();
   window.bindEntityNoteEditor(container);
   window.addEventListener?.("oskars:localechange", render);
-  if (typeof window.fetch === "function") {
-    let winningPeople = entries
-      .filter((entry) => Number(entry.award.placement) === 1)
-      .flatMap((entry) => window.awardRecipientPeople(entry.award));
-    window
-      .fetchPersonPortraits(winningPeople, { limit: 25, concurrency: 3 })
-      .then((result) => {
-        if (result.found) render();
-      });
-  }
   container.addEventListener("change", (event) => {
     let viewInput = event.target.closest('input[name="categoryViewMode"]');
     if (viewInput) {

@@ -94,25 +94,21 @@ window.renderPublicProfilePublication = function (container) {
       )
       .join("");
     previewHtml = `<div class="publication-preview">
-      <h3>Sections</h3><ul>${sections}</ul>
+      <h3>What will be shared</h3><ul>${sections}</ul>
       ${findings ? `<h3>Findings</h3><ul>${findings}</ul>` : "<p>This projection is valid.</p>"}
     </div>`;
   }
   let downloadDisabled = preparedPublicProfilePreview && !preparedPublicProfilePreview.valid;
   container.innerHTML = `<h2>Publish a public profile</h2>
-    <p>Create a read-only public projection of your archive at a stable share URL. This never publishes anything itself — it stages a candidate data/public-profile-config.json for you to commit, then a GitHub Action does the actual publish.</p>
-    <p>Publishing as <strong>${publicProfileEscape(ownerName)}</strong> at URL slug <code>${publicProfileEscape(slug)}</code>. Change the name on the <a href="profile.html">Account page</a>.</p>
+    <p>Create a read-only public version of selected archive information. Reviewing and downloading here never publishes anything.</p>
+    <p>Publishing as <strong>${publicProfileEscape(ownerName)}</strong>. Change the name on the <a href="profile.html">Account page</a>.</p>
     <label><input type="checkbox" data-public-profile-opt-in="localRanks" ${preparedPublicProfileOptIn.includes("localRanks") ? "checked" : ""}> Include local ranks (opt-in)</label>
     <div class="data-actions">
-      <button type="button" data-public-profile-preview>Preview publication</button>
-      <button type="button" data-public-profile-download ${downloadDisabled ? "disabled" : ""}>Download config candidate</button>
-      <button type="button" data-public-profile-revoke>Prepare revocation</button>
+      <button type="button" data-public-profile-preview>Review public profile</button>
+      <button type="button" data-public-profile-download ${downloadDisabled ? "disabled" : ""}>Download publishing file</button>
+      <button type="button" data-public-profile-revoke>Prepare to unpublish</button>
     </div>
-    <ol>
-      <li>Replace data/public-profile-config.json with the downloaded file.</li>
-      <li>Review the diff and commit, then push.</li>
-      <li>Run the publish-profiles GitHub Action (Actions tab → publish-profiles → Run workflow, typing &ldquo;deploy&rdquo;).</li>
-    </ol>
+    <details class="technical-details"><summary>Technical details</summary><p>The public URL slug is <code>${publicProfileEscape(slug)}</code>. The downloaded candidate replaces <code>data/public-profile-config.json</code>. Review and commit that diff, push it, then run the <code>publish-profiles</code> GitHub Action with the input <code>deploy</code>.</p></details>
     ${previewHtml}`;
 };
 
@@ -133,7 +129,7 @@ window.handlePublicProfilePublicationAction = function (event) {
     if (
       typeof window.confirm === "function" &&
       !window.confirm(
-        "This stages an empty config that unpublishes every public profile on the next publish-profiles run. Continue?",
+        "Prepare to unpublish every public profile? Nothing changes online until the publishing workflow runs. The existing published files remain in repository history and can be published again.",
       )
     )
       return;

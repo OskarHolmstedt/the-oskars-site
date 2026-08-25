@@ -18,7 +18,8 @@
   let stats = { confirmed: 0, swapped: 0, skipped: 0 };
   let pairs = [];
   let currentPair = null;
-  let pendingSwap = null;
+  let lastSwap = null;
+  let feedback = "";
 
   function loadNextPair() {
     pairs = window.rankingConsistencyPairsForScope(
@@ -88,8 +89,13 @@
       count: window.rankingReviewResolvedKeys(scopeType, scopeKey).size,
       remaining: pairs.length,
     });
+    let groupNote =
+      currentPair.above.rankingGroupId || currentPair.below.rankingGroupId
+        ? `<p class="ranking-consistency-note">${escape(ui("Choosing the lower film moves any tied films with it."))}</p>`
+        : "";
     return `<section class="ranking-consistency-compare" data-ranking-consistency-compare>
       <p class="ranking-consistency-progress">${escape(ui("Do you still prefer the film above this one?"))} · ${escape(progressText)}</p>
+      ${groupNote}
       <div class="ranking-consistency-choice">
         ${renderConsistencyCard(currentPair.above, "above", ui("Currently ranked higher"))}
         <span class="ranking-consistency-vs">${escape(ui("or"))}</span>
@@ -101,66 +107,50 @@
     </section>`;
   }
 
-  function renderConfirmSwap() {
-    let above = pendingSwap.above;
-    let below = pendingSwap.below;
-    let summaryText = ui('Move "{below}" to rank {aboveRank}, directly above "{above}".', {
-      below: window.localizedFilmTitle?.(below) || below.title,
-      above: window.localizedFilmTitle?.(above) || above.title,
-      aboveRank: above.allTimeRank || above.rank || "",
-    });
-    let groupNote =
-      above.rankingGroupId || below.rankingGroupId
-        ? `<p class="ranking-consistency-note">${escape(ui("One of these films shares its rank with other tied films, which will move together."))}</p>`
-        : "";
-    return `<section class="ranking-consistency-confirm" data-ranking-consistency-confirm>
-      <h2>${escape(ui("Confirm the swap"))}</h2>
-      <p>${escape(summaryText)}</p>
-      ${groupNote}
-      <div class="ranking-consistency-confirm-actions">
-        <button type="button" class="sort-order-button" data-ranking-consistency-apply>${escape(ui("Apply swap"))}</button>
-        <button type="button" class="sort-order-button" data-ranking-consistency-cancel>${escape(ui("Cancel"))}</button>
-      </div>
-    </section>`;
-  }
-
   function render() {
     document.title = `${scopeLabel()} · The Oskars`;
     let header = window.renderDetailHeader({
       mainHtml: `<span class="eyebrow">${escape(ui("Ranking heat"))}</span><h1>${escape(scopeLabel())}</h1><p>${escape(ui("Only comparisons that cross the already-settled narrower scope are shown in later finals."))}</p>`,
       actionsHtml: `<a class="button-link" href="${escape(backUrl())}">${escape(ui("Back"))}</a>`,
     });
-    let body = !currentPair
-      ? renderEmpty()
-      : pendingSwap
-        ? renderConfirmSwap()
-        : renderReview();
-    container.innerHTML = `${header}${body}`;
+    let body = !currentPair ? renderEmpty() : renderReview();
+    let feedbackHtml = window.renderActionFeedback({
+      message: feedback,
+      actionLabel: lastSwap ? ui("Undo") : "",
+      actionAttribute: "data-ranking-consistency-undo",
+      escape,
+    });
+    container.innerHTML = `${header}${feedbackHtml}${body}`;
   }
 
   function pick(side) {
+    feedback = "";
+    lastSwap = null;
     if (side === "above") {
       window.resolveRankingReviewPair(scopeType, scopeKey, currentPair);
       stats.confirmed += 1;
       window.save?.({ immediate: true, rebuild: false });
       loadNextPair();
     } else {
-      pendingSwap = currentPair;
+      applySwap(currentPair);
+      return;
     }
     render();
   }
 
   function skip() {
+    feedback = "";
+    lastSwap = null;
     sessionExcludedKeys.add(currentPair.key);
     stats.skipped += 1;
     loadNextPair();
     render();
   }
 
-  function applySwap() {
+  function applySwap(pair) {
     let result = window.moveRankedFilmWithinRating(
-      pendingSwap.below.id,
-      pendingSwap.above.id,
+      pair.below.id,
+      pair.above.id,
       "before",
     );
     if (!result.ok) {
@@ -168,15 +158,35 @@
       return;
     }
     stats.swapped += 1;
-    window.resolveRankingReviewPair(scopeType, scopeKey, pendingSwap);
+    window.resolveRankingReviewPair(scopeType, scopeKey, pair);
     window.save?.({ immediate: true, rebuild: false });
-    pendingSwap = null;
+    lastSwap = pair;
+    feedback = ui('Moved "{below}" above "{above}".', {
+      below: window.localizedFilmTitle?.(pair.below) || pair.below.title,
+      above: window.localizedFilmTitle?.(pair.above) || pair.above.title,
+    });
     loadNextPair();
     render();
   }
 
-  function cancelSwap() {
-    pendingSwap = null;
+  function undoSwap() {
+    if (!lastSwap) return;
+    let pair = lastSwap;
+    let result = window.moveRankedFilmWithinRating(
+      pair.above.id,
+      pair.below.id,
+      "before",
+    );
+    if (!result.ok) {
+      window.alert?.(result.reason);
+      return;
+    }
+    window.reopenRankingReviewPair(scopeType, scopeKey, pair);
+    stats.swapped = Math.max(0, stats.swapped - 1);
+    window.save?.({ immediate: true, rebuild: false });
+    lastSwap = null;
+    feedback = ui("Swap undone.");
+    loadNextPair();
     render();
   }
 
@@ -198,13 +208,7 @@
       skip();
       return;
     }
-    if (event.target.closest("[data-ranking-consistency-apply]")) {
-      applySwap();
-      return;
-    }
-    if (event.target.closest("[data-ranking-consistency-cancel]")) {
-      cancelSwap();
-    }
+    if (event.target.closest("[data-ranking-consistency-undo]")) undoSwap();
   });
 
   loadNextPair();

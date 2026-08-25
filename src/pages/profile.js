@@ -45,11 +45,10 @@
       ?.addEventListener("click", async () => {
         let required = window.oskarsRequiredAccountSession?.();
         if (
+          !required ||
           window.confirm(
             ui(
-              required
-                ? "Sign out and lock this browser's private archive? Nothing is deleted; the same account can reopen it later."
-                : "Stop cloud sync and continue locally? You can sign in again anytime - nothing local is lost either way.",
+              "Sign out and lock this browser's private archive? Nothing is deleted; the same account can reopen it later.",
             ),
           )
         )
@@ -230,7 +229,7 @@
     if (
       typeof window.confirm === "function" &&
       !window.confirm(
-        ui("Restore the workspace content retained before this conflict was resolved?"),
+        ui("Restore the version saved before this conflict was resolved? It replaces this browser's current archive. Download a backup first if you may want to return to the current version."),
       )
     )
       return;
@@ -329,9 +328,7 @@
     try {
       let fetched = await window.fetchCanonicalDataFromCloud?.();
       if (!fetched?.ok) {
-        status.textContent = ui("Could not load the cloud archive: {error}", {
-          error: fetched?.error || "unknown error",
-        });
+        status.innerHTML = `${ui("The cloud version could not be loaded. Check your connection and sign-in, then try again.")}${window.renderTechnicalDetails?.({ text: fetched?.error || "unknown error" }) || ""}`;
         return;
       }
       let proposal = window.proposeJsonImport(fetched.canonical, {
@@ -345,12 +342,10 @@
       );
       document.getElementById("cloudRestoreApplyBtn").disabled = !proposal.allowed;
       status.textContent = ui(
-        "Previewed below as a replace proposal - review, then apply the reviewed archive to draft it locally.",
+        "The cloud version is ready to review below. Nothing has changed yet; use the reviewed version when it looks right.",
       );
     } catch (err) {
-      status.textContent = ui("Could not preview the cloud archive: {error}", {
-        error: err.message || String(err),
-      });
+      status.innerHTML = `${ui("The cloud version could not be reviewed. Try loading it again.")}${window.renderTechnicalDetails?.({ text: err.message || String(err) }) || ""}`;
     } finally {
       button.disabled = false;
       button.textContent = ui("Load complete archive from cloud");
@@ -369,7 +364,7 @@
       return;
     }
     pendingCloudRestoreProposal = null;
-    button.textContent = ui("Applied to draft");
+    button.textContent = ui("Cloud version restored");
     window.hideImportReport?.();
   }
 

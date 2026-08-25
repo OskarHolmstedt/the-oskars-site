@@ -13,119 +13,19 @@
     <h1 class="editor-title" data-i18n="Editor">Editor</h1>
 
     <p
-      data-i18n="Manual record creation. Contextual edits (film metadata, awards, rankings) happen on their own detail pages."
+      data-i18n="Manual nomination creation. Adding a new watched film happens through Intake's guided workflow; contextual edits (film metadata, awards, rankings) happen on their own detail pages."
     >
-      Manual record creation. Contextual edits (film metadata, awards, rankings)
-      happen on their own detail pages.
+      Manual nomination creation. Adding a new watched film happens through
+      Intake's guided workflow; contextual edits (film metadata, awards,
+      rankings) happen on their own detail pages.
     </p>
 
-    <button id="addFilmBtn" type="button">
-      + <span data-i18n="Add film">Add film</span>
-    </button>
+    <a id="addWatchedFilmLink" class="button-link" href="intake.html"
+      >+ <span data-i18n="Add watched film">Add watched film</span></a
+    >
     <button id="addNominationBtn" type="button">
       + <span data-i18n="Add nomination">Add nomination</span>
     </button>
-
-    <dialog id="filmDialog">
-      <form id="filmForm" method="dialog">
-        <h2 data-i18n="Add film">Add film</h2>
-        <div class="form-grid">
-          <label
-            ><span data-i18n="Title">Title</span>
-            <input id="filmTitleInput" name="title" required
-          /></label>
-          <label
-            ><span data-i18n="Year">Year</span>
-            <input
-              id="filmYearInput"
-              name="year"
-              type="number"
-              min="1888"
-              max="2100"
-              required
-          /></label>
-          <label
-            ><span data-i18n="Director(s)">Director(s)</span>
-            <input id="filmDirectorInput" name="director"
-          /></label>
-          <label
-            ><span data-i18n="Rating">Rating</span>
-            <div id="filmRatingField"></div
-          ></label>
-          <label
-            ><span data-i18n="Medium">Medium</span>
-            <select id="filmMediumInput" name="medium">
-              <option value="unknown" data-i18n="Unknown">Unknown</option>
-              <option value="live-action" data-i18n="Live action">
-                Live action
-              </option>
-              <option value="animation" data-i18n="Animation">Animation</option>
-              <option value="hybrid" data-i18n="Hybrid">Hybrid</option>
-            </select>
-          </label>
-          <label
-            ><span data-i18n="Screenplay">Screenplay</span>
-            <select id="filmScreenplayInput" name="screenplayType">
-              <option value="unknown" data-i18n="Unknown">Unknown</option>
-              <option value="original" data-i18n="Original">Original</option>
-              <option value="adapted" data-i18n="Adapted">Adapted</option>
-            </select>
-          </label>
-          <label
-            ><span data-i18n="Adaptation source">Adaptation source</span>
-            <input
-              id="filmAdaptationSourceInput"
-              name="adaptationSource"
-              placeholder="Novel, play, video game…"
-              data-i18n-placeholder="Novel, play, video game…"
-          /></label>
-          <label
-            ><span data-i18n="Country">Country</span>
-            <input id="filmCountryInput" name="country"
-          /></label>
-          <label
-            ><span data-i18n="URL">URL</span>
-            <input id="filmUrlInput" name="url" type="url"
-          /></label>
-          <label class="wide"
-            ><span data-i18n="Poster URL">Poster URL</span>
-            <input id="filmPosterInput" name="posterUrl" type="url"
-          /></label>
-          <label class="wide"
-            ><span data-i18n="Franchises">Franchises</span>
-            <textarea
-              id="filmFranchisesInput"
-              name="franchises"
-              rows="3"
-              placeholder="Parent franchise &gt; Subfranchise | rank&#10;Another franchise | rank"
-              data-i18n-placeholder="Parent franchise &gt; Subfranchise | rank&#10;Another franchise | rank"
-            ></textarea>
-          </label>
-          <label class="wide"
-            ><span data-i18n="Tags">Tags</span>
-            <input
-              id="filmTagsInput"
-              name="tags"
-              placeholder="Noir, courtroom drama, rewatch"
-              data-i18n-placeholder="Noir, courtroom drama, rewatch"
-          /></label>
-          <label class="wide"
-            ><span data-i18n="Review / comment">Review / comment</span>
-            <textarea
-              id="filmReviewInput"
-              name="review"
-              rows="4"
-              maxlength="1000"
-            ></textarea>
-          </label>
-        </div>
-        <div class="dialog-actions">
-          <button id="cancelFilmBtn" type="button" data-i18n="Cancel">
-            Cancel</button
-          ><button type="submit" data-i18n="Add film">Add film</button>
-        </div>
-      </form>
-    </dialog>
 
     <dialog id="nominationDialog">
       <form id="nominationForm" method="dialog">

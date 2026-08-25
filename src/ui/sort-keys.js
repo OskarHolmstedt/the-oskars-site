@@ -104,14 +104,20 @@ window.compareBySeededShuffle = function (leftKey, rightKey, seed = "") {
  * star rating for watched films and the interest tier normalized onto the
  * same higher-is-better direction for watchlist items, and the award axes
  * (`wins`/`nominations`/`score`) count 0 for watchlist rows, which carry no
- * awards of their own yet.
+ * awards of their own yet. `runtime` reads positive `runtimeMinutes` from
+ * either record type; missing runtime resolves to 0 and is handled specially
+ * by the comparator so it always sorts last.
  * @param {FilmAxisRecord} record Row to resolve.
- * @param {'year'|'rank'|'rating'|'wins'|'nominations'|'score'} axis Sort axis.
+ * @param {'year'|'rank'|'rating'|'runtime'|'wins'|'nominations'|'score'} axis Sort axis.
  * @returns {number} Comparable value on the axis's natural ascending scale.
  */
 window.filmAxisSortValue = function (record, axis) {
   let film = record?.film;
   if (axis === "year") return Number((film || record?.item)?.year || 0);
+  if (axis === "runtime") {
+    let runtime = Number((film || record?.item)?.runtimeMinutes);
+    return Number.isFinite(runtime) && runtime > 0 ? runtime : 0;
+  }
   if (axis === "rank") {
     let rank = Number(film?.allTimeRank);
     return Number.isFinite(rank) && rank > 0 ? rank : 999999;
@@ -176,11 +182,14 @@ window.compareFilmAxisRecords = function (left, right, options = {}) {
       options.seed || "",
     );
   }
+  let leftValue = window.filmAxisSortValue(left, options.axis);
+  let rightValue = window.filmAxisSortValue(right, options.axis);
+  if (options.axis === "runtime" && Boolean(leftValue) !== Boolean(rightValue))
+    return leftValue ? -1 : 1;
   let result =
     options.axis === "title"
       ? window.compareEnglishTitles(title(left), title(right))
-      : window.filmAxisSortValue(left, options.axis) -
-        window.filmAxisSortValue(right, options.axis);
+      : leftValue - rightValue;
   if (options.order === "desc") result = -result;
   if (options.axis === "title") return result;
   return result || window.compareEnglishTitles(title(left), title(right));

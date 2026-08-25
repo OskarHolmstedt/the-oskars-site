@@ -1,33 +1,10 @@
-/**
- * @file Owns image-provider settings and film/person metadata, poster, and portrait lookup application.
- */
+/** @file Owns film/person metadata, poster, and portrait lookup application. */
 
-// Every TMDB request is routed through a Cloudflare Worker that holds the
-// real key server-side (issue #347; see
-// docs/tmdb-shared-key-proxy-decision.md) so the key never ships in this
-// public JS bundle. config.local.js can override both fields together to
-// point at a local `wrangler dev` server instead, or override just
-// tmdbCredential alone to call TMDB directly with a personal key (skipping
-// the proxy entirely) - the same override this app used before the proxy
-// existed.
+// Every TMDB request uses the Cloudflare Worker, which authenticates upstream
+// server-side (issues #347 and #356). Browser configuration cannot bypass or
+// replace this boundary.
 window.TMDB_API_BASE =
-  window.OSKARS_LOCAL_CONFIG?.tmdbApiBase ||
-  (window.OSKARS_LOCAL_CONFIG?.tmdbCredential
-    ? "https://api.themoviedb.org/3"
-    : "https://oskars-tmdb-proxy.oskarholmstedt.workers.dev/3");
-
-/** Returns the configured TMDB provider settings. @returns {Object} Provider settings. */
-window.getPosterSettings = function () {
-  // Not a real credential in the default (proxied) case - the Worker
-  // ignores whatever this sends and injects its own secret regardless.
-  // This placeholder only exists to satisfy resolveProviderCall's
-  // non-empty-credential check below.
-  return {
-    tmdbCredential: String(
-      window.OSKARS_LOCAL_CONFIG?.tmdbCredential || "proxied",
-    ),
-  };
-};
+  "https://oskars-tmdb-proxy.oskarholmstedt.workers.dev/3";
 
 /** Validates and normalizes an image reference. @param {PosterRecord|Object|null} poster Image input. @returns {PosterRecord|null} Image record. */
 window.normalizePosterRecord = function (poster) {
@@ -46,30 +23,19 @@ window.normalizePosterRecord = function (poster) {
 };
 
 /**
- * Resolves the merged provider settings and fetch implementation shared by
- * every TMDB lookup entry point, applying the caller's per-call
- * overrides on top of saved settings and throwing the caller's own error
- * text when a required TMDB credential or fetch implementation is missing.
- * @param {Object} [options] Caller options (settings override, fetchFn override).
+ * Resolves the fetch implementation shared by every TMDB lookup entry point.
+ * @param {Object} [options] Caller options (fetchFn override).
  * @param {Object} [config] Requirement controls.
- * @param {boolean} [config.requireCredential] Throw when no TMDB credential is configured.
- * @param {string} [config.credentialError] Error text when a required credential is missing.
  * @param {string} [config.fetchError] Error text when no fetch implementation is available.
- * @returns {{settings: Object, fetchFn: Function}} Resolved settings and fetch function.
+ * @returns {{fetchFn: Function}} Resolved fetch function.
  */
 window.resolveProviderCall = function (options = {}, config = {}) {
-  let settings = Object.assign(
-    window.getPosterSettings(),
-    options.settings || {},
-  );
-  if (config.requireCredential && !settings.tmdbCredential)
-    throw new Error(config.credentialError || "A TMDB credential is required.");
   let fetchFn = options.fetchFn || window.fetch?.bind(window);
   if (!fetchFn)
     throw new Error(
       config.fetchError || "This lookup requires browser network access.",
     );
-  return { settings, fetchFn };
+  return { fetchFn };
 };
 
 function storedWatchedFilm(filmId) {
@@ -88,23 +54,28 @@ function storedWatchedFilmSources(filmId, film) {
 window.lookupTmdbMovieMetadata = async function (film, options = {}) {
   if (!film?.title && !film?.tmdbId)
     throw new Error("A film title or TMDB ID is required for metadata lookup.");
-  let { settings, fetchFn } = window.resolveProviderCall(options, {
-    requireCredential: true,
-    credentialError: "A TMDB credential is required for metadata lookup.",
+  let { fetchFn } = window.resolveProviderCall(options, {
     fetchError: "Metadata lookup requires browser network access.",
   });
-  let credential = settings.tmdbCredential;
   let match = film.tmdbId
     ? {
         id: film.tmdbId,
         poster_path: film.poster?.providerId === String(film.tmdbId) ? "" : "",
       }
-    : await window.lookupTmdbMovieSearch(film, credential, fetchFn);
+    : await window.lookupTmdbMovieSearch(film, fetchFn);
   if (!match?.id) return null;
   let reference = window.parseTmdbReference(match.id);
+  // A movie (not TV) tmdbId another eligible account already looked up may
+  // already be shared (docs/shared-film-metadata-decision.md) - a free
+  // Firestore read that skips the heavier TMDB "details" request below.
+  // trySharedFilmMetadata fails open (null) on any error or ineligibility.
+  if (!match._details && reference.mediaType === "movie" && !options.skipSharedArchive) {
+    let shared = await window.trySharedFilmMetadata?.(match.id);
+    if (shared) return shared;
+  }
   let details =
     match._details ||
-    (await window.lookupTmdbMovieDetails(match.id, credential, fetchFn));
+    (await window.lookupTmdbMovieDetails(match.id, fetchFn));
   // An episode's crew/guest_stars are native root fields, not nested under
   // an appended "credits" resource the way movie/series/season credits are.
   let directors = (details.credits?.crew || details.crew || [])
@@ -275,10 +246,10 @@ window.loadFilmMetadata = async function (filmId, options = {}) {
 window.lookupFilmPoster = async function (film, options = {}) {
   if (!film?.title)
     throw new Error("A film title is required for poster lookup.");
-  let { settings, fetchFn } = window.resolveProviderCall(options, {
+  let { fetchFn } = window.resolveProviderCall(options, {
     fetchError: "Poster lookup requires browser network access.",
   });
-  return window.lookupTmdbPoster(film, settings.tmdbCredential, fetchFn);
+  return window.lookupTmdbPoster(film, fetchFn);
 };
 
 /** Applies a poster to source copies of a film. @param {string} filmId Film id. @param {PosterRecord} poster Poster. @param {Object} [options] Save controls. @returns {boolean} Whether changed. */
@@ -321,17 +292,10 @@ window.loadFilmPoster = async function (filmId, options = {}) {
 window.loadFilmPosterOptions = async function (filmId, options = {}) {
   let film = storedWatchedFilm(filmId);
   if (!film) throw new Error("Film not found.");
-  let { settings, fetchFn } = window.resolveProviderCall(options, {
-    requireCredential: true,
-    credentialError: "A TMDB credential is required for poster browsing.",
+  let { fetchFn } = window.resolveProviderCall(options, {
     fetchError: "Poster browsing requires browser network access.",
   });
-  return window.lookupTmdbPosterOptions(
-    film,
-    settings.tmdbCredential,
-    fetchFn,
-    options,
-  );
+  return window.lookupTmdbPosterOptions(film, fetchFn, options);
 };
 
 // Watchlist counterpart of loadFilmPosterOptions (issue #25): the same TMDB
@@ -341,14 +305,11 @@ window.loadFilmPosterOptions = async function (filmId, options = {}) {
 window.loadWatchlistPosterOptions = async function (itemId, options = {}) {
   let item = window.findWatchlistItemById?.(itemId);
   if (!item) throw new Error("Watchlist film not found.");
-  let { settings, fetchFn } = window.resolveProviderCall(options, {
-    requireCredential: true,
-    credentialError: "A TMDB credential is required for poster browsing.",
+  let { fetchFn } = window.resolveProviderCall(options, {
     fetchError: "Poster browsing requires browser network access.",
   });
   return window.lookupTmdbPosterOptions(
     window.watchlistFilmLike(item),
-    settings.tmdbCredential,
     fetchFn,
     options,
   );
@@ -358,14 +319,10 @@ window.loadWatchlistPosterOptions = async function (itemId, options = {}) {
 window.lookupPersonPortrait = async function (person, options = {}) {
   if (!person?.name)
     throw new Error("A person name is required for portrait lookup.");
-  let { settings, fetchFn } = window.resolveProviderCall(options, {
+  let { fetchFn } = window.resolveProviderCall(options, {
     fetchError: "Portrait lookup requires browser network access.",
   });
-  return window.lookupTmdbPersonPortrait(
-    person,
-    settings.tmdbCredential,
-    fetchFn,
-  );
+  return window.lookupTmdbPersonPortrait(person, fetchFn);
 };
 
 /** Applies a portrait to a person id. @param {string} personId Person id. @param {PosterRecord} portrait Portrait. @param {Object} [options] Save controls. @returns {boolean} Whether changed. */

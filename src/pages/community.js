@@ -28,6 +28,12 @@
 
   async function fetchCommunityIndex() {
     let response = await fetch("./profiles/index.json", { cache: "no-store" });
+    if (response.status === 404)
+      return {
+        communityIndexSchemaVersion:
+          window.OSKARS_COMMUNITY_INDEX_SCHEMA_VERSION,
+        profiles: [],
+      };
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     let index = await response.json();
     let validation = window.validateCommunityIndex(index);
@@ -102,7 +108,7 @@
             <button type="button" data-community-view="compare" disabled>Compare archives</button>
             <button type="button" data-community-view="ceremony" disabled>Hold a joint ceremony</button>
           </div></form>`
-        : `<div class="detail-empty"><h2>No published archives yet</h2><p>Profiles appear here only after their owners explicitly publish them.</p></div>`
+        : `<div class="detail-empty"><h2>0 profiles</h2><p>Published profiles will appear here when someone chooses to share one.</p></div>`
     }`;
     let form = document.getElementById("communitySelection");
     if (!form) return;
@@ -207,6 +213,10 @@
 
   try {
     let index = await fetchCommunityIndex();
+    if (!(index.profiles || []).length) {
+      renderDirectory(index);
+      return;
+    }
     let params = new URLSearchParams(window.location.search);
     let view = params.get("view") || "";
     if (view === "compare" || view === "ceremony") {

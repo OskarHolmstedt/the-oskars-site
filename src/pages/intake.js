@@ -290,7 +290,7 @@
         : "";
     let footer = board.candidates.length
       ? board.level === "allTime"
-        ? ui("Continue applies this position as the canonical global rank.")
+        ? ui("This final choice sets the film's all-time position.")
         : ui("Your {level} decision narrows the next {next} board.", {
             level: levelLabel.toLowerCase(),
             next: nextLabel.toLowerCase(),
@@ -482,7 +482,7 @@
     if (workflow.completedAt)
       return `<section class="film-edit-section"><h3>${escape(ui("Completed intake"))}</h3><p>${escape(workflow.summary || ui("No completion summary recorded."))}</p><p class="data-panel-status">${escape(workflow.completedAt)}</p><button type="button" data-intake-reopen="${escape(workflow.id)}">${escape(ui("Reopen intake"))}</button></section>`;
     if (workflow.steps.rating.status !== "complete")
-      return `<form class="data-form" data-intake-rating="${escape(workflow.id)}"><h3>${escape(ui("Next: confirm rating and viewing facts"))}</h3><label class="data-field">${escape(ui("Rating"))}${window.renderRatingInput({ value: film.rating || "", required: true })}</label><label class="data-field">${escape(ui("Date watched"))}<input name="dateWatched" type="date" value="${escape(film.dateWatched || "")}"></label><label class="data-field">${escape(ui("Platform"))}<input name="platform" value="${escape(film.platform || "")}"></label><label class="data-field">${escape(ui("Views"))}<input name="views" type="number" min="1" value="${escape(film.views || 1)}"></label><button type="submit">${escape(ui("Confirm rating"))}</button></form>`;
+      return `<form class="data-form" data-intake-rating="${escape(workflow.id)}"><h3>${escape(ui("Next: rating and viewing facts"))}</h3><label class="data-field">${escape(ui("Rating"))}${window.renderRatingInput({ value: film.rating || "", required: true })}</label><label class="data-field">${escape(ui("Date watched"))}<input name="dateWatched" type="date" value="${escape(film.dateWatched || "")}"></label><label class="data-field">${escape(ui("Platform"))}<input name="platform" value="${escape(film.platform || "")}"></label><label class="data-field">${escape(ui("Views"))}<input name="views" type="number" min="1" value="${escape(film.views || 1)}"></label><button type="submit">${escape(ui("Save rating"))}</button></form>`;
     if (workflow.steps.ranking.status === "pending") {
       let rankingGuide = window.watchedIntakeRankingGuide(workflow.id);
       if (["year", "decade", "century", "allTime"].includes(rankingGuide.level))
@@ -608,6 +608,17 @@
       return;
     }
     await persist();
+    // A freshly created film has no TMDB metadata yet - fetch it now
+    // rather than leaving it for a separate batch later. One film, so
+    // this is fast enough to await directly rather than needing the
+    // visible progress UI a multi-item batch gets; fetchFilmMetadata
+    // already checks the shared film-metadata archive before spending a
+    // TMDB request, and pushes this film to it on a fresh successful
+    // fetch, same as every other metadata-fetch path.
+    if (freshForm && result.film) {
+      await window.fetchFilmMetadata?.([result.film], { limit: 1 });
+      render();
+    }
   });
 
   container.addEventListener("click", async (event) => {

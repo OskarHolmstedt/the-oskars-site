@@ -173,7 +173,7 @@
       <p>${escape(ui("This becomes the new relative order for these films within the tier; every other film keeps its exact position."))}</p>
       <ol class="watchlist-merge-preview-list">${itemsHtml}</ol>
       <div class="watchlist-merge-preview-actions">
-        <button type="button" class="sort-order-button" data-merge-apply>${escape(ui("Apply merged order"))}</button>
+        <button type="button" class="sort-order-button" data-merge-apply>${escape(ui("Use this order"))}</button>
         <button type="button" class="sort-order-button" data-merge-restart>${escape(ui("Start over"))}</button>
       </div>
     </section>`;

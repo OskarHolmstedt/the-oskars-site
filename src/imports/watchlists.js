@@ -1154,20 +1154,15 @@ window.watchlistSessionAttemptCount = function (type) {
 };
 
 /**
- * Reports whether a watchlist item needs a poster lookup under current settings.
+ * Reports whether a watchlist item needs a poster lookup.
  * @param {WatchlistItem} item Watchlist item.
- * @param {Object} [settings] Poster provider settings.
  * @returns {boolean}
  */
-window.watchlistNeedsPosterLookup = function (
-  item,
-  settings = window.getPosterSettings(),
-) {
+window.watchlistNeedsPosterLookup = function (item) {
   let film = window.watchlistFilmLike(item);
   return (
     Boolean(item?.title) &&
-    (!film.poster ||
-      (settings.tmdbCredential && film.poster.source === "wikimedia"))
+    (!film.poster || film.poster.source === "wikimedia")
   );
 };
 
@@ -1200,7 +1195,7 @@ window.loadWatchlistPoster = async function (id, options = {}) {
 /**
  * Fetches posters for an eligible, session-deduplicated batch of watchlist items.
  * @param {WatchlistItem[]} items Candidate items.
- * @param {Object} [options] Batch limits, concurrency, provider, and progress options.
+ * @param {Object} [options] Batch limits, concurrency, fetch, and progress options.
  * @returns {Promise<MetadataBatchResult>} Batch counts and failure details.
  */
 function watchlistItemKey(item) {
@@ -1221,8 +1216,7 @@ window.fetchWatchlistPosters = async function (items, options = {}) {
     items,
     {
       idOf: watchlistItemKey,
-      eligible: (item, settings) =>
-        window.watchlistNeedsPosterLookup(item, settings),
+      eligible: (item) => window.watchlistNeedsPosterLookup(item),
       attempts: watchlistPosterLookupAttempts,
       failureType: "watchlist-posters",
       failureRecord: (item, reason) => watchlistFailureRecord(item, reason),
@@ -1281,10 +1275,6 @@ window.fetchWatchlistMetadata = async function (items, options = {}) {
   return window.runBoundedLookupBatch(
     items,
     {
-      // Deliberately skips the saved-settings merge every other batch
-      // function does (issue #310) - preserves this site's pre-existing
-      // behavior of using only the caller's explicit settings, unmerged.
-      buildSettings: (options) => options.settings,
       idOf: watchlistItemKey,
       eligible: (item) => window.watchlistNeedsMetadataLookup(item),
       attempts: watchlistMetadataLookupAttempts,

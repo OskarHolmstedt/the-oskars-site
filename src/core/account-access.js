@@ -1,6 +1,6 @@
 /**
  * @file Owns the account-required Shared Edition startup boundary (issue
- * #332, #335, #339, #340, and #346): pure access/account-lineage planning,
+ * #332, #335, #339, #340, #346, and #355): pure access/account-lineage planning,
  * the one-time browser/account attachment marker, bounded same-tab
  * navigation handoffs, safe account switching, and pre-hydration
  * signed-out/gate surfaces.
@@ -212,6 +212,30 @@ function rememberAccountNavigation(uid, target) {
     );
   } catch (err) {}
 }
+
+/**
+ * Continues from a Firebase-confirmed sign-in without making the next document
+ * repeat a blocking authentication check.
+ * @param {Object} user Firebase user confirmed by the auth-state listener.
+ * @param {Element} host Account-gate host to update for blocked account states.
+ */
+window.continueOskarsAccountSignIn = function (user, host) {
+  let access = window.planOskarsAccountAccess({
+    configured: Boolean(window.oskarsFirebaseConfigured?.()),
+    authStatus: "signed-in",
+    user,
+    boundUid: readBoundAccountUid(),
+  });
+  if (access.allowed) {
+    // The auth listener has verified this exact UID in the current document.
+    // Reuse #339's one-use, UID-bound handoff for the same-page reload; the
+    // normal session monitor still revalidates Firebase in the background.
+    rememberAccountNavigation(user.uid, currentNavigationTarget());
+    window.location?.reload?.();
+    return;
+  }
+  window.renderOskarsAccountGate(access, host);
+};
 
 function rememberVerifiedNavigationDestination(destination, expectedUid) {
   if (
@@ -616,7 +640,7 @@ window.renderOskarsAccountGate = function (access, container) {
   if (signIn) window.renderGoogleSignInButton?.(signIn);
   if (access.status === "signed-out") {
     window.onFirebaseAuthChange?.((user) => {
-      if (user) window.location?.reload?.();
+      if (user) window.continueOskarsAccountSignIn(user, host);
     });
   }
 };

@@ -338,6 +338,18 @@
   refreshPersonWatchlistItems();
   let combinedView = sections === "combined";
 
+  // Shared-archive-only films (docs/shared-film-discovery-decision.md): films
+  // other eligible accounts have already shared for this director that the
+  // viewer hasn't personally watched or watchlisted. Depends on
+  // watchlistItems, so must be recomputed after any watchlist mutation too.
+  let sharedArchiveFilms = [];
+  function refreshPersonSharedArchiveFilms() {
+    sharedArchiveFilms = isDirector
+      ? window.sharedArchiveFilmsForDirector(person, watchlistItems)
+      : [];
+  }
+  refreshPersonSharedArchiveFilms();
+
   // Combined sections view (issue #52): filmography and watchlist merge into
   // one list. Chronological and shuffle interleave both record types;
   // director-rank keeps ranked (watched) films first and appends watchlist
@@ -799,6 +811,36 @@
     section.innerHTML = personWatchlistContentHtml();
     return true;
   }
+
+  // A shared-archive entry is a plain object with no local .id/watchlist id -
+  // renderSharedFilmCard's default title link (filmPageUrl(film.id)) would
+  // break for it, so the title is passed as plain escaped text instead, and
+  // the card offers only an "Add to watchlist" action.
+  function personSharedArchiveCard(film) {
+    let displayTitle = window.localizedFilmTitle?.(film) || film.title;
+    return window.renderSharedFilmCard(film, {
+      classes: ["person-film-card", "shared-archive-card"],
+      showYear: true,
+      escape: personPageEscape,
+      rating: false,
+      openFilm: false,
+      titleHtml: personPageEscape(displayTitle),
+      bodyHtml: `<div class="film-card-actions"><button type="button" data-add-shared-film-tmdb-id="${personPageEscape(film.tmdbId)}">${personPageEscape(ui("Add to watchlist"))}</button></div>`,
+    });
+  }
+
+  function personSharedArchiveContentHtml() {
+    refreshPersonSharedArchiveFilms();
+    let cards = sharedArchiveFilms.map(personSharedArchiveCard).join("");
+    return `<h3 class="person-filmography-subheading">${personPageEscape(ui("In the shared archive"))}</h3><div class="film-grid person-film-grid">${cards}</div>`;
+  }
+
+  function renderPersonSharedArchiveSection() {
+    let section = container.querySelector("[data-person-shared-archive-section]");
+    if (!section) return false;
+    section.innerHTML = personSharedArchiveContentHtml();
+    return true;
+  }
   container.innerHTML = `${window.renderDetailHeader({
     classes: portraitHtml ? "has-person-portrait" : "",
     leadingHtml: portraitHtml,
@@ -826,6 +868,7 @@ ${!combinedView ? `<h3 id="person-watched" class="person-filmography-subheading"
 <section data-person-filmography-films>${personFilmographyFilmsHtml()}</section>
 ${otherWatched.length && filmographySort !== "local-rank" ? `<section class="person-other-watched"><h3 class="person-filmography-subheading">${personPageEscape(ui("Other watched"))}</h3><div data-person-other-watched="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Type"), ui("Rating")].map(personPageEscape), rows: otherWatched.map(personOtherWatchedRow).join("") })}</div><div data-person-other-watched="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${otherWatched.map(personOtherWatchedCard).join("")}</div></div></section>` : ""}
 ${!combinedView && watchlistItems.length ? `<section data-person-watchlist-section>${personWatchlistContentHtml()}</section>` : ""}
+${!combinedView && sharedArchiveFilms.length ? `<section data-person-shared-archive-section>${personSharedArchiveContentHtml()}</section>` : ""}
 <h2 id="person-awards">${personPageEscape(ui("Awards"))}</h2>
 <fieldset class="person-awards-view-controls"><legend>${personPageEscape(ui("Display"))}</legend><label><input type="radio" name="personAwardsView" value="periods" ${personAwardsView === "periods" ? "checked" : ""}> ${personPageEscape(ui("Period tables"))}</label><label><input type="radio" name="personAwardsView" value="progression" ${personAwardsView === "progression" ? "checked" : ""}> ${personPageEscape(ui("Progression table"))}</label></fieldset>
 <div data-person-awards="periods" ${personAwardsView === "periods" ? "" : "hidden"}><div class="film-award-period-grid person-award-period-grid">${renderPersonAwardGroups() || `<div class="detail-empty">${personPageEscape(ui("No nominations"))}</div>`}</div></div>
@@ -878,6 +921,48 @@ ${isDirector ? `<div data-collection-page-view="awards" ${collectionPageView ===
       localRankEditMode = !localRankEditMode;
       renderPersonFilmographyFilms();
       updatePersonViewUrl();
+      return;
+    }
+    let addSharedFilmButton = event.target.closest(
+      "[data-add-shared-film-tmdb-id]",
+    );
+    if (addSharedFilmButton) {
+      event.preventDefault();
+      let tmdbId = addSharedFilmButton.dataset.addSharedFilmTmdbId;
+      let film = window.OSKARS_SHARED_FILM_ARCHIVE?.[tmdbId];
+      if (!film) return;
+      let director = Object.values(film.people || {})
+        .filter((credit) => (credit.professions || []).includes("Director"))
+        .map((credit) => credit.name)
+        .join(", ");
+      let result = window.addWatchlistItem({
+        title: film.title,
+        year: film.year,
+        tmdbId: film.tmdbId,
+        swedishTitle: film.swedishTitle,
+        poster: film.poster,
+        director,
+      });
+      if (!result.ok) {
+        alert(result.reason || String(result));
+        return;
+      }
+      refreshPersonWatchlistItems();
+      refreshPersonSharedArchiveFilms();
+      // The Watchlist section only exists in the DOM when this director
+      // already had at least one watchlist item at initial render (matches
+      // the Other watched/Watchlist sections' own .length-gated rendering);
+      // if this is the viewer's first watchlist add for this director, that
+      // section wrapper must be created rather than patched.
+      if (!renderPersonWatchlistSection()) {
+        let watchlistSection = document.createElement("section");
+        watchlistSection.setAttribute("data-person-watchlist-section", "");
+        watchlistSection.innerHTML = personWatchlistContentHtml();
+        container
+          .querySelector("[data-person-shared-archive-section]")
+          ?.insertAdjacentElement("beforebegin", watchlistSection);
+      }
+      renderPersonSharedArchiveSection();
       return;
     }
     let projectButton = event.target.closest("[data-start-project-source]");
@@ -978,7 +1063,6 @@ ${isDirector ? `<div data-collection-page-view="awards" ${collectionPageView ===
   });
   if (
     !portraitHtml &&
-    window.getPosterSettings().tmdbCredential &&
     typeof window.fetch === "function"
   ) {
     let button = container.querySelector("[data-find-person-portrait]");

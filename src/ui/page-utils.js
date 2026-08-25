@@ -1,4 +1,4 @@
-/** @file Shared page primitives: escaping, query params, watch-queue reason text, copy-view-link, list/grid view mode, and the watchlist bulk-tier control. */
+/** @file Shared page primitives: escaping, query params, action feedback, technical details, watch-queue reason text, copy-view-link, list/grid view mode, and the watchlist bulk-tier control. */
 
 /** Escapes a value for HTML text or attribute output. @param {*} value Value to escape. @returns {string} */
 window.pageEscape = function (value) {
@@ -25,6 +25,48 @@ window.pageQueryParam = function (name) {
     .map((part) => part.split("="))
     .find((parts) => decode(parts[0] || "") === name);
   return match ? decode(match.slice(1).join("=") || "") : "";
+};
+
+/**
+ * Renders persistent, politely announced action feedback with an optional
+ * caller-owned follow-up action such as Undo.
+ * @param {Object} [options] Feedback content and action options.
+ * @param {string} options.message Plain-text result message.
+ * @param {string} [options.actionLabel] Plain-text action label.
+ * @param {string} [options.actionAttribute] Safe `data-*` attribute for delegated handling.
+ * @param {string} [options.actionValue] Optional action attribute value.
+ * @param {(value:*)=>string} [options.escape] HTML escaping function.
+ * @returns {string} Feedback HTML, or an empty string without a message.
+ */
+window.renderActionFeedback = function (options = {}) {
+  let escape = options.escape || window.pageEscape;
+  let message = String(options.message || "").trim();
+  if (!message) return "";
+  let actionLabel = String(options.actionLabel || "").trim();
+  let actionAttribute = String(options.actionAttribute || "").trim();
+  let validActionAttribute = /^data-[a-z0-9-]+$/.test(actionAttribute);
+  let actionHtml =
+    actionLabel && validActionAttribute
+      ? ` <button type="button" class="link-button" ${actionAttribute}${options.actionValue === undefined ? "" : `="${escape(String(options.actionValue))}"`}>${escape(actionLabel)}</button>`
+      : "";
+  return `<p class="data-panel-status action-feedback" role="status" aria-live="polite" aria-atomic="true"><span>${escape(message)}</span>${actionHtml}</p>`;
+};
+
+/**
+ * Renders optional plain-text diagnostics behind a consistent disclosure.
+ * @param {Object} [options] Disclosure content and labels.
+ * @param {string} options.text Plain-text technical detail.
+ * @param {string} [options.summary] Disclosure label.
+ * @param {(value:*)=>string} [options.escape] HTML escaping function.
+ * @returns {string} Disclosure HTML, or an empty string without detail.
+ */
+window.renderTechnicalDetails = function (options = {}) {
+  let escape = options.escape || window.pageEscape;
+  let text = String(options.text || "").trim();
+  if (!text) return "";
+  let ui = window.uiText || ((value) => value);
+  let summary = String(options.summary || ui("Technical details"));
+  return `<details class="technical-details"><summary>${escape(summary)}</summary><p>${escape(text)}</p></details>`;
 };
 
 // Turns a watch-queue reason (src/domain/watch-queue.js, issue #160) into
@@ -162,41 +204,47 @@ window.renderWatchlistBulkTierControl = function (options = {}) {
       ),
     )
     .join("");
-  return `<span class="watchlist-bulk-tier-control"><label>${escape(ui("Set filtered interest"))} <select data-watchlist-bulk-tier>${optionsHtml}</select></label><button type="button" class="sort-order-button" data-watchlist-bulk-tier-apply ${count ? "" : "disabled"}>${escape(ui("Apply"))}</button></span>`;
+  let feedback = watchlistBulkTierFeedbackForCurrentView();
+  let feedbackHtml = window.renderActionFeedback({
+    message: feedback?.message || "",
+    actionLabel: feedback?.snapshot ? ui("Undo") : "",
+    actionAttribute: "data-watchlist-bulk-tier-undo",
+    escape,
+  });
+  return `<span class="watchlist-bulk-tier-control"><label>${escape(ui("Set filtered interest"))} <select data-watchlist-bulk-tier>${optionsHtml}</select></label><button type="button" class="sort-order-button" data-watchlist-bulk-tier-apply ${count ? "" : "disabled"}>${escape(ui("Update interest"))}</button></span>${feedbackHtml}`;
 };
 
 function watchlistBulkEntryItem(entry) {
   return entry?.item || entry;
 }
 
+let watchlistBulkTierFeedback = null;
+
+function watchlistBulkTierViewKey() {
+  return String(window.location?.href || window.location?.search || "");
+}
+
+function watchlistBulkTierFeedbackForCurrentView() {
+  return watchlistBulkTierFeedback?.viewKey === watchlistBulkTierViewKey()
+    ? watchlistBulkTierFeedback
+    : null;
+}
+
 /**
- * Previews and confirms a bulk watchlist-tier change.
+ * Returns entries changed by a bulk watchlist-tier action.
  * @param {Object[]} entries Watchlist items or wrapper entries.
  * @param {string} nextTier Normalized target tier.
- * @returns {Object} Confirmation result and changed entries.
+ * @returns {Object[]} Changed entries.
  */
-window.confirmWatchlistBulkTierChange = function (entries, nextTier) {
-  let ui = window.uiText || ((text) => text);
-  let changed = (entries || []).filter((entry) => {
+window.watchlistBulkTierChanges = function (entries, nextTier) {
+  return (entries || []).filter((entry) => {
     let item = watchlistBulkEntryItem(entry);
     return item && window.normalizeWatchlistTier?.(item.tier) !== nextTier;
   });
-  if (!changed.length) return { ok: false, changed };
-  let label = nextTier || ui("Unset");
-  let titles = changed.slice(0, 12).map((entry) => {
-    let item = watchlistBulkEntryItem(entry);
-    return `${item.title}${item.year ? ` (${item.year})` : ""}`;
-  });
-  let more =
-    changed.length > titles.length
-      ? `\n+${changed.length - titles.length} ${ui("more")}`
-      : "";
-  let message = `${ui("Set filtered interest to {tier}?", { tier: label })}\n\n${window.uiCount?.(changed.length, "film", "films") || `${changed.length} films`}\n${titles.join("\n")}${more}`;
-  return { ok: window.confirm ? window.confirm(message) : true, changed };
 };
 
 /**
- * Confirms and applies a bulk watchlist-tier change.
+ * Applies a bulk watchlist-tier change and keeps a session undo snapshot.
  * @param {Object[]} entries Watchlist items or wrapper entries.
  * @param {string} nextTier Target tier.
  * @param {Object} [options] Persistence options.
@@ -209,14 +257,17 @@ window.applyWatchlistBulkTierChange = function (
 ) {
   let ui = window.uiText || ((text) => text);
   let tier = window.normalizeWatchlistTier?.(nextTier) || "";
-  let preview = window.confirmWatchlistBulkTierChange(entries, tier);
-  if (!preview.changed.length) {
+  let changedEntries = window.watchlistBulkTierChanges(entries, tier);
+  if (!changedEntries.length) {
     window.alert?.(ui("No filtered films need that interest change."));
     return { ok: false, changed: 0, cancelled: true };
   }
-  if (!preview.ok)
-    return { ok: false, changed: preview.changed.length, cancelled: true };
-  let ids = preview.changed
+  let snapshot = (window.state?.watchlist || []).map((item) => ({
+    id: item.id || window.watchlistItemId?.(item),
+    tier: item.tier || "",
+    order: item.order || "",
+  }));
+  let ids = changedEntries
     .map((entry) => {
       let item = watchlistBulkEntryItem(entry);
       return item?.id || window.watchlistItemId?.(item);
@@ -229,7 +280,46 @@ window.applyWatchlistBulkTierChange = function (
   }
   if (options.save !== false)
     window.save?.({ immediate: true, rebuild: false });
+  watchlistBulkTierFeedback = {
+    viewKey: watchlistBulkTierViewKey(),
+    message: ui("Updated interest for {count} film(s).", {
+      count: result.changed,
+    }),
+    snapshot,
+  };
   return result;
+};
+
+/** Restores the last bulk interest change made in the current view. @returns {Object} Undo result. */
+window.undoWatchlistBulkTierChange = function () {
+  let feedback = watchlistBulkTierFeedbackForCurrentView();
+  if (!feedback?.snapshot) return { ok: false, reason: "Nothing to undo." };
+  let restored = 0;
+  feedback.snapshot.forEach((before) => {
+    let item = window.findWatchlistItemById?.(before.id);
+    if (!item) return;
+    item.tier = before.tier;
+    item.order = before.order;
+    restored += 1;
+  });
+  window.state._watchlistDirectorLookup = null;
+  window.markAggregatesDirty?.("watchlist bulk tier undone");
+  window.recordEdit?.({
+    type: "watchlist bulk tier undo",
+    summary: `Restored interest for ${restored} watchlist film(s)`,
+    sheetHint: "Watchlist",
+    changes: [
+      { field: "tier", before: "bulk change", after: "previous values" },
+    ],
+  });
+  window.save?.({ immediate: true, rebuild: false });
+  let ui = window.uiText || ((text) => text);
+  watchlistBulkTierFeedback = {
+    viewKey: watchlistBulkTierViewKey(),
+    message: ui("Interest changes undone."),
+    snapshot: null,
+  };
+  return { ok: true, restored };
 };
 
 /**
@@ -259,6 +349,11 @@ window.bindWatchlistBulkTierControl = function (options = {}) {
   }
 
   function onClick(event) {
+    if (event.target?.closest?.("[data-watchlist-bulk-tier-undo]")) {
+      let result = window.undoWatchlistBulkTierChange?.() || { ok: false };
+      if (result.ok) options.rerender?.({ tier: selectedTier, result, undone: true });
+      return;
+    }
     let button = event.target?.closest?.("[data-watchlist-bulk-tier-apply]");
     if (button && !button.disabled) apply();
   }
@@ -286,4 +381,3 @@ window.renderTop250Marker = function (film) {
 window.pagePeriodNumber = function (value) {
   return Number(String(value || "").replace(/[^0-9]/g, "")) || 0;
 };
-

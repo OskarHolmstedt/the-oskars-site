@@ -16,6 +16,7 @@
   let posterOptionIndex = 0;
   let posterPickerStatus = "";
   let openTransitionOnLoad = window.pageQueryParam("action") === "watched";
+  let removedWatchlistSnapshot = null;
 
   function currentPosterOptionIndex(item) {
     let currentUrl = String(item?.poster?.url || "");
@@ -82,21 +83,13 @@
     return `<section class="archive-match-review"><h2>${escape(ui("Archive match review"))}</h2><p>${escape(ui("Possible archive matches are shown for review only."))}</p>${table}</section>`;
   }
 
-  function transitionTargetText(plan) {
-    return plan.target.type === "archive"
-      ? ui("the existing archive film")
-      : plan.watchedBefore
-        ? ui("the existing watched film")
-        : ui("a new watched film");
-  }
-
   function renderWatchedForm() {
     if (!canEdit) return render();
     let item = window.findWatchlistItemById(itemId);
     if (!item) return render();
     document.title = `${ui("Mark {title} as watched", { title: item.title })} · The Oskars`;
     container.innerHTML = `<form id="markWatchlistWatchedForm" class="film-edit-form">
-      ${window.renderDetailHeader({ mainHtml: `<h1>${escape(ui("Mark {title} as watched", { title: item.title }))}</h1><p>${escape(ui("Add known viewing facts, then confirm."))}</p>`, actionsHtml: `<button type="submit">${escape(ui("Mark as watched"))}</button><button type="button" data-cancel-watchlist-transition>${escape(ui("Cancel"))}</button>` })}
+      ${window.renderDetailHeader({ mainHtml: `<h1>${escape(ui("Mark {title} as watched", { title: item.title }))}</h1><p>${escape(ui("Add any viewing facts you know, then mark it watched."))}</p>`, actionsHtml: `<button type="submit">${escape(ui("Mark as watched"))}</button><button type="button" data-cancel-watchlist-transition>${escape(ui("Cancel"))}</button>` })}
       <section class="film-edit-section"><h2>${escape(ui("Viewing facts"))}</h2><div class="film-edit-grid">
         <label>${escape(ui("Rating"))} ${window.renderRatingInput({})}</label>
         <label>${escape(ui("Date watched"))} <input name="dateWatched" type="date"></label>
@@ -114,6 +107,12 @@
     );
     let item = window.findWatchlistItemById(itemId);
     if (!item) {
+      if (removedWatchlistSnapshot) {
+        document.title = `${ui("Removed from watchlist")} · The Oskars`;
+        container.innerHTML = `<div class="detail-empty"><h1>${escape(ui("Removed from watchlist"))}</h1>${window.renderActionFeedback({ message: ui('Removed "{title}" from your watchlist.', { title: removedWatchlistSnapshot.title }), actionLabel: ui("Undo"), actionAttribute: "data-undo-watchlist-removal", escape })}<a href="${escape(window.periodPageUrl("alltime", "alltime"))}&view=watchlist">${escape(ui("Return to watchlist"))}</a></div>`;
+        finishRenderTimer?.("removed");
+        return;
+      }
       document.title = `${ui("Watchlist film not found")} · The Oskars`;
       container.innerHTML = `<div class="detail-empty"><h1>${escape(ui("Watchlist film not found"))}</h1><a href="${escape(window.periodPageUrl("alltime", "alltime"))}&view=watchlist">${escape(ui("Return to watchlist"))}</a></div>`;
       finishRenderTimer?.("not found");
@@ -303,20 +302,42 @@
     if (removeButton) {
       let item = window.findWatchlistItemById(itemId);
       if (!item) return;
-      if (
-        !confirm(
-          ui("Remove {title} from the watchlist? This can't be undone here.", {
-            title: item.title,
-          }),
-        )
-      )
-        return;
+      removedWatchlistSnapshot = {
+        title: item.title,
+        watchlist: window.cloneRecord(state.watchlist || []),
+        declinedOfficialWatchlistAdds: window.cloneRecord(
+          state.declinedOfficialWatchlistAdds || [],
+        ),
+      };
       window.removeWatchlistItem(itemId, { save: false });
       let saving = window.save({ immediate: true, rebuild: true });
       if (saving?.then) await saving;
-      window.location.href = window.prepareOskarsAccountNavigation(
-        `${window.periodPageUrl("alltime", "alltime")}&view=watchlist`,
+      render();
+      return;
+    }
+    if (event.target.closest("[data-undo-watchlist-removal]")) {
+      if (!removedWatchlistSnapshot) return;
+      state.watchlist = window.cloneRecord(removedWatchlistSnapshot.watchlist);
+      state.declinedOfficialWatchlistAdds = window.cloneRecord(
+        removedWatchlistSnapshot.declinedOfficialWatchlistAdds,
       );
+      window.markAggregatesDirty?.("watchlist removal undone");
+      window.recordEdit?.({
+        type: "watchlist removal undo",
+        summary: removedWatchlistSnapshot.title,
+        sheetHint: "Watchlist",
+        changes: [
+          {
+            field: "watchlist",
+            before: "",
+            after: removedWatchlistSnapshot.title,
+          },
+        ],
+        context: { watchlistId: itemId },
+      });
+      removedWatchlistSnapshot = null;
+      window.save({ immediate: true, rebuild: true });
+      render();
       return;
     }
     if (event.target.closest("[data-cancel-watchlist-edit]")) {
@@ -432,15 +453,6 @@
         alert(plan.errors.join("\n"));
         return;
       }
-      let confirmText = [
-        ui("Mark as watched? This will become {target}.", {
-          target: transitionTargetText(plan),
-        }),
-        "",
-        ...plan.actions,
-        ...(plan.warnings.length ? ["", ui("Still to do"), ...plan.warnings] : []),
-      ].join("\n");
-      if (!confirm(confirmText)) return;
       let result = window.applyMarkWatchlistFilmWatched(plan);
       if (!result.ok) {
         alert(

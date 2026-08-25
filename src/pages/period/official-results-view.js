@@ -84,9 +84,16 @@ window.renderPeriodOfficialResults = function ({
       let sourceCategories = new Set(
         entries.map((entry) => entry.sourceCategory).filter(Boolean),
       );
+      // Winner-only image, matching the personal award board's own
+      // winner-only poster/portrait convention (award-view.js's
+      // renderCategoryBoard) - nominees stay text-only here too.
+      let winnerEntry = entries.find((entry) => entry.winner);
+      let winnerImage = winnerEntry
+        ? window.renderOfficialWinnerImage(winnerEntry, "winner")
+        : "";
       return `<section class="official-result-category">
         <h2><a href="${escape(window.categoryPageUrl(category))}">${escape(window.localizedCategoryName?.(category) || category)}</a></h2>
-        <ul>${entries.map((entry) => nominationHtml(entry, sourceCategories.size > 1)).join("")}</ul>
+        <div class="official-result-content${winnerImage ? " has-winner-poster" : ""}">${winnerImage}<ul>${entries.map((entry) => nominationHtml(entry, sourceCategories.size > 1)).join("")}</ul></div>
       </section>`;
     })
     .join("");

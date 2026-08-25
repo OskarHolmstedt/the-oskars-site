@@ -121,6 +121,15 @@ window.resolveRankingReviewPair = function (type, key, pair) {
   return added;
 };
 
+/** Reopens one reviewed pair after a session undo. @param {string} type Scope type. @param {string} key Scope key. @param {{key:string}} pair Reviewed pair. @returns {boolean} Whether a decision was removed. */
+window.reopenRankingReviewPair = function (type, key, pair) {
+  let bucket = rankingReviewBucket(type, key);
+  let index = bucket.indexOf(pair?.key);
+  if (index < 0) return false;
+  bucket.splice(index, 1);
+  return true;
+};
+
 /** Accepts a same-rating year shelf unchanged and persists every adjacent pair decision. @param {string|number} year Release year. @param {string} ratingKey Exact rating key. @returns {{ok:boolean, reviewed:number}} Result. */
 window.confirmYearRankingBucket = function (year, ratingKey) {
   let films = window.rankingReviewScopeFilms("years", String(year)).filter(

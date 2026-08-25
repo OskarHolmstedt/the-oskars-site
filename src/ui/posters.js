@@ -132,6 +132,41 @@ window.renderAwardWinnerImage = function (film, award, variant = "winner") {
     : window.renderFilmPoster(film, variant);
 };
 
+/**
+ * Renders recipient portraits for a WINNING official-results nomination,
+ * falling back to the film poster - the same shape as renderAwardWinnerImage
+ * above, but sourced from the official-results film/people metadata
+ * (docs/official-results-file-split-decision.md) instead of the viewer's
+ * own archive, so a winner renders an image even for a film/person the
+ * viewer never personally added. Nominees stay text-only, matching the
+ * personal award board's own winner-only convention - callers only ever
+ * invoke this for `nomination.winner === true`.
+ * @param {OfficialNomination} nomination Winning nomination.
+ * @param {string} [variant] Presentation variant.
+ * @returns {string}
+ */
+window.renderOfficialWinnerImage = function (nomination, variant = "winner") {
+  let peopleMetadata = window.OSKARS_BUNDLED_OFFICIAL_PEOPLE_METADATA || {};
+  let portraits = window
+    .splitRecipientNames(nomination?.recipient)
+    .map((name) => peopleMetadata[window.normalizePersonName(name)])
+    .filter((entry) => entry?.portrait)
+    .map((entry) =>
+      window.renderPersonPortrait({ name: entry.name, portrait: entry.portrait }, variant),
+    )
+    .filter(Boolean)
+    .slice(0, 6);
+  if (portraits.length)
+    return `<div class="recipient-portraits recipient-portraits--${variant}${portraits.length === 1 ? " single" : ` multi count-${portraits.length}`}" data-portrait-count="${portraits.length}">${portraits.join("")}</div>`;
+  let filmMetadata = window.OSKARS_BUNDLED_OFFICIAL_FILM_METADATA || {};
+  let film = filmMetadata[nomination?.tmdbId];
+  if (!film?.poster) return "";
+  return window.renderFilmPoster(
+    { poster: film.poster, title: nomination?.originalTitle || nomination?.sourceTitle },
+    variant,
+  );
+};
+
 /** Appends the shared image-provider attribution footer once. */
 window.renderPosterAttribution = function () {
   if (document.querySelector(".data-attribution")) return;
@@ -200,8 +235,6 @@ window.renderPosterPicker = function (config = {}) {
 window.posterPickerErrorText = function (error) {
   let ui = window.uiText || ((text) => text);
   let message = String(error?.message || error || "");
-  if (/credential/i.test(message))
-    return ui("TMDB is unavailable right now. Try again later.");
   if (/network|fetch|load failed|failed to fetch/i.test(message))
     return ui(
       "TMDB could not be reached. Check your connection and try again.",

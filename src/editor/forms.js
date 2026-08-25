@@ -1,4 +1,4 @@
-/** @file Binds the editor's static film and nomination dialogs and submits their domain operations. */
+/** @file Binds the editor's static nomination dialog and submits its domain operation. Adding a new film happens through Intake's guided workflow instead (issue: consolidated onto one path). */
 
 let ui = window.uiText || ((text) => text);
 let finishStaticFormTimer = window.startOskarsPerformance?.(
@@ -68,57 +68,6 @@ function updateNominationPeriod() {
     category === "Best Picture" ? limits.picture : limits.category;
 }
 
-function renderFilmRatingField() {
-  let container = document.getElementById("filmRatingField");
-  container.innerHTML = window.renderRatingInput({
-    name: "rating",
-    id: "filmRatingInput",
-  });
-  window.enhanceRatingInputs(container);
-}
-
-document.getElementById("addFilmBtn").addEventListener("click", () => {
-  let finishDialogTimer = window.startOskarsPerformance?.("editor:filmDialog");
-  document.getElementById("filmForm").reset();
-  renderFilmRatingField();
-  openDialog(document.getElementById("filmDialog"));
-  finishDialogTimer?.(
-    `${document.querySelectorAll("#filmForm input, #filmForm select, #filmForm textarea").length} field(s)`,
-  );
-});
-
-document.getElementById("cancelFilmBtn").addEventListener("click", () => {
-  closeDialog(document.getElementById("filmDialog"));
-});
-
-document.getElementById("filmForm").addEventListener("submit", (event) => {
-  event.preventDefault();
-  try {
-    let film = window.addFilm({
-      title: document.getElementById("filmTitleInput").value,
-      year: document.getElementById("filmYearInput").value,
-      director: document.getElementById("filmDirectorInput").value,
-      rating: document.getElementById("filmRatingInput").value,
-      medium: document.getElementById("filmMediumInput").value,
-      screenplayType: document.getElementById("filmScreenplayInput").value,
-      adaptationSource: document.getElementById("filmAdaptationSourceInput")
-        .value,
-      country: document.getElementById("filmCountryInput").value,
-      url: document.getElementById("filmUrlInput").value,
-      posterUrl: document.getElementById("filmPosterInput").value,
-      franchises: document.getElementById("filmFranchisesInput").value,
-      tags: document.getElementById("filmTagsInput").value,
-      review: document.getElementById("filmReviewInput").value,
-    });
-    closeDialog(document.getElementById("filmDialog"));
-    alert(
-      ui("{title} ({year}) was added.", { title: film.title, year: film.year }),
-    );
-  } catch (err) {
-    alert(err.message);
-  }
-});
-
 document.getElementById("addNominationBtn").addEventListener("click", () => {
   let finishDialogTimer = window.startOskarsPerformance?.(
     "editor:nominationDialog",
@@ -174,12 +123,17 @@ document
         detail: document.getElementById("nominationDetailInput").value,
       };
       let plan = window.planNominationInsertion(values);
-      if (!window.confirmNominationPlacementPlan(plan)) return;
-      let result = window.applyNominationPlacementPlan(plan);
-      if (!result.ok)
-        throw new Error(result.reason || ui("Nomination was not added."));
-      closeDialog(document.getElementById("nominationDialog"));
-      alert(ui("Nomination added."));
+      window.reviewNominationPlacementPlan(plan, () => {
+        try {
+          let result = window.applyNominationPlacementPlan(plan);
+          if (!result.ok)
+            throw new Error(result.reason || ui("Nomination was not added."));
+          closeDialog(document.getElementById("nominationDialog"));
+          alert(ui("Nomination added."));
+        } catch (err) {
+          alert(err.message);
+        }
+      });
     } catch (err) {
       alert(err.message);
     }

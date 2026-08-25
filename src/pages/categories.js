@@ -1,46 +1,55 @@
-/** @file Renders the category index with archive nomination and winner summaries. */
+/** @file Renders the category index as a canonical poster-card gallery with winner context. */
 
 (function () {
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
   window.load();
-  let categorySummaries = new Map(
-    window
-      .getOrderedCategories()
-      .map((category) => [category, { nominations: 0, winners: 0 }]),
-  );
-  Object.values(state.filmsById || {}).forEach((film) =>
-    (film.awards || []).forEach((award) => {
-      let summary = categorySummaries.get(award.category);
-      if (!summary) return;
-      summary.nominations++;
-      if (Number(award.placement) === 1) summary.winners++;
-    }),
-  );
-  function categoryCard(category, fullWidth = false) {
-    if (!category)
-      return '<div class="category-board-spacer" aria-hidden="true"></div>';
-    let summary = categorySummaries.get(category) || {
-      nominations: 0,
-      winners: 0,
-    };
-    return `<article class="browse-index-card category-index-card${fullWidth ? " full-width" : ""}"><h2><a href="${escape(window.categoryPageUrl(category))}">${escape(window.localizedCategoryName?.(category) || category)}</a></h2><div><span><b>${summary.nominations}</b> ${escape(ui("nominations"))}</span><span><b>${summary.winners}</b> ${escape(ui("winners"))}</span></div></article>`;
+
+  function categoryPosterFilms(category) {
+    let candidates = new Map();
+    Object.values(state.filmsById || {}).forEach((film) => {
+      (film.awards || []).forEach((award) => {
+        if (award.category !== category) return;
+        let candidate = candidates.get(film.id) || {
+          film,
+          winner: false,
+          latestYear: 0,
+        };
+        candidate.winner ||= Number(award.placement) === 1;
+        if (/^\d{4}$/.test(String(award.year || "")))
+          candidate.latestYear = Math.max(
+            candidate.latestYear,
+            Number(award.year),
+          );
+        candidates.set(film.id, candidate);
+      });
+    });
+    return [...candidates.values()]
+      .sort(
+        (left, right) =>
+          Number(Boolean(window.normalizePosterRecord?.(right.film.poster))) -
+            Number(Boolean(window.normalizePosterRecord?.(left.film.poster))) ||
+          Number(right.winner) - Number(left.winner) ||
+          right.latestYear - left.latestYear ||
+          Number(left.film.allTimeRank || Number.MAX_SAFE_INTEGER) -
+            Number(right.film.allTimeRank || Number.MAX_SAFE_INTEGER) ||
+          String(left.film.title || "").localeCompare(
+            String(right.film.title || ""),
+          ),
+      )
+      .map((candidate) => candidate.film)
+      .slice(0, 5);
   }
 
   function render() {
     let finishRenderTimer =
       window.startOskarsPerformance?.("categories:render");
-    let bestPicture = categoryCard("Best Picture", true);
-    let pairedCards = window
-      .getCategoryPresentationSlots()
-      .map((category) => categoryCard(category))
-      .join("");
     document.title = `${ui("Categories")} · The Oskars`;
     let header = window.renderDetailHeader({
       mainHtml: `<h1>${escape(ui("Categories"))}</h1><p>${escape(ui("Browse every award category across years, decades, centuries, and all-time."))}</p>`,
     });
     document.getElementById("categoriesPage").innerHTML =
-      `${header}<div class="category-index-grid">${bestPicture}${pairedCards}</div>`;
+      `${header}<section class="category-index-section category-gallery-section" aria-labelledby="categoryIndexHeading"><div class="section-heading"><div><span class="eyebrow">${escape(ui("The award board"))}</span><h2 id="categoryIndexHeading">${escape(ui("Choose a category"))}</h2></div><p>${escape(ui("Browse the winners that have shaped each category, then open its complete history."))}</p></div>${window.renderCategoryIndexBoard({ visual: true, posterFilmsForCategory: categoryPosterFilms })}</section>`;
     finishRenderTimer?.();
   }
 

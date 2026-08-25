@@ -9,6 +9,7 @@
     "home",
     "editor",
     "data",
+    "owner-data",
     "profile",
     "intake",
     "build",
@@ -164,11 +165,10 @@
       ["projects", text.projects, "projects.html"],
     ];
     let primary = navItems
-      .map(([section, label, href]) =>
-        active === section
-          ? `<strong>${label}</strong>`
-          : `<a href="${href}">${label}</a>`,
-      )
+      .map(([section, label, href]) => {
+        let current = active === section;
+        return `<a class="primary-nav-link${current ? " is-active" : ""}" href="${href}"${current ? ' aria-current="page"' : ""}>${label}</a>`;
+      })
       .join("");
     let theme = preferredTheme();
     document.documentElement.dataset.theme = theme;
@@ -239,11 +239,13 @@
     "src/core/urls.js",
     "src/ui/page-utils.js",
     "src/ui/i18n.js",
+    "src/ui/archive-indexes.js",
     "src/ui/site-header.js",
   ];
 
   let dependencies = [
     "src/core/canonical-data.js",
+    "src/core/canonical-data-official.js",
     "src/core/reconciliation.js",
     "src/core/workspace-sections.js",
     "src/core/workspace-sync-plan.js",
@@ -292,6 +294,8 @@
       "franchises",
       "directors",
       "projects",
+      "periods",
+      "categories",
     ].includes(entry)
       ? ["src/ui/poster-deck.js"]
       : []),
@@ -336,12 +340,14 @@
     ...(["editor", "data", "intake", "awards-year"].includes(entry)
       ? ["src/domain/films.js"]
       : []),
+    ...(entry === "owner-data" ? ["src/domain/films.js"] : []),
     ...(entry === "data" ? ["src/domain/opinion-rebuild.js"] : []),
     "src/domain/stats.js",
     ...(entry === "community" ? ["src/domain/community.js"] : []),
     ...(entry === "compare" ? ["src/domain/compare-targets.js"] : []),
     ...(entry === "presentation" ? ["src/domain/presentation-packs.js"] : []),
     "src/domain/people/index.js",
+    "src/domain/shared-film-archive.js",
     "src/domain/people/aliases.js",
     "src/domain/people/subjects.js",
     "src/core/aggregates.js",
@@ -375,9 +381,9 @@
     "src/ui/search.js",
     "src/ui/posters.js",
     "src/ui/backdrop.js",
-    ...(entry === "data"
+    ...(["data", "owner-data"].includes(entry)
       ? [
-          "src/data/health-view.js",
+          ...(entry === "data" ? ["src/data/health-view.js"] : []),
           "src/editor/import-report.js",
           "src/data/import-summary.js",
           "src/data/import-consistency.js",
@@ -406,8 +412,13 @@
           "src/data/import-proposals.js",
           "src/imports/zip.js",
           "src/imports/letterboxd.js",
-          "src/data/google-sheets.js",
         ]
+      : entry === "owner-data"
+        ? [
+            "src/data/publication.js",
+            "src/data/import-proposals.js",
+            "src/data/google-sheets.js",
+          ]
       : entry === "profile"
         ? [
             "src/data/publication.js",
@@ -480,6 +491,7 @@
   let ownerOnlyEntries = new Set([
     "editor",
     "data",
+    "owner-data",
     "profile",
     "intake",
     "build",
@@ -528,6 +540,11 @@
       return;
     }
     await loadScript("config.local.js", true);
+    if (
+      entry === "data" &&
+      window.OSKARS_LOCAL_CONFIG?.ownerDataTools === true
+    )
+      await loadScript("src/pages/owner-data-link.js");
     // Non-secret, unlike config.local.js — see docs/google-signin-firestore-decision.md.
     // Optional: absent until the owner sets up a real Firebase project (issue #255).
     await loadScript("firebase.config.js", true);
@@ -560,7 +577,9 @@
     for (let dependency of headerDependencies) await loadScript(dependency);
     window.renderSiteHeader?.();
     for (let dependency of dependencies) await loadScript(dependency);
-    let pageLoadsOwnData = ["home", "editor", "data", "community"].includes(entry);
+    let pageLoadsOwnData = ["home", "editor", "data", "community"].includes(
+      entry,
+    ) || entry === "owner-data";
     if (!pageLoadsOwnData) {
       await window.ensureOskarsData();
       if (window.oskarsAccountAccessBlocked?.()) return;

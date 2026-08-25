@@ -1,20 +1,9 @@
 /** @file Controls the data workspace for imports, backups, health, metadata batches, and edit history. */
 
 let ui = window.uiText || ((text) => text);
-let pendingGoogleImportProposal = null;
 let pendingJsonImportProposal = null;
 let pendingLetterboxdImportProposal = null;
 let opinionRebuildComparisonRevealed = false;
-
-function updateGoogleFoundationControls() {
-  let option = document.querySelector(
-    '#googleSheetsImportMode option[value="foundation"]',
-  );
-  if (!option) return;
-  option.disabled = Boolean(window.hasSheetsImportFoundation?.());
-  let select = document.getElementById("googleSheetsImportMode");
-  if (option.disabled && select.value === "foundation") select.value = "merge";
-}
 
 function renderDataWorkspace() {
   let finishRenderTimer = window.startOskarsPerformance?.(
@@ -28,7 +17,8 @@ function renderDataWorkspace() {
     document.getElementById("publicProfilePublicationView"),
   );
   renderOpinionRebuildView(document.getElementById("opinionRebuildView"));
-  updateGoogleFoundationControls();
+  window.renderOwnerDataToolsLink?.();
+  window.refreshMetadataBatchActionLabels?.();
   window.renderDataHealth(document.getElementById("dataHealthView"), {
     refresh: true,
   });
@@ -54,6 +44,10 @@ function editLogEscape(value) {
         "'": "&#39;",
       })[char],
   );
+}
+
+function showDataTechnicalError(status, summary, error) {
+  status.innerHTML = `${editLogEscape(ui(summary))}${window.renderTechnicalDetails?.({ text: error?.message || String(error), escape: editLogEscape }) || ""}`;
 }
 
 function editLogTimeLabel(value) {
@@ -370,72 +364,6 @@ async function persistDataWorkspace() {
   renderDataWorkspace();
 }
 
-async function runGoogleSheetsImport() {
-  let importButton = document.getElementById("googleSheetsImportBtn");
-  let previewButton = document.getElementById("googleSheetsPreviewBtn");
-  let status = document.getElementById("googleSheetsStatus");
-  importButton.disabled = true;
-  previewButton.disabled = true;
-  previewButton.textContent = ui("Previewing...");
-  if (status) status.textContent = ui("Waiting for Google sign-in.");
-  try {
-    let selected = document.getElementById("googleSheetsImportMode")?.value;
-    let mode = ["foundation", "replace"].includes(selected)
-      ? selected
-      : "merge";
-    let proposal = await window.importFromGoogleSheets({
-      replace: mode !== "merge",
-      merge: mode === "merge",
-      foundation: mode === "foundation",
-    });
-    let presentedReport =
-      window.compactImportReport?.(proposal.report, { preview: true }) ||
-      proposal.report;
-    pendingGoogleImportProposal = proposal;
-    window.showImportReport?.(presentedReport);
-    if (status) {
-      status.textContent = proposal.allowed
-        ? `${ui("Proposal ready.")} ${proposal.changes.length} canonical section(s) changed. ${ui("No local data changed.")}`
-        : `${ui("Proposal blocked.")} ${proposal.validation.errors.map((entry) => entry.message).join(" ")}`;
-    }
-    importButton.disabled = !proposal.allowed;
-    previewButton.textContent = ui("Previewed");
-  } catch (err) {
-    console.error("Google Sheets import failed", err);
-    if (status) status.textContent = err.message || String(err);
-    pendingGoogleImportProposal = null;
-    previewButton.textContent = ui("Preview failed");
-    setTimeout(() => {
-      previewButton.textContent = ui("Preview import");
-    }, 1600);
-  } finally {
-    previewButton.disabled = false;
-  }
-}
-
-async function applyGoogleSheetsProposal() {
-  let button = document.getElementById("googleSheetsImportBtn");
-  let status = document.getElementById("googleSheetsStatus");
-  if (!pendingGoogleImportProposal) return;
-  button.disabled = true;
-  button.textContent = ui("Applying...");
-  let result = await window.applyImportProposal(pendingGoogleImportProposal);
-  if (!result.ok) {
-    if (status) status.textContent = result.errors.join(" ");
-    button.textContent = ui("Apply failed");
-    return;
-  }
-  pendingGoogleImportProposal = null;
-  if (status)
-    status.textContent = ui(
-      "Proposal applied to the local draft. Publish canonical JSON separately.",
-    );
-  renderDataWorkspace();
-  button = document.getElementById("googleSheetsImportBtn");
-  button.disabled = true;
-  button.textContent = ui("Applied to draft");
-}
-
 async function applyJsonImportProposal() {
   let button = document.getElementById("jsonImportApplyBtn");
   if (!pendingJsonImportProposal) return;
@@ -451,7 +379,12 @@ async function applyJsonImportProposal() {
   renderDataWorkspace();
   button = document.getElementById("jsonImportApplyBtn");
   button.disabled = true;
-  button.textContent = ui("Applied to draft");
+  button.textContent = ui("Changes added");
+  // Not awaited: see applyLetterboxdImportProposal's identical call. A
+  // "replace" restore of the owner's own already-enriched backup is a
+  // cheap no-op here; a "merge" restore or a foreign/partial backup is
+  // exactly the case this actually helps.
+  window.runPostImportMetadataFetch?.();
 }
 
 async function previewLetterboxdZip(event) {
@@ -485,13 +418,17 @@ async function previewLetterboxdZip(event) {
     button.disabled = !proposal.allowed;
     status.textContent = proposal.allowed
       ? ui(
-          "Letterboxd jumpstart is ready. No local data changed; review the report before applying.",
+          "Your Letterboxd review is ready. Nothing has changed yet; check the report, then use the reviewed changes.",
         )
-      : `${ui("Proposal blocked.")} ${proposal.validation.errors.map((entry) => entry.message).join(" ")}`;
+      : ui("This Letterboxd import cannot be used yet. Review the problems below and try again with a corrected export.");
     finishTimer?.(`${proposal.report.filmsParsed || 0} watched film(s)`);
   } catch (err) {
     console.error("Letterboxd ZIP preview failed", err);
-    status.textContent = err.message || String(err);
+    showDataTechnicalError(
+      status,
+      "The Letterboxd review could not be prepared. Choose the original export ZIP and try again.",
+      err,
+    );
     finishTimer?.("preview failed");
   } finally {
     input.value = "";
@@ -514,12 +451,16 @@ async function applyLetterboxdImportProposal() {
   }
   pendingLetterboxdImportProposal = null;
   status.textContent = ui(
-    "Letterboxd data applied to the local draft. Awards and rankings were kept unchanged.",
+    "The reviewed Letterboxd changes are now in this browser. Awards and rankings were left unchanged.",
   );
   renderDataWorkspace();
   button = document.getElementById("letterboxdImportApplyBtn");
   button.disabled = true;
-  button.textContent = ui("Applied to draft");
+  button.textContent = ui("Changes added");
+  // Not awaited: this is a long-running, visible next step (scrolls to and
+  // drives the Fetch metadata panel below), not something the apply button
+  // itself should block on.
+  window.runPostImportMetadataFetch?.();
 }
 
 function handleAliasAction(event) {
@@ -601,17 +542,11 @@ async function runTmdbMediaTypeCheck(button) {
     let status = document.getElementById("tmdbMediaTypeStatus");
     if (status) status.textContent = message;
   };
-  let settings = window.getPosterSettings();
-  if (!settings.tmdbCredential) {
-    statusText(ui("Save a TMDB credential before checking TMDB links."));
-    return;
-  }
   button.disabled = true;
   button.textContent = ui("Checking...");
   try {
     let result = await window.checkTmdbMediaTypes({
       limit: 250,
-      settings,
       onProgress(done, total) {
         statusText(`${done} / ${total}`);
       },
@@ -758,7 +693,14 @@ async function handleEditLogAction(event) {
   }
   let clearButton = event.target.closest("[data-clear-data-log]");
   if (!clearButton) return;
-  if (!confirm(ui("Clear the local sheet edit log?"))) return;
+  if (
+    !confirm(
+      ui(
+        "Clear the local edit history? This cannot be undone, but it does not change any films, ratings, rankings, awards, or watch history.",
+      ),
+    )
+  )
+    return;
   window.clearEditLog?.();
   await persistDataWorkspace();
 }
@@ -933,49 +875,7 @@ async function initializeDataWorkspace() {
   document
     .getElementById("opinionRebuildView")
     ?.addEventListener("click", handleOpinionRebuildAction);
-  let googleSheetsStatus = document.getElementById("googleSheetsStatus");
-  if (googleSheetsStatus && !window.googleSheetsImportConfigured()) {
-    googleSheetsStatus.textContent = ui(
-      "Add googleClientId, googleSheets.spreadsheetId, and googleSheets.ranges in config.local.js.",
-    );
-  }
-  let sheetsFoundation = window.getSheetsImportFoundation?.();
-  if (googleSheetsStatus && sheetsFoundation) {
-    googleSheetsStatus.textContent = ui(
-      "Sheets foundation recorded from {revision}. Further runs create explicit follow-up proposals.",
-      { revision: sheetsFoundation.sourceRevision },
-    );
-  }
   renderDataWorkspace();
-  let resumedGoogleOptions = window.OSKARS_RESUMED_GOOGLE_PROPOSAL_OPTIONS;
-  if (resumedGoogleOptions) {
-    delete window.OSKARS_RESUMED_GOOGLE_PROPOSAL_OPTIONS;
-    let resumedMode = resumedGoogleOptions.foundation
-      ? "foundation"
-      : resumedGoogleOptions.replace
-        ? "replace"
-        : "merge";
-    let modeSelect = document.getElementById("googleSheetsImportMode");
-    if (
-      resumedMode !== "foundation" ||
-      !window.hasSheetsImportFoundation?.()
-    )
-      modeSelect.value = resumedMode;
-    await runGoogleSheetsImport();
-  }
-
-  document
-    .getElementById("googleSheetsPreviewBtn")
-    .addEventListener("click", runGoogleSheetsImport);
-  document
-    .getElementById("googleSheetsImportBtn")
-    .addEventListener("click", applyGoogleSheetsProposal);
-  document
-    .getElementById("googleSheetsImportMode")
-    .addEventListener("change", () => {
-      pendingGoogleImportProposal = null;
-      document.getElementById("googleSheetsImportBtn").disabled = true;
-    });
   document
     .getElementById("downloadBtn")
     .addEventListener("click", window.downloadData);
@@ -1080,7 +980,14 @@ async function initializeDataWorkspace() {
   document
     .getElementById("clearDataBtn")
     .addEventListener("click", async () => {
-      if (!confirm(ui("Clear all locally stored The Oskars data?"))) return;
+      if (
+        !confirm(
+          ui(
+            "Delete all The Oskars data stored in this browser? This cannot be undone here. Download a backup first if you may want to restore it. Published and cloud copies are not deleted.",
+          ),
+        )
+      )
+        return;
       let button = document.getElementById("clearDataBtn");
       button.disabled = true;
       button.textContent = ui("Clearing...");
