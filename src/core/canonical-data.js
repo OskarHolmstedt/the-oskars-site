@@ -283,8 +283,11 @@ window.migrateCanonicalData = function (source) {
   if (!canonicalIsRecord(source))
     throw new Error("Canonical dataset must be an object");
   let version = source.canonicalSchemaVersion;
-  if (version === undefined || version === null || version === 0)
-    return canonicalLegacyMigration(canonicalClone(source));
+  if (version === undefined || version === null || version === 0) {
+    let legacyMigrated = canonicalLegacyMigration(canonicalClone(source));
+    canonicalNormalizeOpinionRebuildSession(legacyMigrated);
+    return legacyMigrated;
+  }
   if (!Number.isInteger(version) || version < 0)
     throw new Error("Unsupported canonical schema version");
   if (version > window.OSKARS_CANONICAL_SCHEMA_VERSION)
@@ -300,6 +303,7 @@ window.migrateCanonicalData = function (source) {
     });
   }
   canonicalNormalizeLegacyMusicScoreFields(migrated);
+  canonicalNormalizeOpinionRebuildSession(migrated);
   return migrated;
 };
 
@@ -640,6 +644,95 @@ function canonicalValidateProjects(errors, projects) {
       });
     });
   });
+}
+
+/**
+ * Validates one opinion-rebuild session, appending failures to `errors`.
+ * Factored out of validateCanonicalData so the exact same check can also
+ * decide, during migration, whether a stored session is too malformed to
+ * keep (see canonicalNormalizeOpinionRebuildSession) - one definition of
+ * "valid," not two that could drift.
+ * @param {Array<{path: string, message: string}>} errors Accumulator.
+ * @param {Object} session Candidate opinion-rebuild session.
+ */
+function canonicalValidateOpinionRebuildSession(errors, session) {
+  if (!canonicalCheckRecord(errors, session, "$.opinionRebuildSession"))
+    return;
+  canonicalCheckAllowedFields(
+    errors,
+    session,
+    "$.opinionRebuildSession",
+    CANONICAL_OPINION_REBUILD_FIELDS,
+  );
+  if (session.schemaVersion !== 1)
+    canonicalError(errors, "$.opinionRebuildSession.schemaVersion", "must be 1");
+  if (!["active", "complete"].includes(session.status))
+    canonicalError(
+      errors,
+      "$.opinionRebuildSession.status",
+      "must be active or complete",
+    );
+  if (typeof session.startedAt !== "string" || !session.startedAt)
+    canonicalError(
+      errors,
+      "$.opinionRebuildSession.startedAt",
+      "must be a non-empty string",
+    );
+  if (
+    session.status === "complete" &&
+    (typeof session.finishedAt !== "string" || !session.finishedAt)
+  )
+    canonicalError(
+      errors,
+      "$.opinionRebuildSession.finishedAt",
+      "must be a non-empty string for a completed rebuild",
+    );
+  [
+    "films",
+    "watchlist",
+    "watchedOther",
+    "entityNotes",
+    "localRanks",
+    "rankingReviews",
+    "awardReviews",
+  ].forEach((key) =>
+    canonicalCheckRecord(errors, session[key], `$.opinionRebuildSession.${key}`),
+  );
+  canonicalCheckArray(
+    errors,
+    session.sourceConflicts,
+    "$.opinionRebuildSession.sourceConflicts",
+  );
+  [
+    ["films", CANONICAL_OPINION_REBUILD_FILM_FIELDS],
+    ["watchlist", CANONICAL_OPINION_REBUILD_WATCHLIST_FIELDS],
+    ["watchedOther", CANONICAL_OPINION_REBUILD_WATCHED_FIELDS],
+  ].forEach(([key, allowed]) => {
+    Object.entries(session[key] || {}).forEach(([recordId, snapshot]) => {
+      let path = `$.opinionRebuildSession.${key}.${recordId}`;
+      if (canonicalCheckRecord(errors, snapshot, path))
+        canonicalCheckAllowedFields(errors, snapshot, path, allowed);
+    });
+  });
+}
+
+/**
+ * Resets a present-but-malformed opinionRebuildSession to null during
+ * migration, rather than letting one corrupt in-progress "blind rebuild"
+ * session block an otherwise-valid archive from loading at all. Safe: a
+ * cleared session just means a stalled rebuild has to be restarted
+ * (window.startOpinionRebuild), an already-supported recovery path -
+ * losing that captured baseline is strictly better than the whole archive
+ * refusing to load.
+ * @param {Object} document Canonical dataset being migrated, mutated in place.
+ */
+function canonicalNormalizeOpinionRebuildSession(document) {
+  if (!canonicalIsRecord(document)) return;
+  let session = document.opinionRebuildSession;
+  if (session === null || session === undefined) return;
+  let scratch = [];
+  canonicalValidateOpinionRebuildSession(scratch, session);
+  if (scratch.length) document.opinionRebuildSession = null;
 }
 
 function canonicalValidateOfficialResults(errors, sources) {
@@ -1019,81 +1112,11 @@ window.validateCanonicalData = function (source) {
   if (
     source.opinionRebuildSession !== null &&
     source.opinionRebuildSession !== undefined
-  ) {
-    if (
-      canonicalCheckRecord(
-        errors,
-        source.opinionRebuildSession,
-        "$.opinionRebuildSession",
-      )
-    ) {
-      let session = source.opinionRebuildSession;
-      canonicalCheckAllowedFields(
-        errors,
-        session,
-        "$.opinionRebuildSession",
-        CANONICAL_OPINION_REBUILD_FIELDS,
-      );
-      if (session.schemaVersion !== 1)
-        canonicalError(
-          errors,
-          "$.opinionRebuildSession.schemaVersion",
-          "must be 1",
-        );
-      if (!["active", "complete"].includes(session.status))
-        canonicalError(
-          errors,
-          "$.opinionRebuildSession.status",
-          "must be active or complete",
-        );
-      if (typeof session.startedAt !== "string" || !session.startedAt)
-        canonicalError(
-          errors,
-          "$.opinionRebuildSession.startedAt",
-          "must be a non-empty string",
-        );
-      if (
-        session.status === "complete" &&
-        (typeof session.finishedAt !== "string" || !session.finishedAt)
-      )
-        canonicalError(
-          errors,
-          "$.opinionRebuildSession.finishedAt",
-          "must be a non-empty string for a completed rebuild",
-        );
-      [
-        "films",
-        "watchlist",
-        "watchedOther",
-        "entityNotes",
-        "localRanks",
-        "rankingReviews",
-        "awardReviews",
-      ].forEach((key) =>
-        canonicalCheckRecord(
-          errors,
-          session[key],
-          `$.opinionRebuildSession.${key}`,
-        ),
-      );
-      canonicalCheckArray(
-        errors,
-        session.sourceConflicts,
-        "$.opinionRebuildSession.sourceConflicts",
-      );
-      [
-        ["films", CANONICAL_OPINION_REBUILD_FILM_FIELDS],
-        ["watchlist", CANONICAL_OPINION_REBUILD_WATCHLIST_FIELDS],
-        ["watchedOther", CANONICAL_OPINION_REBUILD_WATCHED_FIELDS],
-      ].forEach(([key, allowed]) => {
-        Object.entries(session[key] || {}).forEach(([recordId, snapshot]) => {
-          let path = `$.opinionRebuildSession.${key}.${recordId}`;
-          if (canonicalCheckRecord(errors, snapshot, path))
-            canonicalCheckAllowedFields(errors, snapshot, path, allowed);
-        });
-      });
-    }
-  }
+  )
+    canonicalValidateOpinionRebuildSession(
+      errors,
+      source.opinionRebuildSession,
+    );
   if (
     canonicalCheckArray(
       errors,
