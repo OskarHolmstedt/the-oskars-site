@@ -158,10 +158,9 @@
       window.setSharedFilmArchiveStatus?.("unavailable");
       return { ok: true, reason: "signed-out" };
     }
-    if (!window.getWorkspaceSyncAccountAccess?.().allowed) {
-      window.setSharedFilmArchiveStatus?.("unavailable");
-      return { ok: true, reason: "unlinked" };
-    }
+    // This tree is shared, objective, read-only data. Private workspace
+    // lineage guards apply only to /users/<uid>/... sync; eligibility for
+    // /sharedArchive/... is enforced independently by Firestore rules.
     window.setSharedFilmArchiveStatus?.("loading");
 
     let ready = await window.ensureFirestoreDb?.();

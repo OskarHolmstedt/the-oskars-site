@@ -289,7 +289,7 @@
             ? "official"
             : value === "other"
               ? "other"
-              : value === "shared"
+              : value === "shared" && canEdit
                 ? "shared"
                 : value === "rewatch"
                   ? "rewatch"
@@ -925,7 +925,7 @@
     if (status === "loading" || status === "idle")
       return `<p class="detail-empty">${periodEscape(ui("Loading shared archive films…"))}</p>`;
     if (status === "unavailable")
-      return `<p class="detail-empty">${periodEscape(ui("The shared archive is unavailable for this session."))}</p>`;
+      return `<div class="detail-empty"><p>${periodEscape(ui("The shared archive could not be loaded."))}</p><button type="button" class="button-link" data-retry-shared-archive>${periodEscape(ui("Retry"))}</button></div>`;
     if (sharedSearch)
       return `<p class="detail-empty">${periodEscape(ui("No shared archive films match this search."))}</p>`;
     return `<p class="detail-empty">${periodEscape(ui("No shared-only films in this period."))}</p>`;
@@ -1481,7 +1481,7 @@
     ${window.renderDetailStats({ itemsHtml: periodSummaryItemsHtml })}
     ${viewMode === "official" || viewMode === "rewatch" || viewMode === "other" || viewMode === "shared" ? "" : renderPeriodHighlights()}
     ${viewMode === "official" || viewMode === "rewatch" || viewMode === "other" || viewMode === "shared" ? "" : renderRatingHistogram()}
-    <fieldset class="period-view-controls"><legend>${periodEscape(ui("View"))}</legend><label><input type="radio" name="periodViewMode" value="awards" ${viewMode === "awards" ? "checked" : ""} ${hasNominees ? "" : "disabled"}> ${periodEscape(ui("Award bracket"))}</label><label><input type="radio" name="periodViewMode" value="films" ${viewMode === "films" ? "checked" : ""}> ${periodEscape(ui("Films"))}</label><label><input type="radio" name="periodViewMode" value="other" ${viewMode === "other" ? "checked" : ""}> ${periodEscape(ui("Other watched"))}</label><label><input type="radio" name="periodViewMode" value="rewatch" ${viewMode === "rewatch" ? "checked" : ""}> ${periodEscape(ui("Rewatchlist"))}</label><label><input type="radio" name="periodViewMode" value="watchlist" ${viewMode === "watchlist" ? "checked" : ""}> Watchlist</label><label><input type="radio" name="periodViewMode" value="shared" ${viewMode === "shared" ? "checked" : ""}> ${periodEscape(ui("Shared archive"))}</label>${type === "year" ? `<label><input type="radio" name="periodViewMode" value="official" ${viewMode === "official" ? "checked" : ""} ${hasOfficialResults ? "" : "disabled"}> ${periodEscape(ui("Official results"))}</label>` : ""}</fieldset>
+    <fieldset class="period-view-controls"><legend>${periodEscape(ui("View"))}</legend><label><input type="radio" name="periodViewMode" value="awards" ${viewMode === "awards" ? "checked" : ""} ${hasNominees ? "" : "disabled"}> ${periodEscape(ui("Award bracket"))}</label><label><input type="radio" name="periodViewMode" value="films" ${viewMode === "films" ? "checked" : ""}> ${periodEscape(ui("Films"))}</label><label><input type="radio" name="periodViewMode" value="other" ${viewMode === "other" ? "checked" : ""}> ${periodEscape(ui("Other watched"))}</label><label><input type="radio" name="periodViewMode" value="rewatch" ${viewMode === "rewatch" ? "checked" : ""}> ${periodEscape(ui("Rewatchlist"))}</label><label><input type="radio" name="periodViewMode" value="watchlist" ${viewMode === "watchlist" ? "checked" : ""}> Watchlist</label>${canEdit ? `<label><input type="radio" name="periodViewMode" value="shared" ${viewMode === "shared" ? "checked" : ""}> ${periodEscape(ui("Shared archive"))}</label>` : ""}${type === "year" ? `<label><input type="radio" name="periodViewMode" value="official" ${viewMode === "official" ? "checked" : ""} ${hasOfficialResults ? "" : "disabled"}> ${periodEscape(ui("Official results"))}</label>` : ""}</fieldset>
     ${periodEditControls()}
     ${decadeMergeControls()}
     ${rankingEditControls()}
@@ -1739,6 +1739,10 @@
     }
   });
   container.addEventListener("click", (event) => {
+    if (event.target.closest("[data-retry-shared-archive]")) {
+      window.pullSharedOfficialResultsArchive?.();
+      return;
+    }
     let addSharedFilmButton = event.target.closest(
       "[data-add-shared-film-tmdb-id]",
     );

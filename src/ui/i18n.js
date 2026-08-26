@@ -2157,8 +2157,8 @@
     Tier: { sv: "Tier" },
     Title: { sv: "Titel" },
     "Title or director": { sv: "Titel eller regissör" },
-    "The shared archive is unavailable for this session.": {
-      sv: "Det delade arkivet är inte tillgängligt just nu.",
+    "The shared archive could not be loaded.": {
+      sv: "Det delade arkivet kunde inte laddas.",
     },
     "This project is marked complete. Reopen it to put it back in the open queue.":
       {
@@ -2201,6 +2201,7 @@
     "Want to rewatch ({tier})": { sv: "Vill se om ({tier})" },
     "Rewatch tier": { sv: "Rewatch-tier" },
     Rewatch: { sv: "Omtittning" },
+    Retry: { sv: "Försök igen" },
     Watchlist: { sv: "Watchlist" },
     "Remove from rewatchlist": { sv: "Ta bort från omtittningslistan" },
     Unwatched: { sv: "Osedda" },
