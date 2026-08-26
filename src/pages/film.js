@@ -729,14 +729,30 @@
     }
     let title = window.localizedFilmTitle?.(preview) || preview.title;
     document.title = `${title} · The Oskars`;
+    // Same director-link/metadata construction renderView uses below (director
+    // as its own linked "by X" line under the title, not a metadata dt/dd row;
+    // renderLinkedDirectors links every name to person.html regardless of
+    // whether that person has any local record yet - see person.js's matching
+    // preview-mode fallback), so this page reads like a real film page rather
+    // than a stripped-down lookalike.
     let director = window.sharedArchiveFilmDirectorNames(preview).join(", ");
-    let metadataRows = [
+    let directorHtml = window.renderLinkedDirectors(director, {
+      escape: filmPageEscape,
+      expanded: true,
+    });
+    let localizedTitle = window.localizedFilmTitle?.(preview);
+    let localizedTitleMeta =
       preview.swedishTitle && preview.swedishTitle !== preview.title
-        ? [ui("Swedish title"), preview.swedishTitle]
-        : null,
-      director ? [ui("Director"), director] : null,
-      preview.country || preview.primaryCountry
-        ? [ui("Country"), preview.country || preview.primaryCountry]
+        ? `<p class="film-localized-title">${filmPageEscape(preview.swedishTitle === localizedTitle ? preview.title : preview.swedishTitle)}</p>`
+        : "";
+    let metadataRows = [
+      [
+        "TMDB",
+        `#${previewTmdbId}`,
+        `https://www.themoviedb.org/${window.tmdbResourcePath(window.parseTmdbReference(previewTmdbId))}`,
+      ],
+      preview.primaryCountry || preview.country
+        ? [ui("Country"), preview.primaryCountry || preview.country]
         : null,
       preview.runtimeMinutes
         ? [ui("Runtime"), formatRuntime(preview.runtimeMinutes)]
@@ -744,14 +760,18 @@
     ].filter(Boolean);
     let metadataHtml = metadataRows
       .map(
-        ([label, value]) =>
-          `<dt>${filmPageEscape(label)}</dt><dd>${filmPageEscape(value)}</dd>`,
+        ([label, value, href]) =>
+          `<div><dt>${filmPageEscape(label)}</dt><dd>${href ? `<a href="${filmPageEscape(href)}" target="_blank" rel="noopener">${filmPageEscape(value)}</a>` : filmPageEscape(value)}</dd></div>`,
       )
       .join("");
-    let tmdbUrl = `https://www.themoviedb.org/${window.tmdbResourcePath(window.parseTmdbReference(previewTmdbId))}`;
+    let posterHtml = window.renderFilmPoster({ poster: preview.poster, title }, "detail");
     container.innerHTML = `${window.renderDetailHeader({
-      leadingHtml: window.renderFilmPoster({ poster: preview.poster, title }, "detail"),
-      mainHtml: `<h1>${filmPageEscape(title)}</h1><p>${filmPageEscape(preview.year)}</p>${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}<p><a href="${filmPageEscape(tmdbUrl)}" target="_blank" rel="noopener">${filmPageEscape(ui("View on TMDB"))}</a></p>`,
+      classes: posterHtml ? "has-poster" : "",
+      leadingHtml: posterHtml,
+      mainClasses: "detail-header-main film-detail-main",
+      mainHtml: `<div class="film-title-row"><h1>${filmPageEscape(title)}</h1></div>${localizedTitleMeta}${directorHtml ? `<p>${filmPageEscape(ui("by"))} ${directorHtml}</p>` : ""}
+      <p>${filmPageEscape(preview.year)}</p>
+      ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}`,
       actionsHtml: canEdit
         ? `<button type="button" data-add-shared-preview-watchlist>${filmPageEscape(ui("Add to watchlist"))}</button><button type="button" data-add-shared-preview-watched>${filmPageEscape(ui("Add to watched"))}</button>`
         : "",

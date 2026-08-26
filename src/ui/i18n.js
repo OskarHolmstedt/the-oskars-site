@@ -230,6 +230,9 @@
     "This film is known to the shared archive but hasn't been added to your own collection yet.": {
       sv: "Filmen finns i det delade arkivet men har inte lagts till i din egen samling än.",
     },
+    "Already in your own collection.": {
+      sv: "Redan i din egen samling.",
+    },
     works: { sv: "verk" },
     "No other watched entries in this period.": {
       sv: "Inga övriga sedda poster under denna period.",

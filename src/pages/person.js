@@ -79,8 +79,67 @@
   }
 
   if (!person) {
-    document.title = `${ui("Person not found")} · The Oskars`;
-    container.innerHTML = `<div class="detail-empty"><h1>${personPageEscape(ui("Person not found"))}</h1><a href="index.html">${personPageEscape(ui("Return home"))}</a></div>`;
+    // A director credited only on shared-archive films (never personally
+    // watched/watchlisted, so no local peopleById entry exists) still gets a
+    // real page instead of a hard "Person not found" - the shared archive's
+    // people map and local person ids are both normalizePersonName(name), so
+    // the same id space applies whether or not a local record exists yet.
+    // This is what makes renderLinkedDirectors' link (always built via
+    // personPageUrl, film.js's preview page included) actually lead
+    // somewhere useful for a director the viewer has never encountered.
+    let previewPersonId = window.pageQueryParam("id");
+    function renderDirectorPreview() {
+      let allFilms =
+        window.OSKARS_SHARED_FILM_ARCHIVE_BY_DIRECTOR?.[previewPersonId] || [];
+      if (!allFilms.length) {
+        let status = window.OSKARS_SHARED_FILM_ARCHIVE_STATUS;
+        if (status === "loading" || status === "idle") {
+          document.title = `${ui("Shared film")} · The Oskars`;
+          container.innerHTML = `<div class="detail-empty"><h1>${personPageEscape(ui("Shared film"))}</h1><p>${personPageEscape(ui("Loading shared archive films…"))}</p></div>`;
+          return;
+        }
+        document.title = `${ui("Person not found")} · The Oskars`;
+        container.innerHTML = `<div class="detail-empty"><h1>${personPageEscape(ui("Person not found"))}</h1><a href="index.html">${personPageEscape(ui("Return home"))}</a></div>`;
+        return;
+      }
+      let name = allFilms[0].people[previewPersonId]?.name || previewPersonId;
+      document.title = `${name} · The Oskars`;
+      let films = window.sharedArchiveFilmsOutsideCollection?.(allFilms) || allFilms;
+      let cards = films
+        .map((film) =>
+          window.renderSharedFilmCard(film, {
+            classes: ["person-film-card", "shared-archive-card"],
+            showYear: true,
+            escape: personPageEscape,
+            rating: false,
+            openFilm: false,
+            titleHtml: `<a class="table-film-link" href="${personPageEscape(window.sharedFilmPreviewUrl(film.tmdbId))}">${personPageEscape(window.localizedFilmTitle?.(film) || film.title)}</a>`,
+            bodyHtml: canEdit
+              ? `<div class="film-card-actions"><button type="button" data-add-shared-film-tmdb-id="${personPageEscape(film.tmdbId)}">${personPageEscape(ui("Add to watchlist"))}</button></div>`
+              : "",
+          }),
+        )
+        .join("");
+      container.innerHTML = `${window.renderDetailHeader({
+        mainHtml: `<h1>${personPageEscape(name)}</h1>`,
+      })}
+      <h2>${personPageEscape(ui("In the shared archive"))}</h2>
+      ${cards ? `<div class="film-grid person-film-grid">${cards}</div>` : `<p class="detail-empty">${personPageEscape(ui("Already in your own collection."))}</p>`}`;
+    }
+    renderDirectorPreview();
+    window.onSharedFilmArchiveChange?.(renderDirectorPreview);
+    container.addEventListener("click", (event) => {
+      let addButton = event.target.closest("[data-add-shared-film-tmdb-id]");
+      if (!addButton) return;
+      let result = window.addSharedArchiveFilmToWatchlist(
+        addButton.dataset.addSharedFilmTmdbId,
+      );
+      if (!result.ok) {
+        alert(ui(result.reason || "Could not add this film."));
+        return;
+      }
+      renderDirectorPreview();
+    });
     return;
   }
 
