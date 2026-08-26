@@ -29,10 +29,23 @@
     return new TextDecoder("utf-8").decode(bytes);
   }
 
-  function relevantBasename(path, selectedNames) {
-    let normalized = String(path || "").replace(/\\/g, "/");
-    let basename = normalized.split("/").pop().toLowerCase();
+  function normalizeZipPath(path) {
+    return String(path || "").replace(/\\/g, "/");
+  }
+
+  function relevantBasename(normalizedPath, selectedNames) {
+    let basename = normalizedPath.split("/").pop().toLowerCase();
     return selectedNames.has(basename) ? basename : "";
+  }
+
+  // A folder-nested duplicate of a top-level export file is a real,
+  // observed shape - e.g. a friend's Letterboxd ZIP combining more than
+  // one past export, each in its own subfolder. The genuinely correct
+  // file is always the one at (or closest to) the ZIP root, so prefer the
+  // shallowest path rather than refusing the whole import; only two
+  // entries at the exact same depth are a real ambiguity worth failing on.
+  function zipPathDepth(normalizedPath) {
+    return normalizedPath.split("/").length - 1;
   }
 
   function crc32(bytes) {
@@ -124,10 +137,25 @@
       if (totalUncompressed > limits.maximumUncompressedBytes)
         throw new Error("The ZIP expands beyond the 100 MiB import limit.");
       let path = decodeName(bytes.subarray(offset + 46, offset + 46 + nameLength));
-      let basename = relevantBasename(path, selectedNames);
+      let normalizedPath = normalizeZipPath(path);
+      let basename = relevantBasename(normalizedPath, selectedNames);
       if (basename) {
-        if (selected.has(basename))
-          throw new Error(`The ZIP contains more than one ${basename}.`);
+        let depth = zipPathDepth(normalizedPath);
+        let existing = selected.get(basename);
+        if (existing) {
+          if (depth > existing.depth) {
+            // A deeper-nested duplicate of an already-shallower selection -
+            // ignore it rather than the whole import failing.
+            offset = nextOffset;
+            continue;
+          }
+          if (depth === existing.depth)
+            throw new Error(
+              `The ZIP contains more than one ${basename} at the same folder depth.`,
+            );
+          // depth < existing.depth: this entry is shallower and replaces
+          // the previously-selected deeper duplicate below.
+        }
         if (![0, 8].includes(method))
           throw new Error(`Unsupported ZIP compression method ${method} (${path}).`);
         if (uncompressedSize > limits.maximumSelectedFileBytes)
@@ -145,6 +173,7 @@
         selected.set(basename, {
           basename,
           path,
+          depth,
           method,
           compressedSize,
           uncompressedSize,

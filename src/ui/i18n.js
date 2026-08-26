@@ -2305,6 +2305,10 @@
     "Awards and rankings are not part of this import.": {
       sv: "Priser och rankningar ingår inte i den här importen.",
     },
+    "Awards are not part of this import. Newly added films have no rank yet - rank each year to include them in that year's awards.":
+      {
+        sv: "Priser ingår inte i den här importen. Nytillagda filmer saknar ännu rankning - rangordna varje år för att inkludera dem i det årets priser.",
+      },
     "Official results": { sv: "Officiella resultat" },
     "Official nominee": { sv: "Officiellt nominerad" },
     "Official nominations": { sv: "Officiella nomineringar" },

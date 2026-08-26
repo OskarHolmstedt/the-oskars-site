@@ -191,8 +191,34 @@
     return parsed;
   }
 
+  function freshWatchedRecordFields(row, validYear) {
+    return {
+      id: window.makeFilmId(row.year, row.name),
+      title: row.name,
+      year: validYear ? row.year : "",
+      normalizedTitle: window.normalizeTitle(row.name),
+      type: "Film",
+      rating: "",
+      director: "",
+      franchises: [],
+      tags: [],
+      views: 1,
+    };
+  }
+
   function importWatched(rows, ratings, diary, report) {
     let archiveRecords = archiveSourceRecords();
+    // An account with no ranked archive yet is the primary new-user path
+    // (Letterboxd import is the expected first step, per the Data page
+    // guide) - for that case only, a freshly-imported film with no existing
+    // match becomes an unranked years[].films entry, ready for the normal
+    // per-year ranking tools, instead of landing in watchedOther (which
+    // never enters ranked lists or award brackets - see README.md's
+    // "Other watched" section). An account that already has a ranked
+    // archive keeps the original merge-only behavior unchanged, so a
+    // repeat/incremental sync never overrides a deliberate watchedOther
+    // choice (e.g. a short or stage show) for a film with no archive match.
+    let archiveWasEmpty = archiveRecords.length === 0;
     let archiveLookup = buildLookup(archiveRecords);
     let otherLookup = buildLookup(window.state.watchedOther || []);
     let factsByRow = viewingFacts(rows, ratings, diary);
@@ -214,6 +240,7 @@
       let facts = factsByRow.get(row);
       let archive = findRecord(archiveLookup, row);
       let existingOther = findRecord(otherLookup, row);
+      let validYear = /^\d{4}$/.test(row.year);
       if (archive) {
         let targetKeys = new Set(keysFor(archive));
         archiveRecords
@@ -223,19 +250,18 @@
       } else if (existingOther) {
         applyViewingFacts(existingOther, row, facts);
         report.watchedOtherMerged += 1;
+      } else if (archiveWasEmpty && validYear) {
+        let entry = freshWatchedRecordFields(row, validYear);
+        applyViewingFacts(entry, row, facts);
+        window.state.years[row.year] ||= { periodType: "years", films: [] };
+        window.state.years[row.year].films.push(entry);
+        archiveRecords.push(entry);
+        keysFor(entry).forEach((key) => archiveLookup.set(key, entry));
+        report.archiveAdded += 1;
       } else {
         let entry = {
-          id: window.makeFilmId(row.year, row.name),
-          title: row.name,
-          year: /^\d{4}$/.test(row.year) ? row.year : "",
-          normalizedTitle: window.normalizeTitle(row.name),
-          type: "Film",
-          rating: "",
-          director: "",
-          franchises: [],
+          ...freshWatchedRecordFields(row, validYear),
           rowNumber: row._rowNumber,
-          tags: [],
-          views: 1,
         };
         applyViewingFacts(entry, row, facts);
         window.state.watchedOther ||= [];
@@ -312,6 +338,7 @@
       titleVariants: [],
       skippedDetails: [],
       watchedArchiveMerged: 0,
+      archiveAdded: 0,
       watchedOtherAdded: 0,
       watchedOtherMerged: 0,
       watchlistAdded: 0,
@@ -328,7 +355,8 @@
         report,
       );
       importWatchlist(parsed["watchlist.csv"], importedWatchedKeys, report);
-      report.filmsAdded = report.watchedOtherAdded + report.watchlistAdded;
+      report.filmsAdded =
+        report.archiveAdded + report.watchedOtherAdded + report.watchlistAdded;
       report.filmsMerged =
         report.watchedArchiveMerged + report.watchedOtherMerged + report.watchlistMerged;
       window.rebuildAggregates?.();
