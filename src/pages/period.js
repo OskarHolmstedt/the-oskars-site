@@ -158,6 +158,7 @@
   let allFilms = [];
   let hasNominees = false;
   let canEditBracket = false;
+  let unrankedAllTimeFilms = [];
 
   function rebuildPeriodViewModel() {
     let periodFilmMap = new Map();
@@ -193,6 +194,27 @@
     canEditBracket =
       hasNominees &&
       (type === "year" || type === "decade" || type === "century");
+    // Not ranked yet (issue #369): the all-time view otherwise never shows
+    // an archive film until it's explicitly ranked into the cross-year
+    // order, which leaves a freshly-imported archive silently invisible
+    // here. Appended after the ranked list, chronologically - a sibling
+    // section, not merged into allFilms/pagination/sorting, since rank-based
+    // operations (edit ranking, award brackets, canonical composites) have
+    // no meaning for a film with no rank yet.
+    unrankedAllTimeFilms =
+      type === "alltime"
+        ? Object.values(state.filmsById || {})
+            .filter(
+              (film) =>
+                !(Number(film.allTimeRank) > 0) &&
+                !(film.canonicalComposite && film.suppressAllTimeRank),
+            )
+            .sort(
+              (left, right) =>
+                Number(left.year || 0) - Number(right.year || 0) ||
+                window.compareEnglishTitles(left.title, right.title),
+            )
+        : [];
   }
 
   rebuildPeriodViewModel();
@@ -810,6 +832,23 @@
       headers: [ui("Year"), ui("Title"), ui("Type"), ui("Director"), ui("Rating")].map(periodEscape),
       rows,
     });
+  }
+
+  function unrankedAllTimeSectionHtml() {
+    if (!unrankedAllTimeFilms.length) return "";
+    let cards = unrankedAllTimeFilms
+      .map((film) =>
+        window.renderSharedFilmCard(film, {
+          classes: ["unranked-alltime-card"],
+          showYear: true,
+          rankLabel: ui("NR"),
+          director: filmDirector(film),
+          directorPrefix: `${ui("by")} `,
+          escape: periodEscape,
+        }),
+      )
+      .join("");
+    return `<section class="period-unranked-alltime"><h3 class="period-filmography-subheading">${periodEscape(ui("Not yet ranked"))}</h3><div class="film-grid period-film-grid">${cards}</div></section>`;
   }
 
   function renderOtherWatchedGrid(films) {
@@ -1442,7 +1481,7 @@
           ? `${pagination}${pageTotal ? (layout === "grid" ? `<div class="film-grid period-film-grid">${otherCards}</div>` : renderOtherWatchedList(visibleFilmPage)) : `<p class="detail-empty">${periodEscape(ui("No other watched entries in this period."))}</p>`}${pagination}`
         : viewMode === "films"
         ? `<fieldset class="period-filter-controls"><legend>${periodEscape(ui("Film filters"))}</legend><label>${periodEscape(ui("Medium"))} <select data-period-film-filter="medium"><option value="all" ${mediumFilter === "all" ? "selected" : ""}>${periodEscape(ui("All"))}</option><option value="live-action" ${mediumFilter === "live-action" ? "selected" : ""}>${periodEscape(ui("Live action"))}</option><option value="animation" ${mediumFilter === "animation" ? "selected" : ""}>${periodEscape(ui("Animation"))}</option><option value="hybrid" ${mediumFilter === "hybrid" ? "selected" : ""}>${periodEscape(ui("Hybrid"))}</option></select></label><label>${periodEscape(ui("Screenplay"))} <select data-period-film-filter="screenplay"><option value="all" ${screenplayFilter === "all" ? "selected" : ""}>${periodEscape(ui("All"))}</option><option value="original" ${screenplayFilter === "original" ? "selected" : ""}>${periodEscape(ui("Original"))}</option><option value="adapted" ${screenplayFilter === "adapted" ? "selected" : ""}>${periodEscape(ui("Adapted"))}</option></select></label><label>${periodEscape(ui("Adapted from"))} <select data-period-film-filter="adaptationSource"><option value="all">${periodEscape(ui("All sources"))}</option>${sourceOptions}</select></label><label>${periodEscape(ui("Country"))} <select data-period-film-filter="country"><option value="all" ${countryFilter === "all" ? "selected" : ""}>${periodEscape(ui("All countries"))}</option>${countryOptions}</select></label><label>${periodEscape(ui("Exact rating"))} <select data-period-film-filter="exactRating"><option value="all" ${exactRatingFilter === "all" ? "selected" : ""}>${periodEscape(ui("All ratings"))}</option>${exactRatingOptions(exactRatingFilter)}</select></label><label>${periodEscape(ui("Minimum rating"))} <select data-period-film-filter="minimumRating"><option value="0">${periodEscape(ui("No minimum"))}</option>${ratingFilterOptions(minimumRatingFilter, "At least ")}</select></label><label>${periodEscape(ui("Maximum rating"))} <select data-period-film-filter="maximumRating"><option value="0">${periodEscape(ui("No maximum"))}</option>${ratingFilterOptions(maximumRatingFilter, "At most ")}</select></label>${filmRuntimeFilterInputsHtml()}</fieldset>
-      ${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid">${filmCards}</div>` : renderPeriodFilmList(visibleFilmPage)}${pagination}`
+      ${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid">${filmCards}</div>` : renderPeriodFilmList(visibleFilmPage)}${pagination}${type === "alltime" ? unrankedAllTimeSectionHtml() : ""}`
         : viewMode === "watchlist"
           ? `${window.renderAddWatchlistForm({ escape: periodEscape, ui })}${window.watchlistSubPeriodControls(watchlistFilters, { escape: periodEscape, ui })}${window.renderWatchlistTierFilter(watchlistFilters, { escape: periodEscape, ui })}${window.watchlistFilterControls(watchlistFilters, { filteredCount: watchlistEntries.length, projectSourceId: watchlistFilterProjectSourceId, bulkTierValue: bulkTierControl?.value(), queueVisible: watchlistQueueVisible, escape: periodEscape, ui })}${watchlistQueueVisible ? window.renderWatchlistQueue(watchlistEntries, { escape: periodEscape, ui }) : ""}${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid watchlist-grid">${watchlistCards || `<p>${periodEscape(ui("No watchlist films in this period."))}</p>`}</div>` : `<div class="leaderboard-wrap watchlist-list"><table class="leaderboard"><thead><tr><th>${periodEscape(ui("Interest"))}</th><th>${periodEscape(ui("Film"))}</th><th>${periodEscape(ui("Director"))}</th><th>${periodEscape(ui("Tier"))}</th></tr></thead><tbody>${visibleWatchlistPage.map((entry, visibleIndex) => window.renderWatchlistRow(entry, visibleIndex, { tierEditMode, watchlistOrderEditMode, escape: periodEscape })).join("") || `<tr><td colspan="4">${periodEscape(ui("No watchlist films in this period."))}</td></tr>`}</tbody></table></div>`}${pagination}`
           : `<div class="period-award-view">${categorySections}</div>`

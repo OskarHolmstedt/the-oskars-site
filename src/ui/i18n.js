@@ -217,6 +217,7 @@
     },
     "Start building your Oskars": { sv: "Börja bygga dina Oskars" },
     "Other watched": { sv: "Övrigt sett" },
+    "Not yet ranked": { sv: "Ännu inte rangordnad" },
     "In the shared archive": { sv: "I det delade arkivet" },
     "Add to watchlist": { sv: "Lägg till i att se-listan" },
     works: { sv: "verk" },
