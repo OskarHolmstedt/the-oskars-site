@@ -908,9 +908,7 @@
           escape: periodEscape,
           rating: false,
           openFilm: false,
-          titleHtml: periodEscape(
-            window.localizedFilmTitle?.(film) || film.title,
-          ),
+          titleHtml: `<a class="table-film-link" href="${periodEscape(window.sharedFilmPreviewUrl(film.tmdbId))}">${periodEscape(window.localizedFilmTitle?.(film) || film.title)}</a>`,
           bodyHtml: details
             ? `<div class="leaderboard-meta">${periodEscape(details)}</div>`
             : "",
@@ -1493,6 +1491,11 @@
             .map((entry) =>
               window.renderPeriodOfficialResults({
                 ...entry.result,
+                // Official results only render on type === "year" pages
+                // (officialResultsBySource is only ever built for those), so
+                // every nomination in this period shares this page's key.
+                year: key,
+                canEdit,
                 // Personal-pick comparison only exists for Academy Awards
                 // (issue #345 non-goal: other sources have no personal
                 // category counterpart to compare against).
@@ -1756,6 +1759,56 @@
       }
       filmPage = 1;
       render();
+      return;
+    }
+    let addNomineeWatchlistButton = event.target.closest(
+      "[data-add-official-nominee-watchlist-tmdb-id]",
+    );
+    if (addNomineeWatchlistButton) {
+      let tmdbId = addNomineeWatchlistButton.dataset.addOfficialNomineeWatchlistTmdbId;
+      let metadata = window.OSKARS_BUNDLED_OFFICIAL_FILM_METADATA?.[tmdbId] || {};
+      let result = window.addFilmRecordToWatchlist({
+        title: addNomineeWatchlistButton.dataset.addOfficialNomineeTitle,
+        year: key,
+        tmdbId,
+        swedishTitle: metadata.swedishTitle,
+        poster: metadata.poster,
+        director: metadata.director,
+      });
+      if (!result?.ok) {
+        window.alert?.(ui(result?.reason || "Could not add this film."));
+        return;
+      }
+      render();
+      return;
+    }
+    let addNomineeWatchedButton = event.target.closest(
+      "[data-add-official-nominee-watched-tmdb-id]",
+    );
+    if (addNomineeWatchedButton) {
+      let tmdbId = addNomineeWatchedButton.dataset.addOfficialNomineeWatchedTmdbId;
+      let metadata = window.OSKARS_BUNDLED_OFFICIAL_FILM_METADATA?.[tmdbId] || {};
+      addNomineeWatchedButton.disabled = true;
+      addNomineeWatchedButton.textContent = ui("Adding…");
+      window
+        .addFilmRecordToWatched({
+          title: addNomineeWatchedButton.dataset.addOfficialNomineeTitle,
+          year: key,
+          tmdbId,
+          director: metadata.director,
+        })
+        .then((result) => {
+          if (!result.ok)
+            throw new Error(result.reason || ui("Could not add this film."));
+          window.location.href = window.prepareOskarsAccountNavigation(
+            window.filmPageUrl(result.filmId),
+          );
+        })
+        .catch((err) => {
+          addNomineeWatchedButton.disabled = false;
+          addNomineeWatchedButton.textContent = ui("Add to watched");
+          window.alert?.(err.message || String(err));
+        });
       return;
     }
     if (event.target.closest("[data-period-film-scope-toggle]")) {

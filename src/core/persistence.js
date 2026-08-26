@@ -565,6 +565,7 @@ async function flushScheduledSave() {
   if (saved && shouldScheduleWorkspaceSync) {
     window.scheduleWorkspaceSync?.();
     window.scheduleSharedFilmMetadataSync?.();
+    window.refreshPendingSyncBadge?.();
   }
   waiters.forEach((resolve) => resolve(saved));
   return saved;
@@ -600,6 +601,7 @@ window.save = function (options = {}) {
       if (options.scheduleSync !== false) {
         window.scheduleWorkspaceSync?.();
         window.scheduleSharedFilmMetadataSync?.();
+        window.refreshPendingSyncBadge?.();
       }
       return true;
     } catch (err) {
@@ -690,6 +692,7 @@ window.replaceStoredState = async function (nextState, options = {}) {
   if (saved && options.scheduleSync !== false) {
     window.scheduleWorkspaceSync?.();
     window.scheduleSharedFilmMetadataSync?.();
+    window.refreshPendingSyncBadge?.();
   }
   loadPromise = window.state;
   return saved;

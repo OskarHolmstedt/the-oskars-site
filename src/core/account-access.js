@@ -276,6 +276,7 @@ window.prepareOskarsAccountNavigation = function (destination) {
       activeAccountNavigationUid,
     );
   } catch (err) {}
+  window.markSameOriginNavigation?.(destination);
   return destination;
 };
 

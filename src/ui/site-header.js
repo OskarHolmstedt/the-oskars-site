@@ -169,10 +169,15 @@
   }
 
   function primaryPreviewHtml(section, escape) {
+    // The outer .primary-nav-preview box starts flush against the nav link
+    // (no gap) and its top padding stands in for the visual gap, so that
+    // whole padded area stays part of the hoverable region — otherwise a
+    // real gap between the link and the panel is dead space where the
+    // hover chain breaks and the panel closes before the pointer arrives.
     if (section === "periods")
-      return `<div class="primary-nav-preview primary-nav-preview--periods" aria-label="${escape(headerText("menu.periods", "Periods"))}"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.periods", "Periods"))}</strong><a href="periods.html">${escape(headerText("menu.browsePeriods", "Browse all periods"))} →</a></div>${window.renderPeriodIndexMatrix({ compact: true })}</div>`;
+      return `<div class="primary-nav-preview primary-nav-preview--periods" aria-label="${escape(headerText("menu.periods", "Periods"))}"><div class="primary-nav-preview-panel"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.periods", "Periods"))}</strong><a href="periods.html">${escape(headerText("menu.browsePeriods", "Browse all periods"))} →</a></div>${window.renderPeriodIndexMatrix({ compact: true })}</div></div>`;
     if (section === "categories")
-      return `<div class="primary-nav-preview primary-nav-preview--categories" aria-label="${escape(headerText("menu.categories", "Categories"))}"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.categories", "Categories"))}</strong><a href="categories.html">${escape(headerText("menu.browseCategories", "Browse all categories"))} →</a></div>${window.renderCategoryIndexBoard({ compact: true })}</div>`;
+      return `<div class="primary-nav-preview primary-nav-preview--categories" aria-label="${escape(headerText("menu.categories", "Categories"))}"><div class="primary-nav-preview-panel"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.categories", "Categories"))}</strong><a href="categories.html">${escape(headerText("menu.browseCategories", "Browse all categories"))} →</a></div>${window.renderCategoryIndexBoard({ compact: true })}</div></div>`;
     return "";
   }
 
@@ -287,9 +292,51 @@
     refreshGoogleSignInButton();
   }
 
+  // CSS alone (:hover) drops the periods/categories preview the instant the
+  // pointer leaves the link's own small box, which happens well before a
+  // diagonal path toward the (much wider) panel below arrives - closing the
+  // preview out from under the pointer. This grace period keeps it open
+  // briefly after the pointer truly leaves, the standard fix for hover
+  // flyouts. Delegated on the never-replaced .app-header (nav.innerHTML is
+  // rebuilt on every render, so per-item listeners would be lost).
+  let previewCloseTimers = new WeakMap();
+  function openPreviewItem(item) {
+    let pending = previewCloseTimers.get(item);
+    if (pending) {
+      clearTimeout(pending);
+      previewCloseTimers.delete(item);
+    }
+    item.classList.add("is-preview-open");
+  }
+  function schedulePreviewClose(item) {
+    let pending = previewCloseTimers.get(item);
+    if (pending) clearTimeout(pending);
+    previewCloseTimers.set(
+      item,
+      setTimeout(() => {
+        previewCloseTimers.delete(item);
+        item.classList.remove("is-preview-open");
+      }, 300),
+    );
+  }
+  function bindPrimaryNavHoverIntent(header) {
+    header.addEventListener("mouseover", (event) => {
+      let item = event.target.closest(".primary-nav-item");
+      if (!item || !header.contains(item)) return;
+      openPreviewItem(item);
+    });
+    header.addEventListener("mouseout", (event) => {
+      let item = event.target.closest(".primary-nav-item");
+      if (!item || !header.contains(item)) return;
+      if (item.contains(event.relatedTarget)) return;
+      schedulePreviewClose(item);
+    });
+  }
+
   function bindSiteHeader(header, escape) {
     if (header.dataset.siteHeaderBound) return;
     header.dataset.siteHeaderBound = "true";
+    bindPrimaryNavHoverIntent(header);
     header
       .querySelector("[data-theme-toggle]")
       ?.addEventListener("click", (event) => {
@@ -362,8 +409,10 @@
                 "Sign out and lock this browser's private archive? Nothing is deleted; the same account can reopen it later.",
               ),
             )
-          )
-            await window.signOutOfFirebase?.();
+          ) {
+            if (await (window.confirmSignOutWithPendingSync?.() ?? true))
+              await window.signOutOfFirebase?.();
+          }
         }
       });
     }

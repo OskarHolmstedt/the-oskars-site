@@ -287,9 +287,14 @@ textarea {
 .primary-nav-preview {
   position: absolute;
   z-index: 40;
-  top: calc(100% + 10px);
+  top: 100%;
   left: 0;
   display: none;
+  box-sizing: border-box;
+  padding-top: 10px;
+  white-space: normal;
+}
+.primary-nav-preview-panel {
   box-sizing: border-box;
   max-height: min(720px, calc(100vh - 100px));
   overflow: auto;
@@ -298,15 +303,6 @@ textarea {
   border-radius: 10px;
   background: var(--surface);
   box-shadow: 0 16px 42px rgba(51, 42, 34, 0.22);
-  white-space: normal;
-}
-.primary-nav-preview::before {
-  position: absolute;
-  right: 0;
-  bottom: 100%;
-  left: 0;
-  height: 12px;
-  content: "";
 }
 .primary-nav-preview--periods {
   width: min(920px, calc(100vw - 40px));
@@ -334,7 +330,8 @@ textarea {
 }
 @media (min-width: 900px) {
   .primary-nav-item:hover > .primary-nav-preview,
-  .primary-nav-item:focus-within > .primary-nav-preview {
+  .primary-nav-item:focus-within > .primary-nav-preview,
+  .primary-nav-item.is-preview-open > .primary-nav-preview {
     display: block;
   }
 }
@@ -8423,6 +8420,31 @@ dialog h2 {
   font: inherit;
   pointer-events: auto;
   cursor: pointer;
+}
+.pending-sync-badge {
+  position: fixed;
+  right: 14px;
+  bottom: 46px;
+  z-index: 1000;
+  padding: 6px 9px;
+  border: 1px solid #b7c9d9;
+  border-radius: 5px;
+  background: rgba(233, 242, 250, 0.94);
+  color: #3a5a78;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.pending-sync-badge[hidden] {
+  display: none;
+}
+.pending-sync-badge:hover {
+  background: rgba(233, 242, 250, 1);
+}
+.pending-sync-badge:disabled {
+  cursor: default;
+  opacity: 0.75;
 }
 
 .editable {

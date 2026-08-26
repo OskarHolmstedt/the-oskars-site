@@ -3,7 +3,11 @@
  * #248): reads/writes manifest and shard documents under
  * `/users/<uid>/sections/<sectionKey>[/shards/<shardKey>]`, wraps every
  * write in bounded retry with uncertain-outcome verification, and drives
- * the sign-in/reconnect/focus/after-save triggers. Chunking
+ * the sign-in/reconnect/focus/after-save triggers. Those automatic
+ * triggers only ever pull remote changes and detect conflicts - pushing a
+ * local edit requires an explicit manual sync (the pending-edits badge/
+ * button, or profile.js's "Sync now") or conflict resolution; see
+ * performWorkspaceSync's `allowPush`. Chunking
  * (workspace-sections.js) and three-way planning (workspace-sync-plan.js)
  * stay pure and side-effect-free; this is the only file that touches the
  * network, mirroring how firebase-client.js is the only file that touches
@@ -389,6 +393,7 @@ async function processSectionSync(
   uid,
   sectionKey,
   canonical,
+  allowPush,
   consistentReadAttempt = 1,
 ) {
   let manifest = await readSectionManifest(firestoreModule, db, uid, sectionKey);
@@ -457,6 +462,7 @@ async function processSectionSync(
           uid,
           sectionKey,
           canonical,
+          allowPush,
           consistentReadAttempt + 1,
         );
       if (isUnauthorizedFirestoreError(err)) {
@@ -469,7 +475,7 @@ async function processSectionSync(
     }
   }
 
-  if (plan.pushKeys.length || plan.deleteKeys.length) {
+  if (allowPush && (plan.pushKeys.length || plan.deleteKeys.length)) {
     let newRevisions = {};
     let byteSizes = {};
     plan.pushKeys.forEach((shardKey) => {
@@ -585,11 +591,20 @@ async function performWorkspaceSync(options = {}) {
   let { firestoreModule, db } = ready;
   let uid = user.uid;
 
+  // Push only ever happens on an explicit user action - a manual sync
+  // click or an explicit per-shard conflict resolution - never as a side
+  // effect of sign-in, reconnect, tab focus, or the post-save debounce.
+  // Those automatic triggers still pull remote changes and detect
+  // conflicts (safe: a shard with a local change is planned as "push" or
+  // "conflict", never "pull", so this can't clobber an in-progress local
+  // edit), keeping "just inspecting" fresh against the cloud without ever
+  // silently writing local edits to it.
+  let allowPush = syncReason === "manual" || syncReason === "conflict-resolution";
   let canonical = window.getCanonicalData(window.state, { clone: false });
   let sectionKeys = window.OSKARS_CANONICAL_SECTION_KEYS || [];
   let sectionResults = await Promise.all(
     sectionKeys.map((sectionKey) =>
-      processSectionSync(firestoreModule, db, uid, sectionKey, canonical).catch((err) => {
+      processSectionSync(firestoreModule, db, uid, sectionKey, canonical, allowPush).catch((err) => {
         console.error(`Cloud sync failed for section ${sectionKey}`, err);
         return { sectionKey, pushedCount: 0, pulledCount: 0, conflicts: [], hadError: true, unauthorized: false, lastSyncedShardRevisions: remoteSyncState().shards?.[sectionKey] || {} };
       }),
@@ -661,6 +676,7 @@ async function performWorkspaceSync(options = {}) {
   }
 
   window.reportWorkspaceSyncStatus?.({ pushedCount, pulledCount, conflicts, hadError, unauthorized, stateChanged });
+  window.refreshPendingSyncBadge?.();
   return {
     ok: !hadError,
     pushedCount,
@@ -674,8 +690,16 @@ async function performWorkspaceSync(options = {}) {
 
 /**
  * Runs a full cloud sync pass across every workspace section: pulls
- * remote-only changes, pushes local-only changes, and records (without
- * auto-resolving) any genuine concurrent conflict. Coalesces overlapping
+ * remote-only changes and records (without auto-resolving) any genuine
+ * concurrent conflict. Local-only changes are only actually pushed when
+ * `reason` is `"manual"` (the pending-sync badge/button, or profile.js's
+ * "Sync now") or `"conflict-resolution"` (an explicit per-shard choice) -
+ * every other trigger (sign-in, reconnect, focus, after-save, data-ready,
+ * queued) plans push actions the same way but never executes them, so
+ * local edits stay on this device, undisturbed, until the user explicitly
+ * asks to sync. Safe by construction: a shard with a local change is
+ * planned as "push" or "conflict", never "pull", so the automatic triggers
+ * can never overwrite an in-progress local edit. Coalesces overlapping
  * calls - a pass already running queues at most one more, rather than
  * running N passes for N near-simultaneous triggers. A safe no-op when
  * signed out, unconfigured, or persistence itself is disallowed (viewer
@@ -706,7 +730,10 @@ window.runWorkspaceSync = function (options = {}) {
 /**
  * Schedules a debounced background sync pass (issue #248) - called after
  * every successful local save, so a burst of edits produces one sync pass
- * rather than one per keystroke. A no-op when signed out or unconfigured.
+ * rather than one per keystroke. This pass only pulls remote changes and
+ * detects conflicts (see performWorkspaceSync) - it never pushes this
+ * save's own edits, which stay local until an explicit manual sync. A
+ * no-op when signed out or unconfigured.
  */
 window.scheduleWorkspaceSync = function () {
   if (window.OSKARS_DATA_READY !== true || !currentFirebaseUser()) return;
@@ -726,6 +753,7 @@ window.scheduleWorkspaceSync = function () {
 window.noteOskarsDataReadyForSync = function () {
   if (window.OSKARS_DATA_READY === true) return;
   window.OSKARS_DATA_READY = true;
+  window.refreshPendingSyncBadge?.();
   if (currentFirebaseUser()) window.runWorkspaceSync({ reason: "data-ready" });
 };
 
@@ -738,6 +766,197 @@ window.noteOskarsDataReadyForSync = function () {
 window.getWorkspaceSyncConflicts = function () {
   if (!currentWorkspaceSyncAccountAccess().allowed) return [];
   return remoteSyncState().conflicts || [];
+};
+
+/**
+ * Counts shards whose local content differs from what this device last
+ * agreed with the cloud - i.e. local edits (or local deletions) not yet
+ * pushed. Pure and network-free: reuses the same shard revisioning
+ * processSectionSync uses, but only ever compares against the already-
+ * loaded last-synced baseline (never a live manifest read), so it's cheap
+ * enough to call after every save to drive a live "N unsynced" badge.
+ * Deliberately doesn't distinguish a clean push from a shard that will
+ * turn out to be a conflict (that needs a remote read to know) - both mean
+ * "not yet confirmed in the cloud," which is all the badge needs to say.
+ * @returns {number}
+ */
+window.countPendingWorkspaceEdits = function () {
+  if (!currentWorkspaceSyncAccountAccess().allowed) return 0;
+  let canonical = window.getCanonicalData(window.state, { clone: false });
+  let emptyCanonical = getEmptyCanonicalSections();
+  let lastSyncedShards = remoteSyncState().shards || {};
+  let sectionKeys = window.OSKARS_CANONICAL_SECTION_KEYS || [];
+  let pending = 0;
+  sectionKeys.forEach((sectionKey) => {
+    let { revisions: localRevisions } = shardRevisionsOf(sectionKey, canonical[sectionKey]);
+    let { revisions: emptyRevisions } = shardRevisionsOf(sectionKey, emptyCanonical[sectionKey]);
+    let lastSynced = lastSyncedShards[sectionKey] || {};
+    Object.keys(localRevisions).forEach((shardKey) => {
+      let hasLastSynced = Object.prototype.hasOwnProperty.call(lastSynced, shardKey);
+      if (!hasLastSynced) {
+        if (localRevisions[shardKey] !== (emptyRevisions[shardKey] || "")) pending += 1;
+      } else if (localRevisions[shardKey] !== lastSynced[shardKey]) {
+        pending += 1;
+      }
+    });
+    Object.keys(lastSynced).forEach((shardKey) => {
+      if (!(shardKey in localRevisions)) pending += 1;
+    });
+  });
+  return pending;
+};
+
+let pendingSyncBadgeWired = false;
+
+/**
+ * Creates/updates the bottom-right "N unsynced — Sync now" control that
+ * reflects countPendingWorkspaceEdits() live, stacked above the corner
+ * status pill (src/core/persistence.js's storageStatus). Stays hidden
+ * whenever there's nothing pending. Clicking it runs a manual sync pass
+ * (backoff-exempt, pushes and pulls) and re-renders from the new count -
+ * it never introduces a second error/conflict vocabulary alongside the
+ * existing status pill (reportWorkspaceSyncStatus already owns that), it
+ * only ever shows a count and a button.
+ */
+window.refreshPendingSyncBadge = function () {
+  if (!document?.body) return;
+  let count = window.countPendingWorkspaceEdits();
+  let badge = document.querySelector("#pendingSyncBadge");
+  if (!count) {
+    if (badge) badge.hidden = true;
+    return;
+  }
+  if (!badge) {
+    badge = document.createElement("button");
+    badge.type = "button";
+    badge.id = "pendingSyncBadge";
+    badge.className = "pending-sync-badge";
+    document.body.appendChild(badge);
+  }
+  if (!pendingSyncBadgeWired) {
+    pendingSyncBadgeWired = true;
+    badge.addEventListener("click", async () => {
+      badge.disabled = true;
+      badge.textContent = "Syncing...";
+      await window.runWorkspaceSync?.({ reason: "manual" });
+      badge.disabled = false;
+      window.refreshPendingSyncBadge?.();
+    });
+  }
+  if (!badge.disabled) badge.textContent = `${count} unsynced — Sync now`;
+  badge.hidden = false;
+};
+
+let suppressNextBeforeUnloadWarning = false;
+
+/**
+ * Marks the next page unload as an in-app navigation rather than a real
+ * exit, so the beforeunload guard below doesn't nag on every internal link
+ * click now that push is manual-only (pending edits are common during
+ * ordinary browsing). Called from the click listener just below for anchor
+ * clicks, and from account-access.js's prepareOskarsAccountNavigation for
+ * the app's programmatic redirects. A same-origin check keeps a genuine
+ * external destination (e.g. an OAuth redirect) warning as a real exit.
+ * The flag self-clears on the next tick so a click that didn't actually
+ * navigate (a hash link, one later cancelled) doesn't leave a stale
+ * suppression sitting around for a real exit attempt shortly after.
+ * @param {string} destination Destination URL or relative reference.
+ */
+window.markSameOriginNavigation = function (destination) {
+  try {
+    let url = new URL(String(destination || ""), window.location.href);
+    if (url.origin !== window.location.origin) return;
+  } catch (err) {
+    return;
+  }
+  suppressNextBeforeUnloadWarning = true;
+  setTimeout(() => {
+    suppressNextBeforeUnloadWarning = false;
+  }, 0);
+};
+
+window.addEventListener(
+  "click",
+  (event) => {
+    if (
+      event.defaultPrevented ||
+      (event.button !== undefined && event.button !== 0) ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
+    let anchor = event.target?.closest?.("a[href]");
+    if (
+      !anchor ||
+      anchor.hasAttribute?.("download") ||
+      (anchor.target && anchor.target.toLowerCase() !== "_self")
+    )
+      return;
+    window.markSameOriginNavigation(anchor.href);
+  },
+  true,
+);
+
+window.addEventListener("beforeunload", (event) => {
+  if (suppressNextBeforeUnloadWarning) return;
+  if (window.countPendingWorkspaceEdits() > 0) {
+    event.preventDefault();
+    event.returnValue = "";
+  }
+});
+
+/**
+ * Offers to sync before signing out when there are unsynced local edits -
+ * the sign-out-time counterpart to the beforeunload guard above, but with
+ * a real "sync first" action available since the app controls this flow
+ * end to end (unlike a browser exit prompt). A no-op that resolves true
+ * immediately when nothing is pending, so the common case is unchanged.
+ * @returns {Promise<boolean>} Whether the caller should proceed with sign-out.
+ */
+window.confirmSignOutWithPendingSync = function () {
+  let count = window.countPendingWorkspaceEdits();
+  if (!count) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    let dialog = document.querySelector("#pendingSyncSignOutDialog");
+    if (!dialog) {
+      dialog = document.createElement("dialog");
+      dialog.id = "pendingSyncSignOutDialog";
+      document.body.appendChild(dialog);
+    }
+    let onCancel = () => finish(false);
+    function finish(result) {
+      dialog.removeEventListener("cancel", onCancel);
+      dialog.close();
+      resolve(result);
+    }
+    let renderContent = (message, syncLabel) => {
+      dialog.innerHTML = `<form method="dialog"><h2>Unsynced changes</h2><p>${message}</p><div class="dialog-actions"><button type="button" data-signout-cancel>Cancel</button><button type="button" data-signout-skip>Sign out without syncing</button><button type="button" data-signout-sync>${syncLabel}</button></div></form>`;
+      dialog.querySelector("[data-signout-cancel]").onclick = () => finish(false);
+      dialog.querySelector("[data-signout-skip]").onclick = () => finish(true);
+      dialog.querySelector("[data-signout-sync]").onclick = async () => {
+        let syncBtn = dialog.querySelector("[data-signout-sync]");
+        syncBtn.disabled = true;
+        syncBtn.textContent = "Syncing...";
+        await window.runWorkspaceSync?.({ reason: "manual" });
+        let remaining = window.countPendingWorkspaceEdits();
+        window.refreshPendingSyncBadge?.();
+        if (!remaining) finish(true);
+        else
+          renderContent(
+            `${remaining} change(s) still couldn't sync - check the sync status in the corner, or continue without them.`,
+            "Try again",
+          );
+      };
+    };
+    renderContent(
+      `${count} change(s) haven't been synced to the cloud yet. They're safe on this device, but won't be backed up until you sync.`,
+      "Sync now, then sign out",
+    );
+    dialog.addEventListener("cancel", onCancel);
+    dialog.showModal();
+  });
 };
 
 function recordShardSynced(sectionKey, shardKey, revision) {

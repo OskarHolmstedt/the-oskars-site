@@ -13,6 +13,16 @@ window.filmPageUrl = function (filmId) {
 };
 
 /**
+ * Builds a preview URL for a film known only to the shared archive (no
+ * local film id yet).
+ * @param {string} tmdbId TMDB id.
+ * @returns {string} Relative film preview URL.
+ */
+window.sharedFilmPreviewUrl = function (tmdbId) {
+  return `film.html?tmdb=${encodeURIComponent(String(tmdbId || ""))}`;
+};
+
+/**
  * Builds a watched-film intake URL.
  * @param {string} [workflowId] Intake workflow id to open.
  * @returns {string} Relative intake URL.

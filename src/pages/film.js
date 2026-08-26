@@ -72,6 +72,7 @@
   window.ensurePeopleIndex?.();
 
   let filmId = window.pageQueryParam("id");
+  let previewTmdbId = filmId ? "" : window.pageQueryParam("tmdb");
   let awardsView =
     window.pageQueryParam("awards") === "matrix" ? "matrix" : "periods";
   let container = document.getElementById("filmPage");
@@ -707,9 +708,65 @@
     window.enhanceRatingInputs?.(container);
   }
 
+  // A shared-archive-only film has no local id yet - it's reached via
+  // film.html?tmdb=<id> from a shared-archive card, a director page's "In
+  // the shared archive" grid, or a header search "Shared film" result.
+  // Rendered with a deliberately separate, much simpler template rather
+  // than threading preview-mode conditionals through renderView's full
+  // local-film layout, which assumes dozens of fields (medium,
+  // screenplayType, rank, awards, notes...) a shared record never has.
+  function renderSharedPreview() {
+    let preview = window.OSKARS_SHARED_FILM_ARCHIVE?.[previewTmdbId];
+    if (!preview) {
+      let status = window.OSKARS_SHARED_FILM_ARCHIVE_STATUS;
+      document.title = `${ui("Shared film")} · The Oskars`;
+      let message =
+        status === "loading" || status === "idle"
+          ? ui("Loading shared archive films…")
+          : ui("This shared film could not be found.");
+      container.innerHTML = `<div class="detail-empty"><h1>${filmPageEscape(ui("Shared film"))}</h1><p>${filmPageEscape(message)}</p><a href="index.html">${filmPageEscape(ui("Return home"))}</a></div>`;
+      return;
+    }
+    let title = window.localizedFilmTitle?.(preview) || preview.title;
+    document.title = `${title} · The Oskars`;
+    let director = window.sharedArchiveFilmDirectorNames(preview).join(", ");
+    let metadataRows = [
+      preview.swedishTitle && preview.swedishTitle !== preview.title
+        ? [ui("Swedish title"), preview.swedishTitle]
+        : null,
+      director ? [ui("Director"), director] : null,
+      preview.country || preview.primaryCountry
+        ? [ui("Country"), preview.country || preview.primaryCountry]
+        : null,
+      preview.runtimeMinutes
+        ? [ui("Runtime"), formatRuntime(preview.runtimeMinutes)]
+        : null,
+    ].filter(Boolean);
+    let metadataHtml = metadataRows
+      .map(
+        ([label, value]) =>
+          `<dt>${filmPageEscape(label)}</dt><dd>${filmPageEscape(value)}</dd>`,
+      )
+      .join("");
+    let tmdbUrl = `https://www.themoviedb.org/${window.tmdbResourcePath(window.parseTmdbReference(previewTmdbId))}`;
+    container.innerHTML = `${window.renderDetailHeader({
+      leadingHtml: window.renderFilmPoster({ poster: preview.poster, title }, "detail"),
+      mainHtml: `<h1>${filmPageEscape(title)}</h1><p>${filmPageEscape(preview.year)}</p>${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}<p><a href="${filmPageEscape(tmdbUrl)}" target="_blank" rel="noopener">${filmPageEscape(ui("View on TMDB"))}</a></p>`,
+      actionsHtml: canEdit
+        ? `<button type="button" data-add-shared-preview-watchlist>${filmPageEscape(ui("Add to watchlist"))}</button><button type="button" data-add-shared-preview-watched>${filmPageEscape(ui("Add to watched"))}</button>`
+        : "",
+    })}
+    <p class="detail-empty">${filmPageEscape(ui("This film is known to the shared archive but hasn't been added to your own collection yet."))}</p>`;
+  }
+
   function render(editing = false) {
     let finishRenderTimer = window.startOskarsPerformance?.("film:render");
     let film = currentFilm();
+    if (!film && previewTmdbId) {
+      renderSharedPreview();
+      finishRenderTimer?.("shared preview");
+      return;
+    }
     if (!film) {
       document.title = "Film not found · The Oskars";
       container.innerHTML =
@@ -743,6 +800,46 @@
   }
 
   container.addEventListener("click", async (event) => {
+    if (event.target.closest("[data-add-shared-preview-watchlist]")) {
+      let preview = window.OSKARS_SHARED_FILM_ARCHIVE?.[previewTmdbId];
+      let result = window.addFilmRecordToWatchlist({
+        ...preview,
+        director: window.sharedArchiveFilmDirectorNames(preview).join(", "),
+      });
+      if (!result.ok) {
+        alert(ui(result.reason || "Could not add this film."));
+        return;
+      }
+      window.location.href = window.prepareOskarsAccountNavigation(
+        window.watchlistFilmPageUrl(result.item.id),
+      );
+      return;
+    }
+    let addWatchedButton = event.target.closest(
+      "[data-add-shared-preview-watched]",
+    );
+    if (addWatchedButton) {
+      let preview = window.OSKARS_SHARED_FILM_ARCHIVE?.[previewTmdbId];
+      addWatchedButton.disabled = true;
+      addWatchedButton.textContent = ui("Adding…");
+      try {
+        let result = await window.addFilmRecordToWatched({
+          title: preview?.title,
+          year: preview?.year,
+          tmdbId: preview?.tmdbId,
+          director: window.sharedArchiveFilmDirectorNames(preview || {}).join(", "),
+        });
+        if (!result.ok) throw new Error(result.reason || ui("Could not add this film."));
+        window.location.href = window.prepareOskarsAccountNavigation(
+          window.filmPageUrl(result.filmId),
+        );
+      } catch (err) {
+        addWatchedButton.disabled = false;
+        addWatchedButton.textContent = ui("Add to watched");
+        alert(err.message || String(err));
+      }
+      return;
+    }
     if (event.target.closest("[data-toggle-film-rewatch]")) {
       let film = currentFilm();
       let backup = window.cloneRecord(window.getSerializableState());
@@ -914,6 +1011,14 @@
       alert(err.message || String(err));
       render(true);
     }
+  });
+
+  // A direct/bookmarked film.html?tmdb=... load can land here before the
+  // async shared-archive pull finishes - re-render once it does so the
+  // preview appears without a manual reload (same fix as person.js's
+  // director-page shared-films section).
+  window.onSharedFilmArchiveChange?.(() => {
+    if (!currentFilm() && previewTmdbId) render(false);
   });
 
   render(false);

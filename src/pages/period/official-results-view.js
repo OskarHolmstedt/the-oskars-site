@@ -20,6 +20,7 @@ window.officialResultsPeriod = function (
  * @param {Object} input Official period rendering context.
  * @param {OfficialResultsSource} input.source Official source metadata.
  * @param {OfficialResultsPeriod} input.period Official source period.
+ * @param {string} [input.year] Release year this period represents - official results only render on `type === "year"` period pages, so every nomination shares this same year.
  * @param {OfficialAwardPeriodComparison|null} [input.personalComparison] Personal winner comparison.
  * @param {(value:*) => string} [input.escape] HTML escaper.
  * @returns {string} Official-results HTML.
@@ -27,6 +28,8 @@ window.officialResultsPeriod = function (
 window.renderPeriodOfficialResults = function ({
   source,
   period,
+  year = "",
+  canEdit = true,
   personalComparison = null,
   escape = window.pageEscape,
 }) {
@@ -55,6 +58,16 @@ window.renderPeriodOfficialResults = function ({
     let titleHtml = film?.id
       ? `<a class="official-result-film" href="${escape(window.filmPageUrl(film.id))}">${title}</a>`
       : `<span class="official-result-film">${title}</span>`;
+    // A nominee not yet in the viewer's own collection gets explicit,
+    // opt-in add actions here instead of the previous silent automatic
+    // watchlist push (removed - see shared-archive-sync.js). Only offered
+    // once a tmdbId is resolved: that's what officialFilmMetadata (director/
+    // country/runtime/poster for every resolved nominee) is keyed by, and
+    // what addFilmRecordToWatched needs to fetch real TMDB metadata.
+    let nomineeActionsHtml =
+      canEdit && !film?.id && nomination.tmdbId
+        ? `<div class="official-result-actions"><button type="button" data-add-official-nominee-watchlist-tmdb-id="${escape(nomination.tmdbId)}" data-add-official-nominee-title="${escape(nomination.sourceTitle)}">${escape(ui("Add to watchlist"))}</button><button type="button" data-add-official-nominee-watched-tmdb-id="${escape(nomination.tmdbId)}" data-add-official-nominee-title="${escape(nomination.sourceTitle)}">${escape(ui("Add to watched"))}</button></div>`
+        : "";
     let creditParts = [];
     if (nomination.recipient)
       creditParts.push(`<span>${escape(nomination.recipient)}</span>`);
@@ -67,7 +80,7 @@ window.renderPeriodOfficialResults = function ({
     let label = nomination.winner ? ui("Official winner") : ui("Official nominee");
     return `<li class="official-result-nomination${nomination.winner ? " is-winner" : ""}${isPersonalPick ? " is-personal-pick" : ""}">
       <span class="official-result-status" aria-label="${escape(label)}">${nomination.winner ? "🏆" : ""}</span>
-      <div><div class="official-result-title">${titleHtml}${nomination.winner ? `<strong>${escape(ui("Winner"))}</strong>` : ""}${isPersonalPick ? `<strong class="official-result-personal-pick">${escape(ui("Your pick"))}</strong>` : ""}</div>${creditParts.length ? `<div class="official-result-credit">${creditParts.join('<span aria-hidden="true">·</span>')}</div>` : ""}</div>
+      <div><div class="official-result-title">${titleHtml}${nomination.winner ? `<strong>${escape(ui("Winner"))}</strong>` : ""}${isPersonalPick ? `<strong class="official-result-personal-pick">${escape(ui("Your pick"))}</strong>` : ""}</div>${creditParts.length ? `<div class="official-result-credit">${creditParts.join('<span aria-hidden="true">·</span>')}</div>` : ""}${nomineeActionsHtml}</div>
     </li>`;
   }
 

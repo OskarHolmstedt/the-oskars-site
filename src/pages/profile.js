@@ -51,8 +51,10 @@
               "Sign out and lock this browser's private archive? Nothing is deleted; the same account can reopen it later.",
             ),
           )
-        )
-          await window.signOutOfFirebase?.();
+        ) {
+          if (await (window.confirmSignOutWithPendingSync?.() ?? true))
+            await window.signOutOfFirebase?.();
+        }
       });
     document
       .getElementById("profileAttachAccountBtn")

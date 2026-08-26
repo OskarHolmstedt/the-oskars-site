@@ -135,9 +135,6 @@
       let year = /^\d{4}$/.test(String(film.year || ""))
         ? String(film.year)
         : "";
-      let periodUrl = year
-        ? window.periodPageUrl("year", year)
-        : window.periodPageUrl("alltime", "alltime");
       entries.push({
         type: "Shared film",
         name: window.localizedFilmTitle?.(film) || film.title,
@@ -152,7 +149,7 @@
           .join(" "),
         year,
         target: { type: "shared-film", id: String(film.tmdbId || "") },
-        href: `${periodUrl}&view=shared&sharedQ=${encodeURIComponent(film.title || "")}`,
+        href: window.sharedFilmPreviewUrl(film.tmdbId),
       });
     });
 

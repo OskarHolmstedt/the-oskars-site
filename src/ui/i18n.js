@@ -220,6 +220,16 @@
     "Not yet ranked": { sv: "Ännu inte rangordnad" },
     "In the shared archive": { sv: "I det delade arkivet" },
     "Add to watchlist": { sv: "Lägg till i att se-listan" },
+    "Add to watched": { sv: "Lägg till som sedd" },
+    "Adding…": { sv: "Lägger till…" },
+    "Shared film": { sv: "Delad film" },
+    "This shared film could not be found.": {
+      sv: "Den delade filmen kunde inte hittas.",
+    },
+    "View on TMDB": { sv: "Visa på TMDB" },
+    "This film is known to the shared archive but hasn't been added to your own collection yet.": {
+      sv: "Filmen finns i det delade arkivet men har inte lagts till i din egen samling än.",
+    },
     works: { sv: "verk" },
     "No other watched entries in this period.": {
       sv: "Inga övriga sedda poster under denna period.",

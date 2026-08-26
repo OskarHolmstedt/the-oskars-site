@@ -814,8 +814,8 @@
 
   // A shared-archive entry is a plain object with no local .id/watchlist id -
   // renderSharedFilmCard's default title link (filmPageUrl(film.id)) would
-  // break for it, so the title is passed as plain escaped text instead, and
-  // the card offers only an "Add to watchlist" action.
+  // break for it, so the title links to the tmdbId-driven preview page
+  // (film.html?tmdb=...) instead.
   function personSharedArchiveCard(film) {
     let displayTitle = window.localizedFilmTitle?.(film) || film.title;
     return window.renderSharedFilmCard(film, {
@@ -824,7 +824,7 @@
       escape: personPageEscape,
       rating: false,
       openFilm: false,
-      titleHtml: personPageEscape(displayTitle),
+      titleHtml: `<a class="table-film-link" href="${personPageEscape(window.sharedFilmPreviewUrl(film.tmdbId))}">${personPageEscape(displayTitle)}</a>`,
       bodyHtml: `<div class="film-card-actions"><button type="button" data-add-shared-film-tmdb-id="${personPageEscape(film.tmdbId)}">${personPageEscape(ui("Add to watchlist"))}</button></div>`,
     });
   }
@@ -1061,6 +1061,25 @@ ${isDirector ? `<div data-collection-page-view="awards" ${collectionPageView ===
       console.warn(`Portrait lookup failed for ${person.name}`, err);
     });
   }
+  // The shared archive pull is async and can still be in flight (or not yet
+  // started) when this page's synchronous initial render runs, so the
+  // section built into container.innerHTML above may have been omitted
+  // entirely (its !combinedView && sharedArchiveFilms.length gate) even
+  // though the archive later turns out to have films for this director -
+  // matches period.js's identical onSharedFilmArchiveChange subscription
+  // for its own shared view, which this page never had.
+  window.onSharedFilmArchiveChange?.(() => {
+    refreshPersonSharedArchiveFilms();
+    if (!renderPersonSharedArchiveSection() && sharedArchiveFilms.length) {
+      let section = document.createElement("section");
+      section.setAttribute("data-person-shared-archive-section", "");
+      section.innerHTML = personSharedArchiveContentHtml();
+      container
+        .querySelector("#person-awards")
+        ?.insertAdjacentElement("beforebegin", section);
+    }
+  });
+
   finishRenderTimer?.(
     `${person.id}, ${films.length} film(s), ${watchlistItems.length} watchlist item(s), ${awards.length} award credit(s)`,
   );

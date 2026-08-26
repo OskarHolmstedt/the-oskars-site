@@ -2,8 +2,9 @@
  * @file Pulls the shared, read-only official-results archive
  * (docs/shared-official-results-archive-decision.md) from
  * `/sharedArchive/officialResults[/shards/<key>]` and merges it into
- * `state.officialResults`, then automatically tops up the watchlist with
- * any newly-unwatched official nominee. Also pulls the sibling
+ * `state.officialResults` (period.js's official-results view then offers
+ * explicit, opt-in "Add to watchlist"/"Add to watched" actions per nominee -
+ * no automatic watchlist push). Also pulls the sibling
  * `/sharedArchive/officialFilmMetadata` and
  * `/sharedArchive/officialPeopleMetadata` flat-map sections
  * (docs/official-results-file-split-decision.md) into the
@@ -304,7 +305,6 @@
     });
 
     window.rebuildAggregates?.();
-    let autoAddResult = window.autoAddUnseenOfficialResultsToWatchlist?.({ save: false });
     recordSharedArchiveState({ shardRevisions: remoteShardRevisions });
     window.markAggregatesDirty?.("shared official-results archive pulled");
     let saving = window.save?.({ immediate: true, rebuild: false });
@@ -314,7 +314,6 @@
       ok: true,
       changedSourceIds: [...changedSourceIds],
       removedSourceIds: [...removedSourceIds],
-      addedTotal: autoAddResult?.addedTotal || 0,
     };
   }
 

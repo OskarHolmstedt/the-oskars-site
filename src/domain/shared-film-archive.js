@@ -146,6 +146,25 @@ window.sharedArchiveFilmsForPeriod = function (type, key) {
 };
 
 /**
+ * Adds any external film record (shared archive, official-results nominee,
+ * or similar - anything with no local film id yet) through the normal
+ * watchlist persistence path.
+ * @param {Object} record `{title, year, tmdbId, swedishTitle, poster, director}`.
+ * @returns {Object} Normal addWatchlistItem result.
+ */
+window.addFilmRecordToWatchlist = function (record) {
+  if (!record) return { ok: false, reason: "Could not add this film." };
+  return window.addWatchlistItem({
+    title: record.title,
+    year: record.year,
+    tmdbId: record.tmdbId,
+    swedishTitle: record.swedishTitle,
+    poster: record.poster,
+    director: record.director,
+  });
+};
+
+/**
  * Adds one shared-film record through the normal watchlist persistence path.
  * @param {string|number} tmdbId Shared film TMDB id.
  * @returns {Object} Normal addWatchlistItem result.
@@ -153,14 +172,49 @@ window.sharedArchiveFilmsForPeriod = function (type, key) {
 window.addSharedArchiveFilmToWatchlist = function (tmdbId) {
   let film = window.OSKARS_SHARED_FILM_ARCHIVE?.[String(tmdbId || "")];
   if (!film) return { ok: false, reason: "Could not add this film." };
-  return window.addWatchlistItem({
-    title: film.title,
-    year: film.year,
-    tmdbId: film.tmdbId,
-    swedishTitle: film.swedishTitle,
-    poster: film.poster,
+  return window.addFilmRecordToWatchlist({
+    ...film,
     director: window.sharedArchiveFilmDirectorNames(film).join(", "),
   });
+};
+
+/**
+ * Creates a fresh watched-film entry from an external record (shared
+ * archive or official-results nominee) and immediately resolves full TMDB
+ * metadata for it, the same way intake.js's own fresh-watched-film form
+ * does for a brand-new film - so the existing classify-and-route logic
+ * (classifyTmdbFilmType/setFilmTmdbMetadata) places it correctly: a real
+ * film lands unranked in the archive (shows under "Not yet ranked"),
+ * anything else (TV/short/documentary) lands in Other Watched.
+ *
+ * Deliberately calls loadFilmMetadata with skipSharedArchive:true rather
+ * than the usual fetchFilmMetadata batch path: this record's tmdbId is
+ * already known to be published to the shared metadata archive (that's how
+ * we have director/poster/etc. for it in the first place), so the default
+ * shared-metadata shortcut would almost certainly fire - and that cached
+ * shape carries no genre/type data, silently skipping the routing move
+ * entirely. Forcing the full TMDB details fetch here guarantees a real
+ * classification instead.
+ * @param {Object} record `{title, year, tmdbId, director}`.
+ * @returns {Promise<Object>} `{ok, filmId}` or `{ok:false, reason}`.
+ */
+window.addFilmRecordToWatched = async function (record) {
+  let plan = window.planFreshWatchedFilm({
+    title: record?.title,
+    year: record?.year,
+    tmdbId: record?.tmdbId,
+    director: record?.director,
+  });
+  if (!plan.ok)
+    return { ok: false, reason: plan.errors?.[0] || "Could not add this film." };
+  let result = window.applyFreshWatchedFilm(plan, { save: false });
+  if (!result.ok)
+    return { ok: false, reason: result.reason || "Could not add this film." };
+  await window.loadFilmMetadata?.(result.film.id, {
+    skipSharedArchive: true,
+    log: false,
+  });
+  return { ok: true, filmId: result.film.id };
 };
 
 /**
