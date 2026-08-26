@@ -288,7 +288,7 @@
 /**
  * Stable entity reference carried by a shared search entry.
  * @typedef {Object} SearchTarget
- * @property {'film'|'watchlist'|'project'|'person'|'song'|'role'|'franchise'|'category'|'tag'|'period'} type
+ * @property {'film'|'watched-other'|'watchlist'|'shared-film'|'project'|'person'|'song'|'role'|'franchise'|'category'|'tag'|'period'} type
  * @property {string} id Canonical entity id or typed period key.
  */
 

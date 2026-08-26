@@ -36,6 +36,7 @@
     "search.type.decade": { sv: "Årtionde" },
     "search.type.century": { sv: "Århundrade" },
     "search.type.period": { sv: "Period" },
+    "search.type.sharedfilm": { sv: "Delad film" },
     "search.meta.tier": { sv: "Tier" },
     "search.meta.inArchive": { sv: "Sedd" },
     "search.meta.watchlist": { sv: "Watchlist" },
@@ -43,6 +44,7 @@
     "search.meta.open": { sv: "Öppet" },
     "search.meta.complete": { sv: "Klart" },
     "search.meta.archived": { sv: "Arkiverat" },
+    "search.meta.sharedArchive": { sv: "Delat arkiv" },
     "menu.categories": { sv: "Kategorier" },
     "menu.periods": { sv: "Perioder" },
     "menu.browsePeriods": { sv: "Bläddra bland alla perioder" },
@@ -794,6 +796,7 @@
     Credit: { sv: "Credit" },
     Count: { sv: "Antal" },
     "Could not load The Oskars": { sv: "Kunde inte ladda The Oskars" },
+    "Could not add this film.": { sv: "Det gick inte att lägga till filmen." },
     "Could not load project": { sv: "Kunde inte ladda projektet" },
     "Could not update {category} detail.": {
       sv: "Kunde inte uppdatera detaljen för {category}.",
@@ -1451,6 +1454,12 @@
       sv: "Inga filtrerade filmer behöver den intresseändringen.",
     },
     "No matching watchlist films.": { sv: "Inga matchande watchlist-filmer." },
+    "No shared archive films match this search.": {
+      sv: "Inga filmer i det delade arkivet matchar sökningen.",
+    },
+    "No shared-only films in this period.": {
+      sv: "Inga nya filmer från det delade arkivet i den här perioden.",
+    },
     "No tiers": { sv: "Inga tiers" },
     "No maximum": { sv: "Inget maximum" },
     "No minimum": { sv: "Inget minimum" },
@@ -1762,6 +1771,7 @@
     "Maximum runtime (minutes)": { sv: "Längsta speltid (minuter)" },
     "over {minutes} min": { sv: "över {minutes} min" },
     "under {minutes} min": { sv: "under {minutes} min" },
+    "{minutes} min": { sv: "{minutes} min" },
     Reference: { sv: "Referens" },
     "Release year": { sv: "Premiärår" },
     "Refresh poster": { sv: "Uppdatera poster" },
@@ -2056,6 +2066,7 @@
     "Screenplay type": { sv: "Manustyp" },
     Screenplays: { sv: "Manus" },
     Search: { sv: "Sök" },
+    "Search shared archive": { sv: "Sök i delat arkiv" },
     Screenwriter: { sv: "Manusförfattare" },
     "Set batch": { sv: "Välj batch" },
     "Set filtered interest": { sv: "Sätt filtrerat intresse" },
@@ -2077,6 +2088,8 @@
     "Shared categories": { sv: "Gemensamma kategorier" },
     "Shared collaborators": { sv: "Gemensamma medarbetare" },
     "Shared films": { sv: "Gemensamma filmer" },
+    "Shared archive": { sv: "Delat arkiv" },
+    "Shared-only films": { sv: "Nya filmer från delat arkiv" },
     "Shared traits": { sv: "Gemensamma drag" },
     "Show watched and watchlist separately": {
       sv: "Visa sedda och watchlist separat",
@@ -2125,6 +2138,10 @@
     },
     Status: { sv: "Status" },
     Shared: { sv: "Gemensamt" },
+    "Loading shared archive films…": {
+      sv: "Laddar filmer från det delade arkivet…",
+    },
+    "Not watched or watchlisted": { sv: "Inte sedd eller i watchlist" },
     Sub: { sv: "Sub" },
     Subfranchises: { sv: "Subfranchises" },
     "Swedish title": { sv: "Svensk titel" },
@@ -2138,6 +2155,10 @@
     "Tag not found": { sv: "Taggen hittades inte" },
     Tier: { sv: "Tier" },
     Title: { sv: "Titel" },
+    "Title or director": { sv: "Titel eller regissör" },
+    "The shared archive is unavailable for this session.": {
+      sv: "Det delade arkivet är inte tillgängligt just nu.",
+    },
     "This project is marked complete. Reopen it to put it back in the open queue.":
       {
         sv: "Det här projektet är markerat som klart. Öppna det igen för att lägga tillbaka det i den öppna kön.",

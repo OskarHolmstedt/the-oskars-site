@@ -3,13 +3,17 @@
  * (`sharedArchive/sharedFilmMetadata`, published by
  * scripts/publish-shared-film-metadata-archive.mjs from the
  * `/sharedFilmMetadata/<tmdbId>` collection - see
- * docs/shared-film-discovery-decision.md). Lets a director's filmography
- * page surface films other eligible accounts have already shared, even
- * when the viewer has never personally watched or watchlisted them.
+ * docs/shared-film-discovery-decision.md). Lets director filmographies,
+ * period pages, and global search surface films other eligible accounts
+ * have already shared, even when the viewer has never personally watched
+ * or watchlisted them.
  */
 
 window.OSKARS_SHARED_FILM_ARCHIVE = {};
 window.OSKARS_SHARED_FILM_ARCHIVE_BY_DIRECTOR = {};
+window.OSKARS_SHARED_FILM_ARCHIVE_VERSION = 0;
+window.OSKARS_SHARED_FILM_ARCHIVE_STATUS = "idle";
+let sharedFilmArchiveListeners = new Set();
 
 /**
  * Groups a flat tmdbId-keyed shared-film map by director personId, sorted
@@ -50,6 +54,113 @@ window.applySharedFilmArchive = function (map) {
     window.rebuildSharedFilmArchiveByDirectorIndex(
       window.OSKARS_SHARED_FILM_ARCHIVE,
     );
+  window.OSKARS_SHARED_FILM_ARCHIVE_VERSION += 1;
+  window.OSKARS_SHARED_FILM_ARCHIVE_STATUS = "ready";
+  sharedFilmArchiveListeners.forEach((listener) => listener());
+};
+
+/**
+ * Updates shared-film loading status without replacing the current archive.
+ * @param {'idle'|'loading'|'ready'|'unavailable'} status Current pull status.
+ */
+window.setSharedFilmArchiveStatus = function (status) {
+  window.OSKARS_SHARED_FILM_ARCHIVE_STATUS = status;
+  sharedFilmArchiveListeners.forEach((listener) => listener());
+};
+
+/**
+ * Subscribes to shared-film archive or loading-status changes.
+ * @param {Function} listener Called after a status or archive change.
+ * @returns {Function} Unsubscribes the listener.
+ */
+window.onSharedFilmArchiveChange = function (listener) {
+  sharedFilmArchiveListeners.add(listener);
+  return () => sharedFilmArchiveListeners.delete(listener);
+};
+
+/**
+ * Returns objective director names carried by one shared-film record.
+ * @param {Object} film Shared film record.
+ * @returns {string[]} Director names.
+ */
+window.sharedArchiveFilmDirectorNames = function (film) {
+  return Object.values(film?.people || {})
+    .filter((credit) => (credit.professions || []).includes("Director"))
+    .map((credit) => String(credit.name || ""))
+    .filter(Boolean);
+};
+
+function sharedArchiveTitleYearKey(record) {
+  return `${record?.year || ""}::${window.normalizeTitle(record?.title || "")}`;
+}
+
+/**
+ * Removes shared films already present in watched, other-watched, or watchlist data.
+ * @param {Object[]} [candidates] Shared-film candidates; defaults to the complete archive.
+ * @returns {Object[]} Shared films absent from every personal collection.
+ */
+window.sharedArchiveFilmsOutsideCollection = function (
+  candidates = Object.values(window.OSKARS_SHARED_FILM_ARCHIVE || {}),
+) {
+  if (!candidates.length) return [];
+  let ownTmdbIds = new Set();
+  let ownTitleYearKeys = new Set();
+  function noteOwn(record) {
+    if (!record) return;
+    let tmdbId = String(record.tmdbId || "").trim();
+    if (tmdbId) ownTmdbIds.add(tmdbId);
+    else ownTitleYearKeys.add(sharedArchiveTitleYearKey(record));
+  }
+  Object.values(window.state?.filmsById || {}).forEach(noteOwn);
+  (window.state?.watchedOther || []).forEach(noteOwn);
+  (window.state?.watchlist || []).forEach(noteOwn);
+  return candidates.filter(
+    (film) =>
+      !ownTmdbIds.has(String(film.tmdbId || "")) &&
+      !ownTitleYearKeys.has(sharedArchiveTitleYearKey(film)),
+  );
+};
+
+/**
+ * Returns shared-only films whose release year belongs to one period.
+ * @param {'year'|'decade'|'century'|'alltime'} type Period URL type.
+ * @param {string} key Period key.
+ * @returns {Object[]} Chronologically sorted shared-film records.
+ */
+window.sharedArchiveFilmsForPeriod = function (type, key) {
+  return window
+    .sharedArchiveFilmsOutsideCollection()
+    .filter((film) => {
+      if (!/^\d{4}$/.test(String(film.year || ""))) return false;
+      if (type === "alltime") return true;
+      if (type === "year") return String(film.year) === String(key);
+      if (type === "decade") return window.getDecadeKey(film.year) === key;
+      if (type === "century") return window.getCenturyKey(film.year) === key;
+      return false;
+    })
+    .sort(
+      (left, right) =>
+        Number(left.year) - Number(right.year) ||
+        window.compareEnglishTitles(left.title, right.title),
+    );
+};
+
+/**
+ * Adds one shared-film record through the normal watchlist persistence path.
+ * @param {string|number} tmdbId Shared film TMDB id.
+ * @returns {Object} Normal addWatchlistItem result.
+ */
+window.addSharedArchiveFilmToWatchlist = function (tmdbId) {
+  let film = window.OSKARS_SHARED_FILM_ARCHIVE?.[String(tmdbId || "")];
+  if (!film) return { ok: false, reason: "Could not add this film." };
+  return window.addWatchlistItem({
+    title: film.title,
+    year: film.year,
+    tmdbId: film.tmdbId,
+    swedishTitle: film.swedishTitle,
+    poster: film.poster,
+    director: window.sharedArchiveFilmDirectorNames(film).join(", "),
+  });
 };
 
 /**
@@ -66,10 +177,9 @@ window.applySharedFilmArchive = function (map) {
  * locally encountered in any form. Cross-account alias reconciliation is
  * a separate feature, not attempted here.
  * @param {PersonRecord} person Local person record (id, aliases, filmIds, watchedOtherIds).
- * @param {WatchlistItem[]} [watchlistItems] This director's current watchlist items.
  * @returns {Object[]} Shared film records not already owned by the viewer.
  */
-window.sharedArchiveFilmsForDirector = function (person, watchlistItems = []) {
+window.sharedArchiveFilmsForDirector = function (person) {
   if (!person) return [];
   let variantIds = new Set(
     [person.id, ...(person.aliases || []).map((name) => window.normalizePersonName(name))].filter(
@@ -87,29 +197,5 @@ window.sharedArchiveFilmsForDirector = function (person, watchlistItems = []) {
     });
   });
   if (!candidates.length) return candidates;
-
-  let ownTmdbIds = new Set();
-  let ownTitleYearKeys = new Set();
-  function noteOwn(record) {
-    if (!record) return;
-    let tmdbId = String(record.tmdbId || "").trim();
-    if (tmdbId) ownTmdbIds.add(tmdbId);
-    else
-      ownTitleYearKeys.add(
-        `${record.year || ""}::${window.normalizeTitle(record.title || "")}`,
-      );
-  }
-  (person.filmIds || []).forEach((id) => noteOwn(state.filmsById?.[id]));
-  (person.watchedOtherIds || []).forEach((id) =>
-    noteOwn((state.watchedOther || []).find((film) => film.id === id)),
-  );
-  watchlistItems.forEach(noteOwn);
-
-  return candidates.filter(
-    (film) =>
-      !ownTmdbIds.has(String(film.tmdbId)) &&
-      !ownTitleYearKeys.has(
-        `${film.year || ""}::${window.normalizeTitle(film.title || "")}`,
-      ),
-  );
+  return window.sharedArchiveFilmsOutsideCollection(candidates);
 };

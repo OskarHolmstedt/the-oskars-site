@@ -6688,6 +6688,23 @@ dialog h2 {
   background: var(--surface-soft);
   box-shadow: var(--shadow);
 }
+.period-toolbar-actions,
+.period-shared-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.period-toolbar-actions {
+  flex-wrap: wrap;
+}
+.period-shared-search {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.period-shared-search input {
+  width: min(240px, 55vw);
+}
 .period-film-scope-toggle {
   font-size: 9px;
   font-weight: 700;

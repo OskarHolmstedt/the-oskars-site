@@ -283,6 +283,34 @@ window.lookupTmdbMovieSearch = async function (film, fetchFn) {
 };
 
 /**
+ * Finds a TMDB series when movie search finds nothing - a fallback, not a
+ * first attempt, since most watched titles are movies. Returns a match with
+ * `id` already in the "TV:<seriesId>" notation parseTmdbReference expects,
+ * so every downstream consumer (lookupTmdbMovieDetails, tmdbResourcePath)
+ * works unchanged.
+ * @param {FilmRecord} film Film. @param {Function} fetchFn Fetch implementation. @returns {Promise<Object|null>} TMDB result.
+ */
+window.lookupTmdbTvSearch = async function (film, fetchFn) {
+  for (let queryTitle of window.tmdbMovieSearchTitleVariants(film.title)) {
+    let params = new URLSearchParams({
+      query: queryTitle || film.title,
+      include_adult: "false",
+      language: "en-US",
+    });
+    let data = await window.requestPosterJson(
+      fetchFn,
+      `${window.TMDB_API_BASE}/search/tv?${params}`,
+      { headers: { accept: "application/json" } },
+      "TMDB",
+      2,
+    );
+    let match = window.selectTmdbTvShow(film, data.results);
+    if (match) return { ...match, id: `TV:${match.id}` };
+  }
+  return null;
+};
+
+/**
  * Fetches TMDB details and alternative titles for a movie, or for a TV
  * series/season/episode when the id uses the explicit "TV:" notation
  * (parseTmdbReference).

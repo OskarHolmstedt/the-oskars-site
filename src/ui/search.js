@@ -18,6 +18,7 @@
     let cacheKey = [
       window.state?.aggregateVersion || 0,
       window.state?.watchlist?.length || 0,
+      window.OSKARS_SHARED_FILM_ARCHIVE_VERSION || 0,
       window.state?.projects?.length || 0,
       // Project renames/status flips don't bump aggregateVersion, so the latest
       // project update timestamp keeps their search entries fresh.
@@ -45,6 +46,7 @@
         projectOpen: "Open",
         projectComplete: "Complete",
         projectArchived: "Archived",
+        sharedArchive: "Shared archive",
         films: "films",
         allTime: "All-time",
       },
@@ -125,6 +127,32 @@
         href: window.watchlistFilmPageUrl(
           item.id || window.watchlistItemId(item),
         ),
+      });
+    });
+
+    window.sharedArchiveFilmsOutsideCollection?.().forEach((film) => {
+      let directors = window.sharedArchiveFilmDirectorNames?.(film) || [];
+      let year = /^\d{4}$/.test(String(film.year || ""))
+        ? String(film.year)
+        : "";
+      let periodUrl = year
+        ? window.periodPageUrl("year", year)
+        : window.periodPageUrl("alltime", "alltime");
+      entries.push({
+        type: "Shared film",
+        name: window.localizedFilmTitle?.(film) || film.title,
+        meta: [year, labels.sharedArchive].filter(Boolean).join(" · "),
+        searchText: [
+          film.title,
+          film.swedishTitle,
+          directors.join(", "),
+          film.tmdbId ? `TMDB ${film.tmdbId}` : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
+        year,
+        target: { type: "shared-film", id: String(film.tmdbId || "") },
+        href: `${periodUrl}&view=shared&sharedQ=${encodeURIComponent(film.title || "")}`,
       });
     });
 

@@ -259,8 +259,10 @@
             ? "official"
             : value === "other"
               ? "other"
-            : value === "rewatch"
-              ? "rewatch"
+              : value === "shared"
+                ? "shared"
+                : value === "rewatch"
+                  ? "rewatch"
               : value === "watchlist"
                 ? "watchlist"
                 : !hasNominees || value === "films"
@@ -415,6 +417,11 @@
         default: "",
         omit: (value, state) => state.viewMode !== "watchlist" || !value,
       },
+      sharedSearch: {
+        param: "sharedQ",
+        default: "",
+        omit: (value, state) => state.viewMode !== "shared" || !value,
+      },
       watchlistDirector: {
         param: "director",
         default: "",
@@ -472,7 +479,7 @@
       periodOrder: {
         param: "order",
         default: (state) =>
-          state.viewMode === "other"
+          state.viewMode === "other" || state.viewMode === "shared"
             ? state.type === "year"
               ? "title"
               : "year"
@@ -481,7 +488,7 @@
         omit: (value, state) =>
           state.viewMode === "awards" ||
           value ===
-            (state.viewMode === "other"
+            (state.viewMode === "other" || state.viewMode === "shared"
               ? state.type === "year"
                 ? "title"
                 : "year"
@@ -542,6 +549,7 @@
   let watchlistTierFilter = initialViewState.watchlistTierFilter;
   let rewatchTierFilter = initialViewState.rewatchTierFilter;
   let watchlistSearch = initialViewState.watchlistSearch;
+  let sharedSearch = initialViewState.sharedSearch;
   let watchlistDirector = initialViewState.watchlistDirector;
   let watchlistMinRuntimeFilter = initialViewState.watchlistMinRuntimeFilter;
   let watchlistMaxRuntimeFilter = initialViewState.watchlistMaxRuntimeFilter;
@@ -564,6 +572,7 @@
   let decadeMergeCategory = "";
   let filmMinRuntimeRenderTimer = null;
   let filmMaxRuntimeRenderTimer = null;
+  let sharedSearchRenderTimer = null;
   // Disposable, not persisted to the URL or state: recomputed from the
   // current filter every time it's shown rather than saved anywhere,
   // deliberately lighter than "Start project" (issue #163).
@@ -597,6 +606,7 @@
       watchlistTierFilter,
       rewatchTierFilter,
       watchlistSearch,
+      sharedSearch,
       watchlistDirector,
       watchlistMinRuntimeFilter,
       watchlistMaxRuntimeFilter,
@@ -817,6 +827,49 @@
       .join("");
   }
 
+  function renderSharedArchiveGrid(films) {
+    return films
+      .map((film) => {
+        let directors = window.sharedArchiveFilmDirectorNames(film).join(", ");
+        let details = [
+          film.country || film.primaryCountry || "",
+          film.runtimeMinutes
+            ? ui("{minutes} min", { minutes: film.runtimeMinutes })
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        return window.renderSharedFilmCard(film, {
+          classes: ["shared-archive-card"],
+          showYear: true,
+          director: directors,
+          directorPrefix: `${ui("by")} `,
+          escape: periodEscape,
+          rating: false,
+          openFilm: false,
+          titleHtml: periodEscape(
+            window.localizedFilmTitle?.(film) || film.title,
+          ),
+          bodyHtml: details
+            ? `<div class="leaderboard-meta">${periodEscape(details)}</div>`
+            : "",
+          actionsHtml: `<div class="film-card-actions"><button type="button" data-add-shared-film-tmdb-id="${periodEscape(film.tmdbId)}">${periodEscape(ui("Add to watchlist"))}</button></div>`,
+        });
+      })
+      .join("");
+  }
+
+  function sharedArchiveEmptyHtml() {
+    let status = window.OSKARS_SHARED_FILM_ARCHIVE_STATUS;
+    if (status === "loading" || status === "idle")
+      return `<p class="detail-empty">${periodEscape(ui("Loading shared archive films…"))}</p>`;
+    if (status === "unavailable")
+      return `<p class="detail-empty">${periodEscape(ui("The shared archive is unavailable for this session."))}</p>`;
+    if (sharedSearch)
+      return `<p class="detail-empty">${periodEscape(ui("No shared archive films match this search."))}</p>`;
+    return `<p class="detail-empty">${periodEscape(ui("No shared-only films in this period."))}</p>`;
+  }
+
   function shortenCredit(value, maxLength = 56) {
     let text = String(value || "").trim();
     if (text.length <= maxLength) return text;
@@ -889,26 +942,41 @@
 
   function periodOrderControls() {
     if (viewMode === "awards" || viewMode === "official") return "";
-    let axes = viewMode === "other" ? [
-      { value: "title", label: "Title" },
-      ...(type !== "year" ? [{ value: "year", label: "Release year" }] : []),
-      { value: "rating", label: "Rating" },
-    ] : [
-      {
-        value: "rank",
-        label:
-          viewMode === "watchlist" || viewMode === "rewatch"
-            ? "Interest order"
-            : "Rank order",
-      },
-      { value: "title", label: "Title" },
-      ...(type !== "year" ? [{ value: "year", label: "Release year" }] : []),
-      { value: "rating", label: "Rating" },
-      { value: "runtime", label: "Runtime" },
-      { value: "wins", label: "Wins" },
-      { value: "nominations", label: "Nominations" },
-      { value: "score", label: "Score" },
-    ];
+    let axes =
+      viewMode === "shared"
+        ? [
+            { value: "title", label: "Title" },
+            ...(type !== "year"
+              ? [{ value: "year", label: "Release year" }]
+              : []),
+            { value: "runtime", label: "Runtime" },
+          ]
+        : viewMode === "other"
+          ? [
+              { value: "title", label: "Title" },
+              ...(type !== "year"
+                ? [{ value: "year", label: "Release year" }]
+                : []),
+              { value: "rating", label: "Rating" },
+            ]
+          : [
+              {
+                value: "rank",
+                label:
+                  viewMode === "watchlist" || viewMode === "rewatch"
+                    ? "Interest order"
+                    : "Rank order",
+              },
+              { value: "title", label: "Title" },
+              ...(type !== "year"
+                ? [{ value: "year", label: "Release year" }]
+                : []),
+              { value: "rating", label: "Rating" },
+              { value: "runtime", label: "Runtime" },
+              { value: "wins", label: "Wins" },
+              { value: "nominations", label: "Nominations" },
+              { value: "score", label: "Score" },
+            ];
     let sortControl = window.renderSortAxisControl({
       escape: periodEscape,
       value: periodOrder === "shuffle" ? "" : periodOrder,
@@ -1110,6 +1178,22 @@
         : allFilms;
     let rewatchFilms = periodRewatchFilms();
     let otherFilms = periodOtherFilms();
+    let sharedFilms =
+      viewMode === "shared"
+        ? window
+            .sharedArchiveFilmsForPeriod(type, key)
+            .filter((film) =>
+              window.searchTextMatches(
+                sharedSearch,
+                film.title,
+                film.swedishTitle,
+                window.sharedArchiveFilmDirectorNames(film).join(" "),
+                film.country,
+                film.primaryCountry,
+                film.tmdbId,
+              ),
+            )
+        : [];
     let finishFilterTimer =
       window.startOskarsPerformance?.("period:filterSort");
     let films =
@@ -1117,26 +1201,34 @@
         ? scopedFilms.filter(matchesMetadataFilters)
         : viewMode === "other"
           ? otherFilms
-        : viewMode === "rewatch"
-          ? rewatchFilms
-          : viewMode === "watchlist"
-            ? []
-            : allFilms.filter((film) =>
-                (film.awards || []).some(awardInPeriod),
-              );
+          : viewMode === "shared"
+            ? sharedFilms
+            : viewMode === "rewatch"
+              ? rewatchFilms
+              : viewMode === "watchlist"
+                ? []
+                : allFilms.filter((film) =>
+                    (film.awards || []).some(awardInPeriod),
+                  );
     if (
-      (viewMode === "films" || viewMode === "rewatch" || viewMode === "other") &&
+      (viewMode === "films" ||
+        viewMode === "rewatch" ||
+        viewMode === "other" ||
+        viewMode === "shared") &&
       periodOrder === "shuffle"
     ) {
       films = [...films].sort((left, right) =>
         window.compareBySeededShuffle(
-          left.id || `${left.year || ""}::${left.title}`,
-          right.id || `${right.year || ""}::${right.title}`,
+          left.id || left.tmdbId || `${left.year || ""}::${left.title}`,
+          right.id || right.tmdbId || `${right.year || ""}::${right.title}`,
           shuffleSeed,
         ),
       );
     } else if (
-      (viewMode === "films" || viewMode === "rewatch" || viewMode === "other") &&
+      (viewMode === "films" ||
+        viewMode === "rewatch" ||
+        viewMode === "other" ||
+        viewMode === "shared") &&
       periodOrder !== "rank"
     ) {
       films = [...films].sort((left, right) =>
@@ -1155,7 +1247,10 @@
     let pageCount = Math.max(1, Math.ceil(pageTotal / FILMS_PER_PAGE));
     filmPage = Math.min(filmPage, pageCount);
     visibleFilmPage =
-      viewMode === "films" || viewMode === "rewatch" || viewMode === "other"
+      viewMode === "films" ||
+      viewMode === "rewatch" ||
+      viewMode === "other" ||
+      viewMode === "shared"
         ? films.slice(
             (filmPage - 1) * FILMS_PER_PAGE,
             filmPage * FILMS_PER_PAGE,
@@ -1218,9 +1313,12 @@
         : "";
     let otherCards =
       viewMode === "other" ? renderOtherWatchedGrid(visibleFilmPage) : "";
+    let sharedCards =
+      viewMode === "shared" ? renderSharedArchiveGrid(visibleFilmPage) : "";
     let pagination =
       viewMode === "films" ||
       viewMode === "other" ||
+      viewMode === "shared" ||
       viewMode === "rewatch" ||
       viewMode === "watchlist"
         ? window.renderFilmPagination({
@@ -1293,23 +1391,34 @@
     let periodSummaryItemsHtml =
       viewMode === "official"
         ? `<span><b>${officialNominations.length}</b> ${periodEscape(ui("Official nominations"))}</span><span><b>${officialNominations.filter((entry) => entry.winner).length}</b> ${periodEscape(ui("Official winners"))}</span>${officialAgreementSummaryHtml}`
+        : viewMode === "shared"
+          ? `<span><b>${films.length}</b> ${periodEscape(ui("Shared-only films"))}</span><span>${periodEscape(ui("Not watched or watchlisted"))}</span>`
         : `<span><b>${viewMode === "watchlist" ? watchlistEntries.length : films.length}</b> ${periodEscape(viewMode === "watchlist" ? "Watchlist" : viewMode === "rewatch" ? ui("Rewatchlist") : viewMode === "other" ? ui("Other watched") : ui("Films"))}</span>${viewMode === "other" ? "" : `<span><b>${awards.length}</b> ${periodEscape(ui("Nominations"))}</span>`}${viewMode === "awards" ? officialAgreementSummaryHtml : ""}${viewMode === "films" ? window.renderRatingStatisticsItems(periodRatingStatistics, { escape: periodEscape, ui }) : viewMode === "other" ? window.renderRatingStatisticsItems(otherRatingStatistics, { escape: periodEscape, ui }) : ""}`;
     let ceremonyActionHtml = hasNominees
       ? `<a class="button-link" href="presentation.html?scope=period&amp;id=${periodEscape(encodeURIComponent(`${type}:${key}`))}&amp;section=ceremony">${periodEscape(ui("Run ceremony"))}</a>`
+      : "";
+    let collectionToolbarHtml = [
+      "films",
+      "other",
+      "shared",
+      "rewatch",
+      "watchlist",
+    ].includes(viewMode)
+      ? `<div class="detail-toolbar">${periodOrderControls()}<div class="period-toolbar-actions">${viewMode === "shared" ? `<label class="period-shared-search">${periodEscape(ui("Search shared archive"))}<input type="search" value="${periodEscape(sharedSearch)}" placeholder="${periodEscape(ui("Title or director"))}" data-period-shared-search></label>` : ""}${viewMode === "films" ? `<button type="button" class="sort-order-button sort-order-button--icon period-film-scope-toggle${scope === "all" ? " is-active" : ""}" title="${periodEscape(ui(scope === "all" ? "Showing all films" : "Showing nominees only"))}" aria-label="${periodEscape(ui("Toggle films shown"))}" aria-pressed="${scope === "all" ? "true" : "false"}" data-period-film-scope-toggle ${hasNominees ? "" : "disabled"}>${periodEscape(ui("All"))}</button>` : ""}${(viewMode === "films" || viewMode === "rewatch") && layout === "grid" ? `<a class="sort-order-button" href="${periodEscape(periodViewUrl({ showAwards: !showAwards }))}">${periodEscape(showAwards ? ui("Hide awards") : ui("Show awards"))}</a>` : ""}${viewMode === "shared" ? "" : window.renderFilmViewToggle({ view: layout, listUrl: periodViewUrl({ layout: "list" }), gridUrl: periodViewUrl({ layout: "grid" }), escape: periodEscape, classes: "period-film-view-toggle", ariaLabel: ui("Period film display") })}</div></div>`
       : "";
     container.innerHTML = `${window.renderDetailHeader({ mainHtml: `<h1>${periodEscape(title)}</h1><div class="period-heading-meta"><p>${periodEscape(typeLabel)}${sourceLinkHtml}</p>${window.renderPeriodNeighborNavigation(type, key, periodEscape)}${window.renderPeriodChildNavigation(type, key, periodEscape)}</div>`, actionsHtml: ceremonyActionHtml })}
     ${intakeReturnHtml}
     ${setupYearCtaHtml}
     ${window.renderEntityNote("periods", `${type}:${key}`, ui("Period note"))}
     ${window.renderDetailStats({ itemsHtml: periodSummaryItemsHtml })}
-    ${viewMode === "official" || viewMode === "rewatch" || viewMode === "other" ? "" : renderPeriodHighlights()}
-    ${viewMode === "official" || viewMode === "rewatch" || viewMode === "other" ? "" : renderRatingHistogram()}
-    <fieldset class="period-view-controls"><legend>${periodEscape(ui("View"))}</legend><label><input type="radio" name="periodViewMode" value="awards" ${viewMode === "awards" ? "checked" : ""} ${hasNominees ? "" : "disabled"}> ${periodEscape(ui("Award bracket"))}</label><label><input type="radio" name="periodViewMode" value="films" ${viewMode === "films" ? "checked" : ""}> ${periodEscape(ui("Films"))}</label><label><input type="radio" name="periodViewMode" value="other" ${viewMode === "other" ? "checked" : ""}> ${periodEscape(ui("Other watched"))}</label><label><input type="radio" name="periodViewMode" value="rewatch" ${viewMode === "rewatch" ? "checked" : ""}> ${periodEscape(ui("Rewatchlist"))}</label><label><input type="radio" name="periodViewMode" value="watchlist" ${viewMode === "watchlist" ? "checked" : ""}> Watchlist</label>${type === "year" ? `<label><input type="radio" name="periodViewMode" value="official" ${viewMode === "official" ? "checked" : ""} ${hasOfficialResults ? "" : "disabled"}> ${periodEscape(ui("Official results"))}</label>` : ""}</fieldset>
+    ${viewMode === "official" || viewMode === "rewatch" || viewMode === "other" || viewMode === "shared" ? "" : renderPeriodHighlights()}
+    ${viewMode === "official" || viewMode === "rewatch" || viewMode === "other" || viewMode === "shared" ? "" : renderRatingHistogram()}
+    <fieldset class="period-view-controls"><legend>${periodEscape(ui("View"))}</legend><label><input type="radio" name="periodViewMode" value="awards" ${viewMode === "awards" ? "checked" : ""} ${hasNominees ? "" : "disabled"}> ${periodEscape(ui("Award bracket"))}</label><label><input type="radio" name="periodViewMode" value="films" ${viewMode === "films" ? "checked" : ""}> ${periodEscape(ui("Films"))}</label><label><input type="radio" name="periodViewMode" value="other" ${viewMode === "other" ? "checked" : ""}> ${periodEscape(ui("Other watched"))}</label><label><input type="radio" name="periodViewMode" value="rewatch" ${viewMode === "rewatch" ? "checked" : ""}> ${periodEscape(ui("Rewatchlist"))}</label><label><input type="radio" name="periodViewMode" value="watchlist" ${viewMode === "watchlist" ? "checked" : ""}> Watchlist</label><label><input type="radio" name="periodViewMode" value="shared" ${viewMode === "shared" ? "checked" : ""}> ${periodEscape(ui("Shared archive"))}</label>${type === "year" ? `<label><input type="radio" name="periodViewMode" value="official" ${viewMode === "official" ? "checked" : ""} ${hasOfficialResults ? "" : "disabled"}> ${periodEscape(ui("Official results"))}</label>` : ""}</fieldset>
     ${periodEditControls()}
     ${decadeMergeControls()}
     ${rankingEditControls()}
     ${watchlistEditControls()}
-    ${viewMode === "films" || viewMode === "other" || viewMode === "rewatch" || viewMode === "watchlist" ? `<div class="detail-toolbar">${periodOrderControls()}<div class="period-toolbar-actions">${viewMode === "films" ? `<button type="button" class="sort-order-button sort-order-button--icon period-film-scope-toggle${scope === "all" ? " is-active" : ""}" title="${periodEscape(ui(scope === "all" ? "Showing all films" : "Showing nominees only"))}" aria-label="${periodEscape(ui("Toggle films shown"))}" aria-pressed="${scope === "all" ? "true" : "false"}" data-period-film-scope-toggle ${hasNominees ? "" : "disabled"}>${periodEscape(ui("All"))}</button>` : ""}${(viewMode === "films" || viewMode === "rewatch") && layout === "grid" ? `<a class="sort-order-button" href="${periodEscape(periodViewUrl({ showAwards: !showAwards }))}">${periodEscape(showAwards ? ui("Hide awards") : ui("Show awards"))}</a>` : ""}${window.renderFilmViewToggle({ view: layout, listUrl: periodViewUrl({ layout: "list" }), gridUrl: periodViewUrl({ layout: "grid" }), escape: periodEscape, classes: "period-film-view-toggle", ariaLabel: ui("Period film display") })}</div></div>` : ""}
+    ${collectionToolbarHtml}
     ${
       viewMode === "official"
         ? officialResultsBySource
@@ -1325,6 +1434,8 @@
               }),
             )
             .join("")
+        : viewMode === "shared"
+          ? `${pagination}${pageTotal ? `<div class="film-grid period-film-grid shared-archive-grid">${sharedCards}</div>` : sharedArchiveEmptyHtml()}${pagination}`
         : viewMode === "rewatch"
           ? `${renderRewatchTierFilter()}<fieldset class="period-filter-controls"><legend>${periodEscape(ui("Rewatchlist filters"))}</legend>${filmRuntimeFilterInputsHtml()}</fieldset>${pagination}${pageTotal ? (layout === "grid" ? `<div class="film-grid period-film-grid">${filmCards}</div>` : renderPeriodFilmList(visibleFilmPage, { showRewatchTier: true })) : `<p class="detail-empty">${periodEscape(ui("No films are marked for rewatch yet."))}</p>`}${pagination}`
         : viewMode === "other"
@@ -1347,6 +1458,9 @@
     finishRenderTimer?.(`${type}:${key} ${viewMode}, ${pageTotal} item(s)`);
   }
 
+  window.onSharedFilmArchiveChange?.(() => {
+    if (viewMode === "shared") render();
+  });
   if ((state.watchlist || []).length || !window.ensureWatchlistData) render();
   else window.ensureWatchlistData().then(render);
   window.bindEntityNoteEditor(container);
@@ -1399,6 +1513,26 @@
   }
 
   container.addEventListener("input", (event) => {
+    let sharedSearchInput = event.target.closest(
+      "[data-period-shared-search]",
+    );
+    if (sharedSearchInput) {
+      sharedSearch = sharedSearchInput.value;
+      filmPage = 1;
+      if (sharedSearchRenderTimer) clearTimeout(sharedSearchRenderTimer);
+      sharedSearchRenderTimer = setTimeout(() => {
+        sharedSearchRenderTimer = null;
+        updateViewUrl();
+        render();
+        let nextInput = container.querySelector("[data-period-shared-search]");
+        nextInput?.focus();
+        nextInput?.setSelectionRange?.(
+          nextInput.value.length,
+          nextInput.value.length,
+        );
+      }, 160);
+      return;
+    }
     let filmMinRuntimeInput = event.target.closest(
       "[data-period-film-min-runtime]",
     );
@@ -1509,7 +1643,7 @@
       if (viewMode === "awards") {
         periodOrder = "rank";
         periodDirection = window.defaultOrderForFilmAxis("rank");
-      } else if (viewMode === "other") {
+      } else if (viewMode === "other" || viewMode === "shared") {
         editMode = false;
         periodOrder = type === "year" ? "title" : "year";
         periodDirection = window.defaultOrderForFilmAxis(periodOrder);
@@ -1537,6 +1671,21 @@
     }
   });
   container.addEventListener("click", (event) => {
+    let addSharedFilmButton = event.target.closest(
+      "[data-add-shared-film-tmdb-id]",
+    );
+    if (addSharedFilmButton) {
+      let result = window.addSharedArchiveFilmToWatchlist(
+        addSharedFilmButton.dataset.addSharedFilmTmdbId,
+      );
+      if (!result?.ok) {
+        window.alert?.(ui(result?.reason || "Could not add this film."));
+        return;
+      }
+      filmPage = 1;
+      render();
+      return;
+    }
     if (event.target.closest("[data-period-film-scope-toggle]")) {
       scope = scope === "all" ? "nominees" : "all";
       filmPage = 1;

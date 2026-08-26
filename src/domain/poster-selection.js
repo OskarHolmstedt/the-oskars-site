@@ -89,6 +89,42 @@ window.selectTmdbMovie = function (film, results, detailsById) {
   return matches[0]?.score >= 80 ? matches[0].result : null;
 };
 
+// TV's own search-result shape uses "name"/"original_name" instead of
+// "title"/"original_title" and "first_air_date" instead of "release_date" -
+// otherwise an exact mirror of scoreTmdbMovieMatch/selectTmdbMovie's scoring.
+function tmdbTvTitles(result) {
+  return [result?.name, result?.original_name]
+    .map(looseComparableTitle)
+    .filter(Boolean);
+}
+
+function scoreTmdbTvMatch(film, result, index) {
+  let title = looseComparableTitle(film?.title);
+  let year = String(film?.year || "");
+  let titles = tmdbTvTitles(result);
+  let titleScore = titles.includes(title)
+    ? 100
+    : titles.some((value) => value.includes(title) || title.includes(value))
+      ? 30
+      : 0;
+  return (
+    titleScore +
+    (year && posterYear(result?.first_air_date) === year ? 50 : 0) -
+    index
+  );
+}
+
+/** Selects the best TMDB TV series. @param {FilmRecord} film Film-like record. @param {Object[]} results Results. @returns {Object|null} Result. */
+window.selectTmdbTvShow = function (film, results) {
+  let matches = (results || [])
+    .map((result, index) => ({
+      result,
+      score: scoreTmdbTvMatch(film, result, index),
+    }))
+    .sort((left, right) => right.score - left.score);
+  return matches[0]?.score >= 80 ? matches[0].result : null;
+};
+
 /** Selects the best TMDB person with a profile image. @param {PersonRecord} person Person. @param {Object[]} results Results. @returns {Object|null} Result. */
 window.selectTmdbPersonPortrait = function (person, results) {
   let name = window.normalizePersonName(person?.name);

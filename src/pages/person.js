@@ -929,22 +929,9 @@ ${isDirector ? `<div data-collection-page-view="awards" ${collectionPageView ===
     if (addSharedFilmButton) {
       event.preventDefault();
       let tmdbId = addSharedFilmButton.dataset.addSharedFilmTmdbId;
-      let film = window.OSKARS_SHARED_FILM_ARCHIVE?.[tmdbId];
-      if (!film) return;
-      let director = Object.values(film.people || {})
-        .filter((credit) => (credit.professions || []).includes("Director"))
-        .map((credit) => credit.name)
-        .join(", ");
-      let result = window.addWatchlistItem({
-        title: film.title,
-        year: film.year,
-        tmdbId: film.tmdbId,
-        swedishTitle: film.swedishTitle,
-        poster: film.poster,
-        director,
-      });
+      let result = window.addSharedArchiveFilmToWatchlist(tmdbId);
       if (!result.ok) {
-        alert(result.reason || String(result));
+        alert(ui(result.reason || "Could not add this film."));
         return;
       }
       refreshPersonWatchlistItems();

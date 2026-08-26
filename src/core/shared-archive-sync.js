@@ -150,13 +150,25 @@
   }
 
   async function performSharedArchivePull() {
-    if (!window.oskarsPersistenceAllowed?.()) return { ok: true, reason: "not-allowed" };
-    if (!currentFirebaseUser()) return { ok: true, reason: "signed-out" };
-    if (!window.getWorkspaceSyncAccountAccess?.().allowed)
+    if (!window.oskarsPersistenceAllowed?.()) {
+      window.setSharedFilmArchiveStatus?.("unavailable");
+      return { ok: true, reason: "not-allowed" };
+    }
+    if (!currentFirebaseUser()) {
+      window.setSharedFilmArchiveStatus?.("unavailable");
+      return { ok: true, reason: "signed-out" };
+    }
+    if (!window.getWorkspaceSyncAccountAccess?.().allowed) {
+      window.setSharedFilmArchiveStatus?.("unavailable");
       return { ok: true, reason: "unlinked" };
+    }
+    window.setSharedFilmArchiveStatus?.("loading");
 
     let ready = await window.ensureFirestoreDb?.();
-    if (!ready) return { ok: false, reason: "unconfigured" };
+    if (!ready) {
+      window.setSharedFilmArchiveStatus?.("unavailable");
+      return { ok: false, reason: "unconfigured" };
+    }
     let { firestoreModule, db } = ready;
 
     // Independent of officialResults' own change status below (a
@@ -181,7 +193,9 @@
         firestoreModule,
         db,
         "sharedFilmMetadata",
-        priorState.sharedFilmArchiveShardRevisions || {},
+        Object.keys(window.OSKARS_SHARED_FILM_ARCHIVE || {}).length
+          ? priorState.sharedFilmArchiveShardRevisions || {}
+          : {},
       ),
     ]);
     if (filmPull.changed || peoplePull.changed)
@@ -191,6 +205,11 @@
       });
     if (sharedFilmArchivePull.changed)
       window.applySharedFilmArchive(sharedFilmArchivePull.merged);
+    else if (sharedFilmArchivePull.reason === "empty")
+      window.applySharedFilmArchive({});
+    else if (sharedFilmArchivePull.reason === "up-to-date")
+      window.setSharedFilmArchiveStatus?.("ready");
+    else window.setSharedFilmArchiveStatus?.("unavailable");
     if (filmPull.shardRevisions || peoplePull.shardRevisions || sharedFilmArchivePull.shardRevisions)
       recordSharedArchiveState({
         ...(filmPull.shardRevisions && {
@@ -310,6 +329,7 @@
       pullInFlight = performSharedArchivePull()
         .catch((err) => {
           console.error("Shared official-results archive pull failed", err);
+          window.setSharedFilmArchiveStatus?.("unavailable");
           return { ok: false, reason: "error", error: err };
         })
         .finally(() => {

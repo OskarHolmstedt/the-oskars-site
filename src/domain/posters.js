@@ -50,6 +50,21 @@ function storedWatchedFilmSources(filmId, film) {
   return sources;
 }
 
+// Checked in this order: TV is the most certain signal (a wholly separate
+// TMDB endpoint, never inferred), Documentary is TMDB's own official genre,
+// and short-film runtime is checked last since a short documentary's genre
+// is the more informative label either way - both route to watchedOther
+// identically, so the order only affects the displayed type, not routing.
+// 40 minutes loosely matches the Academy's own short-film threshold.
+window.classifyTmdbFilmType = function (reference, details) {
+  if (reference.mediaType === "tv") return "TV series";
+  if ((details.genres || []).some((genre) => genre?.name === "Documentary"))
+    return "Documentary";
+  let runtime = Number(details.runtime) || 0;
+  if (runtime > 0 && runtime <= 40) return "Short film";
+  return "Film";
+};
+
 /** Looks up TMDB metadata for a film. @param {FilmRecord} film Film. @param {Object} [options] Provider controls. @returns {Promise<Object|null>} Metadata. */
 window.lookupTmdbMovieMetadata = async function (film, options = {}) {
   if (!film?.title && !film?.tmdbId)
@@ -62,7 +77,8 @@ window.lookupTmdbMovieMetadata = async function (film, options = {}) {
         id: film.tmdbId,
         poster_path: film.poster?.providerId === String(film.tmdbId) ? "" : "",
       }
-    : await window.lookupTmdbMovieSearch(film, fetchFn);
+    : (await window.lookupTmdbMovieSearch(film, fetchFn)) ||
+      (await window.lookupTmdbTvSearch(film, fetchFn));
   if (!match?.id) return null;
   let reference = window.parseTmdbReference(match.id);
   // A movie (not TV) tmdbId another eligible account already looked up may
@@ -105,6 +121,7 @@ window.lookupTmdbMovieMetadata = async function (film, options = {}) {
         : "";
   return {
     tmdbId: String(match.id),
+    type: classifyTmdbFilmType(reference, details),
     director: directors.join(", "),
     country,
     primaryCountry: productionCountries[0] || "",
@@ -150,6 +167,15 @@ window.tmdbTranslatedTitle = function (
 window.setFilmTmdbMetadata = function (filmId, metadata, options = {}) {
   let film = storedWatchedFilm(filmId);
   if (!film || !metadata) return false;
+  // This film's first-ever successful TMDB resolution, not a routine
+  // refresh - captured before applyMetadata sets tmdbId below. Bucket
+  // reclassification only fires here: a later refresh must never silently
+  // promote a long-standing, deliberately-placed watchedOther entry, or
+  // demote a film out of a ranking someone already built. The unranked
+  // check is a redundant second guard for the same reason.
+  let isFirstResolution = !film.tmdbId;
+  let isUnranked =
+    !film.rank && !film.allTimeRank && !(film.awards || []).length;
   let beforeLog = options.log && {
     tmdbId: film.tmdbId,
     director: film.director,
@@ -182,9 +208,22 @@ window.setFilmTmdbMetadata = function (filmId, metadata, options = {}) {
       target.runtimeMinutes = metadata.runtimeMinutes;
     if (metadata.poster && (!target.poster || options.overwritePoster))
       target.poster = metadata.poster;
+    // type always starts populated ("Film" by default, unlike the
+    // empty-string-default fields above), so "still the default" - not
+    // "still empty" - is what marks it as never having been hand-typed to
+    // something the classifier doesn't itself produce (e.g. "Concert film").
+    if (
+      metadata.type &&
+      ((target.type || "Film") === "Film" || options.overwrite)
+    )
+      target.type = metadata.type;
     window.normalizeFilmMetadata?.(target);
   }
   storedWatchedFilmSources(filmId, film).forEach(applyMetadata);
+  if (isFirstResolution && isUnranked && metadata.type) {
+    let targetBucket = metadata.type === "Film" ? "archive" : "watchedOther";
+    window.moveFilmBetweenArchiveAndWatchedOther?.(film, targetBucket);
+  }
   window.markAggregatesDirty?.("film metadata enriched");
   if (beforeLog && window.recordEdit) {
     let afterLog = {

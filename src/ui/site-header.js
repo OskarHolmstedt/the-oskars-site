@@ -153,6 +153,7 @@
       projectOpen: headerText("search.meta.open", "Open"),
       projectComplete: headerText("search.meta.complete", "Complete"),
       projectArchived: headerText("search.meta.archived", "Archived"),
+      sharedArchive: headerText("search.meta.sharedArchive", "Shared archive"),
     };
     let entries = window.buildSearchEntries({
       locale: window.currentOskarsLocale?.(),
@@ -399,8 +400,15 @@
       }
     }
     function getSearchEntries() {
-      if (!header._siteSearchEntries)
+      let sharedArchiveVersion =
+        window.OSKARS_SHARED_FILM_ARCHIVE_VERSION || 0;
+      if (
+        !header._siteSearchEntries ||
+        header._siteSearchSharedArchiveVersion !== sharedArchiveVersion
+      ) {
         header._siteSearchEntries = buildSiteSearchIndex();
+        header._siteSearchSharedArchiveVersion = sharedArchiveVersion;
+      }
       return header._siteSearchEntries;
     }
     function renderSearchResults() {
