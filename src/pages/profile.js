@@ -29,7 +29,7 @@
         lineageAction = `<p>${ui("This local workspace is not attached to a cloud account yet. Connect it explicitly before any upload or download.")}</p><div class="data-actions"><button id="profileAttachAccountBtn" type="button">${ui("Connect this workspace to this account")}</button></div>`;
       else if (syncAccess.status === "different-account")
         lineageAction = `<p class="data-panel-status">${ui("Cloud actions are locked because this workspace belongs to another account.")}</p>`;
-      return `<h2>${ui("Sign in")}</h2><p>${ui("Signed in as {name}.", { name: escape(user.displayName || user.email || ui("your Google account")) })}</p>${required ? `<p>${ui("Signing out locks this private archive immediately. Sign back into the same account to reopen it.")}</p>` : ""}${lineageAction}<div class="data-actions"><button id="profileSignOutBtn" type="button">${ui(required ? "Sign out and lock" : "Sign out")}</button>${required ? `<button id="profileSwitchAccountBtn" type="button">${ui("Switch accounts safely")}</button>` : ""}</div><p id="profileAccountStatus" class="data-panel-status"></p>`;
+      return `<h2>${ui("Sign in")}</h2><p>${ui("Signed in as {name}.", { name: escape(user.displayName || user.email || ui("your Google account")) })}</p>${required ? `<p>${ui("Signing out downloads a backup, then clears this browser's private archive. Sign back into the same account to sync it again.")}</p>` : ""}${lineageAction}<div class="data-actions"><button id="profileSignOutBtn" type="button">${ui(required ? "Sign out and clear" : "Sign out")}</button>${required ? `<button id="profileSwitchAccountBtn" type="button">${ui("Switch accounts safely")}</button>` : ""}</div><p id="profileAccountStatus" class="data-panel-status"></p>`;
     }
     return `<h2>${ui("Sign in")}</h2><p>${ui("Sign in with Google to sync this workspace across your devices.")}</p><div id="profileSignInButton"></div>`;
   }
@@ -48,12 +48,26 @@
           !required ||
           window.confirm(
             ui(
-              "Sign out and lock this browser's private archive? Nothing is deleted; the same account can reopen it later.",
+              "Sign out and clear this browser's private archive? A backup downloads first. Sign back into the same account to sync it again from the cloud.",
             ),
           )
         ) {
-          if (await (window.confirmSignOutWithPendingSync?.() ?? true))
+          if (await (window.confirmSignOutWithPendingSync?.() ?? true)) {
+            // Only the mandatory-account (Shared Edition) session ties local
+            // IndexedDB state to sign-in at all - a plain, optional sign-in
+            // (e.g. owner mode's Google Sheets import) has no private
+            // workspace to clear, so this mirrors data.js's "Remove archive
+            // from this browser" sequence only in that case.
+            if (required) {
+              let stamp = new Date().toISOString().replace(/[:.]/g, "-");
+              window.downloadDataSnapshot?.(
+                `oskars-data-backup-before-sign-out-${stamp}.json`,
+              );
+              await window.clearStoredOskarsData({ scheduleSync: false });
+              window.detachOskarsBrowserWorkspace?.();
+            }
             await window.signOutOfFirebase?.();
+          }
         }
       });
     document

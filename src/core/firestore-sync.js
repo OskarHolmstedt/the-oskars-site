@@ -780,43 +780,143 @@ window.getWorkspaceSyncConflicts = function () {
  * "not yet confirmed in the cloud," which is all the badge needs to say.
  * @returns {number}
  */
-window.countPendingWorkspaceEdits = function () {
-  if (!currentWorkspaceSyncAccountAccess().allowed) return 0;
+/**
+ * Identifies every shard whose local content differs from what this device
+ * last agreed with the cloud, grouped by section - the same comparison
+ * countPendingWorkspaceEdits and previewPendingWorkspaceEdits both need,
+ * factored out once rather than duplicated.
+ * @returns {Record<string, string[]>} sectionKey -> pending shard keys.
+ */
+function pendingShardKeysBySection() {
   let canonical = window.getCanonicalData(window.state, { clone: false });
   let emptyCanonical = getEmptyCanonicalSections();
   let lastSyncedShards = remoteSyncState().shards || {};
   let sectionKeys = window.OSKARS_CANONICAL_SECTION_KEYS || [];
-  let pending = 0;
+  let bySection = {};
   sectionKeys.forEach((sectionKey) => {
     let { revisions: localRevisions } = shardRevisionsOf(sectionKey, canonical[sectionKey]);
     let { revisions: emptyRevisions } = shardRevisionsOf(sectionKey, emptyCanonical[sectionKey]);
     let lastSynced = lastSyncedShards[sectionKey] || {};
+    let shardKeys = [];
     Object.keys(localRevisions).forEach((shardKey) => {
       let hasLastSynced = Object.prototype.hasOwnProperty.call(lastSynced, shardKey);
       if (!hasLastSynced) {
-        if (localRevisions[shardKey] !== (emptyRevisions[shardKey] || "")) pending += 1;
+        if (localRevisions[shardKey] !== (emptyRevisions[shardKey] || "")) shardKeys.push(shardKey);
       } else if (localRevisions[shardKey] !== lastSynced[shardKey]) {
-        pending += 1;
+        shardKeys.push(shardKey);
       }
     });
     Object.keys(lastSynced).forEach((shardKey) => {
-      if (!(shardKey in localRevisions)) pending += 1;
+      if (!(shardKey in localRevisions)) shardKeys.push(shardKey);
     });
+    if (shardKeys.length) bySection[sectionKey] = shardKeys;
   });
-  return pending;
+  return bySection;
+}
+
+window.countPendingWorkspaceEdits = function () {
+  if (!currentWorkspaceSyncAccountAccess().allowed) return 0;
+  return Object.values(pendingShardKeysBySection()).reduce(
+    (total, shardKeys) => total + shardKeys.length,
+    0,
+  );
 };
+
+/**
+ * Fetches a film-language preview of every pending (not yet synced) shard,
+ * reusing previewWorkspaceSyncConflict's local-vs-remote diff for each one -
+ * for a pending, non-conflicting shard this simply shows the local edit
+ * itself, since the remote hasn't changed. Unlike countPendingWorkspaceEdits
+ * this needs one live Firestore read per pending shard, so it's meant to run
+ * on demand (expanding the pending-edits badge), never after every save.
+ * @returns {Promise<{ok: boolean, reason?: string, sections?: Array<{sectionKey: string, diffs: Object[]}>}>}
+ */
+window.previewPendingWorkspaceEdits = async function () {
+  if (!currentWorkspaceSyncAccountAccess().allowed)
+    return { ok: false, reason: "unlinked" };
+  let pendingBySection = pendingShardKeysBySection();
+  let sections = [];
+  for (let sectionKey of Object.keys(pendingBySection)) {
+    let diffs = [];
+    for (let shardKey of pendingBySection[sectionKey]) {
+      let result = await window.previewWorkspaceSyncConflict(sectionKey, shardKey);
+      if (result.ok) diffs.push(result.diff);
+    }
+    if (diffs.length) sections.push({ sectionKey, diffs });
+  }
+  return { ok: true, sections };
+};
+
+// Display names only - purely cosmetic, never persisted or compared. Falls
+// back to the raw key for anything unlisted, so an unmapped section is no
+// worse than today's raw-key status, never broken.
+const PENDING_SYNC_SECTION_NAMES = {
+  years: "Rankings & awards",
+  officialResults: "Official results",
+  collectionAwards: "Collection awards",
+  watchlist: "Watchlist",
+  watchedFilms: "Other watched",
+  intakeWorkflows: "Watched-film intake",
+  rankingReviews: "Ranking reviews",
+  awardReviews: "Award reviews",
+  opinionRebuildSession: "Opinion rebuild",
+  projects: "Projects",
+  watchlistProjectSources: "Watchlist project sources",
+  peopleAliases: "Person aliases",
+  rejectedPersonAliases: "Declined person aliases",
+  declinedOfficialWatchlistAdds: "Declined official-nominee adds",
+  personPortraits: "Person portraits",
+  franchiseLinks: "Franchise links",
+  directorLinks: "Director links",
+  entityNotes: "Notes",
+  localRanks: "Local ranks",
+  editLog: "Edit log",
+};
+
+function pendingSyncSectionName(sectionKey) {
+  return PENDING_SYNC_SECTION_NAMES[sectionKey] || sectionKey;
+}
+
+// workspaceShardRecordDiff's added/removed are framed for the conflict-
+// preview case ("what adopting the remote value would add to / discard
+// from this device"). Pending edits are the mirror image of that same
+// diff: "removed" (present locally, absent remotely) is what pushing would
+// newly add to the cloud, and "added" (present remotely, absent locally) is
+// what pushing would remove from it - hence the swap below.
+function renderPendingSyncPanel(preview) {
+  let escape = window.pageEscape || ((value) => String(value ?? ""));
+  if (!preview.ok)
+    return `<p>Could not load a preview right now.</p><button type="button" data-pending-sync-now>Sync now</button>`;
+  let sectionsHtml = preview.sections
+    .map((section) => {
+      let lines = section.diffs.flatMap((diff) => {
+        if (diff.kind === "opaque") return diff.changed ? ["Changed"] : [];
+        return [
+          ...(diff.removed || []).map((entry) => `+ ${entry.label}`),
+          ...(diff.added || []).map((entry) => `− ${entry.label}`),
+          ...(diff.changedRecords || []).map((entry) => `~ ${entry.label}`),
+        ];
+      });
+      if (!lines.length) return "";
+      return `<div class="pending-sync-section"><b>${escape(pendingSyncSectionName(section.sectionKey))}</b><ul>${lines.map((line) => `<li>${escape(line)}</li>`).join("")}</ul></div>`;
+    })
+    .join("");
+  return `${sectionsHtml || "<p>Nothing to preview.</p>"}<button type="button" data-pending-sync-now>Sync now</button>`;
+}
 
 let pendingSyncBadgeWired = false;
 
 /**
- * Creates/updates the bottom-right "N unsynced — Sync now" control that
- * reflects countPendingWorkspaceEdits() live, stacked above the corner
- * status pill (src/core/persistence.js's storageStatus). Stays hidden
- * whenever there's nothing pending. Clicking it runs a manual sync pass
- * (backoff-exempt, pushes and pulls) and re-renders from the new count -
- * it never introduces a second error/conflict vocabulary alongside the
- * existing status pill (reportWorkspaceSyncStatus already owns that), it
- * only ever shows a count and a button.
+ * Creates/updates the bottom-right pending-sync disclosure that reflects
+ * countPendingWorkspaceEdits() live, stacked above the corner status pill
+ * (src/core/persistence.js's storageStatus). Stays hidden whenever there's
+ * nothing pending. A <details> rather than a plain button: the summary
+ * always shows just the count (cheap and network-free, safe to call after
+ * every save); expanding it fetches previewPendingWorkspaceEdits() on
+ * demand (one Firestore read per pending shard) and renders what would
+ * actually be synced in film terms, with "Sync now" as an explicit action
+ * inside - it never introduces a second error/conflict vocabulary alongside
+ * the existing status pill (reportWorkspaceSyncStatus already owns that).
  */
 window.refreshPendingSyncBadge = function () {
   if (!document?.body) return;
@@ -827,23 +927,31 @@ window.refreshPendingSyncBadge = function () {
     return;
   }
   if (!badge) {
-    badge = document.createElement("button");
-    badge.type = "button";
+    badge = document.createElement("details");
     badge.id = "pendingSyncBadge";
     badge.className = "pending-sync-badge";
+    badge.innerHTML = `<summary></summary><div class="pending-sync-badge-panel"></div>`;
     document.body.appendChild(badge);
   }
   if (!pendingSyncBadgeWired) {
     pendingSyncBadgeWired = true;
-    badge.addEventListener("click", async () => {
-      badge.disabled = true;
-      badge.textContent = "Syncing...";
-      await window.runWorkspaceSync?.({ reason: "manual" });
-      badge.disabled = false;
-      window.refreshPendingSyncBadge?.();
+    badge.addEventListener("toggle", async () => {
+      if (!badge.open) return;
+      let panel = badge.querySelector(".pending-sync-badge-panel");
+      panel.textContent = "Loading…";
+      let preview = await window.previewPendingWorkspaceEdits();
+      panel.innerHTML = renderPendingSyncPanel(preview);
+      panel
+        .querySelector("[data-pending-sync-now]")
+        ?.addEventListener("click", async (event) => {
+          event.target.disabled = true;
+          event.target.textContent = "Syncing…";
+          await window.runWorkspaceSync?.({ reason: "manual" });
+          window.refreshPendingSyncBadge?.();
+        });
     });
   }
-  if (!badge.disabled) badge.textContent = `${count} unsynced — Sync now`;
+  badge.querySelector("summary").textContent = `${count} unsynced`;
   badge.hidden = false;
 };
 
@@ -1356,11 +1464,24 @@ window.addEventListener?.("online", () => {
   if (currentFirebaseUser() && window.OSKARS_DATA_READY === true)
     window.runWorkspaceSync({ reason: "reconnect" });
 });
+// Unlike the read-only shared-archive sync's 24h reconnect/focus throttle
+// (that data is globally shared and rarely changes), this is about noticing
+// this account's *own* edits from another device promptly - so a much
+// shorter cooldown, just enough to stop every ordinary tab-switch within a
+// session from re-reading all canonical sections' manifests. In-memory only
+// (not persisted): a page reload is a rare, deliberate act already covered
+// by the sign-in/data-ready trigger, not something worth adding
+// draftMetadata bookkeeping to protect against.
+const FOCUS_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
+let lastFocusSyncAttemptAt = 0;
 document.addEventListener?.("visibilitychange", () => {
   if (
     document.visibilityState === "visible" &&
     currentFirebaseUser() &&
-    window.OSKARS_DATA_READY === true
-  )
+    window.OSKARS_DATA_READY === true &&
+    Date.now() - lastFocusSyncAttemptAt >= FOCUS_SYNC_COOLDOWN_MS
+  ) {
+    lastFocusSyncAttemptAt = Date.now();
     window.runWorkspaceSync({ reason: "focus" });
+  }
 });

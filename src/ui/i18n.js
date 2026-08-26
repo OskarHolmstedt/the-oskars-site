@@ -2867,12 +2867,12 @@
       {
         sv: "Sluta molnsynka och fortsätt lokalt? Du kan logga in igen när som helst - inget lokalt går förlorat oavsett.",
       },
-    "Signing out locks this private archive immediately. Sign back into the same account to reopen it.": {
-      sv: "Utloggning låser det privata arkivet omedelbart. Logga in med samma konto för att öppna det igen.",
+    "Signing out downloads a backup, then clears this browser's private archive. Sign back into the same account to sync it again.": {
+      sv: "Utloggning laddar ner en säkerhetskopia och rensar sedan webbläsarens privata arkiv. Logga in med samma konto för att synka det igen.",
     },
-    "Sign out and lock": { sv: "Logga ut och lås" },
-    "Sign out and lock this browser's private archive? Nothing is deleted; the same account can reopen it later.": {
-      sv: "Logga ut och lås webbläsarens privata arkiv? Ingenting raderas; samma konto kan öppna det igen senare.",
+    "Sign out and clear": { sv: "Logga ut och rensa" },
+    "Sign out and clear this browser's private archive? A backup downloads first. Sign back into the same account to sync it again from the cloud.": {
+      sv: "Logga ut och rensa webbläsarens privata arkiv? En säkerhetskopia laddas ner först. Logga in med samma konto för att synka det igen från molnet.",
     },
     "Switch accounts safely": { sv: "Byt konto säkert" },
     "Switch accounts? A full backup downloads first, an account-bound recovery is retained, and this archive is removed from the active browser before sign-out. Cloud data is not deleted.": {
