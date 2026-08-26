@@ -158,7 +158,7 @@
   let allFilms = [];
   let hasNominees = false;
   let canEditBracket = false;
-  let unrankedAllTimeFilms = [];
+  let unrankedPeriodFilms = [];
 
   function rebuildPeriodViewModel() {
     let periodFilmMap = new Map();
@@ -194,27 +194,35 @@
     canEditBracket =
       hasNominees &&
       (type === "year" || type === "decade" || type === "century");
-    // Not ranked yet (issue #369): the all-time view otherwise never shows
-    // an archive film until it's explicitly ranked into the cross-year
-    // order, which leaves a freshly-imported archive silently invisible
-    // here. Appended after the ranked list, chronologically - a sibling
-    // section, not merged into allFilms/pagination/sorting, since rank-based
-    // operations (edit ranking, award brackets, canonical composites) have
-    // no meaning for a film with no rank yet.
-    unrankedAllTimeFilms =
-      type === "alltime"
-        ? Object.values(state.filmsById || {})
-            .filter(
-              (film) =>
-                !(Number(film.allTimeRank) > 0) &&
-                !(film.canonicalComposite && film.suppressAllTimeRank),
-            )
-            .sort(
-              (left, right) =>
-                Number(left.year || 0) - Number(right.year || 0) ||
-                window.compareEnglishTitles(left.title, right.title),
-            )
-        : [];
+    // Not ranked yet (issue #369): the sortable "films" list only shows a
+    // film that's been ranked at this period's own level (see the
+    // rankForFilm filter in render() below) - a film with no rank there
+    // yet is appended after it instead, chronologically, in its own
+    // section. Deliberately NOT folded into allFilms/belongsToPeriod
+    // itself: allFilms also feeds stats/coverage, award-nomination
+    // eligibility, and bracket editing, none of which should start
+    // ignoring an unranked-but-watched film just because it hasn't been
+    // through the separate ranking step yet - only which of the two
+    // *displayed* sections it falls into changes. otherBelongsToPeriod
+    // already captures "this film's year falls within the current period"
+    // for every type including alltime (always true there) - reused as-is
+    // rather than a second period-matching implementation.
+    unrankedPeriodFilms = Object.values(state.filmsById || {})
+      .filter(
+        (film) =>
+          otherBelongsToPeriod(film) &&
+          !(Number(rankForFilm(film)) > 0) &&
+          !(film.canonicalComposite && film.suppressAllTimeRank) &&
+          // A nominated-but-unranked film already surfaces via allFilms'
+          // own awards OR-branch above - excluded here so it doesn't also
+          // show a second time in "Not yet ranked."
+          !(film.awards || []).some(awardInPeriod),
+      )
+      .sort(
+        (left, right) =>
+          Number(left.year || 0) - Number(right.year || 0) ||
+          window.compareEnglishTitles(left.title, right.title),
+      );
   }
 
   rebuildPeriodViewModel();
@@ -834,12 +842,26 @@
     });
   }
 
-  function unrankedAllTimeSectionHtml() {
-    if (!unrankedAllTimeFilms.length) return "";
-    let cards = unrankedAllTimeFilms
+  function unrankedPeriodSectionHtml() {
+    // "Nominees only" scope narrows the whole films view to award-nominated
+    // films - unrankedPeriodFilms deliberately excludes every nominated
+    // film already (they surface via the main list instead), so under that
+    // scope this section would only ever offer non-nominees, exactly what
+    // the toggle is meant to hide. Matches scopedFilms' own scope handling.
+    if (scope === "nominees") return "";
+    // Applied at render time, not baked into unrankedPeriodFilms itself -
+    // the active Film filters (medium, screenplay, country, rating,
+    // runtime) change on every filter-control interaction without a
+    // rebuildPeriodViewModel() pass, the same "filtered fresh at render"
+    // split scopedFilms.filter(matchesMetadataFilters) already uses for the
+    // ranked list. A film hidden from the ranked list by a filter must stay
+    // hidden here too, not reappear unfiltered in "Not yet ranked."
+    let filtered = unrankedPeriodFilms.filter(matchesMetadataFilters);
+    if (!filtered.length) return "";
+    let cards = filtered
       .map((film) =>
         window.renderSharedFilmCard(film, {
-          classes: ["unranked-alltime-card"],
+          classes: ["unranked-period-card"],
           showYear: true,
           rankLabel: ui("NR"),
           director: filmDirector(film),
@@ -848,7 +870,7 @@
         }),
       )
       .join("");
-    return `<section class="period-unranked-alltime"><h3 class="period-filmography-subheading">${periodEscape(ui("Not yet ranked"))}</h3><div class="film-grid period-film-grid">${cards}</div></section>`;
+    return `<section class="period-unranked-films"><h3 class="period-filmography-subheading">${periodEscape(ui("Not yet ranked"))}</h3><div class="film-grid period-film-grid">${cards}</div></section>`;
   }
 
   function renderOtherWatchedGrid(films) {
@@ -1237,7 +1259,14 @@
       window.startOskarsPerformance?.("period:filterSort");
     let films =
       viewMode === "films"
-        ? scopedFilms.filter(matchesMetadataFilters)
+        ? scopedFilms
+            .filter(
+              (film) =>
+                Number(rankForFilm(film)) > 0 ||
+                (film.awards || []).some(awardInPeriod) ||
+                (film.canonicalComposite && film.suppressAllTimeRank),
+            )
+            .filter(matchesMetadataFilters)
         : viewMode === "other"
           ? otherFilms
           : viewMode === "shared"
@@ -1481,7 +1510,7 @@
           ? `${pagination}${pageTotal ? (layout === "grid" ? `<div class="film-grid period-film-grid">${otherCards}</div>` : renderOtherWatchedList(visibleFilmPage)) : `<p class="detail-empty">${periodEscape(ui("No other watched entries in this period."))}</p>`}${pagination}`
         : viewMode === "films"
         ? `<fieldset class="period-filter-controls"><legend>${periodEscape(ui("Film filters"))}</legend><label>${periodEscape(ui("Medium"))} <select data-period-film-filter="medium"><option value="all" ${mediumFilter === "all" ? "selected" : ""}>${periodEscape(ui("All"))}</option><option value="live-action" ${mediumFilter === "live-action" ? "selected" : ""}>${periodEscape(ui("Live action"))}</option><option value="animation" ${mediumFilter === "animation" ? "selected" : ""}>${periodEscape(ui("Animation"))}</option><option value="hybrid" ${mediumFilter === "hybrid" ? "selected" : ""}>${periodEscape(ui("Hybrid"))}</option></select></label><label>${periodEscape(ui("Screenplay"))} <select data-period-film-filter="screenplay"><option value="all" ${screenplayFilter === "all" ? "selected" : ""}>${periodEscape(ui("All"))}</option><option value="original" ${screenplayFilter === "original" ? "selected" : ""}>${periodEscape(ui("Original"))}</option><option value="adapted" ${screenplayFilter === "adapted" ? "selected" : ""}>${periodEscape(ui("Adapted"))}</option></select></label><label>${periodEscape(ui("Adapted from"))} <select data-period-film-filter="adaptationSource"><option value="all">${periodEscape(ui("All sources"))}</option>${sourceOptions}</select></label><label>${periodEscape(ui("Country"))} <select data-period-film-filter="country"><option value="all" ${countryFilter === "all" ? "selected" : ""}>${periodEscape(ui("All countries"))}</option>${countryOptions}</select></label><label>${periodEscape(ui("Exact rating"))} <select data-period-film-filter="exactRating"><option value="all" ${exactRatingFilter === "all" ? "selected" : ""}>${periodEscape(ui("All ratings"))}</option>${exactRatingOptions(exactRatingFilter)}</select></label><label>${periodEscape(ui("Minimum rating"))} <select data-period-film-filter="minimumRating"><option value="0">${periodEscape(ui("No minimum"))}</option>${ratingFilterOptions(minimumRatingFilter, "At least ")}</select></label><label>${periodEscape(ui("Maximum rating"))} <select data-period-film-filter="maximumRating"><option value="0">${periodEscape(ui("No maximum"))}</option>${ratingFilterOptions(maximumRatingFilter, "At most ")}</select></label>${filmRuntimeFilterInputsHtml()}</fieldset>
-      ${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid">${filmCards}</div>` : renderPeriodFilmList(visibleFilmPage)}${pagination}${type === "alltime" ? unrankedAllTimeSectionHtml() : ""}`
+      ${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid">${filmCards}</div>` : renderPeriodFilmList(visibleFilmPage)}${pagination}${unrankedPeriodSectionHtml()}`
         : viewMode === "watchlist"
           ? `${window.renderAddWatchlistForm({ escape: periodEscape, ui })}${window.watchlistSubPeriodControls(watchlistFilters, { escape: periodEscape, ui })}${window.renderWatchlistTierFilter(watchlistFilters, { escape: periodEscape, ui })}${window.watchlistFilterControls(watchlistFilters, { filteredCount: watchlistEntries.length, projectSourceId: watchlistFilterProjectSourceId, bulkTierValue: bulkTierControl?.value(), queueVisible: watchlistQueueVisible, escape: periodEscape, ui })}${watchlistQueueVisible ? window.renderWatchlistQueue(watchlistEntries, { escape: periodEscape, ui }) : ""}${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid watchlist-grid">${watchlistCards || `<p>${periodEscape(ui("No watchlist films in this period."))}</p>`}</div>` : `<div class="leaderboard-wrap watchlist-list"><table class="leaderboard"><thead><tr><th>${periodEscape(ui("Interest"))}</th><th>${periodEscape(ui("Film"))}</th><th>${periodEscape(ui("Director"))}</th><th>${periodEscape(ui("Tier"))}</th></tr></thead><tbody>${visibleWatchlistPage.map((entry, visibleIndex) => window.renderWatchlistRow(entry, visibleIndex, { tierEditMode, watchlistOrderEditMode, escape: periodEscape })).join("") || `<tr><td colspan="4">${periodEscape(ui("No watchlist films in this period."))}</td></tr>`}</tbody></table></div>`}${pagination}`
           : `<div class="period-award-view">${categorySections}</div>`
