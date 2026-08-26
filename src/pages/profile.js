@@ -369,10 +369,10 @@
   }
 
   function accountDeletionHtml() {
-    return `<h2>${ui("Delete cloud account data")}</h2>
-      <p>${ui("Permanently deletes every document Firestore holds for this account - every synced section and this device's sync history. A full backup downloads first. This is final; there is no admin-side recovery once it verifies removal.")}</p>
-      <div class="data-actions"><button id="accountDeletionBtn" type="button">${ui("Delete cloud account data")}</button></div>
-      <p id="accountDeletionStatus" class="data-panel-status"></p>`;
+    return `<span class="eyebrow">${ui("Cloud storage")}</span><h2>${ui("Delete synced cloud copy")}</h2>
+      <p>${ui("Deletes the private sync copy stored online, then signs this browser out. The archive in this browser, your Google login, and any published profile stay. Signing in again from a browser that still has the archive can upload it again. A full backup downloads first.")}</p>
+      <div class="data-actions"><button id="accountDeletionBtn" type="button" class="danger-button">${ui("Delete synced cloud copy")}</button></div>
+      <p id="accountDeletionStatus" class="data-panel-status" role="status"></p>`;
   }
 
   function updateAccountDeletionPanelVisibility(user) {
@@ -394,7 +394,7 @@
     let publicProfileName = (window.state.publicProfileDisplayName || "").trim();
     let warning = publicProfileName
       ? ui(
-          "A public profile ({name}) may currently be published. Deleting your cloud account data does NOT take it down - that needs the separate revocation step on the Data page's publish panel. ",
+          "A public profile ({name}) may still be published. This does not take it down. ",
           { name: publicProfileName },
         )
       : "";
@@ -402,7 +402,7 @@
       !window.confirm(
         warning +
           ui(
-            "This downloads a full backup, then permanently deletes every document Firestore holds for this account. It cannot be undone. Continue?",
+            "Delete the synced cloud copy? A backup downloads first. The archive in this browser stays, and you will be signed out. Any browser with a retained archive can upload it again.",
           ),
       )
     )
@@ -418,7 +418,7 @@
     let result = await window.deleteCloudAccountData?.();
     if (result?.ok) {
       status.textContent = ui(
-        "Deleted and verified {count} section(s). Signing out - your local archive is untouched.",
+        "Deleted the synced cloud copy and verified {count} part(s). Signing out now. This browser's archive was not changed.",
         { count: result.sections.length },
       );
       await window.signOutOfFirebase?.();
@@ -432,7 +432,7 @@
           })
         : ui("Deletion failed. Nothing was signed out - try again.");
       button.disabled = false;
-      button.textContent = ui("Delete cloud account data");
+      button.textContent = ui("Delete synced cloud copy");
     }
   }
 

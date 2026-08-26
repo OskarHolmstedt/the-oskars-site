@@ -683,11 +683,10 @@ window.replaceStoredState = async function (nextState, options = {}) {
     }
   }
   // Same trigger as flushScheduledSave() (issue #248): replaceStoredState()
-  // is the write path for clear-all-data, recovery restore, and canonical
-  // adoption, none of which go through window.save(). Without this, clearing
-  // local data while signed in never reconciles with the cloud on its own -
-  // the local "fresh empty device" bookkeeping is set, but nothing schedules
-  // the sync pass that would act on it.
+  // is the write path for local replacement, recovery restore, and canonical
+  // adoption, none of which go through window.save(). Callers that are
+  // deliberately detaching this browser suppress the trigger so the retained
+  // cloud copy cannot immediately refill the newly emptied local archive.
   if (saved && options.scheduleSync !== false) {
     window.scheduleWorkspaceSync?.();
     window.scheduleSharedFilmMetadataSync?.();
@@ -722,9 +721,11 @@ function intentionalClearDraftMetadata() {
 
 /**
  * Replaces persisted data with empty, fully migrated local state.
+ * @param {Object} [options] Clear behavior.
+ * @param {boolean} [options.scheduleSync=true] Whether cloud reconciliation is scheduled afterward.
  * @returns {Promise<boolean>} Whether cleared state was persisted.
  */
-window.clearStoredOskarsData = function () {
+window.clearStoredOskarsData = function (options = {}) {
   let cleared = window.createClearedLocalState
     ? window.createClearedLocalState()
     : window.createEmptyState();
@@ -732,6 +733,7 @@ window.clearStoredOskarsData = function () {
   return window.replaceStoredState(cleared, {
     message: "Local data cleared",
     fallbackMessage: "Local data cleared using fallback storage",
+    scheduleSync: options.scheduleSync !== false,
   });
 };
 

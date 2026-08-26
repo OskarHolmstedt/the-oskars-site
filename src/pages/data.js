@@ -17,6 +17,7 @@ function renderDataWorkspace() {
     document.getElementById("publicProfilePublicationView"),
   );
   renderOpinionRebuildView(document.getElementById("opinionRebuildView"));
+  renderOpinionMaintenanceAvailability();
   window.renderOwnerDataToolsLink?.();
   window.refreshMetadataBatchActionLabels?.();
   window.renderDataHealth(document.getElementById("dataHealthView"), {
@@ -31,6 +32,26 @@ function renderDataWorkspace() {
   );
 }
 window.renderDataWorkspace = renderDataWorkspace;
+
+function renderOpinionMaintenanceAvailability() {
+  let blocked = Boolean(window.state.opinionRebuildSession);
+  ["resetRankingForm", "clearAwardsForm"].forEach((formId) => {
+    document
+      .getElementById(formId)
+      ?.querySelectorAll("input, button")
+      .forEach((control) => {
+        control.disabled = blocked;
+      });
+  });
+  let status = document.getElementById("opinionMaintenanceStatus");
+  if (!status) return;
+  status.hidden = !blocked;
+  status.textContent = blocked
+    ? ui(
+        "Finish, restore, or close your blind rebuild before changing film order or award ballots.",
+      )
+    : "";
+}
 
 function editLogEscape(value) {
   return String(value ?? "").replace(
@@ -720,11 +741,9 @@ function handleEditLogFilterChange(event) {
   renderDataWorkspace();
 }
 
-// Shared owner of the Data page's destructive "danger zone" actions (clear
-// opinions, reset ranking, remove awards): every one of them downloads a
-// backup before mutating, so a future 4th destructive action reuses this
-// safeguard by construction instead of needing to remember to copy it.
-// Confirmation happens in the caller, before this runs.
+// Shared owner of the Data page's destructive opinion-maintenance actions:
+// every one downloads a backup before mutating. Callers add confirmation only
+// when the action permanently removes more than the visible form describes.
 /**
  * Runs one danger-zone destructive action: downloads a stamped backup,
  * disables/relabels the button, applies the mutation, saves, re-renders the
@@ -939,10 +958,13 @@ async function initializeDataWorkspace() {
   document
     .getElementById("clearOpinionsBtn")
     .addEventListener("click", async () => {
+      let hasRebuildBaseline = Boolean(window.state.opinionRebuildSession);
       if (
         !confirm(
           ui(
-            "Delete all personal opinion data? This removes every award placement, rating, personal score, review, interest tier, and note, and resets the all-time order to the rating/release-year/title default. Films, watch history, and metadata stay. A backup downloads first.",
+            hasRebuildBaseline
+              ? "Permanently erase all opinions, including the saved originals from this blind rebuild? The rebuild will end, and those originals cannot be restored. Films, watch history, and other facts stay. A backup downloads first."
+              : "Permanently erase all opinions? Ratings, rankings, award ballots, reviews, interest tiers, and notes will be removed. Films, watch history, and other facts stay. A backup downloads first.",
           ),
         )
       )
@@ -950,27 +972,23 @@ async function initializeDataWorkspace() {
       await runDangerZoneAction({
         reselectButton: () => document.getElementById("clearOpinionsBtn"),
         busyText: ui("Deleting..."),
-        doneText: ui("Deleted"),
-        restingText: ui("Delete opinions"),
+        doneText: ui("Erased"),
+        restingText: ui("Erase all opinions"),
         backupFilenamePrefix: "oskars-data-backup-before-opinion-clear",
         perform: () => {
-          let report = window.clearOpinionData();
+          let report = window.clearOpinionData({
+            discardRebuildBaseline: true,
+          });
           report.watchedRemaining = window.watchedFilmsForRating().length;
           return report;
         },
         statusElementId: "clearOpinionsStatus",
         statusText: (report) =>
           ui(
-            "Removed {awards} award placements, {ratings} ratings, {scores} scores, {reviews} reviews, {rewatches} rewatch marks, {tiers} interest tiers, and {notes} notes, and reset {ranks} film rank(s) to the default order. {watched} watched work(s) remain ready to rebuild.",
+            "Erased {ratings} ratings, {awards} award placements, and your other saved opinions. {watched} watched work(s) and their facts remain.",
             {
               awards: report.awards,
               ratings: report.ratings,
-              ranks: report.ranks,
-              scores: report.scores,
-              reviews: report.reviews,
-              rewatches: report.rewatchIntents,
-              tiers: report.tiers,
-              notes: report.notes,
               watched: report.watchedRemaining,
             },
           ),
@@ -983,70 +1001,95 @@ async function initializeDataWorkspace() {
       if (
         !confirm(
           ui(
-            "Delete all The Oskars data stored in this browser? This cannot be undone here. Download a backup first if you may want to restore it. Published and cloud copies are not deleted.",
+            "Remove this archive from this browser? A backup downloads first, then this browser is emptied, disconnected from cloud syncing, and signed out. Your synced cloud copy and published profile are not deleted.",
           ),
         )
       )
         return;
       let button = document.getElementById("clearDataBtn");
       button.disabled = true;
-      button.textContent = ui("Clearing...");
-      let cleared = await window.clearStoredOskarsData();
+      button.textContent = ui("Removing...");
+      let stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      window.downloadDataSnapshot?.(
+        `oskars-data-backup-before-browser-removal-${stamp}.json`,
+      );
+      let wasSignedIn = Boolean(window.getFirebaseCurrentUser?.());
+      let cleared = await window.clearStoredOskarsData({
+        scheduleSync: false,
+      });
+      let detached = false;
+      let signOutFailed = false;
+      if (cleared) {
+        detached = window.detachOskarsBrowserWorkspace?.() !== false;
+        if (wasSignedIn) {
+          try {
+            await window.signOutOfFirebase?.();
+          } catch (err) {
+            signOutFailed = true;
+          }
+        }
+      }
       renderDataWorkspace();
       button = document.getElementById("clearDataBtn");
+      let status = document.getElementById("clearDataStatus");
       button.disabled = false;
-      button.textContent = cleared ? ui("Cleared") : ui("Clear failed");
+      button.textContent = cleared ? ui("Removed") : ui("Remove failed");
+      let resultText = ui(
+        "The archive could not be removed. This browser and your other copies were not changed.",
+      );
+      if (cleared && detached && !signOutFailed)
+        resultText = ui(
+          "This browser now has an empty archive and is disconnected. Your synced cloud copy and published profile were not changed.",
+        );
+      else if (cleared && !detached)
+        resultText = ui(
+          "The archive was removed, but this browser could not disconnect from the account. Sign out before using it again.",
+        );
+      else if (cleared)
+        resultText = ui(
+          "The archive was removed and disconnected, but sign-out did not finish. Try signing out again.",
+        );
+      if (status) status.textContent = resultText;
       setTimeout(() => {
-        button.textContent = ui("Clear all data");
+        button.textContent = ui("Remove from this browser");
       }, 1400);
     });
   function dangerZoneYearBound(input) {
     let value = Number(input.value);
     return input.value && Number.isFinite(value) ? value : undefined;
   }
-  function dangerZoneYearScopeText(fromYear, toYear) {
-    if (fromYear == null && toYear == null) return ui("every film");
-    if (fromYear != null && toYear != null)
-      return ui("{from}–{to}", { from: fromYear, to: toYear });
-    if (fromYear != null) return ui("{from} onward", { from: fromYear });
-    return ui("through {to}", { to: toYear });
-  }
   document
     .getElementById("resetRankingForm")
     .addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (window.state.opinionRebuildSession) return;
       let fromYear = dangerZoneYearBound(
         document.getElementById("resetRankingFromYear"),
       );
       let toYear = dangerZoneYearBound(
         document.getElementById("resetRankingToYear"),
       );
-      if (
-        !confirm(
-          ui(
-            "Reset the all-time order for {scope} to the rating / release-year / title default? Ratings and awards are untouched. A backup downloads first.",
-            { scope: dangerZoneYearScopeText(fromYear, toYear) },
-          ),
-        )
-      )
-        return;
       await runDangerZoneAction({
         reselectButton: () =>
           document.getElementById("resetRankingForm").querySelector("button"),
         busyText: ui("Resetting..."),
         doneText: ui("Reset"),
-        restingText: ui("Reset rankings"),
+        restingText: ui("Reset film order"),
         backupFilenamePrefix: "oskars-data-backup-before-ranking-reset",
         perform: () => window.resetRankingToDefaultOrder({ fromYear, toYear }),
         statusElementId: "resetRankingStatus",
         statusText: (result) =>
-          ui("Reset {count} film rank(s).", { count: result.changed }),
+          ui(
+            "Reset the order for {count} film(s). Ratings and awards stayed the same.",
+            { count: result.changed },
+          ),
       });
     });
   document
     .getElementById("clearAwardsForm")
     .addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (window.state.opinionRebuildSession) return;
       let form = event.currentTarget;
       let periodTypes = [
         ...form.querySelectorAll('input[name="periodType"]:checked'),
@@ -1061,27 +1104,21 @@ async function initializeDataWorkspace() {
         window.alert?.(ui("Choose at least one period type."));
         return;
       }
-      if (
-        !confirm(
-          ui(
-            "Remove awards for {scope}? Ratings, ranks, and everything else are untouched. A backup downloads first.",
-            { scope: dangerZoneYearScopeText(fromYear, toYear) },
-          ),
-        )
-      )
-        return;
       await runDangerZoneAction({
         reselectButton: () =>
           document.getElementById("clearAwardsForm").querySelector("button"),
         busyText: ui("Removing..."),
         doneText: ui("Removed"),
-        restingText: ui("Remove awards"),
+        restingText: ui("Remove award ballots"),
         backupFilenamePrefix: "oskars-data-backup-before-award-clear",
         perform: () =>
           window.clearAwardsInScope({ periodTypes, fromYear, toYear }),
         statusElementId: "clearAwardsStatus",
         statusText: (result) =>
-          ui("Removed {count} nomination(s).", { count: result.removed }),
+          ui(
+            "Removed {count} award placement(s). Your other opinions stayed the same.",
+            { count: result.removed },
+          ),
       });
     });
 }

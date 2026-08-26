@@ -311,6 +311,20 @@ function installAccountNavigationHandoff(expectedUid) {
 /** Returns the UID explicitly attached to this browser. @returns {string} */
 window.getOskarsBrowserAccountUid = readBoundAccountUid;
 
+/**
+ * Detaches the active browser workspace from its previously attached account.
+ * @returns {boolean} Whether the attachment marker was removed.
+ */
+window.detachOskarsBrowserWorkspace = function () {
+  window.clearOskarsAccountNavigationHandoff();
+  try {
+    window.localStorage?.removeItem(window.OSKARS_ACCOUNT_WORKSPACE_UID_KEY);
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
+
 /** Whether the active deployment requires an account for private state. @returns {boolean} */
 window.oskarsRequiredAccountSession = accountAccessRequired;
 

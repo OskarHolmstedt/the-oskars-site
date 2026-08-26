@@ -264,8 +264,13 @@ window.insertNomination = function (values) {
 // stays: which films were watched (and when/where), credits, countries,
 // runtimes, tags, franchise memberships, projects, aliases, and a separate
 // music-quality star rating where the app wants to store it.
-/** Removes every persisted personal-opinion field while preserving factual data. @returns {Record<string, number>} Removal counts. */
-window.clearOpinionData = function () {
+/**
+ * Removes every persisted personal-opinion field while preserving factual data.
+ * @param {Object} [options] Removal behavior.
+ * @param {boolean} [options.discardRebuildBaseline=false] Whether saved blind-rebuild originals are also erased.
+ * @returns {Record<string, number>} Removal counts.
+ */
+window.clearOpinionData = function (options = {}) {
   let report = {
     films: 0,
     awards: 0,
@@ -282,6 +287,7 @@ window.clearOpinionData = function () {
     rankingReviews: 0,
     awardReviews: 0,
     sourceConflicts: 0,
+    rebuildBaselines: 0,
   };
   const RANK_FIELDS = [
     "rank",
@@ -411,6 +417,11 @@ window.clearOpinionData = function () {
 
   report.sourceConflicts = (state.sourceConflicts || []).length;
   state.sourceConflicts = [];
+
+  if (options.discardRebuildBaseline && state.opinionRebuildSession) {
+    state.opinionRebuildSession = null;
+    report.rebuildBaselines = 1;
+  }
 
   report.ranks = window.resetRankingToDefaultOrder?.().changed || 0;
   window.recomputeWatchlistOrder?.();

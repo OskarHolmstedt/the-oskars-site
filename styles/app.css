@@ -934,11 +934,30 @@ textarea {
   break-inside: avoid;
   margin-bottom: 4px;
 }
+.data-tool-group {
+  display: grid;
+  gap: 12px;
+  padding-top: 6px;
+}
+.data-tool-group-heading {
+  padding: 2px 4px 0;
+}
+.data-tool-group-heading h2 {
+  margin: 3px 0 4px;
+  font-size: 24px;
+}
+.data-tool-group-heading p {
+  margin: 0;
+  color: var(--muted);
+}
+.data-maintenance-panel,
 .data-danger-zone {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+.data-danger-zone {
   border-color: rgba(161, 38, 34, 0.35);
   background: rgba(161, 38, 34, 0.045);
 }
@@ -2537,6 +2556,7 @@ textarea {
     flex-direction: column;
   }
   .data-workspace-heading,
+  .data-maintenance-panel,
   .data-danger-zone,
   .opinion-rebuild-heading {
     align-items: flex-start;

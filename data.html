@@ -92,111 +92,139 @@
           </section>
           <section id="canonicalPublicationView" class="data-panel"></section>
           <section id="publicProfilePublicationView" class="data-panel"></section>
-          <section id="opinionRebuildView" class="data-panel"></section>
-          <section class="data-panel data-danger-zone">
-            <div>
-              <h2>Clear local data</h2>
+          <div class="data-tool-group" aria-labelledby="opinionToolsHeading">
+            <div class="data-tool-group-heading">
+              <span class="eyebrow">Your ratings, rankings, and awards</span>
+              <h2 id="opinionToolsHeading">Opinion tools</h2>
               <p>
-                Replace the browser database with an empty personal archive
-                that stays empty after reload. Bundled factual Oscars results
-                remain available. Download a backup first.
+                Rebuild everything blindly, or make one smaller change. Film
+                facts and watch history stay in your archive.
+              </p>
+              <div class="data-actions">
+                <a class="button-link" href="build.html">Build your Oskars</a>
+              </div>
+              <p
+                id="opinionMaintenanceStatus"
+                class="data-panel-status"
+                role="status"
+                hidden
+              ></p>
+            </div>
+            <section id="opinionRebuildView" class="data-panel"></section>
+            <section class="data-panel data-maintenance-panel">
+              <div>
+                <h2>Reset film order</h2>
+                <p>
+                  Put films in a release-year range back into the standard
+                  rating, release year, and title order. Ratings and award
+                  ballots stay untouched. A backup downloads first.
+                </p>
+                <p id="resetRankingStatus" class="data-panel-status" role="status"></p>
+              </div>
+              <form id="resetRankingForm" class="data-danger-zone-scope">
+                <label
+                  >From year<input
+                    id="resetRankingFromYear"
+                    type="number"
+                    min="1888"
+                    max="2100"
+                /></label>
+                <label
+                  >To year<input
+                    id="resetRankingToYear"
+                    type="number"
+                    min="1888"
+                    max="2100"
+                /></label>
+                <button type="submit">Reset film order</button>
+              </form>
+            </section>
+            <section class="data-panel data-maintenance-panel">
+              <div>
+                <h2>Remove award ballots</h2>
+                <p>
+                  Remove your award placements for selected periods and years.
+                  Ratings, film order, and other opinions stay untouched. A
+                  backup downloads first.
+                </p>
+                <p id="clearAwardsStatus" class="data-panel-status" role="status"></p>
+              </div>
+              <form id="clearAwardsForm" class="data-danger-zone-scope">
+                <fieldset class="data-danger-zone-types">
+                  <label
+                    ><input type="checkbox" name="periodType" value="years" checked />
+                    Years</label
+                  >
+                  <label
+                    ><input type="checkbox" name="periodType" value="decades" checked />
+                    Decades</label
+                  >
+                  <label
+                    ><input type="checkbox" name="periodType" value="centuries" checked />
+                    Centuries</label
+                  >
+                  <label
+                    ><input type="checkbox" name="periodType" value="allTime" checked />
+                    All-time</label
+                  >
+                </fieldset>
+                <label
+                  >From year<input
+                    id="clearAwardsFromYear"
+                    type="number"
+                    min="1888"
+                    max="2100"
+                /></label>
+                <label
+                  >To year<input
+                    id="clearAwardsToYear"
+                    type="number"
+                    min="1888"
+                    max="2100"
+                /></label>
+                <button type="submit">Remove award ballots</button>
+              </form>
+            </section>
+            <section class="data-panel data-danger-zone">
+              <div>
+                <h2>Permanently erase all opinions</h2>
+                <p>
+                  Remove ratings, rankings, award ballots, reviews, interest
+                  tiers, notes, and any saved blind-rebuild originals. Films,
+                  watch history, credits, and other facts stay. A backup
+                  downloads first.
+                </p>
+                <p id="clearOpinionsStatus" class="data-panel-status" role="status"></p>
+              </div>
+              <button id="clearOpinionsBtn" type="button">
+                Erase all opinions
+              </button>
+            </section>
+          </div>
+          <div class="data-tool-group" aria-labelledby="browserStorageHeading">
+            <div class="data-tool-group-heading">
+              <span class="eyebrow">Stored on this device</span>
+              <h2 id="browserStorageHeading">This browser</h2>
+              <p>
+                Remove this browser's private archive without changing the
+                synced cloud copy or a published profile.
               </p>
             </div>
-            <button id="clearDataBtn" type="button">Clear all data</button>
-          </section>
-          <section class="data-panel data-danger-zone">
-            <div>
-              <h2>Delete opinion data</h2>
-              <p>
-                Remove award placements, ratings, personal scores, reviews,
-                interest tiers, and notes, and reset the all-time order back
-                to a rating / release-year / title default. The factual
-                archive — films, watch dates, credits, metadata, tags,
-                franchises, projects — stays. A backup downloads first.
-              </p>
-              <p id="clearOpinionsStatus" class="data-panel-status"></p>
-            </div>
-            <div class="data-actions">
-              <a class="button-link" href="build.html">Build your Oskars</a>
-              <button id="clearOpinionsBtn" type="button">Delete opinions</button>
-            </div>
-          </section>
-          <section class="data-panel data-danger-zone">
-            <div>
-              <h2>Reset rankings</h2>
-              <p>
-                Recompute the all-time order for a release-year range (blank
-                fields = every film) back to a default: rating, then release
-                year, then title. Ratings, awards, and everything else stay
-                untouched. A backup downloads first.
-              </p>
-              <p id="resetRankingStatus" class="data-panel-status"></p>
-            </div>
-            <form id="resetRankingForm" class="data-danger-zone-scope">
-              <label
-                >From year<input
-                  id="resetRankingFromYear"
-                  type="number"
-                  min="1888"
-                  max="2100"
-              /></label>
-              <label
-                >To year<input
-                  id="resetRankingToYear"
-                  type="number"
-                  min="1888"
-                  max="2100"
-              /></label>
-              <button type="submit">Reset rankings</button>
-            </form>
-          </section>
-          <section class="data-panel data-danger-zone">
-            <div>
-              <h2>Remove awards</h2>
-              <p>
-                Remove award placements for the chosen period types and
-                release-year range (blank fields = every year). Ratings,
-                ranks, and everything else stay untouched. A backup
-                downloads first.
-              </p>
-              <p id="clearAwardsStatus" class="data-panel-status"></p>
-            </div>
-            <form id="clearAwardsForm" class="data-danger-zone-scope">
-              <fieldset class="data-danger-zone-types">
-                <label
-                  ><input type="checkbox" name="periodType" value="years" checked />
-                  Years</label
-                >
-                <label
-                  ><input type="checkbox" name="periodType" value="decades" checked />
-                  Decades</label
-                >
-                <label
-                  ><input type="checkbox" name="periodType" value="centuries" checked />
-                  Centuries</label
-                >
-                <label
-                  ><input type="checkbox" name="periodType" value="allTime" checked />
-                  All-time</label
-                >
-              </fieldset>
-              <label
-                >From year<input
-                  id="clearAwardsFromYear"
-                  type="number"
-                  min="1888"
-                  max="2100"
-              /></label>
-              <label
-                >To year<input
-                  id="clearAwardsToYear"
-                  type="number"
-                  min="1888"
-                  max="2100"
-              /></label>
-              <button type="submit">Remove awards</button>
-            </form>
-          </section>
+            <section class="data-panel data-danger-zone">
+              <div>
+                <h2>Remove archive from this browser</h2>
+                <p>
+                  Download a backup, empty this browser, disconnect cloud
+                  syncing, and sign out. Your synced cloud copy and published
+                  profile stay as they are.
+                </p>
+                <p id="clearDataStatus" class="data-panel-status" role="status"></p>
+              </div>
+              <button id="clearDataBtn" type="button">
+                Remove from this browser
+              </button>
+            </section>
+          </div>
           <section class="data-panel" id="fetchMetadata">
             <h2>Fetch film details and images</h2>
             <p>

@@ -439,6 +439,69 @@
     "All decades": { sv: "Alla årtionden" },
     "Narrow period": { sv: "Begränsa period" },
     "Delete opinions": { sv: "Radera åsikter" },
+    "Your ratings, rankings, and awards": {
+      sv: "Dina betyg, rankningar och priser",
+    },
+    "Opinion tools": { sv: "Verktyg för dina åsikter" },
+    "Rebuild everything blindly, or make one smaller change. Film facts and watch history stay in your archive.": {
+      sv: "Bygg om allt blint eller gör en mindre ändring. Filmfakta och tittarhistorik finns kvar i arkivet.",
+    },
+    "Finish, restore, or close your blind rebuild before changing film order or award ballots.": {
+      sv: "Slutför, återställ eller stäng den blinda ombyggnaden innan du ändrar filmordning eller prisplaceringar.",
+    },
+    "Reset film order": { sv: "Återställ filmordning" },
+    "Put films in a release-year range back into the standard rating, release year, and title order. Ratings and award ballots stay untouched. A backup downloads first.": {
+      sv: "Lägg tillbaka filmer inom ett intervall av utgivningsår i standardordningen betyg, utgivningsår och titel. Betyg och prisplaceringar påverkas inte. En säkerhetskopia laddas ned först.",
+    },
+    "Remove award ballots": { sv: "Ta bort prisplaceringar" },
+    "Remove your award placements for selected periods and years. Ratings, film order, and other opinions stay untouched. A backup downloads first.": {
+      sv: "Ta bort dina prisplaceringar för valda perioder och år. Betyg, filmordning och andra åsikter påverkas inte. En säkerhetskopia laddas ned först.",
+    },
+    "Permanently erase all opinions": {
+      sv: "Radera alla åsikter permanent",
+    },
+    "Remove ratings, rankings, award ballots, reviews, interest tiers, notes, and any saved blind-rebuild originals. Films, watch history, credits, and other facts stay. A backup downloads first.": {
+      sv: "Ta bort betyg, rankningar, prisplaceringar, recensioner, intressenivåer, anteckningar och sparade original från en blind ombyggnad. Filmer, tittarhistorik, medverkande och andra fakta finns kvar. En säkerhetskopia laddas ned först.",
+    },
+    "Erase all opinions": { sv: "Radera alla åsikter" },
+    Erased: { sv: "Raderade" },
+    "Permanently erase all opinions, including the saved originals from this blind rebuild? The rebuild will end, and those originals cannot be restored. Films, watch history, and other facts stay. A backup downloads first.": {
+      sv: "Radera alla åsikter permanent, även de sparade originalen från den blinda ombyggnaden? Ombyggnaden avslutas och originalen kan inte återställas. Filmer, tittarhistorik och andra fakta finns kvar. En säkerhetskopia laddas ned först.",
+    },
+    "Permanently erase all opinions? Ratings, rankings, award ballots, reviews, interest tiers, and notes will be removed. Films, watch history, and other facts stay. A backup downloads first.": {
+      sv: "Radera alla åsikter permanent? Betyg, rankningar, prisplaceringar, recensioner, intressenivåer och anteckningar tas bort. Filmer, tittarhistorik och andra fakta finns kvar. En säkerhetskopia laddas ned först.",
+    },
+    "Erased {ratings} ratings, {awards} award placements, and your other saved opinions. {watched} watched work(s) and their facts remain.": {
+      sv: "Raderade {ratings} betyg, {awards} prisplaceringar och dina andra sparade åsikter. {watched} sedda verk och deras fakta finns kvar.",
+    },
+    "Stored on this device": { sv: "Lagrat på den här enheten" },
+    "This browser": { sv: "Den här webbläsaren" },
+    "Remove this browser's private archive without changing the synced cloud copy or a published profile.": {
+      sv: "Ta bort webbläsarens privata arkiv utan att ändra den synkade molnkopian eller en publicerad profil.",
+    },
+    "Remove archive from this browser": {
+      sv: "Ta bort arkivet från webbläsaren",
+    },
+    "Download a backup, empty this browser, disconnect cloud syncing, and sign out. Your synced cloud copy and published profile stay as they are.": {
+      sv: "Ladda ned en säkerhetskopia, töm webbläsaren, koppla från molnsynkningen och logga ut. Din synkade molnkopia och publicerade profil förblir oförändrade.",
+    },
+    "Remove from this browser": { sv: "Ta bort från webbläsaren" },
+    "Remove this archive from this browser? A backup downloads first, then this browser is emptied, disconnected from cloud syncing, and signed out. Your synced cloud copy and published profile are not deleted.": {
+      sv: "Ta bort arkivet från den här webbläsaren? En säkerhetskopia laddas ned först. Sedan töms webbläsaren, kopplas från molnsynkningen och loggas ut. Din synkade molnkopia och publicerade profil raderas inte.",
+    },
+    "Remove failed": { sv: "Borttagningen misslyckades" },
+    "The archive could not be removed. This browser and your other copies were not changed.": {
+      sv: "Arkivet kunde inte tas bort. Den här webbläsaren och dina andra kopior ändrades inte.",
+    },
+    "This browser now has an empty archive and is disconnected. Your synced cloud copy and published profile were not changed.": {
+      sv: "Den här webbläsaren har nu ett tomt arkiv och är frånkopplad. Din synkade molnkopia och publicerade profil ändrades inte.",
+    },
+    "The archive was removed, but this browser could not disconnect from the account. Sign out before using it again.": {
+      sv: "Arkivet togs bort, men webbläsaren kunde inte kopplas från kontot. Logga ut innan du använder den igen.",
+    },
+    "The archive was removed and disconnected, but sign-out did not finish. Try signing out again.": {
+      sv: "Arkivet togs bort och kopplades från, men utloggningen slutfördes inte. Försök logga ut igen.",
+    },
     "Blind opinion rebuild": { sv: "Blind ombyggnad av åsikter" },
     "Hide your current ratings, rankings, personal awards, and other opinions while you rebuild them from scratch. The originals stay private and can be restored or deliberately compared at any time.": {
       sv: "Dölj dina nuvarande betyg, rankningar, personliga priser och andra åsikter medan du bygger om dem från grunden. Originalen förblir privata och kan återställas eller jämföras medvetet när som helst.",
@@ -2802,6 +2865,20 @@
       sv: "Molnsynkronisering är låst tills arbetsytan har kopplats till det inloggade kontot.",
     },
     "Delete cloud account data": { sv: "Radera molnkontodata" },
+    "Cloud storage": { sv: "Molnlagring" },
+    "Delete synced cloud copy": { sv: "Radera synkad molnkopia" },
+    "Deletes the private sync copy stored online, then signs this browser out. The archive in this browser, your Google login, and any published profile stay. Signing in again from a browser that still has the archive can upload it again. A full backup downloads first.": {
+      sv: "Raderar den privata synkkopian som lagras online och loggar sedan ut webbläsaren. Arkivet i webbläsaren, din Google-inloggning och publicerade profiler finns kvar. Om du loggar in igen från en webbläsare som har kvar arkivet kan det laddas upp på nytt. En fullständig säkerhetskopia laddas ned först.",
+    },
+    "A public profile ({name}) may still be published. This does not take it down. ": {
+      sv: "En offentlig profil ({name}) kan fortfarande vara publicerad. Den tas inte ner av detta. ",
+    },
+    "Delete the synced cloud copy? A backup downloads first. The archive in this browser stays, and you will be signed out. Any browser with a retained archive can upload it again.": {
+      sv: "Radera den synkade molnkopian? En säkerhetskopia laddas ned först. Arkivet i den här webbläsaren finns kvar och du loggas ut. Alla webbläsare som har kvar arkivet kan ladda upp det igen.",
+    },
+    "Deleted the synced cloud copy and verified {count} part(s). Signing out now. This browser's archive was not changed.": {
+      sv: "Raderade den synkade molnkopian och verifierade {count} del(ar). Loggar ut nu. Arkivet i den här webbläsaren ändrades inte.",
+    },
     "Permanently deletes every document Firestore holds for this account - every synced section and this device's sync history. A full backup downloads first. This is final; there is no admin-side recovery once it verifies removal.":
       {
         sv: "Raderar permanent alla dokument Firestore lagrar för det här kontot - varje synkroniserad sektion och den här enhetens synkroniseringshistorik. En fullständig säkerhetskopia laddas ned först. Detta är slutgiltigt; det finns ingen återställning från administratörssidan efter att raderingen har verifierats.",
@@ -3018,6 +3095,9 @@
     "Reset {count} film rank(s).": {
       sv: "Återställde {count} filmrankning(ar).",
     },
+    "Reset the order for {count} film(s). Ratings and awards stayed the same.": {
+      sv: "Återställde ordningen för {count} film(er). Betyg och priser förblev oförändrade.",
+    },
     "Remove awards": { sv: "Ta bort priser" },
     "Removing...": { sv: "Tar bort..." },
     "Choose at least one period type.": {
@@ -3029,6 +3109,9 @@
       },
     "Removed {count} nomination(s).": {
       sv: "Tog bort {count} nominering(ar).",
+    },
+    "Removed {count} award placement(s). Your other opinions stayed the same.": {
+      sv: "Tog bort {count} prisplacering(ar). Dina andra åsikter förblev oförändrade.",
     },
     "every film": { sv: "alla filmer" },
     "{from}–{to}": { sv: "{from}–{to}" },
