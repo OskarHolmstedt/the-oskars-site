@@ -1054,6 +1054,78 @@ async function initializeDataWorkspace() {
         button.textContent = ui("Remove from this browser");
       }, 1400);
     });
+  document
+    .getElementById("clearLocalKeepSignedInBtn")
+    .addEventListener("click", async () => {
+      if (
+        !confirm(
+          ui(
+            "Clear this browser's local archive? A backup downloads first, then this browser is emptied. You stay signed in, and nothing changes in your synced cloud copy until you choose to sync or discard below.",
+          ),
+        )
+      )
+        return;
+      let button = document.getElementById("clearLocalKeepSignedInBtn");
+      button.disabled = true;
+      button.textContent = ui("Clearing...");
+      let stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      window.downloadDataSnapshot?.(
+        `oskars-data-backup-before-local-clear-${stamp}.json`,
+      );
+      let cleared = await window.clearStoredOskarsData({
+        scheduleSync: false,
+        keepRemoteSync: true,
+      });
+      renderDataWorkspace();
+      button = document.getElementById("clearLocalKeepSignedInBtn");
+      let status = document.getElementById("clearLocalKeepSignedInStatus");
+      button.disabled = false;
+      button.textContent = cleared ? ui("Cleared") : ui("Clear failed");
+      if (status)
+        status.textContent = cleared
+          ? ui(
+              "This browser's archive is now empty. You're still signed in and nothing has changed in your synced cloud copy - sync when you're ready to keep this, or discard to bring the cloud copy back.",
+            )
+          : ui(
+              "The archive could not be cleared. This browser was not changed.",
+            );
+      setTimeout(() => {
+        button.textContent = ui("Clear local data");
+      }, 1400);
+    });
+  document
+    .getElementById("discardLocalRestoreCloudBtn")
+    .addEventListener("click", async () => {
+      if (
+        !confirm(
+          ui(
+            "Discard this browser's current local archive and reload your synced cloud copy instead? A backup of the local archive downloads first, but it will not be restored automatically.",
+          ),
+        )
+      )
+        return;
+      let button = document.getElementById("discardLocalRestoreCloudBtn");
+      button.disabled = true;
+      button.textContent = ui("Restoring...");
+      let stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      window.downloadDataSnapshot?.(
+        `oskars-data-backup-before-discard-${stamp}.json`,
+      );
+      let cleared = await window.clearStoredOskarsData({
+        scheduleSync: false,
+      });
+      if (cleared) {
+        window.location.reload();
+        return;
+      }
+      button.disabled = false;
+      button.textContent = ui("Discard local changes, restore cloud copy");
+      let status = document.getElementById("clearLocalKeepSignedInStatus");
+      if (status)
+        status.textContent = ui(
+          "The archive could not be cleared. This browser was not changed.",
+        );
+    });
   function dangerZoneYearBound(input) {
     let value = Number(input.value);
     return input.value && Number.isFinite(value) ? value : undefined;

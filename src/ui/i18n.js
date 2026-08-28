@@ -520,6 +520,23 @@
     "The archive was removed and disconnected, but sign-out did not finish. Try signing out again.": {
       sv: "Arkivet togs bort och kopplades från, men utloggningen slutfördes inte. Försök logga ut igen.",
     },
+    "Clear this browser's local archive? A backup downloads first, then this browser is emptied. You stay signed in, and nothing changes in your synced cloud copy until you choose to sync or discard below.": {
+      sv: "Rensa webbläsarens lokala arkiv? En säkerhetskopia laddas ned först, sedan töms webbläsaren. Du förblir inloggad, och inget ändras i din synkade molnkopia förrän du väljer att synka eller förkasta nedan.",
+    },
+    "This browser's archive is now empty. You're still signed in and nothing has changed in your synced cloud copy - sync when you're ready to keep this, or discard to bring the cloud copy back.": {
+      sv: "Webbläsarens arkiv är nu tomt. Du är fortfarande inloggad och inget har ändrats i din synkade molnkopia - synka när du är redo att behålla detta, eller förkasta för att hämta tillbaka molnkopian.",
+    },
+    "The archive could not be cleared. This browser was not changed.": {
+      sv: "Arkivet kunde inte rensas. Den här webbläsaren ändrades inte.",
+    },
+    "Clear local data": { sv: "Rensa lokal data" },
+    "Discard this browser's current local archive and reload your synced cloud copy instead? A backup of the local archive downloads first, but it will not be restored automatically.": {
+      sv: "Förkasta webbläsarens nuvarande lokala arkiv och läs in din synkade molnkopia istället? En säkerhetskopia av det lokala arkivet laddas ned först, men den återställs inte automatiskt.",
+    },
+    "Restoring...": { sv: "Återställer..." },
+    "Discard local changes, restore cloud copy": {
+      sv: "Förkasta lokala ändringar, återställ molnkopia",
+    },
     "Blind opinion rebuild": { sv: "Blind ombyggnad av åsikter" },
     "Hide your current ratings, rankings, personal awards, and other opinions while you rebuild them from scratch. The originals stay private and can be restored or deliberately compared at any time.": {
       sv: "Dölj dina nuvarande betyg, rankningar, personliga priser och andra åsikter medan du bygger om dem från grunden. Originalen förblir privata och kan återställas eller jämföras medvetet när som helst.",
@@ -2776,20 +2793,20 @@
     "Sign in with Google to sync this workspace across your devices.": {
       sv: "Logga in med Google för att synkronisera denna arbetsyta mellan dina enheter.",
     },
-    "{count} item(s) changed on this device and elsewhere - choose which version to keep for each:":
+    "{count} item(s) differ from the cloud copy - choose which version to keep for each:":
       {
-        sv: "{count} objekt har ändrats på den här enheten och någon annanstans - välj vilken version som ska behållas för varje:",
+        sv: "{count} objekt skiljer sig från molnkopian - välj vilken version som ska behållas för varje:",
       },
-    "Keep this device's version": { sv: "Behåll den här enhetens version" },
-    "Use the other device's version": { sv: "Använd den andra enhetens version" },
+    "Keep my version": { sv: "Behåll min version" },
+    "Use the cloud version": { sv: "Använd molnversionen" },
     "Preview changes": { sv: "Förhandsgranska ändringar" },
     "Loading preview...": { sv: "Laddar förhandsgranskning..." },
     "Could not load preview. Try again.": {
       sv: "Kunde inte ladda förhandsgranskning. Försök igen.",
     },
-    "This section's content differs between devices. Individual changes can't be previewed for this data type.":
+    "This content differs from the cloud copy. Individual changes can't be previewed for this data type.":
       {
-        sv: "Innehållet i den här sektionen skiljer sig mellan enheter. Enskilda ändringar kan inte förhandsgranskas för denna datatyp.",
+        sv: "Innehållet skiljer sig från molnkopian. Enskilda ändringar kan inte förhandsgranskas för denna datatyp.",
       },
     "No content differences found.": {
       sv: "Inga innehållsskillnader hittades.",
@@ -2798,20 +2815,20 @@
       {
         sv: "Innehållet skiljer sig, men inga enskilda postförändringar hittades (ett fält utanför per-post-spårning kan skilja sig).",
       },
-    "The other device's version would add": {
-      sv: "Den andra enhetens version skulle lägga till",
+    "The cloud version would add": {
+      sv: "Molnversionen skulle lägga till",
     },
-    "Using the other device's version would discard": {
-      sv: "Att använda den andra enhetens version skulle förkasta",
+    "Using the cloud version would discard": {
+      sv: "Att använda molnversionen skulle förkasta",
     },
-    "The other device's version would change": {
-      sv: "Den andra enhetens version skulle ändra",
+    "The cloud version would change": {
+      sv: "Molnversionen skulle ändra",
     },
     "+{count} more": { sv: "+{count} till" },
     "(+{count} more not shown)": { sv: "(+{count} till visas inte)" },
-    "Use the other device's version? This device's current version will be retained for recovery.":
+    "Use the cloud version? Your current version will be kept so you can restore it.":
       {
-        sv: "Använd den andra enhetens version? Den här enhetens nuvarande version kommer att behållas för återställning.",
+        sv: "Använd molnversionen? Din nuvarande version behålls så att du kan återställa den.",
       },
     "Resolved.": { sv: "Löst." },
     "Restore previous": { sv: "Återställ föregående" },
@@ -2826,9 +2843,9 @@
     "Nothing to restore.": { sv: "Inget att återställa." },
     "Sync now": { sv: "Synkronisera nu" },
     "Syncing...": { sv: "Synkroniserar..." },
-    "{count} item(s) changed on this device and elsewhere - see below to choose which version to keep.":
+    "{count} item(s) differ from the cloud copy - see below to choose which version to keep.":
       {
-        sv: "{count} objekt har ändrats på den här enheten och någon annanstans - se nedan för att välja vilken version som ska behållas.",
+        sv: "{count} objekt skiljer sig från molnkopian - se nedan för att välja vilken version som ska behållas.",
       },
     "Cloud sync hit an error - it will retry automatically.": {
       sv: "Molnsynkroniseringen stötte på ett fel - den försöker igen automatiskt.",
@@ -2837,8 +2854,8 @@
       {
         sv: "Det här kontot är inte auktoriserat för molnsynkronisering på den här driftsättningen. Ändringar sparas lokalt på den här enheten.",
       },
-    "Synced: {pushed} shard(s) uploaded, {pulled} shard(s) downloaded.": {
-      sv: "Synkroniserat: {pushed} del(ar) uppladdade, {pulled} del(ar) nedladdade.",
+    "Synced: {pushed} uploaded, {pulled} downloaded.": {
+      sv: "Synkroniserat: {pushed} uppladdade, {pulled} nedladdade.",
     },
     "Already up to date.": { sv: "Redan uppdaterad." },
     "Load complete archive from cloud": { sv: "Läs in fullständigt arkiv från molnet" },

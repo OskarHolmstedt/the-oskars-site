@@ -928,8 +928,46 @@
     return merged;
   }
 
+  function enrichGoogleImportedStateFromSharedArchive(importedState, reports) {
+    let importedPeriods = new Set(
+      reports.flatMap((report) => report.periods || []),
+    );
+    importedPeriods.forEach((period) => {
+      (importedState.years?.[period]?.films || []).forEach((film) =>
+        window.enrichPersonalRecordFromSharedArchive?.(film, "film"),
+      );
+    });
+    if (
+      reports.some(
+        (report) =>
+          ["watchlist", "franchises", "directors"].includes(report.rangeKey) &&
+          (report.filmsParsed || report.sheetRows),
+      )
+    ) {
+      (importedState.watchlist || []).forEach((item) =>
+        window.enrichPersonalRecordFromSharedArchive?.(item, "watchlist"),
+      );
+    }
+    if (
+      reports.some(
+        (report) =>
+          ["diary", "franchises", "directors"].includes(report.rangeKey) &&
+          (report.filmsParsed || report.sheetRows),
+      )
+    ) {
+      (importedState.watchedOther || []).forEach((item) =>
+        window.enrichPersonalRecordFromSharedArchive?.(item, "film"),
+      );
+    }
+    return importedState;
+  }
+
   function mergeImportedGoogleState(localState, incomingState, reports) {
     let merged = window.cloneRecord(localState);
+    incomingState = enrichGoogleImportedStateFromSharedArchive(
+      window.cloneRecord(incomingState),
+      reports,
+    );
     let findLocalFilm = buildFilmMatcher(localState);
     let importedPeriods = new Set(
       reports.flatMap((report) => report.periods || []),
@@ -1164,6 +1202,8 @@
           });
         }
       });
+
+      enrichGoogleImportedStateFromSharedArchive(window.state, reports);
 
       if (options.merge) {
         window.state = mergeImportedGoogleState(

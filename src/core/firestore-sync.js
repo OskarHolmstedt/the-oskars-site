@@ -591,15 +591,25 @@ async function performWorkspaceSync(options = {}) {
   let { firestoreModule, db } = ready;
   let uid = user.uid;
 
-  // Push only ever happens on an explicit user action - a manual sync
-  // click or an explicit per-shard conflict resolution - never as a side
-  // effect of sign-in, reconnect, tab focus, or the post-save debounce.
-  // Those automatic triggers still pull remote changes and detect
-  // conflicts (safe: a shard with a local change is planned as "push" or
-  // "conflict", never "pull", so this can't clobber an in-progress local
-  // edit), keeping "just inspecting" fresh against the cloud without ever
-  // silently writing local edits to it.
-  let allowPush = syncReason === "manual" || syncReason === "conflict-resolution";
+  // Push now runs on every trigger by default (issue #384 Stage 1) - an
+  // edit should reach the cloud without a manual "Sync now" click. The one
+  // exception is a workspace explicitly on hold: clearStoredOskarsData({
+  // keepRemoteSync: true}) (issue #383's "clear local data, stay signed
+  // in") sets draftMetadata.pushHeld so every shard reads as a local-only
+  // change without being auto-pushed - otherwise the very next automatic
+  // trigger after that kind of clear would silently push the emptied
+  // state over the untouched cloud copy before the user chooses
+  // sync-vs-discard, turning a deliberately reversible action destructive.
+  // An explicit manual sync or conflict resolution still pushes even while
+  // held, and this function clears the hold itself the moment anything
+  // actually pushes (below). Held or not, pull and conflict detection are
+  // unaffected either way: a shard with a local change is still never
+  // planned as "pull" (planWorkspaceShardSync's own structural guarantee),
+  // so an automatic pass can never clobber an in-progress local edit.
+  let allowPush =
+    syncReason === "manual" ||
+    syncReason === "conflict-resolution" ||
+    !window.state?.draftMetadata?.pushHeld;
   let canonical = window.getCanonicalData(window.state, { clone: false });
   let sectionKeys = window.OSKARS_CANONICAL_SECTION_KEYS || [];
   let sectionResults = await Promise.all(
@@ -639,6 +649,13 @@ async function performWorkspaceSync(options = {}) {
 
   window.state.draftMetadata = {
     ...(window.state.draftMetadata || {}),
+    // A hold only exists to stop auto-push from silently overriding a
+    // deliberate decision that hasn't been made yet (issue #383/#384
+    // Stage 1) - once anything has actually pushed (only possible here
+    // while held via an explicit manual sync, since allowPush already
+    // gated it above), that decision has been made, so the hold no longer
+    // applies to whatever the workspace does next.
+    ...(pushedCount > 0 ? { pushHeld: false } : {}),
     remoteSync: {
       uid: user.uid,
       shards: nextShards,
@@ -919,6 +936,7 @@ let pendingSyncBadgeWired = false;
  * the existing status pill (reportWorkspaceSyncStatus already owns that).
  */
 window.refreshPendingSyncBadge = function () {
+  window.updateBeforeUnloadGuard();
   if (!document?.body) return;
   let count = window.countPendingWorkspaceEdits();
   let badge = document.querySelector("#pendingSyncBadge");
@@ -1007,13 +1025,40 @@ window.addEventListener(
   true,
 );
 
-window.addEventListener("beforeunload", (event) => {
+function beforeUnloadGuard(event) {
   if (suppressNextBeforeUnloadWarning) return;
   if (window.countPendingWorkspaceEdits() > 0) {
     event.preventDefault();
     event.returnValue = "";
   }
-});
+}
+
+let beforeUnloadGuardAttached = false;
+
+/**
+ * Attaches or detaches the beforeunload guard to match whether there's
+ * anything to protect right now. A *registered* beforeunload listener
+ * disqualifies a page from the browser's back-forward cache even when the
+ * handler never actually calls preventDefault() - browsers can't know in
+ * advance whether it will without running it, so they conservatively rule
+ * out the instant cached restore for the whole page. With push manual-only,
+ * "nothing pending" is the common case for ordinary browsing (no edits,
+ * just looking around), so leaving the listener permanently attached was
+ * silently forcing every same-tab navigation - including back/forward,
+ * which has no other fast path at all - to fall through to a full reload
+ * and, on this account-required deployment, the visible "Checking your
+ * account" gate. Called after every save/sync completion via
+ * refreshPendingSyncBadge() below, and once after initial state hydration
+ * (bootstrap.js) so a page reopened with edits already pending from a
+ * prior session starts out correctly protected.
+ */
+window.updateBeforeUnloadGuard = function () {
+  let hasPending = window.countPendingWorkspaceEdits() > 0;
+  if (hasPending === beforeUnloadGuardAttached) return;
+  beforeUnloadGuardAttached = hasPending;
+  if (hasPending) window.addEventListener("beforeunload", beforeUnloadGuard);
+  else window.removeEventListener("beforeunload", beforeUnloadGuard);
+};
 
 /**
  * Offers to sync before signing out when there are unsynced local edits -
@@ -1240,18 +1285,19 @@ window.previewWorkspaceSyncConflict = async function (sectionKey, shardKey) {
 window.reportWorkspaceSyncStatus = function ({ pushedCount, pulledCount, conflicts, hadError, unauthorized }) {
   if (conflicts && conflicts.length) {
     let first = conflicts[0];
+    let sectionLabel = window.workspaceSectionLabel?.(first.sectionKey) || first.sectionKey;
     let label =
       conflicts.length > 1
-        ? `Cloud sync conflict in ${first.sectionKey} (${conflicts.length} items need a decision)`
-        : `Cloud sync conflict in ${first.sectionKey} — changed on this device and elsewhere`;
+        ? `${sectionLabel} differs from the cloud copy (${conflicts.length} items need a decision)`
+        : `${sectionLabel} differs from the cloud copy`;
     window.showStorageStatus?.(label, "warning", [
       {
-        label: "Keep this device's version",
+        label: "Keep my version",
         run: () =>
           window.resolveWorkspaceSyncConflict(first.sectionKey, first.shardKey, "keep-local"),
       },
       {
-        label: "Use the other device's version",
+        label: "Use the cloud version",
         run: () =>
           window.resolveWorkspaceSyncConflict(first.sectionKey, first.shardKey, "keep-remote"),
       },
@@ -1260,7 +1306,7 @@ window.reportWorkspaceSyncStatus = function ({ pushedCount, pulledCount, conflic
   }
   if (unauthorized) {
     window.showStorageStatus?.(
-      "Cloud sync unavailable for this account — changes are saved locally on this device only",
+      "Cloud sync unavailable for this account — changes are saved locally only",
       "warning",
     );
     return;

@@ -14,6 +14,24 @@ window.OSKARS_SHARED_FILM_ARCHIVE_BY_DIRECTOR = {};
 window.OSKARS_SHARED_FILM_ARCHIVE_VERSION = 0;
 window.OSKARS_SHARED_FILM_ARCHIVE_STATUS = "idle";
 let sharedFilmArchiveListeners = new Set();
+let sharedFilmArchiveIdentitySource = null;
+let sharedFilmArchiveByTitleYear = new Map();
+
+function rebuildSharedFilmArchiveIdentityIndex() {
+  let source = window.OSKARS_SHARED_FILM_ARCHIVE || {};
+  if (source === sharedFilmArchiveIdentitySource) return;
+  sharedFilmArchiveIdentitySource = source;
+  sharedFilmArchiveByTitleYear = new Map();
+  Object.values(source).forEach((film) => {
+    let title = window.normalizeTitle(film?.title || "");
+    let year = String(film?.year || "").trim();
+    if (!title || !year) return;
+    let key = `${year}::${title}`;
+    let matches = sharedFilmArchiveByTitleYear.get(key) || [];
+    matches.push(film);
+    sharedFilmArchiveByTitleYear.set(key, matches);
+  });
+}
 
 /**
  * Groups a flat tmdbId-keyed shared-film map by director personId, sorted
@@ -88,6 +106,75 @@ window.sharedArchiveFilmDirectorNames = function (film) {
     .filter((credit) => (credit.professions || []).includes("Director"))
     .map((credit) => String(credit.name || ""))
     .filter(Boolean);
+};
+
+/**
+ * Finds an objective shared-archive record for one personal/import record.
+ * TMDB identity wins; title/year fallback is accepted only when exactly one
+ * shared film has that identity, so imports never borrow metadata from an
+ * ambiguous remake or duplicate.
+ * @param {FilmRecord|WatchlistItem|WatchedOtherEntry} record Personal record.
+ * @returns {Object|null} Matching shared record, if unambiguous.
+ */
+window.sharedArchiveFilmForPersonalRecord = function (record) {
+  if (!record) return null;
+  let tmdbId = String(record.tmdbId || "").trim();
+  if (tmdbId && window.OSKARS_SHARED_FILM_ARCHIVE?.[tmdbId])
+    return window.OSKARS_SHARED_FILM_ARCHIVE[tmdbId];
+  let title = window.normalizeTitle(record.title || "");
+  let year = String(record.year || "").trim();
+  if (!title || !year) return null;
+  rebuildSharedFilmArchiveIdentityIndex();
+  let matches = sharedFilmArchiveByTitleYear.get(`${year}::${title}`) || [];
+  return matches.length === 1 ? matches[0] : null;
+};
+
+function sharedArchiveMetadataMissing(value) {
+  if (Array.isArray(value)) return value.length === 0;
+  if (value && typeof value === "object") return false;
+  let text = String(value ?? "").trim();
+  return !text || text === "0" || text.toLocaleLowerCase() === "unknown";
+}
+
+/**
+ * Fills missing objective metadata on an imported personal record from its
+ * unambiguous shared-archive counterpart. Personal viewing facts, opinions,
+ * collection membership, and any already-populated objective values remain
+ * authoritative.
+ * @param {FilmRecord|WatchlistItem|WatchedOtherEntry} record Imported record.
+ * @param {'film'|'watchlist'} [target] Canonical target shape.
+ * @returns {FilmRecord|WatchlistItem|WatchedOtherEntry} Enriched input record.
+ */
+window.enrichPersonalRecordFromSharedArchive = function (
+  record,
+  target = "film",
+) {
+  let shared = window.sharedArchiveFilmForPersonalRecord(record);
+  if (!shared) return record;
+  let fields = [
+    "tmdbId",
+    "poster",
+    "country",
+    "runtimeMinutes",
+    "swedishTitle",
+  ];
+  if (target !== "watchlist") fields.push("primaryCountry", "type");
+  fields.forEach((field) => {
+    if (
+      sharedArchiveMetadataMissing(record[field]) &&
+      !sharedArchiveMetadataMissing(shared[field])
+    ) {
+      record[field] = window.cloneRecord
+        ? window.cloneRecord(shared[field])
+        : shared[field];
+    }
+  });
+  let directors = window.sharedArchiveFilmDirectorNames(shared);
+  if (sharedArchiveMetadataMissing(record.directors) && directors.length)
+    record.directors = directors.slice();
+  if (sharedArchiveMetadataMissing(record.director) && directors.length)
+    record.director = directors.join(", ");
+  return record;
 };
 
 function sharedArchiveTitleYearKey(record) {

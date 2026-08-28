@@ -167,11 +167,11 @@
       return;
     }
     container.innerHTML =
-      `<p>${ui("{count} item(s) changed on this device and elsewhere - choose which version to keep for each:", { count: conflicts.length })}</p>` +
+      `<p>${ui("{count} item(s) differ from the cloud copy - choose which version to keep for each:", { count: conflicts.length })}</p>` +
       conflicts
         .map(
           (conflict) =>
-            `<div class="cloud-sync-conflict-item"><div class="cloud-sync-conflict-row"><span>${escape(conflict.sectionKey)} / ${escape(conflict.shardKey)}</span><button type="button" data-preview data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Preview changes")}</button><button type="button" data-resolve="keep-local" data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Keep this device's version")}</button><button type="button" data-resolve="keep-remote" data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Use the other device's version")}</button></div><div class="cloud-sync-conflict-preview" hidden></div></div>`,
+            `<div class="cloud-sync-conflict-item"><div class="cloud-sync-conflict-row"><span>${escape(window.workspaceSectionLabel?.(conflict.sectionKey) || conflict.sectionKey)}</span><button type="button" data-preview data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Preview changes")}</button><button type="button" data-resolve="keep-local" data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Keep my version")}</button><button type="button" data-resolve="keep-remote" data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Use the cloud version")}</button></div><div class="cloud-sync-conflict-preview" hidden></div></div>`,
         )
         .join("");
   }
@@ -197,7 +197,7 @@
 
   function renderConflictPreview(container, diff) {
     if (diff.kind === "opaque") {
-      container.innerHTML = `<p>${ui("This section's content differs between devices. Individual changes can't be previewed for this data type.")}</p>`;
+      container.innerHTML = `<p>${ui("This content differs from the cloud copy. Individual changes can't be previewed for this data type.")}</p>`;
       return;
     }
     if (!diff.changed) {
@@ -206,15 +206,15 @@
     }
     let groups =
       conflictPreviewGroupHtml(
-        ui("The other device's version would add"),
+        ui("The cloud version would add"),
         { entries: diff.added, total: diff.addedTotal },
       ) +
       conflictPreviewGroupHtml(
-        ui("Using the other device's version would discard"),
+        ui("Using the cloud version would discard"),
         { entries: diff.removed, total: diff.removedTotal },
       ) +
       conflictPreviewGroupHtml(
-        ui("The other device's version would change"),
+        ui("The cloud version would change"),
         { entries: diff.changedRecords, total: diff.changedTotal },
       );
     container.innerHTML =
@@ -272,7 +272,7 @@
       button.dataset.resolve === "keep-remote" &&
       typeof window.confirm === "function" &&
       !window.confirm(
-        ui("Use the other device's version? This device's current version will be retained for recovery."),
+        ui("Use the cloud version? Your current version will be kept so you can restore it."),
       )
     )
       return;
@@ -310,7 +310,7 @@
     if (!result) return;
     if (result.conflicts?.length) {
       status.textContent = ui(
-        "{count} item(s) changed on this device and elsewhere - see below to choose which version to keep.",
+        "{count} item(s) differ from the cloud copy - see below to choose which version to keep.",
         { count: result.conflicts.length },
       );
     } else if (result.unauthorized) {
@@ -328,7 +328,7 @@
       );
     } else if (result.pushedCount || result.pulledCount) {
       status.textContent = ui(
-        "Synced: {pushed} shard(s) uploaded, {pulled} shard(s) downloaded.",
+        "Synced: {pushed} uploaded, {pulled} downloaded.",
         { pushed: result.pushedCount, pulled: result.pulledCount },
       );
     } else {

@@ -245,14 +245,19 @@
         let targetKeys = new Set(keysFor(archive));
         archiveRecords
           .filter((record) => keysFor(record).some((key) => targetKeys.has(key)))
-          .forEach((record) => applyViewingFacts(record, row, facts));
+          .forEach((record) => {
+            applyViewingFacts(record, row, facts);
+            window.enrichPersonalRecordFromSharedArchive?.(record, "film");
+          });
         report.watchedArchiveMerged += 1;
       } else if (existingOther) {
         applyViewingFacts(existingOther, row, facts);
+        window.enrichPersonalRecordFromSharedArchive?.(existingOther, "film");
         report.watchedOtherMerged += 1;
       } else if (archiveWasEmpty && validYear) {
         let entry = freshWatchedRecordFields(row, validYear);
         applyViewingFacts(entry, row, facts);
+        window.enrichPersonalRecordFromSharedArchive?.(entry, "film");
         window.state.years[row.year] ||= { periodType: "years", films: [] };
         window.state.years[row.year].films.push(entry);
         archiveRecords.push(entry);
@@ -264,6 +269,7 @@
           rowNumber: row._rowNumber,
         };
         applyViewingFacts(entry, row, facts);
+        window.enrichPersonalRecordFromSharedArchive?.(entry, "film");
         window.state.watchedOther ||= [];
         window.state.watchedOther.push(entry);
         keysFor(entry).forEach((key) => otherLookup.set(key, entry));
@@ -288,6 +294,7 @@
       if (existing) {
         if (!existing.letterboxdUrl) existing.letterboxdUrl = row["letterboxd uri"] || "";
         if (!existing.added && /^\d{4}-\d{2}-\d{2}$/.test(row.date)) existing.added = row.date;
+        window.enrichPersonalRecordFromSharedArchive?.(existing, "watchlist");
         report.watchlistMerged += 1;
         return;
       }
@@ -298,6 +305,7 @@
         order: ++maximumOrder,
       });
       if (/^\d{4}-\d{2}-\d{2}$/.test(row.date)) item.added = row.date;
+      window.enrichPersonalRecordFromSharedArchive?.(item, "watchlist");
       current.push(item);
       keysFor(item).forEach((key) => lookup.set(key, item));
       report.watchlistAdded += 1;

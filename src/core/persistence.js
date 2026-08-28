@@ -726,13 +726,36 @@ function intentionalClearDraftMetadata() {
  * Replaces persisted data with empty, fully migrated local state.
  * @param {Object} [options] Clear behavior.
  * @param {boolean} [options.scheduleSync=true] Whether cloud reconciliation is scheduled afterward.
+ * @param {boolean} [options.keepRemoteSync=false] Whether to carry this
+ *   device's per-shard last-synced revisions (`draftMetadata.remoteSync`)
+ *   forward through the clear instead of dropping them, and mark the
+ *   workspace `pushHeld` (issue #384 Stage 1). Dropping them (the default,
+ *   used by the destructive "remove this browser" flow, which also
+ *   detaches and signs out) makes every shard look never-synced to
+ *   `planWorkspaceShardSync` - safe there only because signing out means
+ *   nothing syncs again until a fresh, deliberate sign-in. Keeping them
+ *   (used by a same-session "clear but stay signed in" flow) makes every
+ *   shard compare as a local-only change instead - and since ordinary
+ *   sync passes now push local-only changes automatically (issue #384
+ *   Stage 1, not just on an explicit manual sync anymore), `pushHeld` is
+ *   what actually keeps the cleared state from being silently pushed over
+ *   the untouched cloud copy by the very next automatic trigger, before
+ *   the user gets to choose sync-vs-discard. `performWorkspaceSync`
+ *   clears `pushHeld` itself the moment anything successfully pushes
+ *   (manually, while held) - see `firestore-sync.js`.
  * @returns {Promise<boolean>} Whether cleared state was persisted.
  */
 window.clearStoredOskarsData = function (options = {}) {
   let cleared = window.createClearedLocalState
     ? window.createClearedLocalState()
     : window.createEmptyState();
-  cleared.draftMetadata = intentionalClearDraftMetadata();
+  cleared.draftMetadata = options.keepRemoteSync
+    ? {
+        ...intentionalClearDraftMetadata(),
+        remoteSync: window.state?.draftMetadata?.remoteSync,
+        pushHeld: true,
+      }
+    : intentionalClearDraftMetadata();
   return window.replaceStoredState(cleared, {
     message: "Local data cleared",
     fallbackMessage: "Local data cleared using fallback storage",

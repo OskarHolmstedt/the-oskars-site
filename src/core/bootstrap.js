@@ -489,6 +489,7 @@ window.ensureOskarsData = async function () {
   }
   window.renderSiteHeader?.();
   window.refreshOskarsBackdrop?.();
+  window.updateBeforeUnloadGuard?.();
   // A failed/absent profile load already reported its own specific reason
   // (ensurePublicProfileData); the generic local-mode reconciliation status
   // below would otherwise silently overwrite it with something misleading

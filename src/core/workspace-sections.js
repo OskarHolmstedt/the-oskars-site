@@ -59,6 +59,39 @@ const WORKSPACE_SECTION_SPECS = {
     );
 })();
 
+// Plain-language names for the sync conflict UI (issue #248 follow-up): a
+// camelCase section key like "officialResults" or "personPortraits" is
+// implementation detail, not something an owner should have to parse to
+// decide "keep mine or use the cloud's". Sections not listed here (rare in
+// practice - real per-record edit conflicts cluster on the ones below) fall
+// back to a humanized version of the key itself, never the raw key.
+const WORKSPACE_SECTION_LABELS = {
+  years: "Watched films (by ceremony year)",
+  officialResults: "Academy Awards reference data",
+  collectionAwards: "Franchise and director awards",
+  watchlist: "Watchlist",
+  watchedFilms: "Other watched films",
+  personPortraits: "Person photos",
+  peopleAliases: "Name aliases",
+  franchiseLinks: "Franchise links",
+  directorLinks: "Director links",
+  editLog: "Edit history",
+};
+
+/**
+ * A plain-language label for a canonical section key, for surfaces (the
+ * sync conflict list, its status badge) shown directly to the workspace
+ * owner rather than to developers.
+ * @param {string} sectionKey One of window.OSKARS_CANONICAL_SECTION_KEYS.
+ * @returns {string} Human-readable label, never the raw camelCase key.
+ */
+window.workspaceSectionLabel = function (sectionKey) {
+  if (WORKSPACE_SECTION_LABELS[sectionKey]) return WORKSPACE_SECTION_LABELS[sectionKey];
+  return String(sectionKey || "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/^./, (c) => c.toUpperCase());
+};
+
 function workspaceIsRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

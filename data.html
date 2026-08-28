@@ -224,6 +224,25 @@
                 Remove from this browser
               </button>
             </section>
+            <section class="data-panel">
+              <div>
+                <h2>Clear local data, stay signed in</h2>
+                <p>
+                  Download a backup, then empty this browser's archive
+                  without disconnecting or signing out. Nothing changes in
+                  your synced cloud copy until you choose what to do next.
+                </p>
+                <p id="clearLocalKeepSignedInStatus" class="data-panel-status" role="status"></p>
+              </div>
+              <div class="data-panel-actions">
+                <button id="clearLocalKeepSignedInBtn" type="button">
+                  Clear local data
+                </button>
+                <button id="discardLocalRestoreCloudBtn" type="button">
+                  Discard local changes, restore cloud copy
+                </button>
+              </div>
+            </section>
           </div>
           <section class="data-panel" id="fetchMetadata">
             <h2>Fetch film details and images</h2>
