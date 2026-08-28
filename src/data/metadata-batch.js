@@ -89,17 +89,14 @@ window.metadataBatchPreviewCount = function (type) {
 
 let lastMetadataBatch = null;
 window.lastMetadataBatch = null;
-let metadataBatchTypes = [
-  "film-metadata",
-  "watchlist-metadata",
-  "film-posters",
-  "watchlist-posters",
-  "person-portraits",
-];
-let nonArchiveMetadataBatchTypes = [
-  "non-archive-metadata",
-  "non-archive-posters",
-];
+// film-posters/watchlist-posters/non-archive-posters are deliberately not
+// listed here even though runMetadataBatchType still dispatches them -
+// issue #386 made the metadata batches also fetch posters, so a poster-only
+// pass here would always find nothing left to do. The dispatch branches stay
+// live for session-failure retries from completion.js's own direct
+// fetchWatchlistPosters call (issue #387).
+let metadataBatchTypes = ["film-metadata", "watchlist-metadata", "person-portraits"];
+let nonArchiveMetadataBatchTypes = ["non-archive-metadata"];
 
 function metadataReportEscape(value) {
   return String(value ?? "").replace(

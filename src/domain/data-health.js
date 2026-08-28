@@ -176,7 +176,7 @@ function dataHealthMissingQueues() {
     dataHealthQueue(
       "filmPosters",
       "Watched films missing poster",
-      "film-posters",
+      "film-metadata",
       [...watchedFilms.values()]
         .filter((film) => !window.normalizePosterRecord?.(film.poster))
         .map(filmEntry),
@@ -211,7 +211,7 @@ function dataHealthMissingQueues() {
     dataHealthQueue(
       "watchlistPosters",
       "Watchlist films missing poster",
-      "watchlist-posters",
+      "watchlist-metadata",
       watchlist
         .filter((item) => !window.normalizePosterRecord?.(item.poster))
         .map(dataHealthWatchlistEntry),

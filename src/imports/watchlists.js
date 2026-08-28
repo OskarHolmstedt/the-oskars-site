@@ -1236,14 +1236,23 @@ window.fetchWatchlistPosters = async function (items, options = {}) {
 
 /**
  * Reports whether a watchlist item lacks TMDB identity, director, or
- * runtime metadata.
+ * runtime metadata, or a poster (issue #386 - lookupTmdbMovieMetadata's
+ * single TMDB call already returns poster_path regardless of which field
+ * prompted the lookup, and setWatchlistTmdbMetadata already applies it
+ * when missing, so an otherwise-complete item only needs to become
+ * *eligible* for this batch to get it for free - watchlistNeedsPosterLookup
+ * stays the source of truth for what "needs a poster" means, reused
+ * rather than duplicated here).
  * @param {WatchlistItem} item Watchlist item.
  * @returns {boolean}
  */
 window.watchlistNeedsMetadataLookup = function (item) {
   return (
     Boolean(item?.title) &&
-    (!item.tmdbId || !item.director || !item.runtimeMinutes)
+    (!item.tmdbId ||
+      !item.director ||
+      !item.runtimeMinutes ||
+      window.watchlistNeedsPosterLookup(item))
   );
 };
 

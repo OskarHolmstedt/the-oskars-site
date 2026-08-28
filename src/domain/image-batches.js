@@ -39,14 +39,23 @@ window.metadataSessionAttemptCount = function (type) {
   return window.watchlistSessionAttemptCount?.(type) || 0;
 };
 
-/** Tests whether a film lacks fetchable TMDB metadata. @param {FilmRecord} film Film. @returns {boolean} Whether lookup is needed. */
+// Also true on a poster-only gap (issue #386): lookupTmdbMovieMetadata's
+// single TMDB "details" call already returns poster_path alongside
+// director/country/runtime regardless of which field prompted the lookup,
+// and setFilmTmdbMetadata already applies it when the film doesn't already
+// have one - so a film with otherwise-complete metadata but no poster only
+// needs to become *eligible* for this batch to get it for free, no extra
+// network cost. filmNeedsPosterLookup stays the source of truth for what
+// "needs a poster" means, reused rather than duplicated here.
+/** Tests whether a film lacks fetchable TMDB metadata or a poster. @param {FilmRecord} film Film. @returns {boolean} Whether lookup is needed. */
 window.filmNeedsMetadataLookup = function (film) {
   return (
     Boolean(film?.id && film.title) &&
     (!film.tmdbId ||
       !film.director ||
       !film.country ||
-      !film.runtimeMinutes)
+      !film.runtimeMinutes ||
+      window.filmNeedsPosterLookup(film))
   );
 };
 
