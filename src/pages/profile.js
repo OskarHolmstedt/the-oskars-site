@@ -386,7 +386,7 @@
 
   function accountDeletionHtml() {
     return `<span class="eyebrow">${ui("Cloud storage")}</span><h2>${ui("Delete synced cloud copy")}</h2>
-      <p>${ui("Deletes the private sync copy stored online, then signs this browser out. The archive in this browser, your Google login, and any published profile stay. Signing in again from a browser that still has the archive can upload it again. A full backup downloads first.")}</p>
+      <p>${ui("Deletes the private sync copy stored online and clears this browser's private archive, then signs out. Your Google login and any published profile stay. A full backup downloads first.")}</p>
       <div class="data-actions"><button id="accountDeletionBtn" type="button" class="danger-button">${ui("Delete synced cloud copy")}</button></div>
       <p id="accountDeletionStatus" class="data-panel-status" role="status"></p>`;
   }
@@ -418,7 +418,7 @@
       !window.confirm(
         warning +
           ui(
-            "Delete the synced cloud copy? A backup downloads first. The archive in this browser stays, and you will be signed out. Any browser with a retained archive can upload it again.",
+            "Delete the synced cloud copy and this browser's archive? A backup downloads first, then this browser is emptied and you are signed out. Unless another device still has this data, the downloaded backup becomes your only copy.",
           ),
       )
     )
@@ -433,11 +433,22 @@
 
     let result = await window.deleteCloudAccountData?.();
     if (result?.ok) {
-      status.textContent = ui(
-        "Deleted the synced cloud copy and verified {count} part(s). Signing out now. This browser's archive was not changed.",
-        { count: result.sections.length },
-      );
-      await window.signOutOfFirebase?.();
+      let cleared = await window.clearStoredOskarsData?.({ scheduleSync: false });
+      if (cleared) window.detachOskarsBrowserWorkspace?.();
+      status.textContent = cleared
+        ? ui(
+            "Deleted the synced cloud copy and verified {count} part(s), and cleared this browser's archive. Signing out now.",
+            { count: result.sections.length },
+          )
+        : ui(
+            "Deleted the synced cloud copy and verified {count} part(s), but this browser's archive could not be cleared. Try again, or use the Data page's “Remove from this browser” action.",
+            { count: result.sections.length },
+          );
+      if (cleared) await window.signOutOfFirebase?.();
+      else {
+        button.disabled = false;
+        button.textContent = ui("Delete synced cloud copy");
+      }
     } else {
       let failed = (result?.sections || [])
         .filter((s) => !s.ok)

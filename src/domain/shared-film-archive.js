@@ -122,20 +122,144 @@ window.sharedArchiveFilmsOutsideCollection = function (
 };
 
 /**
- * Returns shared-only films whose release year belongs to one period.
+ * Builds one film's people credits from every official nomination it holds
+ * across every source, plus its director(s) - the same
+ * category-to-profession mapping `buildSharedFilmPeopleCredits`
+ * (`src/core/shared-film-metadata-sync.js`) already uses for an organic
+ * account's own award placements, applied here to objective nomination
+ * facts (category/recipient) instead. A film nominated for both Best
+ * Picture and Best Cinematography, say, carries its cinematographer
+ * alongside its director; Best Picture itself has no
+ * `PERSON_AWARD_PROFESSIONS` entry, so it contributes nothing beyond the
+ * director, same as any other unmapped category.
+ * @param {Object[]} nominations Every nomination (any source/period) for one tmdbId.
+ * @param {Object} metadata `OSKARS_BUNDLED_OFFICIAL_FILM_METADATA[tmdbId]` entry.
+ * @returns {Record<string, {name: string, professions: string[], details: string[]}>}
+ */
+function officialNomineeFilmPeopleCredits(nominations, metadata) {
+  let people = {};
+  function addPerson(name, profession) {
+    let personId = window.normalizePersonName?.(name);
+    if (!personId) return;
+    let entry = (people[personId] ||= {
+      name: String(name).trim(),
+      professions: [],
+      details: [],
+    });
+    if (profession && !entry.professions.includes(profession))
+      entry.professions.push(profession);
+  }
+  let directorNames = metadata.directors?.length
+    ? metadata.directors
+    : window.parsePersonCredit?.(metadata.director).names || [];
+  directorNames.forEach((name) => addPerson(name, "Director"));
+  nominations.forEach((nomination) => {
+    let profession = window.PERSON_AWARD_PROFESSIONS?.[nomination.category];
+    if (!profession) return;
+    (window.parsePersonCredit?.(nomination.recipient).names || []).forEach((name) =>
+      addPerson(name, profession),
+    );
+  });
+  return people;
+}
+
+/**
+ * Converts every TMDB-linked official-results nomination into a
+ * shared-archive-shaped candidate record, one per film, aggregating every
+ * nomination that film holds across every source/period (issue #375 -
+ * originally only the first-seen nomination per film contributed anything,
+ * and only its director). Metadata comes entirely from
+ * `OSKARS_BUNDLED_OFFICIAL_FILM_METADATA` (bundled, or live-pulled the same
+ * way for every eligible client via shared-archive-sync.js - no separate
+ * Firestore read needed here) and carries only the same objective fields
+ * `sharedFilmMetadataPayload` does - no category/placement/winner status.
+ * A ceremony period can represent more than one calendar release year
+ * (`officialResultPeriodYears`, e.g. early biennial Academy ceremonies), so
+ * each record keeps every represented year rather than guessing one.
+ * @returns {Object[]} `{tmdbId, title, year, years, poster, country, primaryCountry, runtimeMinutes, swedishTitle, people}`
+ */
+window.officialNomineeSharedFilmRecords = function () {
+  let nominationsByTmdbId = new Map();
+  let firstSeenByTmdbId = new Map();
+  Object.values(window.state?.officialResults || {}).forEach((source) => {
+    Object.entries(source?.periods || {}).forEach(([periodKey, period]) => {
+      let years = window.officialResultPeriodYears?.(periodKey) || [];
+      if (!years.length) return;
+      (period?.nominations || []).forEach((nomination) => {
+        let tmdbId = String(nomination.tmdbId || "");
+        if (!tmdbId) return;
+        if (!nominationsByTmdbId.has(tmdbId)) {
+          nominationsByTmdbId.set(tmdbId, []);
+          firstSeenByTmdbId.set(tmdbId, {
+            title: nomination.sourceTitle || "",
+            years,
+          });
+        }
+        nominationsByTmdbId.get(tmdbId).push(nomination);
+      });
+    });
+  });
+  return [...nominationsByTmdbId.entries()].map(([tmdbId, nominations]) => {
+    let metadata = window.OSKARS_BUNDLED_OFFICIAL_FILM_METADATA?.[tmdbId] || {};
+    let { title, years } = firstSeenByTmdbId.get(tmdbId);
+    return {
+      tmdbId,
+      title,
+      year: years[0],
+      years,
+      poster: metadata.poster || null,
+      country: metadata.country || "",
+      primaryCountry: metadata.primaryCountry || "",
+      runtimeMinutes: metadata.runtimeMinutes || 0,
+      swedishTitle: metadata.swedishTitle || "",
+      people: officialNomineeFilmPeopleCredits(nominations, metadata),
+    };
+  });
+};
+
+/**
+ * Combined Shared archive candidates (issue #371): organic
+ * `sharedFilmMetadata` records plus official-results nominees not already
+ * covered by an organic record for the same film - the organic record wins
+ * on overlap since it may carry richer award-derived people credits from a
+ * real account's own bracket. Both are already filtered to films the
+ * viewer doesn't personally have watched, other-watched, or watchlisted.
+ * @returns {Object[]}
+ */
+window.sharedArchiveCandidateFilms = function () {
+  let organic = window.sharedArchiveFilmsOutsideCollection();
+  let organicTmdbIds = new Set(
+    organic.map((film) => String(film.tmdbId || "")).filter(Boolean),
+  );
+  let nominees = window
+    .sharedArchiveFilmsOutsideCollection(window.officialNomineeSharedFilmRecords())
+    .filter((film) => !organicTmdbIds.has(String(film.tmdbId || "")));
+  return [...organic, ...nominees];
+};
+
+/**
+ * Returns Shared-archive candidates whose release covers one period - a
+ * nominee record may represent more than one calendar year (see
+ * officialNomineeSharedFilmRecords), so membership checks every year it
+ * represents rather than a single assigned one.
  * @param {'year'|'decade'|'century'|'alltime'} type Period URL type.
  * @param {string} key Period key.
  * @returns {Object[]} Chronologically sorted shared-film records.
  */
 window.sharedArchiveFilmsForPeriod = function (type, key) {
   return window
-    .sharedArchiveFilmsOutsideCollection()
+    .sharedArchiveCandidateFilms()
     .filter((film) => {
-      if (!/^\d{4}$/.test(String(film.year || ""))) return false;
+      let years = (film.years || [film.year]).filter((year) =>
+        /^\d{4}$/.test(String(year || "")),
+      );
+      if (!years.length) return false;
       if (type === "alltime") return true;
-      if (type === "year") return String(film.year) === String(key);
-      if (type === "decade") return window.getDecadeKey(film.year) === key;
-      if (type === "century") return window.getCenturyKey(film.year) === key;
+      if (type === "year") return years.some((year) => String(year) === String(key));
+      if (type === "decade")
+        return years.some((year) => window.getDecadeKey(year) === key);
+      if (type === "century")
+        return years.some((year) => window.getCenturyKey(year) === key);
       return false;
     })
     .sort(
@@ -148,29 +272,52 @@ window.sharedArchiveFilmsForPeriod = function (type, key) {
 /**
  * Adds any external film record (shared archive, official-results nominee,
  * or similar - anything with no local film id yet) through the normal
- * watchlist persistence path.
- * @param {Object} record `{title, year, tmdbId, swedishTitle, poster, director}`.
+ * watchlist persistence path, then applies any country/runtime the source
+ * record already carries (issue #376 - normalizeWatchlistItem deliberately
+ * excludes these at creation time for a manual/CSV entry that doesn't know
+ * them yet, but an external record with these fields already resolved
+ * shouldn't lose them on add).
+ * @param {Object} record `{title, year, tmdbId, swedishTitle, poster, director, country, runtimeMinutes}`.
  * @returns {Object} Normal addWatchlistItem result.
  */
 window.addFilmRecordToWatchlist = function (record) {
   if (!record) return { ok: false, reason: "Could not add this film." };
-  return window.addWatchlistItem({
-    title: record.title,
-    year: record.year,
-    tmdbId: record.tmdbId,
-    swedishTitle: record.swedishTitle,
-    poster: record.poster,
-    director: record.director,
-  });
+  let result = window.addWatchlistItem(
+    {
+      title: record.title,
+      year: record.year,
+      tmdbId: record.tmdbId,
+      swedishTitle: record.swedishTitle,
+      poster: record.poster,
+      director: record.director,
+    },
+    { save: false },
+  );
+  if (result.ok)
+    window.setWatchlistTmdbMetadata?.(result.item.id, {
+      tmdbId: record.tmdbId,
+      director: record.director,
+      swedishTitle: record.swedishTitle,
+      poster: record.poster,
+      country: record.country,
+      runtimeMinutes: record.runtimeMinutes,
+    });
+  return result;
 };
 
 /**
- * Adds one shared-film record through the normal watchlist persistence path.
+ * Adds one Shared-archive card's film through the normal watchlist
+ * persistence path. Looks up the combined candidate set (issue #371), not
+ * just OSKARS_SHARED_FILM_ARCHIVE directly, since the card that triggered
+ * this may be an official-results nominee with no entry there.
  * @param {string|number} tmdbId Shared film TMDB id.
  * @returns {Object} Normal addWatchlistItem result.
  */
 window.addSharedArchiveFilmToWatchlist = function (tmdbId) {
-  let film = window.OSKARS_SHARED_FILM_ARCHIVE?.[String(tmdbId || "")];
+  let id = String(tmdbId || "");
+  let film =
+    window.OSKARS_SHARED_FILM_ARCHIVE?.[id] ||
+    window.sharedArchiveCandidateFilms().find((candidate) => String(candidate.tmdbId || "") === id);
   if (!film) return { ok: false, reason: "Could not add this film." };
   return window.addFilmRecordToWatchlist({
     ...film,
@@ -180,22 +327,21 @@ window.addSharedArchiveFilmToWatchlist = function (tmdbId) {
 
 /**
  * Creates a fresh watched-film entry from an external record (shared
- * archive or official-results nominee) and immediately resolves full TMDB
- * metadata for it, the same way intake.js's own fresh-watched-film form
- * does for a brand-new film - so the existing classify-and-route logic
- * (classifyTmdbFilmType/setFilmTmdbMetadata) places it correctly: a real
- * film lands unranked in the archive (shows under "Not yet ranked"),
+ * archive or official-results nominee), so the existing classify-and-route
+ * logic (classifyTmdbFilmType/setFilmTmdbMetadata) places it correctly: a
+ * real film lands unranked in the archive (shows under "Not yet ranked"),
  * anything else (TV/short/documentary) lands in Other Watched.
  *
- * Deliberately calls loadFilmMetadata with skipSharedArchive:true rather
- * than the usual fetchFilmMetadata batch path: this record's tmdbId is
- * already known to be published to the shared metadata archive (that's how
- * we have director/poster/etc. for it in the first place), so the default
- * shared-metadata shortcut would almost certainly fire - and that cached
- * shape carries no genre/type data, silently skipping the routing move
- * entirely. Forcing the full TMDB details fetch here guarantees a real
- * classification instead.
- * @param {Object} record `{title, year, tmdbId, director}`.
+ * When `record.type` is already known (issue #372 - shared records pushed
+ * after schema v2 carry it), that classification is applied directly from
+ * the record via setFilmTmdbMetadata, the same application path a fresh
+ * fetch result already uses - no TMDB round trip for data the shared
+ * archive already paid for once. Falls back to a full forced fetch
+ * (loadFilmMetadata with skipSharedArchive:true, bypassing the default
+ * shared-metadata shortcut that would otherwise fire here and return the
+ * same type-less cached shape) for an older shared doc or an
+ * official-results nominee, neither of which carries `type` yet.
+ * @param {Object} record `{title, year, tmdbId, director, type, country, primaryCountry, swedishTitle, runtimeMinutes, poster}`.
  * @returns {Promise<Object>} `{ok, filmId}` or `{ok:false, reason}`.
  */
 window.addFilmRecordToWatched = async function (record) {
@@ -204,16 +350,35 @@ window.addFilmRecordToWatched = async function (record) {
     year: record?.year,
     tmdbId: record?.tmdbId,
     director: record?.director,
+    type: record?.type,
   });
   if (!plan.ok)
     return { ok: false, reason: plan.errors?.[0] || "Could not add this film." };
   let result = window.applyFreshWatchedFilm(plan, { save: false });
   if (!result.ok)
     return { ok: false, reason: result.reason || "Could not add this film." };
-  await window.loadFilmMetadata?.(result.film.id, {
-    skipSharedArchive: true,
-    log: false,
-  });
+  if (record?.type) {
+    window.setFilmTmdbMetadata(
+      result.film.id,
+      {
+        tmdbId: record.tmdbId,
+        type: record.type,
+        director: record.director,
+        country: record.country,
+        primaryCountry: record.primaryCountry,
+        swedishTitle: record.swedishTitle,
+        runtimeMinutes: record.runtimeMinutes,
+        poster: record.poster,
+      },
+      { save: false, log: false },
+    );
+    window.save();
+  } else {
+    await window.loadFilmMetadata?.(result.film.id, {
+      skipSharedArchive: true,
+      log: false,
+    });
+  }
   return { ok: true, filmId: result.film.id };
 };
 

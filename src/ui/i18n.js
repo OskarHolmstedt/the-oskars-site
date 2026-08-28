@@ -2903,17 +2903,20 @@
     "Delete cloud account data": { sv: "Radera molnkontodata" },
     "Cloud storage": { sv: "Molnlagring" },
     "Delete synced cloud copy": { sv: "Radera synkad molnkopia" },
-    "Deletes the private sync copy stored online, then signs this browser out. The archive in this browser, your Google login, and any published profile stay. Signing in again from a browser that still has the archive can upload it again. A full backup downloads first.": {
-      sv: "Raderar den privata synkkopian som lagras online och loggar sedan ut webbläsaren. Arkivet i webbläsaren, din Google-inloggning och publicerade profiler finns kvar. Om du loggar in igen från en webbläsare som har kvar arkivet kan det laddas upp på nytt. En fullständig säkerhetskopia laddas ned först.",
+    "Deletes the private sync copy stored online and clears this browser's private archive, then signs out. Your Google login and any published profile stay. A full backup downloads first.": {
+      sv: "Raderar den privata synkkopian som lagras online och tömmer webbläsarens privata arkiv, och loggar sedan ut. Din Google-inloggning och publicerade profiler finns kvar. En fullständig säkerhetskopia laddas ned först.",
     },
     "A public profile ({name}) may still be published. This does not take it down. ": {
       sv: "En offentlig profil ({name}) kan fortfarande vara publicerad. Den tas inte ner av detta. ",
     },
-    "Delete the synced cloud copy? A backup downloads first. The archive in this browser stays, and you will be signed out. Any browser with a retained archive can upload it again.": {
-      sv: "Radera den synkade molnkopian? En säkerhetskopia laddas ned först. Arkivet i den här webbläsaren finns kvar och du loggas ut. Alla webbläsare som har kvar arkivet kan ladda upp det igen.",
+    "Delete the synced cloud copy and this browser's archive? A backup downloads first, then this browser is emptied and you are signed out. Unless another device still has this data, the downloaded backup becomes your only copy.": {
+      sv: "Radera den synkade molnkopian och den här webbläsarens arkiv? En säkerhetskopia laddas ned först. Sedan töms webbläsaren och du loggas ut. Om ingen annan enhet har kvar datan blir den nedladdade säkerhetskopian din enda kopia.",
     },
-    "Deleted the synced cloud copy and verified {count} part(s). Signing out now. This browser's archive was not changed.": {
-      sv: "Raderade den synkade molnkopian och verifierade {count} del(ar). Loggar ut nu. Arkivet i den här webbläsaren ändrades inte.",
+    "Deleted the synced cloud copy and verified {count} part(s), and cleared this browser's archive. Signing out now.": {
+      sv: "Raderade den synkade molnkopian och verifierade {count} del(ar), och tömde webbläsarens arkiv. Loggar ut nu.",
+    },
+    "Deleted the synced cloud copy and verified {count} part(s), but this browser's archive could not be cleared. Try again, or use the Data page's “Remove from this browser” action.": {
+      sv: "Raderade den synkade molnkopian och verifierade {count} del(ar), men webbläsarens arkiv kunde inte tömmas. Försök igen, eller använd datasidans ”Ta bort från webbläsaren”-funktion.",
     },
     "Permanently deletes every document Firestore holds for this account - every synced section and this device's sync history. A full backup downloads first. This is final; there is no admin-side recovery once it verifies removal.":
       {

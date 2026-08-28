@@ -1774,6 +1774,8 @@
         swedishTitle: metadata.swedishTitle,
         poster: metadata.poster,
         director: metadata.director,
+        country: metadata.country,
+        runtimeMinutes: metadata.runtimeMinutes,
       });
       if (!result?.ok) {
         window.alert?.(ui(result?.reason || "Could not add this film."));

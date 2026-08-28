@@ -27,7 +27,7 @@
  */
 
 (function () {
-  const SHARED_FILM_METADATA_SCHEMA_VERSION = 1;
+  const SHARED_FILM_METADATA_SCHEMA_VERSION = 2;
   const SHARED_FILM_METADATA_MAX_TOTAL = 50000;
   const SHARED_FILM_METADATA_DAILY_QUOTA = 500;
   const RECHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -128,6 +128,12 @@
       runtimeMinutes:
         Number(metadata?.runtimeMinutes ?? film?.runtimeMinutes) || 0,
       swedishTitle: String(metadata?.swedishTitle ?? film?.swedishTitle ?? ""),
+      // Lets a later consumer (addFilmRecordToWatched) apply a known
+      // classification without a fresh TMDB fetch - film?.type only ever
+      // has a value for an already-watched source record (WatchlistItem
+      // has no type field at all), so this is populated in practice
+      // whenever `metadata` carries a just-completed lookup.
+      type: String(metadata?.type ?? film?.type ?? ""),
       people,
       schemaVersion: SHARED_FILM_METADATA_SCHEMA_VERSION,
     };
