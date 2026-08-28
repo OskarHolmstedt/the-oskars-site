@@ -86,16 +86,21 @@
   function currentSection() {
     if (entry === "period") {
       let params = new URLSearchParams(window.location?.search || "");
-      if (params.get("view") === "watchlist") return "watchlist";
-      if (params.get("type") === "alltime" && params.get("view") === "films")
-        return "watched";
+      let view = params.get("view");
+      if (
+        view === "watchlist" ||
+        view === "shared" ||
+        view === "other" ||
+        (params.get("type") === "alltime" && view === "films")
+      )
+        return "films";
       return "periods";
     }
     if (entry === "periods" || entry === "ranking-review") return "periods";
     if (entry === "category" || entry === "categories") return "categories";
     if (entry === "franchise" || entry === "franchises") return "franchises";
     if (entry === "watchlist-film" || entry === "watchlist-merge")
-      return "watchlist";
+      return "films";
     if (entry === "project" || entry === "projects") return "projects";
     if (entry === "community") return "community";
     if (entry === "home") return "home";
@@ -120,8 +125,7 @@
       periods: locale === "sv" ? "Perioder" : "Periods",
       categories: locale === "sv" ? "Kategorier" : "Categories",
       franchises: "Franchises",
-      watchlist: "Watchlist",
-      watched: locale === "sv" ? "Sett" : "Watched",
+      films: locale === "sv" ? "Filmer" : "Films",
       projects: locale === "sv" ? "Projekt" : "Projects",
       search: locale === "sv" ? "Sök" : "Search",
       searchAria: locale === "sv" ? "Sök i The Oskars" : "Search The Oskars",
@@ -156,12 +160,7 @@
       ["periods", text.periods, "periods.html"],
       ["categories", text.categories, "categories.html"],
       ["franchises", text.franchises, "franchises.html"],
-      [
-        "watchlist",
-        text.watchlist,
-        "period.html?type=alltime&view=watchlist",
-      ],
-      ["watched", text.watched, "period.html?type=alltime&view=films"],
+      ["films", text.films, "period.html?type=alltime&view=films"],
       ["projects", text.projects, "projects.html"],
     ];
     let primary = navItems

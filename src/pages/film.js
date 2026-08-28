@@ -716,7 +716,7 @@
   // local-film layout, which assumes dozens of fields (medium,
   // screenplayType, rank, awards, notes...) a shared record never has.
   function renderSharedPreview() {
-    let preview = window.OSKARS_SHARED_FILM_ARCHIVE?.[previewTmdbId];
+    let preview = window.sharedArchiveCandidateFilmByTmdbId?.(previewTmdbId);
     if (!preview) {
       let status = window.OSKARS_SHARED_FILM_ARCHIVE_STATUS;
       document.title = `${ui("Shared film")} · The Oskars`;
@@ -821,11 +821,8 @@
 
   container.addEventListener("click", async (event) => {
     if (event.target.closest("[data-add-shared-preview-watchlist]")) {
-      let preview = window.OSKARS_SHARED_FILM_ARCHIVE?.[previewTmdbId];
-      let result = window.addFilmRecordToWatchlist({
-        ...preview,
-        director: window.sharedArchiveFilmDirectorNames(preview).join(", "),
-      });
+      let preview = window.sharedArchiveCandidateFilmByTmdbId?.(previewTmdbId);
+      let result = window.addFilmRecordToWatchlist(preview);
       if (!result.ok) {
         alert(ui(result.reason || "Could not add this film."));
         return;
@@ -839,16 +836,11 @@
       "[data-add-shared-preview-watched]",
     );
     if (addWatchedButton) {
-      let preview = window.OSKARS_SHARED_FILM_ARCHIVE?.[previewTmdbId];
+      let preview = window.sharedArchiveCandidateFilmByTmdbId?.(previewTmdbId);
       addWatchedButton.disabled = true;
       addWatchedButton.textContent = ui("Adding…");
       try {
-        let result = await window.addFilmRecordToWatched({
-          title: preview?.title,
-          year: preview?.year,
-          tmdbId: preview?.tmdbId,
-          director: window.sharedArchiveFilmDirectorNames(preview || {}).join(", "),
-        });
+        let result = await window.addFilmRecordToWatched(preview);
         if (!result.ok) throw new Error(result.reason || ui("Could not add this film."));
         window.location.href = window.prepareOskarsAccountNavigation(
           window.filmPageUrl(result.filmId),

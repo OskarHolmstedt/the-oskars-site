@@ -311,6 +311,31 @@ textarea {
   left: -70px;
   width: min(680px, calc(100vw - 40px));
 }
+.primary-nav-preview--films {
+  width: min(220px, calc(100vw - 40px));
+}
+.films-preview-links {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+.films-preview-link {
+  display: block;
+  box-sizing: border-box;
+  padding: 7px 8px;
+  border: 1px solid rgba(120, 103, 83, 0.12);
+  border-radius: 5px;
+  background: var(--surface-soft);
+  color: var(--accent-dark) !important;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none !important;
+}
+.films-preview-link:hover,
+.films-preview-link:focus-visible {
+  border-color: var(--accent);
+  background: var(--surface);
+}
 .primary-nav-preview-heading {
   display: flex;
   align-items: baseline;

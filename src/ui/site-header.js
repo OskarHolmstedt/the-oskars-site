@@ -110,6 +110,13 @@
     return window.t ? window.t(key, fallback, values) : fallback;
   }
 
+  // Reuses the existing literal-text translation table (period.js's own
+  // "Other watched"/"Shared archive" strings) instead of duplicating them
+  // under new nav.*/menu.* keys.
+  function literalText(fallback, values) {
+    return window.uiText ? window.uiText(fallback, values) : fallback;
+  }
+
   function searchTypeLabel(type) {
     let key = `search.type.${String(type || "")
       .toLowerCase()
@@ -124,9 +131,14 @@
         .pop() || "index.html";
     if (path === "period.html") {
       let params = new URLSearchParams(window.location?.search || "");
-      if (params.get("view") === "watchlist") return "watchlist";
-      if (params.get("type") === "alltime" && params.get("view") === "films")
-        return "watched";
+      let view = params.get("view");
+      if (
+        view === "watchlist" ||
+        view === "shared" ||
+        view === "other" ||
+        (params.get("type") === "alltime" && view === "films")
+      )
+        return "films";
       return "periods";
     }
     if (path === "periods.html") return "periods";
@@ -134,7 +146,7 @@
       return "categories";
     if (path === "franchises.html" || path === "franchise.html")
       return "franchises";
-    if (path === "watchlist-film.html") return "watchlist";
+    if (path === "watchlist-film.html") return "films";
     if (path === "projects.html" || path === "project.html") return "projects";
     if (path === "compare.html") return "compare";
     if (path === "community.html") return "community";
@@ -168,6 +180,36 @@
     return window.searchMatches(entries, query, { limit: 8 });
   }
 
+  function filmsPreviewLinksHtml(escape) {
+    // Shared archive is a cross-account discovery feature tied to the
+    // viewer's own signed-in account, meaningless (and hidden the same way
+    // period.js's own view-switcher hides it) for a public-profile visitor.
+    let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
+    let rows = [
+      [
+        "period.html?type=alltime&view=films",
+        headerText("nav.watched", "Watched"),
+      ],
+      [
+        "period.html?type=alltime&view=watchlist",
+        headerText("nav.watchlist", "Watchlist"),
+      ],
+      ...(canEdit
+        ? [
+            [
+              "period.html?type=alltime&view=shared",
+              literalText("Shared archive"),
+            ],
+          ]
+        : []),
+      [
+        "period.html?type=alltime&view=other",
+        literalText("Other watched"),
+      ],
+    ];
+    return `<div class="films-preview-links">${rows.map(([href, label]) => `<a class="films-preview-link" href="${escape(href)}">${escape(label)}</a>`).join("")}</div>`;
+  }
+
   function primaryPreviewHtml(section, escape) {
     // The outer .primary-nav-preview box starts flush against the nav link
     // (no gap) and its top padding stands in for the visual gap, so that
@@ -178,6 +220,8 @@
       return `<div class="primary-nav-preview primary-nav-preview--periods" aria-label="${escape(headerText("menu.periods", "Periods"))}"><div class="primary-nav-preview-panel"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.periods", "Periods"))}</strong><a href="periods.html">${escape(headerText("menu.browsePeriods", "Browse all periods"))} →</a></div>${window.renderPeriodIndexMatrix({ compact: true })}</div></div>`;
     if (section === "categories")
       return `<div class="primary-nav-preview primary-nav-preview--categories" aria-label="${escape(headerText("menu.categories", "Categories"))}"><div class="primary-nav-preview-panel"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.categories", "Categories"))}</strong><a href="categories.html">${escape(headerText("menu.browseCategories", "Browse all categories"))} →</a></div>${window.renderCategoryIndexBoard({ compact: true })}</div></div>`;
+    if (section === "films")
+      return `<div class="primary-nav-preview primary-nav-preview--films" aria-label="${escape(headerText("menu.films", "Films"))}"><div class="primary-nav-preview-panel"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.films", "Films"))}</strong></div>${filmsPreviewLinksHtml(escape)}</div></div>`;
     return "";
   }
 
@@ -199,13 +243,8 @@
         "franchises.html",
       ],
       [
-        "watchlist",
-        headerText("nav.watchlist", "Watchlist"),
-        "period.html?type=alltime&view=watchlist",
-      ],
-      [
-        "watched",
-        headerText("nav.watched", "Watched"),
+        "films",
+        headerText("nav.films", "Films"),
         "period.html?type=alltime&view=films",
       ],
       ["projects", headerText("nav.projects", "Projects"), "projects.html"],

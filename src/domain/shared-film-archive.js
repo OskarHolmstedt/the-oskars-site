@@ -270,6 +270,24 @@ window.sharedArchiveFilmsForPeriod = function (type, key) {
 };
 
 /**
+ * Resolves a director display string for an external record - its own
+ * `director` field if already flat, or derived from its `people` map
+ * (the shared-archive/nominee record shape) otherwise. Every
+ * add-to-watched/add-to-watchlist caller used to derive this itself,
+ * independently and by hand (issue #378 - the same root cause #372/#376/
+ * #377 each hit separately: a caller not forwarding a field the source
+ * record already had).
+ * @param {Object} record
+ * @returns {string}
+ */
+function externalRecordDirector(record) {
+  return (
+    record?.director ||
+    (record?.people ? window.sharedArchiveFilmDirectorNames(record).join(", ") : "")
+  );
+}
+
+/**
  * Adds any external film record (shared archive, official-results nominee,
  * or similar - anything with no local film id yet) through the normal
  * watchlist persistence path, then applies any country/runtime the source
@@ -277,11 +295,12 @@ window.sharedArchiveFilmsForPeriod = function (type, key) {
  * excludes these at creation time for a manual/CSV entry that doesn't know
  * them yet, but an external record with these fields already resolved
  * shouldn't lose them on add).
- * @param {Object} record `{title, year, tmdbId, swedishTitle, poster, director, country, runtimeMinutes}`.
+ * @param {Object} record `{title, year, tmdbId, swedishTitle, poster, country, runtimeMinutes, director|people}`.
  * @returns {Object} Normal addWatchlistItem result.
  */
 window.addFilmRecordToWatchlist = function (record) {
   if (!record) return { ok: false, reason: "Could not add this film." };
+  let director = externalRecordDirector(record);
   let result = window.addWatchlistItem(
     {
       title: record.title,
@@ -289,20 +308,40 @@ window.addFilmRecordToWatchlist = function (record) {
       tmdbId: record.tmdbId,
       swedishTitle: record.swedishTitle,
       poster: record.poster,
-      director: record.director,
+      director,
     },
     { save: false },
   );
   if (result.ok)
     window.setWatchlistTmdbMetadata?.(result.item.id, {
       tmdbId: record.tmdbId,
-      director: record.director,
+      director,
       swedishTitle: record.swedishTitle,
       poster: record.poster,
       country: record.country,
       runtimeMinutes: record.runtimeMinutes,
     });
   return result;
+};
+
+/**
+ * Looks up one Shared-archive candidate (organic or official-results
+ * nominee) by tmdbId - the single-film equivalent of
+ * sharedArchiveCandidateFilms(), for a caller (a preview page, an add
+ * action) that only needs one film rather than every candidate for a
+ * period. Tries the fast O(1) organic lookup first, falling back to a
+ * nominee-set scan only when that misses (issue #377).
+ * @param {string|number} tmdbId Shared film TMDB id.
+ * @returns {Object|null}
+ */
+window.sharedArchiveCandidateFilmByTmdbId = function (tmdbId) {
+  let id = String(tmdbId || "");
+  if (!id) return null;
+  return (
+    window.OSKARS_SHARED_FILM_ARCHIVE?.[id] ||
+    window.sharedArchiveCandidateFilms().find((candidate) => String(candidate.tmdbId || "") === id) ||
+    null
+  );
 };
 
 /**
@@ -314,15 +353,9 @@ window.addFilmRecordToWatchlist = function (record) {
  * @returns {Object} Normal addWatchlistItem result.
  */
 window.addSharedArchiveFilmToWatchlist = function (tmdbId) {
-  let id = String(tmdbId || "");
-  let film =
-    window.OSKARS_SHARED_FILM_ARCHIVE?.[id] ||
-    window.sharedArchiveCandidateFilms().find((candidate) => String(candidate.tmdbId || "") === id);
+  let film = window.sharedArchiveCandidateFilmByTmdbId(tmdbId);
   if (!film) return { ok: false, reason: "Could not add this film." };
-  return window.addFilmRecordToWatchlist({
-    ...film,
-    director: window.sharedArchiveFilmDirectorNames(film).join(", "),
-  });
+  return window.addFilmRecordToWatchlist(film);
 };
 
 /**
@@ -341,15 +374,16 @@ window.addSharedArchiveFilmToWatchlist = function (tmdbId) {
  * shared-metadata shortcut that would otherwise fire here and return the
  * same type-less cached shape) for an older shared doc or an
  * official-results nominee, neither of which carries `type` yet.
- * @param {Object} record `{title, year, tmdbId, director, type, country, primaryCountry, swedishTitle, runtimeMinutes, poster}`.
+ * @param {Object} record `{title, year, tmdbId, type, country, primaryCountry, swedishTitle, runtimeMinutes, poster, director|people}`.
  * @returns {Promise<Object>} `{ok, filmId}` or `{ok:false, reason}`.
  */
 window.addFilmRecordToWatched = async function (record) {
+  let director = externalRecordDirector(record);
   let plan = window.planFreshWatchedFilm({
     title: record?.title,
     year: record?.year,
     tmdbId: record?.tmdbId,
-    director: record?.director,
+    director,
     type: record?.type,
   });
   if (!plan.ok)
@@ -363,7 +397,7 @@ window.addFilmRecordToWatched = async function (record) {
       {
         tmdbId: record.tmdbId,
         type: record.type,
-        director: record.director,
+        director,
         country: record.country,
         primaryCountry: record.primaryCountry,
         swedishTitle: record.swedishTitle,

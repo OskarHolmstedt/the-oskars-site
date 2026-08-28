@@ -66,7 +66,7 @@ window.renderPeriodOfficialResults = function ({
     // what addFilmRecordToWatched needs to fetch real TMDB metadata.
     let nomineeActionsHtml =
       canEdit && !film?.id && nomination.tmdbId
-        ? `<div class="official-result-actions"><button type="button" data-add-official-nominee-watchlist-tmdb-id="${escape(nomination.tmdbId)}" data-add-official-nominee-title="${escape(nomination.sourceTitle)}">${escape(ui("Add to watchlist"))}</button><button type="button" data-add-official-nominee-watched-tmdb-id="${escape(nomination.tmdbId)}" data-add-official-nominee-title="${escape(nomination.sourceTitle)}">${escape(ui("Add to watched"))}</button></div>`
+        ? `<div class="official-result-actions"><button type="button" data-add-official-nominee-watchlist-tmdb-id="${escape(nomination.tmdbId)}">${escape(ui("Add to watchlist"))}</button><button type="button" data-add-official-nominee-watched-tmdb-id="${escape(nomination.tmdbId)}">${escape(ui("Add to watched"))}</button></div>`
         : "";
     let creditParts = [];
     if (nomination.recipient)

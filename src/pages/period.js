@@ -1766,17 +1766,13 @@
     );
     if (addNomineeWatchlistButton) {
       let tmdbId = addNomineeWatchlistButton.dataset.addOfficialNomineeWatchlistTmdbId;
-      let metadata = window.OSKARS_BUNDLED_OFFICIAL_FILM_METADATA?.[tmdbId] || {};
-      let result = window.addFilmRecordToWatchlist({
-        title: addNomineeWatchlistButton.dataset.addOfficialNomineeTitle,
-        year: key,
-        tmdbId,
-        swedishTitle: metadata.swedishTitle,
-        poster: metadata.poster,
-        director: metadata.director,
-        country: metadata.country,
-        runtimeMinutes: metadata.runtimeMinutes,
-      });
+      // A ceremony period can represent more than one calendar year (early
+      // biennial Academy ceremonies), so the resolved record's own year
+      // isn't necessarily the one this specific page is showing - the page
+      // context (key) is more authoritative for "which year was this added
+      // from" than officialNomineeSharedFilmRecords()'s first-listed year.
+      let candidate = window.sharedArchiveCandidateFilmByTmdbId?.(tmdbId);
+      let result = window.addFilmRecordToWatchlist({ ...candidate, tmdbId, year: key });
       if (!result?.ok) {
         window.alert?.(ui(result?.reason || "Could not add this film."));
         return;
@@ -1789,16 +1785,11 @@
     );
     if (addNomineeWatchedButton) {
       let tmdbId = addNomineeWatchedButton.dataset.addOfficialNomineeWatchedTmdbId;
-      let metadata = window.OSKARS_BUNDLED_OFFICIAL_FILM_METADATA?.[tmdbId] || {};
+      let candidate = window.sharedArchiveCandidateFilmByTmdbId?.(tmdbId);
       addNomineeWatchedButton.disabled = true;
       addNomineeWatchedButton.textContent = ui("Adding…");
       window
-        .addFilmRecordToWatched({
-          title: addNomineeWatchedButton.dataset.addOfficialNomineeTitle,
-          year: key,
-          tmdbId,
-          director: metadata.director,
-        })
+        .addFilmRecordToWatched({ ...candidate, tmdbId, year: key })
         .then((result) => {
           if (!result.ok)
             throw new Error(result.reason || ui("Could not add this film."));
