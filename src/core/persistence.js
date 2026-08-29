@@ -174,12 +174,11 @@ window.getPersistenceLoadInfo = function () {
   return { ...persistenceLoadInfo };
 };
 
-// Periodic backup reminder (issue #247): a local-mode browser's IndexedDB
-// workspace is the *only* copy of the archive — unlike owner mode, where the
-// published-repository/git workflow is the durable backup, so this never
-// fires there. Reused across page loads via a flat oskars-prefixed
-// localStorage key, following entry-loader.js's existing preferredTheme()
-// convention.
+// Periodic backup reminder (issue #247): cloud sync is the authoritative
+// private workspace, while a user-controlled JSON snapshot remains the
+// portable recovery copy. Reused across page loads via a flat
+// oskars-prefixed localStorage key, following entry-loader.js's existing
+// preferredTheme() convention.
 window.OSKARS_BACKUP_REMINDER_INTERVAL_DAYS = 14;
 const BACKUP_REMINDER_KEY = "oskars-backup-reminder-at";
 
@@ -219,13 +218,25 @@ window.backupReminderIntervalElapsed = function (lastStampIso, nowMs) {
 };
 
 /**
- * Whether a periodic backup reminder is due. Only ever true in local mode,
- * for a session with an established archive (not a first-run/empty one —
- * see issue #252's onboarding, which already covers that moment).
+ * Whether one runtime mode has an editable private workspace that benefits
+ * from portable backup reminders.
+ * @param {string} mode Runtime mode.
+ * @returns {boolean} Whether reminders are available.
+ */
+window.backupReminderAvailableForMode = function (mode) {
+  return mode !== "viewer";
+};
+
+/**
+ * Whether a periodic backup reminder is due for a session with an established
+ * archive (not a first-run/empty one — see issue #252's onboarding).
  * @returns {boolean}
  */
 window.isBackupReminderDue = function () {
-  if (window.getRuntimeMode?.() !== "local") return false;
+  if (!window.backupReminderAvailableForMode(window.getRuntimeMode?.()))
+    return false;
+  if (window.oskarsCapabilities?.().canPersistPrivateState === false)
+    return false;
   if (!persistenceLoadInfo.found) return false;
   return window.backupReminderIntervalElapsed(
     readBackupReminderStamp(),

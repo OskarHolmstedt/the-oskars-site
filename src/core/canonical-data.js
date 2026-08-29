@@ -1165,6 +1165,27 @@ window.assertCanonicalData = function (source) {
 };
 
 /**
+ * Whether a validateCanonicalData error path falls under the given
+ * top-level section key - the key itself ("$.sectionKey") or anything
+ * nested under it ("$.sectionKey.foo", "$.sectionKey[3]"). Lets a caller
+ * that merges several sections into one document (e.g. firestore-sync.js
+ * applying several just-pulled sections at once) work out which specific
+ * section a validation failure belongs to, rather than only knowing the
+ * merged whole is invalid.
+ * @param {string} errorPath A validateCanonicalData error's `path`.
+ * @param {string} sectionKey One of window.OSKARS_CANONICAL_SECTION_KEYS.
+ * @returns {boolean} Whether the error belongs to that section.
+ */
+window.canonicalErrorBelongsToSection = function (errorPath, sectionKey) {
+  let prefix = `$.${sectionKey}`;
+  return (
+    errorPath === prefix ||
+    errorPath.startsWith(`${prefix}.`) ||
+    errorPath.startsWith(`${prefix}[`)
+  );
+};
+
+/**
  * Selects canonical fields from runtime state and migrates them to the current contract.
  * @param {OskarsState|Object} [source] Runtime state; defaults to `window.state`.
  * @param {{clone?: boolean}} [options] Snapshot controls.
@@ -1225,6 +1246,74 @@ window.serializeCanonicalData = function (source = window.state) {
     : window.getCanonicalData(source);
   window.assertCanonicalData(canonical);
   return `${JSON.stringify(canonicalNormalize(canonical), null, 2)}\n`;
+};
+
+function canonicalCollectionRecordCount(value) {
+  if (Array.isArray(value)) return value.length;
+  if (value && typeof value === "object") return Object.keys(value).length;
+  return value === undefined || value === null ? 0 : 1;
+}
+
+/**
+ * Extracts stable identity/record pairs from a canonical array or map for
+ * import and cloud-conflict diff summaries.
+ * @param {Array|Object} value Collection to extract records from.
+ * @returns {Array<[string, *]>} Identity/record pairs.
+ */
+window.canonicalRecordEntries = function (value) {
+  if (Array.isArray(value))
+    return value.map((record, index) => [
+      String(
+        record?.id ||
+          `${record?.title || "record"}:${record?.year || index}`,
+      ),
+      record,
+    ]);
+  if (value && typeof value === "object") return Object.entries(value);
+  return [["$value", value]];
+};
+
+function canonicalChangedRecordCount(before, after) {
+  let beforeRecords = new Map(window.canonicalRecordEntries(before));
+  let afterRecords = new Map(window.canonicalRecordEntries(after));
+  let identities = new Set([...beforeRecords.keys(), ...afterRecords.keys()]);
+  return [...identities].filter(
+    (identity) =>
+      !beforeRecords.has(identity) ||
+      !afterRecords.has(identity) ||
+      window.canonicalDataRevision(beforeRecords.get(identity)) !==
+        window.canonicalDataRevision(afterRecords.get(identity)),
+  ).length;
+}
+
+/**
+ * Summarizes changed canonical sections and their immediate record counts.
+ * @param {Object|null} before Previous canonical document.
+ * @param {Object} after Next canonical document.
+ * @returns {Object[]} Section change summaries.
+ */
+window.canonicalSectionChanges = function (before, after) {
+  let keys = new Set([
+    ...Object.keys(before || {}),
+    ...Object.keys(after || {}),
+  ]);
+  keys.delete("canonicalSchemaVersion");
+  return [...keys]
+    .sort()
+    .map((section) => {
+      let previousValue = before?.[section];
+      let nextValue = after?.[section];
+      return {
+        section,
+        before: canonicalCollectionRecordCount(previousValue),
+        after: canonicalCollectionRecordCount(nextValue),
+        changedRecords: canonicalChangedRecordCount(previousValue, nextValue),
+        changed:
+          window.canonicalDataRevision(previousValue) !==
+          window.canonicalDataRevision(nextValue),
+      };
+    })
+    .filter((entry) => entry.changed);
 };
 
 /**

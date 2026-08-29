@@ -406,7 +406,6 @@
     ...(entry === "data"
       ? [
           "src/data/transfer.js",
-          "src/data/publication.js",
           "src/data/public-profile-publication.js",
           "src/data/import-proposals.js",
           "src/imports/zip.js",
@@ -414,13 +413,11 @@
         ]
       : entry === "owner-data"
         ? [
-            "src/data/publication.js",
             "src/data/import-proposals.js",
             "src/data/google-sheets.js",
           ]
       : entry === "profile"
         ? [
-            "src/data/publication.js",
             "src/data/transfer.js",
             "src/data/import-proposals.js",
           ]

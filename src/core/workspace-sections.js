@@ -422,10 +422,8 @@ function workspaceShardRecordEntries(identities, records, cap) {
  * Summarizes what adopting a shard's remote value would add, remove (i.e.
  * discard from this device), or change relative to its local value -
  * issue #334's informed conflict-resolution preview. Reuses the same
- * per-record identity/change-detection idiom
- * window.canonicalPublicationChanges already uses for the whole-archive
- * publication preview (src/data/publication.js), applied one level down
- * to a single shard's own record collection.
+ * per-record identity convention used by canonical import previews, applied
+ * one level down to a single shard's own record collection.
  * @param {string} sectionKey One of window.OSKARS_CANONICAL_SECTION_KEYS.
  * @param {*} localValue This device's shard value (undefined if absent).
  * @param {*} remoteValue The other device's shard value (undefined if absent).
@@ -443,10 +441,14 @@ window.workspaceShardRecordDiff = function (sectionKey, localValue, remoteValue)
   if (kind === "opaque" || kind === "opinion-rebuild" || !kind)
     return { kind: "opaque", changed };
   let localRecords = new Map(
-    window.publicationRecords(workspaceShardDiffableCollection(kind, localValue)),
+    window.canonicalRecordEntries(
+      workspaceShardDiffableCollection(kind, localValue),
+    ),
   );
   let remoteRecords = new Map(
-    window.publicationRecords(workspaceShardDiffableCollection(kind, remoteValue)),
+    window.canonicalRecordEntries(
+      workspaceShardDiffableCollection(kind, remoteValue),
+    ),
   );
   let addedIdentities = [];
   let removedIdentities = [];

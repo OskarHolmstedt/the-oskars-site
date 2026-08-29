@@ -956,7 +956,8 @@
  */
 
 /**
- * Latest local attempt to stage or verify a canonical publication candidate.
+ * Legacy local attempt to stage or verify a canonical publication candidate.
+ * Retained only so older backups and reconciliation metadata remain readable.
  * @typedef {Object} PublicationAttempt
  * @property {string} attemptedAt Attempt time as an ISO timestamp.
  * @property {'download'|'selected-file'} method Transfer method.
@@ -1057,7 +1058,7 @@
  *   Explicit annual ballot completion, including reviewed-none categories.
  * @property {OpinionRebuildSession|null} opinionRebuildSession Private baseline
  *   retained while the owner rebuilds the active opinion layer blind.
- * @property {{baseRevision: string, dirty: boolean, changedAt?: string, reason?: string, publishedRevision?: string, reconciliationStatus?: string, requiredAction?: string, lastCanonicalCheckAt?: string, publication?: PublicationAttempt, remoteSync?: WorkspaceRemoteSync, pushHeld?: boolean}|null} draftMetadata Local unpublished-draft, publication attempt, canonical reconciliation marker, and account-bound sync baseline. Always null for a public-profile viewer state (issue #256) - that state is never a private draft. `pushHeld` (issue #384) holds automatic cloud push (not pull) until an explicit manual sync or conflict resolution - set only by clearStoredOskarsData({keepRemoteSync: true}), cleared automatically by performWorkspaceSync the moment anything actually pushes.
+ * @property {{baseRevision: string, dirty: boolean, changedAt?: string, reason?: string, publishedRevision?: string, reconciliationStatus?: string, requiredAction?: string, lastCanonicalCheckAt?: string, publication?: PublicationAttempt, remoteSync?: WorkspaceRemoteSync, pushHeld?: boolean}|null} draftMetadata Local-change marker, legacy canonical-reconciliation metadata, and account-bound sync baseline. Always null for a public-profile viewer state (issue #256) - that state is never a private draft. The optional `publication` field is backward-compatible legacy state, not a current workflow. `pushHeld` (issue #384) holds automatic cloud push (not pull) until an explicit manual sync or conflict resolution - set only by clearStoredOskarsData({keepRemoteSync: true}), cleared automatically by performWorkspaceSync the moment anything actually pushes.
  * @property {boolean} isPublicProfileView Set by `hydratePublicProfileState()`
  *   (issue #256) when state was hydrated from another owner's published
  *   public-profile document rather than a private canonical/workspace

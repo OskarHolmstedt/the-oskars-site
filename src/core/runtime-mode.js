@@ -57,8 +57,8 @@ window.runtimeAccountAccessRequired = function (mode) {
  *   other owner-only mutation-workflow pages at all, below the page-
  *   controller layer. canEdit gates using any in-page mutation control.
  *   canImport gates replacing or merging in imported/recovered data.
- *   canPublish gates the owner-only canonical/public-profile publish
- *   workflow — only a true owner deployment has anywhere to publish to.
+ *   canPublish gates the owner-only public-profile publish workflow — only a
+ *   true owner deployment has access to its repository-backed public output.
  *   canPersistPrivateState gates every write to IndexedDB/localStorage below
  *   the UI layer (`src/core/persistence.js`), the single boundary every
  *   mutation in the app funnels through before anything survives a reload.

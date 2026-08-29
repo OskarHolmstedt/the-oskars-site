@@ -3,10 +3,13 @@
  * #248): reads/writes manifest and shard documents under
  * `/users/<uid>/sections/<sectionKey>[/shards/<shardKey>]`, wraps every
  * write in bounded retry with uncertain-outcome verification, and drives
- * the sign-in/reconnect/focus/after-save triggers. Those automatic
- * triggers only ever pull remote changes and detect conflicts - pushing a
- * local edit requires an explicit manual sync (the pending-edits badge/
- * button, or profile.js's "Sync now") or conflict resolution; see
+ * the sign-in/reconnect/focus/after-save triggers. Since issue #385
+ * (epic #384 Stage 1) those automatic triggers push local edits by
+ * default, in addition to pulling remote changes and detecting conflicts
+ * - the one exception is a workspace explicitly held via
+ * `draftMetadata.pushHeld` (issue #383's "clear local data, stay signed
+ * in"), which only pushes on an explicit manual sync (the pending-edits
+ * badge/button, or profile.js's "Sync now") or conflict resolution; see
  * performWorkspaceSync's `allowPush`. Chunking
  * (workspace-sections.js) and three-way planning (workspace-sync-plan.js)
  * stay pure and side-effect-free; this is the only file that touches the
@@ -354,20 +357,62 @@ function shardRevisionsOf(sectionKey, sectionValue) {
  * the pulled overrides, validates it, converts it back to runtime shape,
  * and rebuilds derived aggregates. Shared by the main sync pass and
  * explicit conflict resolution's "keep remote" choice.
+ *
+ * A pulled section whose own content fails validation is excluded and
+ * left for a later pass to retry, rather than blocking every other
+ * pulled section (issue #390) - only when a validation error can't be
+ * cleanly attributed to one of the pulled sections (most likely: the
+ * *local* document was already invalid, independent of anything just
+ * pulled, which excluding a pulled section can't fix) does this fail
+ * closed and apply nothing, same as before this function could exclude
+ * anything.
  * @param {Record<string, *>} pulledSectionValues Section key -> new value.
+ * @returns {{appliedKeys: string[], excludedKeys: string[]}} Which pulled
+ *   sections were actually applied vs. excluded for failing validation.
  */
 function applyPulledSectionValues(pulledSectionValues) {
-  if (!Object.keys(pulledSectionValues).length) return;
+  let pulledKeys = Object.keys(pulledSectionValues);
+  if (!pulledKeys.length) return { appliedKeys: [], excludedKeys: [] };
   let canonical = window.getCanonicalData(window.state, { clone: false });
-  let merged = {
-    ...canonical,
-    ...pulledSectionValues,
-    canonicalSchemaVersion: window.OSKARS_CANONICAL_SCHEMA_VERSION,
-  };
-  let validated = window.assertCanonicalData(window.migrateCanonicalData(merged));
-  let runtimeSource = window.canonicalDataToRuntimeState(validated);
+  let excludedKeys = new Set();
+  let candidateKeys;
+  let migrated;
+  for (;;) {
+    candidateKeys = pulledKeys.filter((key) => !excludedKeys.has(key));
+    let merged = {
+      ...canonical,
+      ...Object.fromEntries(
+        candidateKeys.map((key) => [key, pulledSectionValues[key]]),
+      ),
+      canonicalSchemaVersion: window.OSKARS_CANONICAL_SCHEMA_VERSION,
+    };
+    migrated = window.migrateCanonicalData(merged);
+    let validation = window.validateCanonicalData(migrated);
+    if (validation.valid) break;
+    let invalidKeys = new Set();
+    let everyErrorAttributed = validation.errors.every((error) => {
+      let sectionKey = candidateKeys.find((key) =>
+        window.canonicalErrorBelongsToSection(error.path, key),
+      );
+      if (sectionKey) invalidKeys.add(sectionKey);
+      return Boolean(sectionKey);
+    });
+    if (!everyErrorAttributed || !invalidKeys.size) {
+      // Not something excluding a pulled section can fix - fail closed
+      // exactly as this function always has (assertCanonicalData throws
+      // using these same validation errors).
+      window.assertCanonicalData(migrated);
+    }
+    console.error(
+      `Cloud sync: excluding pulled section(s) missing valid content: ${[...invalidKeys].join(", ")}`,
+      validation.errors,
+    );
+    invalidKeys.forEach((key) => excludedKeys.add(key));
+  }
+  let runtimeSource = window.canonicalDataToRuntimeState(migrated);
   Object.assign(window.state, runtimeSource);
   if (window.rebuildAggregates) window.rebuildAggregates();
+  return { appliedKeys: candidateKeys, excludedKeys: [...excludedKeys] };
 }
 
 function remoteSyncState() {
@@ -638,7 +683,18 @@ async function performWorkspaceSync(options = {}) {
     unauthorized = unauthorized || Boolean(result.unauthorized);
   });
 
-  applyPulledSectionValues(pulledSectionValues);
+  let { excludedKeys: excludedPulledSectionKeys } =
+    applyPulledSectionValues(pulledSectionValues);
+  if (excludedPulledSectionKeys.length) {
+    // These sections' pulls were fetched but not applied - revert their
+    // sync bookkeeping to what it was before this pass so they're
+    // retried instead of being silently treated as caught-up (issue
+    // #390), and make sure the pass is visibly not fully clean.
+    excludedPulledSectionKeys.forEach((sectionKey) => {
+      nextShards[sectionKey] = previousRemoteSync.shards?.[sectionKey] || {};
+    });
+    hadError = true;
+  }
 
   let retry =
     hadError && !unauthorized
@@ -747,10 +803,12 @@ window.runWorkspaceSync = function (options = {}) {
 /**
  * Schedules a debounced background sync pass (issue #248) - called after
  * every successful local save, so a burst of edits produces one sync pass
- * rather than one per keystroke. This pass only pulls remote changes and
- * detects conflicts (see performWorkspaceSync) - it never pushes this
- * save's own edits, which stay local until an explicit manual sync. A
- * no-op when signed out or unconfigured.
+ * rather than one per keystroke. Since issue #385 (epic #384 Stage 1) this
+ * pass also pushes this save's own edits, not just pulls remote changes
+ * and detects conflicts - see performWorkspaceSync's allowPush, which
+ * defaults to true for this "after-save" reason unless the workspace is
+ * explicitly held (draftMetadata.pushHeld). A no-op when signed out or
+ * unconfigured.
  */
 window.scheduleWorkspaceSync = function () {
   if (window.OSKARS_DATA_READY !== true || !currentFirebaseUser()) return;
@@ -1181,9 +1239,13 @@ window.resolveWorkspaceSyncConflict = async function (sectionKey, shardKey, reso
       { reason: `workspace-sync-conflict:${sectionKey}:${shardKey}` },
     );
     if (!retained) return { ok: false, reason: "recovery-failed" };
-    applyPulledSectionValues({
+    // Only one section is ever passed here, so an excluded result means
+    // the remote content just chosen isn't valid - report failure rather
+    // than recording the shard synced while applying nothing (issue #390).
+    let { appliedKeys } = applyPulledSectionValues({
       [sectionKey]: window.reassembleWorkspaceSection(sectionKey, mergedShardValues),
     });
+    if (!appliedKeys.length) return { ok: false, reason: "invalid-remote-content" };
     recordShardSynced(sectionKey, shardKey, remoteRevision);
     let saving = window.save({
       immediate: true,

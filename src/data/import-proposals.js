@@ -83,7 +83,7 @@ window.createImportProposal = function (input) {
       report.warnings.push(`${entry.path}: ${entry.message}`),
     );
   }
-  let changes = window.canonicalPublicationChanges(
+  let changes = window.canonicalSectionChanges(
     baseCanonical,
     candidateCanonical,
   );
@@ -226,7 +226,7 @@ window.planImportProposalApplication = function (
 };
 
 /**
- * Marks an applied import candidate as an unpublished draft on its prior published base.
+ * Marks an applied import candidate as locally changed on its compatibility base.
  * @param {Object|null} existing Existing draft metadata.
  * @param {ImportProposal} proposal Applied proposal.
  * @param {string} [changedAt] Apply time.

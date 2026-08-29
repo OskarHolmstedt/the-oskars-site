@@ -10,9 +10,6 @@ function renderDataWorkspace() {
     "data:renderWorkspace",
   );
   renderEditLogView(document.getElementById("editLogView"));
-  window.renderCanonicalPublication?.(
-    document.getElementById("canonicalPublicationView"),
-  );
   window.renderPublicProfilePublication?.(
     document.getElementById("publicProfilePublicationView"),
   );
@@ -904,9 +901,6 @@ async function initializeDataWorkspace() {
   document
     .getElementById("letterboxdImportApplyBtn")
     .addEventListener("click", applyLetterboxdImportProposal);
-  document
-    .getElementById("canonicalPublicationView")
-    .addEventListener("click", window.handleCanonicalPublicationAction);
   document
     .getElementById("publicProfilePublicationView")
     .addEventListener("click", window.handlePublicProfilePublicationAction);

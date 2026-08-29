@@ -1,14 +1,12 @@
 /**
  * @file Data-page preview/publish/revoke UI for the public-profile publish
- * pipeline (issue #253). Mirrors src/data/publication.js's shape and
- * download-then-manually-commit pattern — including that file's lack of
- * i18n wrapping, since this is owner-only technical Data-page tooling, not
+ * pipeline (issue #253). This is owner-only technical Data-page tooling, not
  * the app's general reader-facing UI: the browser can preview the exact
  * public projection (window.publicProjectionPreview, already built for
  * #246 but never wired to a UI until now) and stage a candidate
  * data/public-profile-config.json for download, but never publishes
  * anything itself — no browser-embedded GitHub credential exists to do
- * that with (docs/canonical-publication-decision.md). The owner replaces
+ * that with (docs/public-profile-publish-pipeline-decision.md). The owner replaces
  * the file, commits, pushes, and runs the publish-profiles GitHub Action.
  * Supports exactly one configured profile at a time via this UI (matching
  * this app's single-owner scale); data/public-profile-config.json's schema

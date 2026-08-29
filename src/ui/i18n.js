@@ -2466,9 +2466,6 @@
     "Official-results refresh is ready. No local data changed; review the report before applying.": {
       sv: "Uppdateringen av officiella resultat är klar. Inga lokala data har ändrats; granska rapporten innan du tillämpar den.",
     },
-    "Official results refreshed in the local draft. Publish canonical JSON separately.": {
-      sv: "Officiella resultat har uppdaterats i det lokala utkastet. Publicera kanonisk JSON separat.",
-    },
     Kept: { sv: "Behållet" },
     tier: { sv: "tier" },
     Field: { sv: "Fält" },
@@ -3001,9 +2998,6 @@
       sv: "De granskade Letterboxd-ändringarna finns nu i den här webbläsaren. Priser och rankningar lämnades oförändrade.",
     },
     "Proposal ready.": { sv: "Förslaget är klart." },
-    "Proposal applied to the local draft. Publish canonical JSON separately.": {
-      sv: "Förslaget har tillämpats på det lokala utkastet. Publicera kanonisk JSON separat.",
-    },
     "Sheets foundation recorded from {revision}. Further runs create explicit follow-up proposals.": {
       sv: "Sheets-grunden registrerades från {revision}. Fortsatta körningar skapar uttryckliga uppföljningsförslag.",
     },
