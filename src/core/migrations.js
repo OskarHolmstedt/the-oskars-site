@@ -78,26 +78,6 @@ window.repairViewingFacts = function () {
   return true;
 };
 
-// Personal archive repair: fixes a misspelling that existed in saved/bundled
-// data. This is not a generic title normalization migration.
-/**
- * Corrects the known misspelled film title in source periods.
- * @returns {boolean} Whether a title was corrected.
- */
-window.repairKnownFilmTitles = function () {
-  let changed = false;
-  Object.values(window.state.years || {}).forEach((period) => {
-    (period.films || []).forEach((film) => {
-      if (window.normalizeTitle(film.title) !== "dead poets soicety") return;
-      film.title = "Dead Poets Society";
-      film.normalizedTitle = "dead poets society";
-      film.id = window.makeFilmId(film.year, film.title);
-      changed = true;
-    });
-  });
-  return changed;
-};
-
 // Personal archive repair: auto-generated project names used to carry a
 // " watch project" suffix; the hub is context enough, so saved projects drop it once here.
 /**
@@ -234,75 +214,3 @@ window.repairGroupedRankProjections = function () {
   window.state.groupedRankProjectionVersion = 1;
   return true;
 };
-
-// Personal archive repair: early Google Sheets imports could assign a whole
-// year bracket to an adjacent year. If the all-time list proves the bracket's
-// canonical year, move the block once.
-/**
- * Moves confidently misassigned year brackets to the year proven by all-time data.
- * @returns {boolean} Whether any source period was moved.
- */
-window.repairMisassignedYearBracketPeriods = function () {
-  let allTimeFilms = window.state.years?.alltime?.films || [];
-  if (!allTimeFilms.length) return false;
-  let changed = false;
-  let allTimeByTitle = new Map();
-  allTimeFilms.forEach((film) => {
-    let title = window.normalizeTitle(film.title);
-    let year = String(film.year || "");
-    if (title && /^\d{4}$/.test(year) && !allTimeByTitle.has(title))
-      allTimeByTitle.set(title, year);
-  });
-
-  Object.entries(window.state.years || {}).forEach(([periodKey, period]) => {
-    if (!/^\d{4}$/.test(periodKey) || period?.periodType !== "years") return;
-    let films = period.films || [];
-    if (!films.length) return;
-    let counts = new Map();
-    let matched = 0;
-    films.forEach((film) => {
-      let year = allTimeByTitle.get(window.normalizeTitle(film.title));
-      if (!year) return;
-      matched += 1;
-      counts.set(year, (counts.get(year) || 0) + 1);
-    });
-    if (!matched || counts.size !== 1) return;
-    let [[canonicalYear, count]] = [...counts.entries()];
-    if (canonicalYear === periodKey) return;
-    let required = Math.max(2, Math.ceil(films.length * 0.6));
-    if (count < required) return;
-
-    window.state.years[canonicalYear] ||= { films: [], periodType: "years" };
-    let target = window.state.years[canonicalYear];
-    target.periodType = "years";
-    films.forEach((film) => {
-      let copy = window.cloneRecord(film);
-      if (String(copy.year || "") === periodKey) copy.year = canonicalYear;
-      copy.id = window.makeFilmId(copy.year || canonicalYear, copy.title);
-      (copy.awards || []).forEach((award) => {
-        if (String(award.year || "") === periodKey) award.year = canonicalYear;
-      });
-      let existing = target.films.find((candidate) =>
-        window.sameFilmIdentity(candidate, copy),
-      );
-      if (existing) {
-        (copy.awards || []).forEach((award) => {
-          if (
-            !existing.awards?.some((candidate) =>
-              window.sameAward(candidate, award),
-            )
-          ) {
-            existing.awards ||= [];
-            existing.awards.push(award);
-          }
-        });
-      } else {
-        target.films.push(copy);
-      }
-    });
-    delete window.state.years[periodKey];
-    changed = true;
-  });
-  return changed;
-};
-

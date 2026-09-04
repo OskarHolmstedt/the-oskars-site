@@ -81,14 +81,6 @@ window.lookupTmdbMovieMetadata = async function (film, options = {}) {
       (await window.lookupTmdbTvSearch(film, fetchFn));
   if (!match?.id) return null;
   let reference = window.parseTmdbReference(match.id);
-  // A movie (not TV) tmdbId another eligible account already looked up may
-  // already be shared (docs/shared-film-metadata-decision.md) - a free
-  // Firestore read that skips the heavier TMDB "details" request below.
-  // trySharedFilmMetadata fails open (null) on any error or ineligibility.
-  if (!match._details && reference.mediaType === "movie" && !options.skipSharedArchive) {
-    let shared = await window.trySharedFilmMetadata?.(match.id);
-    if (shared) return shared;
-  }
   let details =
     match._details ||
     (await window.lookupTmdbMovieDetails(match.id, fetchFn));
@@ -254,7 +246,6 @@ window.setFilmTmdbMetadata = function (filmId, metadata, options = {}) {
       });
     }
   }
-  window.pushSharedFilmMetadata?.(film, metadata);
   if (options.save !== false) window.save();
   return true;
 };

@@ -11,35 +11,26 @@
     <main class="data-workspace">
       <div class="data-workspace-heading">
         <div>
-          <span class="eyebrow">Maintenance</span>
+          <span class="eyebrow">Supabase workspace</span>
           <h1>Data</h1>
           <p>
-            New here? The <a href="#letterboxdImport">Letterboxd export</a>
-            panel below is the fastest way to bring in an existing
-            collection. This page also reviews archive-file changes, keeps a
-            portable backup, inspects health, and fetches TMDB images. Your
-            private workspace saves locally and, for eligible accounts, syncs
-            to the cloud automatically.
+            Import, back up, restore, inspect, and maintain the data stored in
+            your signed-in Supabase account. Files are parsed in this browser.
           </p>
-          <div id="ownerDataToolsLink"></div>
         </div>
       </div>
 
       <div class="data-workspace-grid">
-        <section class="data-panel data-panel--recommended" id="letterboxdImport">
-          <span class="eyebrow">Start here if you already track films elsewhere</span>
+        <section
+          class="data-panel data-panel--recommended"
+          id="letterboxdImport"
+        >
+          <span class="eyebrow">Bring an existing collection</span>
           <h2>Letterboxd export</h2>
           <p>
-            Select the original ZIP from Letterboxd (Settings → Import &amp;
-            Export → Export your data). The browser reads it locally and
-            previews watched films, ratings, diary facts, tags, and
-            watchlist changes. Awards and rankings are never imported —
-            those are yours to set up here. After you apply it, the
-            Fetch metadata panel below automatically starts pulling in
-            missing posters and details for the newly imported films
-            (checking films other Shared Edition members have already
-            looked up first, to avoid duplicate TMDB requests) — no need
-            to start a manual batch right away.
+            Preview the original Letterboxd ZIP, then write watched films,
+            ratings, diary facts, tags, and watchlist changes to Supabase.
+            Rankings and award ballots are never imported.
           </p>
           <div class="data-actions">
             <label class="button-link"
@@ -50,260 +41,92 @@
                 hidden
             /></label>
             <button id="letterboxdImportApplyBtn" type="button" disabled>
-              Apply reviewed jumpstart
+              Apply reviewed import
             </button>
           </div>
-          <p id="letterboxdImportStatus" class="data-panel-status">
-            The ZIP never leaves this browser.
-          </p>
+          <pre
+            id="letterboxdImportStatus"
+            class="data-panel-status"
+            role="status"
+          >
+The ZIP never leaves this browser.</pre>
         </section>
 
         <div class="data-panel-stack">
           <section class="data-panel" id="backupRestore">
-            <h2>Backup &amp; restore</h2>
+            <h2>Portable backup &amp; restore</h2>
             <p>
-              Download a complete JSON recovery snapshot, or select one to
-              preview changes. Update adds films and awards while keeping the
-              rest; replace rebuilds this browser's archive from the file.
+              Export your core archive rows and their joined catalog records as
+              JSON. Merge keeps rows not present in the file; replace removes
+              current watched, watchlist, ranking, award, and tag rows first.
             </p>
             <label class="data-field"
               >Restore mode<select id="restoreModeSelect">
-                <option value="merge" selected>
-                  Merge: add films &amp; awards, keep local data
-                </option>
-                <option value="replace">
-                  Replace: overwrite everything with the backup
-                </option>
+                <option value="merge" selected>Merge with Supabase</option>
+                <option value="replace">Replace personal archive</option>
               </select></label
             >
             <div class="data-actions">
-              <button id="downloadBtn" type="button">Download backup</button
-              ><label class="button-link"
-                >Review archive file<input
+              <button id="downloadBtn" type="button">Download backup</button>
+              <label class="button-link"
+                >Choose backup<input
                   id="uploadInput"
                   type="file"
                   accept="application/json,.json"
                   hidden
-              /></label
-              ><button id="jsonImportApplyBtn" type="button" disabled>
-                Use reviewed changes
+              /></label>
+              <button id="jsonImportApplyBtn" type="button" disabled>
+                Restore reviewed backup
               </button>
             </div>
+            <pre
+              id="restoreStatus"
+              class="data-panel-status"
+              role="status"
+            ></pre>
           </section>
-          <section id="publicProfilePublicationView" class="data-panel"></section>
-          <div class="data-tool-group" aria-labelledby="opinionToolsHeading">
-            <div class="data-tool-group-heading">
-              <span class="eyebrow">Your ratings, rankings, and awards</span>
-              <h2 id="opinionToolsHeading">Opinion tools</h2>
+
+          <section class="data-panel" id="publicProfilePublicationView">
+            <h2>Public profile</h2>
+            <p>
+              Publication is represented by your Supabase profile slug. The
+              Profile page controls the display name used to derive it.
+            </p>
+            <div class="data-actions">
+              <button id="publishProfileBtn" type="button">Publish</button>
+              <button
+                id="unpublishProfileBtn"
+                type="button"
+                class="button-secondary"
+              >
+                Unpublish
+              </button>
+            </div>
+            <p id="profileStatus" class="data-panel-status" role="status"></p>
+          </section>
+
+          <section class="data-panel data-danger-zone">
+            <div>
+              <h2>Permanently erase opinions</h2>
               <p>
-                Rebuild everything blindly, or make one smaller change. Film
-                facts and watch history stay in your archive.
+                Clears ratings, reviews, rewatch preferences, interest tiers,
+                rankings, award ballots/reviews, and entity notes. Watched and
+                watchlist membership plus shared catalog facts remain.
               </p>
-              <div class="data-actions">
+              <p>
                 <a class="button-link" href="build.html">Build your Oskars</a>
-              </div>
+              </p>
               <p
-                id="opinionMaintenanceStatus"
+                id="clearOpinionsStatus"
                 class="data-panel-status"
                 role="status"
-                hidden
               ></p>
             </div>
-            <section id="opinionRebuildView" class="data-panel"></section>
-            <section class="data-panel data-maintenance-panel">
-              <div>
-                <h2>Reset film order</h2>
-                <p>
-                  Put films in a release-year range back into the standard
-                  rating, release year, and title order. Ratings and award
-                  ballots stay untouched. A backup downloads first.
-                </p>
-                <p id="resetRankingStatus" class="data-panel-status" role="status"></p>
-              </div>
-              <form id="resetRankingForm" class="data-danger-zone-scope">
-                <label
-                  >From year<input
-                    id="resetRankingFromYear"
-                    type="number"
-                    min="1888"
-                    max="2100"
-                /></label>
-                <label
-                  >To year<input
-                    id="resetRankingToYear"
-                    type="number"
-                    min="1888"
-                    max="2100"
-                /></label>
-                <button type="submit">Reset film order</button>
-              </form>
-            </section>
-            <section class="data-panel data-maintenance-panel">
-              <div>
-                <h2>Remove award ballots</h2>
-                <p>
-                  Remove your award placements for selected periods and years.
-                  Ratings, film order, and other opinions stay untouched. A
-                  backup downloads first.
-                </p>
-                <p id="clearAwardsStatus" class="data-panel-status" role="status"></p>
-              </div>
-              <form id="clearAwardsForm" class="data-danger-zone-scope">
-                <fieldset class="data-danger-zone-types">
-                  <label
-                    ><input type="checkbox" name="periodType" value="years" checked />
-                    Years</label
-                  >
-                  <label
-                    ><input type="checkbox" name="periodType" value="decades" checked />
-                    Decades</label
-                  >
-                  <label
-                    ><input type="checkbox" name="periodType" value="centuries" checked />
-                    Centuries</label
-                  >
-                  <label
-                    ><input type="checkbox" name="periodType" value="allTime" checked />
-                    All-time</label
-                  >
-                </fieldset>
-                <label
-                  >From year<input
-                    id="clearAwardsFromYear"
-                    type="number"
-                    min="1888"
-                    max="2100"
-                /></label>
-                <label
-                  >To year<input
-                    id="clearAwardsToYear"
-                    type="number"
-                    min="1888"
-                    max="2100"
-                /></label>
-                <button type="submit">Remove award ballots</button>
-              </form>
-            </section>
-            <section class="data-panel data-danger-zone">
-              <div>
-                <h2>Permanently erase all opinions</h2>
-                <p>
-                  Remove ratings, rankings, award ballots, reviews, interest
-                  tiers, notes, and any saved blind-rebuild originals. Films,
-                  watch history, credits, and other facts stay. A backup
-                  downloads first.
-                </p>
-                <p id="clearOpinionsStatus" class="data-panel-status" role="status"></p>
-              </div>
-              <button id="clearOpinionsBtn" type="button">
-                Erase all opinions
-              </button>
-            </section>
-          </div>
-          <div class="data-tool-group" aria-labelledby="browserStorageHeading">
-            <div class="data-tool-group-heading">
-              <span class="eyebrow">Stored on this device</span>
-              <h2 id="browserStorageHeading">This browser</h2>
-              <p>
-                Remove this browser's private archive without changing the
-                synced cloud copy or a published profile.
-              </p>
-            </div>
-            <section class="data-panel data-danger-zone">
-              <div>
-                <h2>Remove archive from this browser</h2>
-                <p>
-                  Download a backup, empty this browser, disconnect cloud
-                  syncing, and sign out. Your synced cloud copy and published
-                  profile stay as they are.
-                </p>
-                <p id="clearDataStatus" class="data-panel-status" role="status"></p>
-              </div>
-              <button id="clearDataBtn" type="button">
-                Remove from this browser
-              </button>
-            </section>
-            <section class="data-panel">
-              <div>
-                <h2>Clear local data, stay signed in</h2>
-                <p>
-                  Download a backup, then empty this browser's archive
-                  without disconnecting or signing out. Nothing changes in
-                  your synced cloud copy until you choose what to do next.
-                </p>
-                <p id="clearLocalKeepSignedInStatus" class="data-panel-status" role="status"></p>
-              </div>
-              <div class="data-panel-actions">
-                <button id="clearLocalKeepSignedInBtn" type="button">
-                  Clear local data
-                </button>
-                <button id="discardLocalRestoreCloudBtn" type="button">
-                  Discard local changes, restore cloud copy
-                </button>
-              </div>
-            </section>
-          </div>
-          <section class="data-panel" id="fetchMetadata">
-            <h2>Fetch film details and images</h2>
-            <p>
-              Fill in missing film details, posters, and portraits from TMDB.
-              A small batch starts immediately; the all-missing actions show
-              their current item count and may take several minutes.
-            </p>
-            <div class="data-form">
-              <label class="data-field"
-                >Batch type<select id="metadataBatchType">
-                  <option value="film-metadata">Watched film metadata</option>
-                  <option value="watchlist-metadata">Watchlist metadata</option>
-                  <option value="person-portraits">Person portraits</option>
-                </select></label
-              >
-              <label class="data-field"
-                >Batch size<input
-                  id="metadataBatchLimit"
-                  type="number"
-                  min="1"
-                  max="10000"
-                  step="1"
-                  value="25"
-              /></label>
-              <div class="data-actions">
-                <button id="metadataBatchBtn" type="button">Start batch</button
-                ><button id="metadataEverythingBtn" type="button">
-                  Fetch all missing</button
-                ><button id="metadataNonArchiveBtn" type="button">
-                  Fetch not-watched missing
-                </button>
-              </div>
-            </div>
-            <div class="metadata-progress">
-              <progress id="metadataBatchProgress" value="0" max="1"></progress>
-              <p id="metadataBatchStatus" class="data-panel-status">Idle</p>
-              <div
-                id="metadataBatchReport"
-                class="metadata-batch-report"
-                hidden
-              ></div>
-            </div>
+            <button id="clearOpinionsBtn" type="button">Erase opinions</button>
           </section>
         </div>
       </div>
 
-      <section id="editLogView" class="data-panel edit-log-panel"></section>
-      <section
-        id="importReport"
-        class="data-panel import-report import-report-panel"
-        hidden
-      >
-        <div class="import-report-header">
-          <div>
-            <span class="eyebrow">Data review</span>
-            <h2 id="importReportTitle">Last import</h2>
-          </div>
-          <button id="dismissImportReport" type="button" title="Hide">×</button>
-        </div>
-        <div id="importReportBody"></div>
-      </section>
       <section
         id="dataHealthView"
         class="data-panel data-health-panel"

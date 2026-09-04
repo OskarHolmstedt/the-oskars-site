@@ -15,14 +15,17 @@
    */
   window.buildSearchEntries = function (options = {}) {
     let localeKey = String(options.locale || "");
+    let ownProjects = Object.values(
+      window.OSKARS_PROJECT_SOURCE_INDEX_BY_ID || {},
+    );
     let cacheKey = [
       window.state?.aggregateVersion || 0,
       window.state?.watchlist?.length || 0,
       window.OSKARS_SHARED_FILM_ARCHIVE_VERSION || 0,
-      window.state?.projects?.length || 0,
+      ownProjects.length,
       // Project renames/status flips don't bump aggregateVersion, so the latest
       // project update timestamp keeps their search entries fresh.
-      (window.state?.projects || []).reduce(
+      ownProjects.reduce(
         (latest, project) =>
           String(project.updatedAt || "") > latest
             ? String(project.updatedAt)
@@ -46,7 +49,6 @@
         projectOpen: "Open",
         projectComplete: "Complete",
         projectArchived: "Archived",
-        sharedArchive: "Shared archive",
         films: "films",
         allTime: "All-time",
       },
@@ -124,9 +126,7 @@
           type: "watchlist",
           id: item.id || window.watchlistItemId(item),
         },
-        href: window.watchlistFilmPageUrl(
-          item.id || window.watchlistItemId(item),
-        ),
+        href: window.filmPageUrl(item.supabaseFilmId),
       });
     });
 
@@ -136,9 +136,9 @@
         ? String(film.year)
         : "";
       entries.push({
-        type: "Shared film",
+        type: "Unseen",
         name: window.localizedFilmTitle?.(film) || film.title,
-        meta: [year, labels.sharedArchive].filter(Boolean).join(" · "),
+        meta: year,
         searchText: [
           film.title,
           film.swedishTitle,
@@ -148,14 +148,16 @@
           .filter(Boolean)
           .join(" "),
         year,
-        target: { type: "shared-film", id: String(film.tmdbId || "") },
-        href: window.sharedFilmPreviewUrl(film.tmdbId),
+        target: { type: "shared-film", id: String(film.id || film.tmdbId || "") },
+        href: film.id
+          ? window.filmPageUrl(film.id)
+          : window.sharedFilmPreviewUrl(film.tmdbId),
       });
     });
 
     // Archived projects stay searchable — search is a lookup tool and the
     // status label makes their state obvious in the result meta.
-    (window.state.projects || []).forEach((project) => {
+    ownProjects.forEach((project) => {
       let progress = window.projectProgress?.(project);
       let status = ["archived", "complete"].includes(project.status)
         ? project.status

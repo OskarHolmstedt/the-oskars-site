@@ -1,21 +1,27 @@
 /**
- * @file Guided pairwise merge tool (issue #73): combines two already-ordered
- * watchlist scopes within one interest tier - two years, a year and its
- * decade, a decade and the rest of the tier, and so on - into one
- * interleaved order via repeated "which ranks higher" choices, then applies
- * the result through the existing tier/order model. No second order model:
- * every other item in the tier keeps its exact existing position.
+ * @file Guided pairwise merge tool, cut over to Supabase for real (issue
+ * #421) - combines two already-ordered watchlist scopes within one
+ * interest tier (two years, a year and its decade, a decade and the
+ * rest of the tier, and so on) into one interleaved order via repeated
+ * "which ranks higher" choices, then applies the result through
+ * applySupabaseWatchlistTierMergeOrder(): every other item in the tier
+ * keeps its exact existing position.
+ *
+ * Reuses merge-order.js's generic engine (createMergeSession/
+ * pickMergeSide/undoMergeChoice/renderMergeCompareStep/
+ * wireMergeCompareControls) exactly as the original did - the state-
+ * free half of this page needed zero changes. Compare cards use their
+ * own simple markup (title, year, tier badge) rather than
+ * renderSharedFilmCard/renderLinkedDirectors - both have real,
+ * non-optionally-chained window.state coupling in reachable paths
+ * (renderFilmPoster specifically), matching the established pattern of
+ * writing simple custom markup over risking reuse of state-coupled UI
+ * helpers. No director on the card either - Supabase's watchlist select
+ * doesn't join credits, a deliberate scope cut, not an oversight.
  */
 (function () {
   let escape = window.pageEscape;
-  let ui =
-    window.uiText ||
-    ((text, values = {}) =>
-      text.replace(/\{(\w+)\}/g, (_, key) => values[key] ?? ""));
-  window.load();
-
   let container = document.getElementById("watchlistMergePage");
-  document.title = `${ui("Merge watchlist order")} · The Oskars`;
 
   let SCOPE_TYPES = ["year", "decade", "century", "all"];
   let picker = { tier: "", aType: "year", aKey: "", bType: "year", bKey: "" };
@@ -23,32 +29,21 @@
   let session = null;
   let applyResult = null;
 
-  function wid(item) {
-    return item.id || window.watchlistItemId(item);
-  }
-
-  function tiersWithItems() {
-    return window.WATCHLIST_TIERS.filter(
-      (tier) => window.watchlistTierItemsInOrder(tier).length >= 2,
-    );
-  }
-
   function scopeTypeLabel(type) {
-    if (type === "year") return ui("Year");
-    if (type === "decade") return ui("Decade");
-    if (type === "century") return ui("Century");
-    return ui("Whole tier");
+    if (type === "year") return "Year";
+    if (type === "decade") return "Decade";
+    if (type === "century") return "Century";
+    return "Whole tier";
   }
 
   function scopeKeyOptions(tier, type) {
     if (type === "all" || !tier) return [];
-    return window.watchlistPeriodKeys(type, tier);
+    return window.supabaseWatchlistPeriodKeys(tier, type);
   }
 
   function ensurePickerDefaults() {
-    let tiers = tiersWithItems();
-    if (!picker.tier || !tiers.includes(picker.tier))
-      picker.tier = tiers[0] || "";
+    let tiers = window.supabaseWatchlistTiersWithItems();
+    if (!picker.tier || !tiers.includes(picker.tier)) picker.tier = tiers[0] || "";
     if (
       picker.aType !== "all" &&
       !scopeKeyOptions(picker.tier, picker.aType).includes(picker.aKey)
@@ -58,9 +53,6 @@
       picker.bType !== "all" &&
       !scopeKeyOptions(picker.tier, picker.bType).includes(picker.bKey)
     ) {
-      // Default Group B to a different key than Group A when both start on
-      // the same scope type, so the two groups aren't identical (and thus
-      // trivially empty to merge) the moment the tool loads.
       let bOptions = scopeKeyOptions(picker.tier, picker.bType);
       let distinctFromA = bOptions.find(
         (key) => !(picker.bType === picker.aType && key === picker.aKey),
@@ -74,24 +66,22 @@
     let key = picker[`${side}Key`];
     if (!picker.tier) return [];
     if (type !== "all" && !key) return [];
-    return window.watchlistTierPeriodScopeItems(picker.tier, type, key);
+    return window.supabaseWatchlistTierPeriodScopeItems(picker.tier, type, key);
   }
 
   function effectiveScopeItems() {
     let listA = scopeItems("a");
-    let aIds = new Set(listA.map(wid));
-    let listB = scopeItems("b").filter((item) => !aIds.has(wid(item)));
+    let aIds = new Set(listA.map((row) => row.film_id));
+    let listB = scopeItems("b").filter((row) => !aIds.has(row.film_id));
     return { listA, listB };
   }
 
   function pickerValidation() {
     if (!picker.tier)
-      return ui("No interest tier has at least two watchlist films to merge.");
+      return "No interest tier has at least two watchlist films to merge.";
     let { listA, listB } = effectiveScopeItems();
     if (!listA.length || !listB.length)
-      return ui(
-        "Both groups need at least one film, and can't be the same scope.",
-      );
+      return "Both groups need at least one film, and can't be the same scope.";
     return "";
   }
 
@@ -113,19 +103,18 @@
       <legend>${escape(label)}</legend>
       <select data-merge-scope-type="${side}">${typeOptions}</select>
       ${type === "all" ? "" : `<select data-merge-scope-key="${side}">${keyOptions}</select>`}
-      <span class="watchlist-merge-scope-count">${escape(window.uiCount?.(count, "film", "films") || `${count} films`)}</span>
+      <span class="watchlist-merge-scope-count">${escape(count)} films</span>
     </fieldset>`;
   }
 
   function renderSetup() {
     ensurePickerDefaults();
-    let tiers = tiersWithItems();
+    let tiers = window.supabaseWatchlistTiersWithItems();
     let validation = pickerValidation();
     if (!tiers.length)
       return `<div class="detail-empty">
-        <h2>${escape(ui("Nothing to merge yet"))}</h2>
-        <p>${escape(ui("No interest tier has at least two watchlist films. Assign tiers on the watchlist page first."))}</p>
-        <a href="${escape(window.periodPageUrl("alltime", "alltime"))}&view=watchlist">${escape(ui("Return to watchlist"))}</a>
+        <h2>Nothing to merge yet</h2>
+        <p>No interest tier has at least two watchlist films. Assign tiers on the watchlist first.</p>
       </div>`;
     let tierOptions = tiers
       .map(
@@ -134,78 +123,60 @@
       )
       .join("");
     return `<section class="watchlist-merge-setup" data-watchlist-merge-setup>
-      <p>${escape(ui("Pick an interest tier and two groups within it - two years, a year and its decade, a decade and the rest of the tier - then decide film by film which one ranks higher. Everything outside the two groups keeps its exact position."))}</p>
-      <label class="watchlist-merge-tier-picker">${escape(ui("Interest tier"))} <select data-merge-tier>${tierOptions}</select></label>
+      <p>Pick an interest tier and two groups within it, then decide film by film which one ranks higher. Everything outside the two groups keeps its exact position.</p>
+      <label class="watchlist-merge-tier-picker">Interest tier <select data-merge-tier>${tierOptions}</select></label>
       <div class="watchlist-merge-scopes">
-        ${renderScopeFieldset("a", ui("Group A"))}
-        ${renderScopeFieldset("b", ui("Group B"))}
+        ${renderScopeFieldset("a", "Group A")}
+        ${renderScopeFieldset("b", "Group B")}
       </div>
       ${validation ? `<p class="watchlist-merge-validation">${escape(validation)}</p>` : ""}
-      <button type="button" class="sort-order-button" data-merge-start${validation ? " disabled" : ""}>${escape(ui("Start merge"))}</button>
+      <button type="button" class="sort-order-button" data-merge-start${validation ? " disabled" : ""}>Start merge</button>
     </section>`;
   }
 
-  function renderCompareCard(item, side) {
-    let film = window.watchlistFilmLike(item, null);
-    let directorHtml = window.renderLinkedDirectors(film, { escape });
-    return window.renderSharedFilmCard(film, {
-      classes: ["watchlist-card", "watchlist-merge-choice-card"],
-      openFilm: false,
-      attributes: { "data-watchlist-merge-pick": side, tabindex: "0", role: "button" },
-      showYear: true,
-      directorHtml: directorHtml
-        ? `<div class="film-director">${escape(ui("by"))} ${directorHtml}</div>`
-        : "",
-      escape,
-      bodyHtml: window.renderWatchlistTierBadge(item.tier, { escape }),
-    });
+  function renderCompareCard(row, side) {
+    let film = row.films || {};
+    return `<article class="film-card watchlist-card watchlist-merge-choice-card" data-watchlist-merge-pick="${side}" tabindex="0" role="button">
+      <h3>${escape(film.title || "Unknown film")}</h3>
+      <span class="film-year">(${escape(film.year || "—")})</span>
+      ${window.renderWatchlistTierBadge(row.tier, { escape })}
+    </article>`;
   }
 
   function renderPreview() {
     let itemsHtml = session.merged
       .map(
-        (item) =>
-          `<li>${escape(window.localizedFilmTitle?.(window.watchlistFilmLike(item, null)) || item.title)} <small>(${escape(item.year || "—")})</small></li>`,
+        (row) =>
+          `<li>${escape(row.films?.title || "Unknown film")} <small>(${escape(row.films?.year || "—")})</small></li>`,
       )
       .join("");
     return `<section class="watchlist-merge-preview" data-watchlist-merge-preview>
-      <h2>${escape(ui("Merged order"))}</h2>
-      <p>${escape(ui("This becomes the new relative order for these films within the tier; every other film keeps its exact position."))}</p>
+      <h2>Merged order</h2>
+      <p>This becomes the new relative order for these films within the tier; every other film keeps its exact position.</p>
       <ol class="watchlist-merge-preview-list">${itemsHtml}</ol>
       <div class="watchlist-merge-preview-actions">
-        <button type="button" class="sort-order-button" data-merge-apply>${escape(ui("Use this order"))}</button>
-        <button type="button" class="sort-order-button" data-merge-restart>${escape(ui("Start over"))}</button>
+        <button type="button" class="sort-order-button" data-merge-apply>Use this order</button>
+        <button type="button" class="sort-order-button" data-merge-restart>Start over</button>
       </div>
     </section>`;
   }
 
   function renderDone() {
     let tier = session?.tier || picker.tier;
-    let watchlistHref = `${window.periodPageUrl("alltime", "alltime")}&view=watchlist&tiers=${encodeURIComponent(tier)}`;
-    let summaryText = ui("{count} reordered in tier {tier}.", {
-      count:
-        window.uiCount?.(applyResult?.changed || 0, "film", "films") ||
-        `${applyResult?.changed || 0} films`,
-      tier,
-    });
     return `<section class="watchlist-merge-done" data-watchlist-merge-done>
-      <h2>${escape(ui("Merged order applied"))}</h2>
-      <p>${escape(summaryText)}</p>
-      <a class="sort-order-button" href="${escape(watchlistHref)}">${escape(ui("Review on the watchlist"))}</a>
-      <button type="button" class="sort-order-button" data-merge-again>${escape(ui("Merge again"))}</button>
+      <h2>Merged order applied</h2>
+      <p>${escape(applyResult?.changed || 0)} reordered in tier ${escape(tier)}.</p>
+      <button type="button" class="sort-order-button" data-merge-again>Merge again</button>
     </section>`;
   }
 
   function render() {
     let header = window.renderDetailHeader({
-      mainHtml: `<h1>${escape(ui("Merge watchlist order"))}</h1><p><a href="${escape(window.periodPageUrl("alltime", "alltime"))}&view=watchlist">${escape(ui("Back to watchlist"))}</a></p>`,
+      mainHtml: "<h1>Merge watchlist order</h1>",
     });
     let body =
       step === "compare"
-        ? window.renderMergeCompareStep(session, renderCompareCard, {
-            escape,
-            ui,
-          })
+        ? window.renderMergeCompareStep(session, renderCompareCard, { escape })
         : step === "preview"
           ? renderPreview()
           : step === "done"
@@ -236,17 +207,27 @@
     render();
   }
 
-  function applyMerge() {
-    let ids = session.merged.map(wid);
-    let result = window.applyWatchlistTierMergeOrder(session.tier, ids);
-    if (!result.ok) {
-      window.alert?.(result.reason);
-      return;
+  async function applyMerge() {
+    let ids = session.merged.map((row) => row.film_id);
+    let applyButton = container.querySelector("[data-merge-apply]");
+    if (applyButton) applyButton.disabled = true;
+    try {
+      let result = await window.applySupabaseWatchlistTierMergeOrder(
+        session.tier,
+        ids,
+      );
+      if (!result.ok) {
+        alert(result.reason);
+        if (applyButton) applyButton.disabled = false;
+        return;
+      }
+      applyResult = result;
+      step = "done";
+      render();
+    } catch (error) {
+      alert(error.message || String(error));
+      if (applyButton) applyButton.disabled = false;
     }
-    applyResult = result;
-    window.save?.({ immediate: true, rebuild: false });
-    step = "done";
-    render();
   }
 
   container.addEventListener("change", (event) => {
@@ -296,6 +277,19 @@
     },
   });
 
-  render();
-  window.addEventListener?.("oskars:localechange", render);
+  async function boot() {
+    let access = await window.resolveSupabaseAccountGate();
+    if (!access.allowed) {
+      window.renderSupabaseAccountGate(access, container);
+      return;
+    }
+    try {
+      await window.loadSupabaseWorkspace();
+      render();
+    } catch (error) {
+      container.innerHTML = `<section class="detail-empty"><h2>Could not load your watchlist</h2><p>${escape(error.message || String(error))}</p></section>`;
+    }
+  }
+
+  boot();
 })();

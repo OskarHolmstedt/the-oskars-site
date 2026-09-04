@@ -7,15 +7,15 @@
     "nav.home": { sv: "Hem" },
     "nav.periods": { sv: "Perioder" },
     "nav.categories": { sv: "Kategorier" },
+    "nav.collections": { sv: "Samlingar" },
     "nav.franchises": { sv: "Franchises" },
     "nav.films": { sv: "Filmer" },
     "nav.watchlist": { sv: "Watchlist" },
     "nav.watched": { sv: "Sett" },
     "nav.projects": { sv: "Projekt" },
     "nav.compare": { sv: "Jämför" },
-    "nav.editor": { sv: "Editor" },
     "nav.data": { sv: "Data" },
-    "nav.profile": { sv: "Konto" },
+    "nav.profile": { sv: "Profil" },
     "nav.intake": { sv: "Intag" },
     "nav.build": { sv: "Bygg dina Oskars" },
     "nav.rateWatched": { sv: "Betygsätt sedda" },
@@ -37,7 +37,7 @@
     "search.type.decade": { sv: "Årtionde" },
     "search.type.century": { sv: "Århundrade" },
     "search.type.period": { sv: "Period" },
-    "search.type.sharedfilm": { sv: "Delad film" },
+    "search.type.unseen": { sv: "Osedd" },
     "search.meta.tier": { sv: "Tier" },
     "search.meta.inArchive": { sv: "Sedd" },
     "search.meta.watchlist": { sv: "Watchlist" },
@@ -45,8 +45,8 @@
     "search.meta.open": { sv: "Öppet" },
     "search.meta.complete": { sv: "Klart" },
     "search.meta.archived": { sv: "Arkiverat" },
-    "search.meta.sharedArchive": { sv: "Delat arkiv" },
     "menu.categories": { sv: "Kategorier" },
+    "menu.collections": { sv: "Samlingar" },
     "menu.periods": { sv: "Perioder" },
     "menu.films": { sv: "Filmer" },
     "menu.browsePeriods": { sv: "Bläddra bland alla perioder" },
@@ -74,16 +74,68 @@
     "language.current": { sv: "Svenska" },
     "language.next": { sv: "EN" },
     "period.allTime": { sv: "All-time" },
-    "auth.signOut": { sv: "Logga ut" },
-    "auth.confirmSignOut": {
-      sv: "Sluta molnsynka och fortsätt lokalt? Du kan logga in igen när som helst.",
-    },
-    "auth.confirmSignOutRequired": {
-      sv: "Logga ut och lås webbläsarens privata arkiv? Ingenting raderas; samma konto kan öppna det igen senare.",
-    },
   };
 
   let literalTranslations = {
+    "Your rating, notes, tags, and memberships": {
+      sv: "Ditt betyg, dina anteckningar, taggar och medlemskap",
+    },
+    "Your film data": { sv: "Dina filmdata" },
+    "Shared catalog facts and posters are read-only. Corrections are handled through the catalog maintenance workflow.":
+      {
+        sv: "Fakta och affischer i den delade katalogen är skrivskyddade. Rättelser hanteras genom katalogunderhållet.",
+      },
+    "New memberships can be added. Existing shared-catalog memberships cannot be removed or corrected here.":
+      {
+        sv: "Nya medlemskap kan läggas till. Befintliga medlemskap i den delade katalogen kan inte tas bort eller rättas här.",
+      },
+    "Supabase health": { sv: "Supabase-hälsa" },
+    "Ranking scopes": { sv: "Rankingomfattningar" },
+    "Award placements": { sv: "Prisutnämningar" },
+    "{count} watched film(s) have no shared-catalog poster. Catalog corrections remain a service-role maintenance task.":
+      {
+        sv: "{count} sedda filmer saknar affisch i den delade katalogen. Katalogrättelser förblir en underhållsuppgift med servicebehörighet.",
+      },
+    "Every watched film has a shared-catalog poster.": {
+      sv: "Varje sedd film har en affisch i den delade katalogen.",
+    },
+    "Browser sync conflicts, local edit history, metadata batches, and blind-rebuild baselines are not part of the Supabase data model and are no longer shown here.":
+      {
+        sv: "Webbläsarsynkkonflikter, lokal redigeringshistorik, metadatajobb och blindåteruppbyggnad ingår inte i Supabase-datamodellen och visas inte längre här.",
+      },
+    "Supabase is not configured.": { sv: "Supabase är inte konfigurerat." },
+    "Sign in first.": { sv: "Logga in först." },
+    "This is not a supported Supabase backup.": {
+      sv: "Det här är inte en Supabase-säkerhetskopia som stöds.",
+    },
+    "Set a display name on the Profile page first.": {
+      sv: "Ange först ett visningsnamn på kontosidan.",
+    },
+    "Published as {slug}.": { sv: "Publicerad som {slug}." },
+    "Not published.": { sv: "Inte publicerad." },
+    "Unsupported backup format.": { sv: "Säkerhetskopians format stöds inte." },
+    "Backup from {date}: {watched} watched, {watchlist} watchlist, {rankings} ranking scope(s).":
+      {
+        sv: "Säkerhetskopia från {date}: {watched} sedda, {watchlist} i watchlist, {rankings} rankingomfattningar.",
+      },
+    "unknown date": { sv: "okänt datum" },
+    "Backup restored to Supabase.": {
+      sv: "Säkerhetskopian återställdes till Supabase.",
+    },
+    "Backup downloaded.": { sv: "Säkerhetskopian hämtades." },
+    "Could not load the new watchlist row.": {
+      sv: "Det gick inte att läsa in den nya watchlist-raden.",
+    },
+    "Import failed.": { sv: "Importen misslyckades." },
+    "Letterboxd import saved to Supabase.": {
+      sv: "Letterboxd-importen sparades i Supabase.",
+    },
+    "Permanently erase your Supabase opinions? A backup downloads first.": {
+      sv: "Radera dina åsikter permanent från Supabase? En säkerhetskopia hämtas först.",
+    },
+    "Opinions erased. Watch history and catalog facts remain.": {
+      sv: "Åsikterna raderades. Visningshistorik och katalogfakta finns kvar.",
+    },
     "{count} winners": { sv: "{count} vinnare" },
     "Latest winner": { sv: "Senaste vinnare" },
     "No winner selected yet": { sv: "Ingen vinnare vald ännu" },
@@ -127,9 +179,10 @@
     },
     "Build your Oskars": { sv: "Bygg dina Oskars" },
     "Your film journey": { sv: "Din filmresa" },
-    "Rate, rank, and celebrate your watched history one release year at a time.": {
-      sv: "Betygsätt, ranka och fira din filmhistorik ett premiärår i taget.",
-    },
+    "Rate, rank, and celebrate your watched history one release year at a time.":
+      {
+        sv: "Betygsätt, ranka och fira din filmhistorik ett premiärår i taget.",
+      },
     "Journey progress": { sv: "Resans framsteg" },
     "films rated": { sv: "filmer betygsatta" },
     "ranking groups arranged": { sv: "rankningsgrupper ordnade" },
@@ -154,9 +207,10 @@
     "Rate watched": { sv: "Betygsätt sedda" },
     "Back to Intake": { sv: "Tillbaka till intag" },
     "Back to Build your Oskars": { sv: "Tillbaka till Bygg dina Oskars" },
-    "Give unrated watched entries their exact personal rating, one release year at a time.": {
-      sv: "Ge sedda poster utan betyg deras exakta personliga betyg, ett premiärår i taget.",
-    },
+    "Give unrated watched entries their exact personal rating, one release year at a time.":
+      {
+        sv: "Ge sedda poster utan betyg deras exakta personliga betyg, ett premiärår i taget.",
+      },
     "Everything watched is rated": { sv: "Allt sett är betygsatt" },
     "There are no unrated watched entries with a release year.": {
       sv: "Det finns inga sedda poster med premiärår som saknar betyg.",
@@ -213,10 +267,13 @@
     "Dismiss milestone": { sv: "Dölj milstolpe" },
     "Start rebuilding": { sv: "Börja bygga upp igen" },
     "Your creative journey": { sv: "Din kreativa resa" },
-    "Your archive is ready to make yours": { sv: "Ditt arkiv är redo att bli ditt" },
-    "{count} watched work(s) need your personal rating. Import diagnostics can wait while you start with the films.": {
-      sv: "{count} sedda verk behöver ditt personliga betyg. Importdiagnostiken kan vänta medan du börjar med filmerna.",
+    "Your archive is ready to make yours": {
+      sv: "Ditt arkiv är redo att bli ditt",
     },
+    "{count} watched work(s) need your personal rating. Import diagnostics can wait while you start with the films.":
+      {
+        sv: "{count} sedda verk behöver ditt personliga betyg. Importdiagnostiken kan vänta medan du börjar med filmerna.",
+      },
     "Start building your Oskars": { sv: "Börja bygga dina Oskars" },
     "Other watched": { sv: "Övrigt sett" },
     "Not yet ranked": { sv: "Ännu inte rangordnad" },
@@ -224,14 +281,15 @@
     "Add to watchlist": { sv: "Lägg till i att se-listan" },
     "Add to watched": { sv: "Lägg till som sedd" },
     "Adding…": { sv: "Lägger till…" },
-    "Shared film": { sv: "Delad film" },
-    "This shared film could not be found.": {
-      sv: "Den delade filmen kunde inte hittas.",
+    "Unseen film": { sv: "Osedd film" },
+    "This film could not be found.": {
+      sv: "Filmen kunde inte hittas.",
     },
     "View on TMDB": { sv: "Visa på TMDB" },
-    "This film is known to the shared archive but hasn't been added to your own collection yet.": {
-      sv: "Filmen finns i det delade arkivet men har inte lagts till i din egen samling än.",
-    },
+    "This film is in the catalog but hasn't been added to your own collection yet.":
+      {
+        sv: "Filmen finns i katalogen men har inte lagts till i din egen samling än.",
+      },
     "Already in your own collection.": {
       sv: "Redan i din egen samling.",
     },
@@ -344,9 +402,10 @@
     },
     "Browse award categories": { sv: "Bläddra bland priskategorier" },
     "Browse award periods": { sv: "Bläddra bland prisperioder" },
-    "How often your annual category winner matches the official Academy winner.": {
-      sv: "Hur ofta din årliga kategorivinnare matchar den officiella Academy-vinnaren.",
-    },
+    "How often your annual category winner matches the official Academy winner.":
+      {
+        sv: "Hur ofta din årliga kategorivinnare matchar den officiella Academy-vinnaren.",
+      },
     "Overall agreement": { sv: "Total överensstämmelse" },
     "{matches} of {total} comparable category-periods": {
       sv: "{matches} av {total} jämförbara kategori-perioder",
@@ -372,6 +431,9 @@
     Month: { sv: "Månad" },
     "No country data yet.": { sv: "Ingen landsdata ännu." },
     "No data yet.": { sv: "Ingen data ännu." },
+    "None of these films are in the catalog yet.": {
+      sv: "Inga av dessa filmer finns i katalogen ännu.",
+    },
     "No platform data yet.": { sv: "Ingen plattformsdata ännu." },
     "No ratings yet.": { sv: "Inga betyg ännu." },
     "No release-year data yet.": { sv: "Ingen premiärårsdata ännu." },
@@ -420,7 +482,6 @@
     Add: { sv: "Lägg till" },
     "Add film": { sv: "Lägg till film" },
     "Add target": { sv: "Lägg till mål" },
-    "Add nomination": { sv: "Lägg till nominering" },
     "Add nomination?": { sv: "Lägg till nominering?" },
     Added: { sv: "Tillagd" },
     Blocked: { sv: "Blockerad" },
@@ -461,86 +522,105 @@
       sv: "Dina betyg, rankningar och priser",
     },
     "Opinion tools": { sv: "Verktyg för dina åsikter" },
-    "Rebuild everything blindly, or make one smaller change. Film facts and watch history stay in your archive.": {
-      sv: "Bygg om allt blint eller gör en mindre ändring. Filmfakta och tittarhistorik finns kvar i arkivet.",
-    },
-    "Finish, restore, or close your blind rebuild before changing film order or award ballots.": {
-      sv: "Slutför, återställ eller stäng den blinda ombyggnaden innan du ändrar filmordning eller prisplaceringar.",
-    },
+    "Rebuild everything blindly, or make one smaller change. Film facts and watch history stay in your archive.":
+      {
+        sv: "Bygg om allt blint eller gör en mindre ändring. Filmfakta och tittarhistorik finns kvar i arkivet.",
+      },
+    "Finish, restore, or close your blind rebuild before changing film order or award ballots.":
+      {
+        sv: "Slutför, återställ eller stäng den blinda ombyggnaden innan du ändrar filmordning eller prisplaceringar.",
+      },
     "Reset film order": { sv: "Återställ filmordning" },
-    "Put films in a release-year range back into the standard rating, release year, and title order. Ratings and award ballots stay untouched. A backup downloads first.": {
-      sv: "Lägg tillbaka filmer inom ett intervall av utgivningsår i standardordningen betyg, utgivningsår och titel. Betyg och prisplaceringar påverkas inte. En säkerhetskopia laddas ned först.",
-    },
+    "Put films in a release-year range back into the standard rating, release year, and title order. Ratings and award ballots stay untouched. A backup downloads first.":
+      {
+        sv: "Lägg tillbaka filmer inom ett intervall av utgivningsår i standardordningen betyg, utgivningsår och titel. Betyg och prisplaceringar påverkas inte. En säkerhetskopia laddas ned först.",
+      },
     "Remove award ballots": { sv: "Ta bort prisplaceringar" },
-    "Remove your award placements for selected periods and years. Ratings, film order, and other opinions stay untouched. A backup downloads first.": {
-      sv: "Ta bort dina prisplaceringar för valda perioder och år. Betyg, filmordning och andra åsikter påverkas inte. En säkerhetskopia laddas ned först.",
-    },
+    "Remove your award placements for selected periods and years. Ratings, film order, and other opinions stay untouched. A backup downloads first.":
+      {
+        sv: "Ta bort dina prisplaceringar för valda perioder och år. Betyg, filmordning och andra åsikter påverkas inte. En säkerhetskopia laddas ned först.",
+      },
     "Permanently erase all opinions": {
       sv: "Radera alla åsikter permanent",
     },
-    "Remove ratings, rankings, award ballots, reviews, interest tiers, notes, and any saved blind-rebuild originals. Films, watch history, credits, and other facts stay. A backup downloads first.": {
-      sv: "Ta bort betyg, rankningar, prisplaceringar, recensioner, intressenivåer, anteckningar och sparade original från en blind ombyggnad. Filmer, tittarhistorik, medverkande och andra fakta finns kvar. En säkerhetskopia laddas ned först.",
-    },
+    "Remove ratings, rankings, award ballots, reviews, interest tiers, notes, and any saved blind-rebuild originals. Films, watch history, credits, and other facts stay. A backup downloads first.":
+      {
+        sv: "Ta bort betyg, rankningar, prisplaceringar, recensioner, intressenivåer, anteckningar och sparade original från en blind ombyggnad. Filmer, tittarhistorik, medverkande och andra fakta finns kvar. En säkerhetskopia laddas ned först.",
+      },
     "Erase all opinions": { sv: "Radera alla åsikter" },
     Erased: { sv: "Raderade" },
-    "Permanently erase all opinions, including the saved originals from this blind rebuild? The rebuild will end, and those originals cannot be restored. Films, watch history, and other facts stay. A backup downloads first.": {
-      sv: "Radera alla åsikter permanent, även de sparade originalen från den blinda ombyggnaden? Ombyggnaden avslutas och originalen kan inte återställas. Filmer, tittarhistorik och andra fakta finns kvar. En säkerhetskopia laddas ned först.",
-    },
-    "Permanently erase all opinions? Ratings, rankings, award ballots, reviews, interest tiers, and notes will be removed. Films, watch history, and other facts stay. A backup downloads first.": {
-      sv: "Radera alla åsikter permanent? Betyg, rankningar, prisplaceringar, recensioner, intressenivåer och anteckningar tas bort. Filmer, tittarhistorik och andra fakta finns kvar. En säkerhetskopia laddas ned först.",
-    },
-    "Erased {ratings} ratings, {awards} award placements, and your other saved opinions. {watched} watched work(s) and their facts remain.": {
-      sv: "Raderade {ratings} betyg, {awards} prisplaceringar och dina andra sparade åsikter. {watched} sedda verk och deras fakta finns kvar.",
-    },
+    "Permanently erase all opinions, including the saved originals from this blind rebuild? The rebuild will end, and those originals cannot be restored. Films, watch history, and other facts stay. A backup downloads first.":
+      {
+        sv: "Radera alla åsikter permanent, även de sparade originalen från den blinda ombyggnaden? Ombyggnaden avslutas och originalen kan inte återställas. Filmer, tittarhistorik och andra fakta finns kvar. En säkerhetskopia laddas ned först.",
+      },
+    "Permanently erase all opinions? Ratings, rankings, award ballots, reviews, interest tiers, and notes will be removed. Films, watch history, and other facts stay. A backup downloads first.":
+      {
+        sv: "Radera alla åsikter permanent? Betyg, rankningar, prisplaceringar, recensioner, intressenivåer och anteckningar tas bort. Filmer, tittarhistorik och andra fakta finns kvar. En säkerhetskopia laddas ned först.",
+      },
+    "Erased {ratings} ratings, {awards} award placements, and your other saved opinions. {watched} watched work(s) and their facts remain.":
+      {
+        sv: "Raderade {ratings} betyg, {awards} prisplaceringar och dina andra sparade åsikter. {watched} sedda verk och deras fakta finns kvar.",
+      },
     "Stored on this device": { sv: "Lagrat på den här enheten" },
     "This browser": { sv: "Den här webbläsaren" },
-    "Remove this browser's private archive without changing the synced cloud copy or a published profile.": {
-      sv: "Ta bort webbläsarens privata arkiv utan att ändra den synkade molnkopian eller en publicerad profil.",
-    },
+    "Remove this browser's private archive without changing the synced cloud copy or a published profile.":
+      {
+        sv: "Ta bort webbläsarens privata arkiv utan att ändra den synkade molnkopian eller en publicerad profil.",
+      },
     "Remove archive from this browser": {
       sv: "Ta bort arkivet från webbläsaren",
     },
-    "Download a backup, empty this browser, disconnect cloud syncing, and sign out. Your synced cloud copy and published profile stay as they are.": {
-      sv: "Ladda ned en säkerhetskopia, töm webbläsaren, koppla från molnsynkningen och logga ut. Din synkade molnkopia och publicerade profil förblir oförändrade.",
-    },
+    "Download a backup, empty this browser, disconnect cloud syncing, and sign out. Your synced cloud copy and published profile stay as they are.":
+      {
+        sv: "Ladda ned en säkerhetskopia, töm webbläsaren, koppla från molnsynkningen och logga ut. Din synkade molnkopia och publicerade profil förblir oförändrade.",
+      },
     "Remove from this browser": { sv: "Ta bort från webbläsaren" },
-    "Remove this archive from this browser? A backup downloads first, then this browser is emptied, disconnected from cloud syncing, and signed out. Your synced cloud copy and published profile are not deleted.": {
-      sv: "Ta bort arkivet från den här webbläsaren? En säkerhetskopia laddas ned först. Sedan töms webbläsaren, kopplas från molnsynkningen och loggas ut. Din synkade molnkopia och publicerade profil raderas inte.",
-    },
+    "Remove this archive from this browser? A backup downloads first, then this browser is emptied, disconnected from cloud syncing, and signed out. Your synced cloud copy and published profile are not deleted.":
+      {
+        sv: "Ta bort arkivet från den här webbläsaren? En säkerhetskopia laddas ned först. Sedan töms webbläsaren, kopplas från molnsynkningen och loggas ut. Din synkade molnkopia och publicerade profil raderas inte.",
+      },
     "Remove failed": { sv: "Borttagningen misslyckades" },
-    "The archive could not be removed. This browser and your other copies were not changed.": {
-      sv: "Arkivet kunde inte tas bort. Den här webbläsaren och dina andra kopior ändrades inte.",
-    },
-    "This browser now has an empty archive and is disconnected. Your synced cloud copy and published profile were not changed.": {
-      sv: "Den här webbläsaren har nu ett tomt arkiv och är frånkopplad. Din synkade molnkopia och publicerade profil ändrades inte.",
-    },
-    "The archive was removed, but this browser could not disconnect from the account. Sign out before using it again.": {
-      sv: "Arkivet togs bort, men webbläsaren kunde inte kopplas från kontot. Logga ut innan du använder den igen.",
-    },
-    "The archive was removed and disconnected, but sign-out did not finish. Try signing out again.": {
-      sv: "Arkivet togs bort och kopplades från, men utloggningen slutfördes inte. Försök logga ut igen.",
-    },
-    "Clear this browser's local archive? A backup downloads first, then this browser is emptied. You stay signed in, and nothing changes in your synced cloud copy until you choose to sync or discard below.": {
-      sv: "Rensa webbläsarens lokala arkiv? En säkerhetskopia laddas ned först, sedan töms webbläsaren. Du förblir inloggad, och inget ändras i din synkade molnkopia förrän du väljer att synka eller förkasta nedan.",
-    },
-    "This browser's archive is now empty. You're still signed in and nothing has changed in your synced cloud copy - sync when you're ready to keep this, or discard to bring the cloud copy back.": {
-      sv: "Webbläsarens arkiv är nu tomt. Du är fortfarande inloggad och inget har ändrats i din synkade molnkopia - synka när du är redo att behålla detta, eller förkasta för att hämta tillbaka molnkopian.",
-    },
+    "The archive could not be removed. This browser and your other copies were not changed.":
+      {
+        sv: "Arkivet kunde inte tas bort. Den här webbläsaren och dina andra kopior ändrades inte.",
+      },
+    "This browser now has an empty archive and is disconnected. Your synced cloud copy and published profile were not changed.":
+      {
+        sv: "Den här webbläsaren har nu ett tomt arkiv och är frånkopplad. Din synkade molnkopia och publicerade profil ändrades inte.",
+      },
+    "The archive was removed, but this browser could not disconnect from the account. Sign out before using it again.":
+      {
+        sv: "Arkivet togs bort, men webbläsaren kunde inte kopplas från kontot. Logga ut innan du använder den igen.",
+      },
+    "The archive was removed and disconnected, but sign-out did not finish. Try signing out again.":
+      {
+        sv: "Arkivet togs bort och kopplades från, men utloggningen slutfördes inte. Försök logga ut igen.",
+      },
+    "Clear this browser's local archive? A backup downloads first, then this browser is emptied. You stay signed in, and nothing changes in your synced cloud copy until you choose to sync or discard below.":
+      {
+        sv: "Rensa webbläsarens lokala arkiv? En säkerhetskopia laddas ned först, sedan töms webbläsaren. Du förblir inloggad, och inget ändras i din synkade molnkopia förrän du väljer att synka eller förkasta nedan.",
+      },
+    "This browser's archive is now empty. You're still signed in and nothing has changed in your synced cloud copy - sync when you're ready to keep this, or discard to bring the cloud copy back.":
+      {
+        sv: "Webbläsarens arkiv är nu tomt. Du är fortfarande inloggad och inget har ändrats i din synkade molnkopia - synka när du är redo att behålla detta, eller förkasta för att hämta tillbaka molnkopian.",
+      },
     "The archive could not be cleared. This browser was not changed.": {
       sv: "Arkivet kunde inte rensas. Den här webbläsaren ändrades inte.",
     },
     "Clear local data": { sv: "Rensa lokal data" },
-    "Discard this browser's current local archive and reload your synced cloud copy instead? A backup of the local archive downloads first, but it will not be restored automatically.": {
-      sv: "Förkasta webbläsarens nuvarande lokala arkiv och läs in din synkade molnkopia istället? En säkerhetskopia av det lokala arkivet laddas ned först, men den återställs inte automatiskt.",
-    },
+    "Discard this browser's current local archive and reload your synced cloud copy instead? A backup of the local archive downloads first, but it will not be restored automatically.":
+      {
+        sv: "Förkasta webbläsarens nuvarande lokala arkiv och läs in din synkade molnkopia istället? En säkerhetskopia av det lokala arkivet laddas ned först, men den återställs inte automatiskt.",
+      },
     "Restoring...": { sv: "Återställer..." },
     "Discard local changes, restore cloud copy": {
       sv: "Förkasta lokala ändringar, återställ molnkopia",
     },
     "Blind opinion rebuild": { sv: "Blind ombyggnad av åsikter" },
-    "Hide your current ratings, rankings, personal awards, and other opinions while you rebuild them from scratch. The originals stay private and can be restored or deliberately compared at any time.": {
-      sv: "Dölj dina nuvarande betyg, rankningar, personliga priser och andra åsikter medan du bygger om dem från grunden. Originalen förblir privata och kan återställas eller jämföras medvetet när som helst.",
-    },
+    "Hide your current ratings, rankings, personal awards, and other opinions while you rebuild them from scratch. The originals stay private and can be restored or deliberately compared at any time.":
+      {
+        sv: "Dölj dina nuvarande betyg, rankningar, personliga priser och andra åsikter medan du bygger om dem från grunden. Originalen förblir privata och kan återställas eller jämföras medvetet när som helst.",
+      },
     "Start blind rebuild": { sv: "Starta blind ombyggnad" },
     "Blind rebuild active": { sv: "Blind ombyggnad aktiv" },
     "Blind rebuild complete": { sv: "Blind ombyggnad slutförd" },
@@ -550,12 +630,14 @@
     "Compare your original and rebuilt opinions": {
       sv: "Jämför dina ursprungliga och ombyggda åsikter",
     },
-    "The rebuilt opinions are now active. Your private baseline remains available here until you close this comparison.": {
-      sv: "De ombyggda åsikterna är nu aktiva. Din privata baslinje finns kvar här tills du stänger jämförelsen.",
-    },
-    "Started {date}. Ordinary pages use only the opinions you add during this rebuild.": {
-      sv: "Startad {date}. Vanliga sidor använder bara de åsikter du lägger till under den här ombyggnaden.",
-    },
+    "The rebuilt opinions are now active. Your private baseline remains available here until you close this comparison.":
+      {
+        sv: "De ombyggda åsikterna är nu aktiva. Din privata baslinje finns kvar här tills du stänger jämförelsen.",
+      },
+    "Started {date}. Ordinary pages use only the opinions you add during this rebuild.":
+      {
+        sv: "Startad {date}. Vanliga sidor använder bara de åsikter du lägger till under den här ombyggnaden.",
+      },
     "Continue rebuilding": { sv: "Fortsätt bygga om" },
     "ratings rebuilt": { sv: "betyg ombyggda" },
     "ranks comparable": { sv: "rankningar jämförbara" },
@@ -581,18 +663,22 @@
       sv: "Inga förändringar av prisplaceringar att jämföra ännu.",
     },
     removed: { sv: "borttagen" },
-    "Start a blind opinion rebuild? Your current opinions will be stored privately and hidden from ordinary pages while you rebuild. A backup downloads first.": {
-      sv: "Starta en blind ombyggnad av åsikter? Dina nuvarande åsikter lagras privat och döljs från vanliga sidor medan du bygger om. En säkerhetskopia laddas ner först.",
-    },
-    "Restore the original opinions? Opinions added during this rebuild will be discarded, while factual archive changes stay. A backup of the current rebuild downloads first.": {
-      sv: "Återställ de ursprungliga åsikterna? Åsikter som lagts till under ombyggnaden tas bort, medan faktiska arkivändringar behålls. En säkerhetskopia av den aktuella ombyggnaden laddas ner först.",
-    },
-    "Finish the blind rebuild and compare with the originals? Rebuilt opinions become final, while the private baseline stays available until you close the comparison. A backup downloads first.": {
-      sv: "Slutför den blinda ombyggnaden och jämför med originalen? De ombyggda åsikterna blir slutgiltiga, medan den privata baslinjen finns kvar tills du stänger jämförelsen. En säkerhetskopia laddas ner först.",
-    },
-    "Close this comparison? The rebuilt opinions stay, but the original baseline will be removed after a backup downloads.": {
-      sv: "Stäng den här jämförelsen? De ombyggda åsikterna behålls, men den ursprungliga baslinjen tas bort efter att en säkerhetskopia laddats ner.",
-    },
+    "Start a blind opinion rebuild? Your current opinions will be stored privately and hidden from ordinary pages while you rebuild. A backup downloads first.":
+      {
+        sv: "Starta en blind ombyggnad av åsikter? Dina nuvarande åsikter lagras privat och döljs från vanliga sidor medan du bygger om. En säkerhetskopia laddas ner först.",
+      },
+    "Restore the original opinions? Opinions added during this rebuild will be discarded, while factual archive changes stay. A backup of the current rebuild downloads first.":
+      {
+        sv: "Återställ de ursprungliga åsikterna? Åsikter som lagts till under ombyggnaden tas bort, medan faktiska arkivändringar behålls. En säkerhetskopia av den aktuella ombyggnaden laddas ner först.",
+      },
+    "Finish the blind rebuild and compare with the originals? Rebuilt opinions become final, while the private baseline stays available until you close the comparison. A backup downloads first.":
+      {
+        sv: "Slutför den blinda ombyggnaden och jämför med originalen? De ombyggda åsikterna blir slutgiltiga, medan den privata baslinjen finns kvar tills du stänger jämförelsen. En säkerhetskopia laddas ner först.",
+      },
+    "Close this comparison? The rebuilt opinions stay, but the original baseline will be removed after a backup downloads.":
+      {
+        sv: "Stäng den här jämförelsen? De ombyggda åsikterna behålls, men den ursprungliga baslinjen tas bort efter att en säkerhetskopia laddats ner.",
+      },
     "Deleting...": { sv: "Raderar..." },
     Deleted: { sv: "Raderat" },
     "Delete all personal opinion data? This removes every award placement, rating, personal score, review, interest tier, and note, and resets the all-time order to the rating/release-year/title default. Films, watch history, and metadata stay. A backup downloads first.":
@@ -829,6 +915,7 @@
     Credit: { sv: "Credit" },
     Count: { sv: "Antal" },
     "Could not load The Oskars": { sv: "Kunde inte ladda The Oskars" },
+    "Could not load your journey": { sv: "Kunde inte ladda din resa" },
     "Could not add this film.": { sv: "Det gick inte att lägga till filmen." },
     "Could not load project": { sv: "Kunde inte ladda projektet" },
     "Could not update {category} detail.": {
@@ -849,11 +936,6 @@
     "Detail for {category}": { sv: "Detalj för {category}" },
     Details: { sv: "Detaljer" },
     "Duplicate film identity": { sv: "Duplicerad filmidentitet" },
-    Editor: { sv: "Editor" },
-    "Manual nomination creation. Adding a new watched film happens through Intake's guided workflow; contextual edits (film metadata, awards, rankings) happen on their own detail pages.":
-      {
-        sv: "Manuellt skapande av nomineringar. Att lägga till en ny sedd film sker via Intags guidade flöde; kontextuella ändringar (filmmetadata, priser, rankningar) sker på deras egna detaljsidor.",
-      },
     "Duplicate placement": { sv: "Duplicerad placering" },
     Direct: { sv: "Direkt" },
     "Direct competition among compared films": {
@@ -1487,11 +1569,11 @@
       sv: "Inga filtrerade filmer behöver den intresseändringen.",
     },
     "No matching watchlist films.": { sv: "Inga matchande watchlist-filmer." },
-    "No shared archive films match this search.": {
-      sv: "Inga filmer i det delade arkivet matchar sökningen.",
+    "No unseen films match this search.": {
+      sv: "Inga osedda filmer matchar sökningen.",
     },
-    "No shared-only films in this period.": {
-      sv: "Inga nya filmer från det delade arkivet i den här perioden.",
+    "No unseen films in this period.": {
+      sv: "Inga osedda filmer i den här perioden.",
     },
     "No tiers": { sv: "Inga tiers" },
     "No maximum": { sv: "Inget maximum" },
@@ -1563,7 +1645,7 @@
       {
         sv: "Öppna källsidor, dela jämförelsen eller fortsätt samlingsliknande mål som projekt.",
       },
-    "Open editor": { sv: "Öppna editor" },
+    "Open Data": { sv: "Öppna Data" },
     "Open local owner tools": { sv: "Öppna lokala ägarverktyg" },
     "Open watched film page": { sv: "Öppna sedd filmsida" },
     Original: { sv: "Original" },
@@ -1574,7 +1656,6 @@
     Page: { sv: "Sida" },
     Period: { sv: "Period" },
     "Period profile": { sv: "Periodprofil" },
-    "Period type": { sv: "Periodtyp" },
     Position: { sv: "Position" },
     "Period film display": { sv: "Periodfilmvisning" },
     "Period note": { sv: "Periodanteckning" },
@@ -1619,6 +1700,33 @@
     "Project view": { sv: "Projektvy" },
     "Could not create the project.": { sv: "Kunde inte skapa projektet." },
     "Create project": { sv: "Skapa projekt" },
+    Collections: { sv: "Samlingar" },
+    "Collection name": { sv: "Samlingens namn" },
+    "Collection note": { sv: "Samlingsanteckning" },
+    "Collection display": { sv: "Samlingsvisning" },
+    "Create collection": { sv: "Skapa samling" },
+    "Custom collection": { sv: "Egen samling" },
+    "No collections yet.": { sv: "Inga samlingar ännu." },
+    "Could not load collections": { sv: "Kunde inte ladda samlingar" },
+    "Could not load this collection": {
+      sv: "Kunde inte ladda den här samlingen",
+    },
+    "Delete collection": { sv: "Ta bort samling" },
+    "Delete this collection?": { sv: "Ta bort den här samlingen?" },
+    "This permanently removes the collection. Films stay in your collection.":
+      {
+        sv: "Detta tar bort samlingen permanent. Filmerna finns kvar i din samling.",
+      },
+    "Drag to set this collection's queue order.": {
+      sv: "Dra för att ställa in samlingens könordning.",
+    },
+    "Named film lists you've saved but haven't turned into a project yet.": {
+      sv: "Namngivna fillistor du har sparat men inte gjort till ett projekt än.",
+    },
+    "Browse collections": { sv: "Bläddra bland samlingar" },
+    "Browse your collections": { sv: "Bläddra bland dina samlingar" },
+    "Browse your projects": { sv: "Bläddra bland dina projekt" },
+    "Promote to project": { sv: "Gör till projekt" },
     "Custom films": { sv: "Anpassade filmer" },
     "No films added yet.": { sv: "Inga filmer tillagda ännu." },
     "Add at least one film.": { sv: "Lägg till minst en film." },
@@ -1823,6 +1931,50 @@
     "Remove {title} from the watchlist? This can't be undone here.": {
       sv: "Ta bort {title} från watchlisten? Det går inte att ångra här.",
     },
+    "Remove tag {tag}": { sv: "Ta bort taggen {tag}" },
+    "Add tag": { sv: "Lägg till tagg" },
+    "Add franchise": { sv: "Lägg till franchise" },
+    "Franchise name": { sv: "Franchise-namn" },
+    "Parent (optional)": { sv: "Överordnad (valfritt)" },
+    "Parent franchise": { sv: "Överordnad franchise" },
+    "Adds a new membership only - an existing one can't be edited or removed here.":
+      {
+        sv: "Lägger bara till ett nytt medlemskap - ett befintligt kan inte redigeras eller tas bort här.",
+      },
+    "Could not load this watchlist film": {
+      sv: "Kunde inte ladda den här watchlist-filmen",
+    },
+    "Could not load this tag": {
+      sv: "Kunde inte ladda den här taggen",
+    },
+    "Could not load this franchise": {
+      sv: "Kunde inte ladda den här franchisen",
+    },
+    "Could not load this person": {
+      sv: "Kunde inte ladda den här personen",
+    },
+    "Could not load this project": {
+      sv: "Kunde inte ladda det här projektet",
+    },
+    "Could not load projects": {
+      sv: "Kunde inte ladda projekt",
+    },
+    "Custom project": { sv: "Eget projekt" },
+    "Focused watch queues built from any films you pick.": {
+      sv: "Fokuserade se-köer byggda av vilka filmer du än väljer.",
+    },
+    "No projects yet.": { sv: "Inga projekt ännu." },
+    "Creating…": { sv: "Skapar…" },
+    "Not in your collection yet": { sv: "Inte i din samling ännu" },
+    "Project display": { sv: "Projektvisning" },
+    "Drag to set this project's queue order.": {
+      sv: "Dra för att ställa in projektets könordning.",
+    },
+    "Delete this project?": { sv: "Ta bort det här projektet?" },
+    "This permanently removes the project. Films stay in your collection.": {
+      sv: "Detta tar bort projektet permanent. Filmerna finns kvar i din samling.",
+    },
+    Delete: { sv: "Ta bort" },
     Reorder: { sv: "Ordna" },
     Reopen: { sv: "Öppna igen" },
     "Return home": { sv: "Tillbaka hem" },
@@ -1838,9 +1990,10 @@
     Back: { sv: "Tillbaka" },
     "Viewing facts": { sv: "Tittningsuppgifter" },
     "Date watched": { sv: "Sedd datum" },
-    "Any unfinished rating, ranking, and awards work will remain in the intake queue.": {
-      sv: "Ofärdigt arbete med betyg, rankning och priser ligger kvar i intagskön.",
-    },
+    "Any unfinished rating, ranking, and awards work will remain in the intake queue.":
+      {
+        sv: "Ofärdigt arbete med betyg, rankning och priser ligger kvar i intagskön.",
+      },
     "Mark as watched? This will become {target}.": {
       sv: "Markera som sedd? Detta blir {target}.",
     },
@@ -1856,9 +2009,10 @@
       sv: "Watchlist-övergången kunde inte genomföras.",
     },
     "Watched-film intake is open": { sv: "Intag för sedd film är öppet" },
-    "Rating, global ranking, or awards review still needs an explicit decision.": {
-      sv: "Betyg, global rankning eller prisgranskning behöver fortfarande ett uttryckligt beslut.",
-    },
+    "Rating, global ranking, or awards review still needs an explicit decision.":
+      {
+        sv: "Betyg, global rankning eller prisgranskning behöver fortfarande ett uttryckligt beslut.",
+      },
     "Rating and viewing facts": { sv: "Betyg och tittningsuppgifter" },
     "Global ranking": { sv: "Global rankning" },
     "Reviewed; none": { sv: "Granskad; inga" },
@@ -1867,7 +2021,9 @@
       sv: "Den sedda filmen för detta intag finns inte längre.",
     },
     "Completed intake": { sv: "Slutfört intag" },
-    "No completion summary recorded.": { sv: "Ingen slutsammanfattning registrerad." },
+    "No completion summary recorded.": {
+      sv: "Ingen slutsammanfattning registrerad.",
+    },
     "Reopen intake": { sv: "Öppna intag igen" },
     "Next: confirm rating and viewing facts": {
       sv: "Nästa: bekräfta betyg och tittningsuppgifter",
@@ -1896,15 +2052,17 @@
     "The recorded {level} anchor is no longer available": {
       sv: "Den registrerade referensen för {level} är inte längre tillgänglig",
     },
-    "Restore the referenced film or reopen the intake from the {level} step before continuing.": {
-      sv: "Återställ den refererade filmen eller öppna intaget igen från steget för {level} innan du fortsätter.",
-    },
+    "Restore the referenced film or reopen the intake from the {level} step before continuing.":
+      {
+        sv: "Återställ den refererade filmen eller öppna intaget igen från steget för {level} innan du fortsätter.",
+      },
     "The recorded year anchor is no longer available": {
       sv: "Den registrerade årsreferensen är inte längre tillgänglig",
     },
-    "Restore the referenced film or reopen the intake from the year step before continuing.": {
-      sv: "Återställ den refererade filmen eller öppna intaget igen från årssteget innan du fortsätter.",
-    },
+    "Restore the referenced film or reopen the intake from the year step before continuing.":
+      {
+        sv: "Återställ den refererade filmen eller öppna intaget igen från årssteget innan du fortsätter.",
+      },
     "Place {title} among the {rating} films of {year}": {
       sv: "Placera {title} bland filmerna från {year} med betyget {rating}",
     },
@@ -1920,9 +2078,10 @@
     "Place {title} among all {rating} films": {
       sv: "Placera {title} bland alla filmer med betyget {rating}",
     },
-    "The new film starts at the bottom. Drag it upward or use Place here, then continue when the order feels right.": {
-      sv: "Den nya filmen börjar längst ned. Dra den uppåt eller använd Placera här och fortsätt när ordningen känns rätt.",
-    },
+    "The new film starts at the bottom. Drag it upward or use Place here, then continue when the order feels right.":
+      {
+        sv: "Den nya filmen börjar längst ned. Dra den uppåt eller använd Placera här och fortsätt när ordningen känns rätt.",
+      },
     "Nearest higher rating": { sv: "Närmaste högre betyg" },
     "Nearest lower rating": { sv: "Närmaste lägre betyg" },
     "Place at bottom": { sv: "Placera längst ned" },
@@ -1930,24 +2089,29 @@
     "Locked by year decision": { sv: "Låst av årsbeslutet" },
     "{level} anchor": { sv: "Referens för {level}" },
     "Locked by {level} decision": { sv: "Låst av beslutet för {level}" },
-    "No {source} comparator existed, so the full {target} range is available.": {
-      sv: "Det fanns ingen jämförelsefilm för {source}, så hela intervallet för {target} är tillgängligt.",
-    },
-    "{source} decision: {title} must stay before {anchor}. Only positions through that anchor are available.": {
-      sv: "Beslut för {source}: {title} måste ligga före {anchor}. Endast placeringar fram till den referensen är tillgängliga.",
-    },
-    "{source} decision: {title} must stay after {anchor}. Only positions after that anchor are available.": {
-      sv: "Beslut för {source}: {title} måste ligga efter {anchor}. Endast placeringar efter den referensen är tillgängliga.",
-    },
+    "No {source} comparator existed, so the full {target} range is available.":
+      {
+        sv: "Det fanns ingen jämförelsefilm för {source}, så hela intervallet för {target} är tillgängligt.",
+      },
+    "{source} decision: {title} must stay before {anchor}. Only positions through that anchor are available.":
+      {
+        sv: "Beslut för {source}: {title} måste ligga före {anchor}. Endast placeringar fram till den referensen är tillgängliga.",
+      },
+    "{source} decision: {title} must stay after {anchor}. Only positions after that anchor are available.":
+      {
+        sv: "Beslut för {source}: {title} måste ligga efter {anchor}. Endast placeringar efter den referensen är tillgängliga.",
+      },
     "No year comparator existed, so the full decade range is available.": {
       sv: "Det fanns ingen jämförelsefilm för året, så hela årtiondets intervall är tillgängligt.",
     },
-    "Year decision: {title} must stay before {anchor}. Only positions through that anchor are available.": {
-      sv: "Årsbeslut: {title} måste ligga före {anchor}. Endast placeringar fram till den referensen är tillgängliga.",
-    },
-    "Year decision: {title} must stay after {anchor}. Only positions after that anchor are available.": {
-      sv: "Årsbeslut: {title} måste ligga efter {anchor}. Endast placeringar efter den referensen är tillgängliga.",
-    },
+    "Year decision: {title} must stay before {anchor}. Only positions through that anchor are available.":
+      {
+        sv: "Årsbeslut: {title} måste ligga före {anchor}. Endast placeringar fram till den referensen är tillgängliga.",
+      },
+    "Year decision: {title} must stay after {anchor}. Only positions after that anchor are available.":
+      {
+        sv: "Årsbeslut: {title} måste ligga efter {anchor}. Endast placeringar efter den referensen är tillgängliga.",
+      },
     "Place at bottom of allowed range": {
       sv: "Placera längst ned i det tillåtna intervallet",
     },
@@ -1963,23 +2127,26 @@
     "Your year decision narrows the next decade board.": {
       sv: "Ditt årsbeslut avgränsar nästa årtiondebräde.",
     },
-    "No same-rating films exist in this year, so this step will be marked not applicable.": {
-      sv: "Det finns inga filmer med samma betyg detta år, så steget markeras som ej tillämpligt.",
-    },
+    "No same-rating films exist in this year, so this step will be marked not applicable.":
+      {
+        sv: "Det finns inga filmer med samma betyg detta år, så steget markeras som ej tillämpligt.",
+      },
     "Continue to decade": { sv: "Fortsätt till årtionde" },
     "Your decade decision narrows the next century board.": {
       sv: "Ditt årtiondesbeslut avgränsar nästa århundradesbräde.",
     },
-    "No same-rating films exist in this decade, so this step will be marked not applicable.": {
-      sv: "Det finns inga filmer med samma betyg detta årtionde, så steget markeras som ej tillämpligt.",
-    },
+    "No same-rating films exist in this decade, so this step will be marked not applicable.":
+      {
+        sv: "Det finns inga filmer med samma betyg detta årtionde, så steget markeras som ej tillämpligt.",
+      },
     "Continue to century": { sv: "Fortsätt till århundrade" },
     "Your {level} decision narrows the next {next} board.": {
       sv: "Ditt beslut för {level} avgränsar nästa bräde för {next}.",
     },
-    "No same-rating films exist in this {level}, so this step will be marked not applicable.": {
-      sv: "Det finns inga filmer med samma betyg i denna {level}, så steget markeras som ej tillämpligt.",
-    },
+    "No same-rating films exist in this {level}, so this step will be marked not applicable.":
+      {
+        sv: "Det finns inga filmer med samma betyg i denna {level}, så steget markeras som ej tillämpligt.",
+      },
     "Continue to {level}": { sv: "Fortsätt till {level}" },
     "Annual awards": { sv: "Årliga priser" },
     "Nominate {title} before {target}": {
@@ -2019,12 +2186,14 @@
       {
         sv: "{category} är full ({capacity}/{capacity}). Dra den nya nomineringen till en film nedan, eller använd ”Placera här” eller ”Placera sist” - den nominerade som trängs undan faller ur.",
       },
-    "Not nominating {title} for {category}. Choose a position to change your mind.": {
-      sv: "Nominerar inte {title} i {category}. Välj en placering för att ändra dig.",
-    },
-    "Place the watched film in this bracket, or move to the next category without nominating it.": {
-      sv: "Placera den sedda filmen i denna bracket eller gå vidare till nästa kategori utan att nominera den.",
-    },
+    "Not nominating {title} for {category}. Choose a position to change your mind.":
+      {
+        sv: "Nominerar inte {title} i {category}. Välj en placering för att ändra dig.",
+      },
+    "Place the watched film in this bracket, or move to the next category without nominating it.":
+      {
+        sv: "Placera den sedda filmen i denna bracket eller gå vidare till nästa kategori utan att nominera den.",
+      },
     "Add another nominee for this category, or move to the next category.": {
       sv: "Lägg till ytterligare en nominerad i denna kategori, eller gå vidare till nästa kategori.",
     },
@@ -2042,10 +2211,13 @@
     "This final choice sets the film's all-time position.": {
       sv: "Det här sista valet bestämmer filmens all-time-position.",
     },
-    "Next: {level} ranking comparison": { sv: "Nästa: rankningsjämförelse för {level}" },
-    "Only films with the exact same rating are eligible. Earlier cohort decisions narrow the final global insertion.": {
-      sv: "Endast filmer med exakt samma betyg är valbara. Tidigare gruppbeslut avgränsar den slutliga globala placeringen.",
+    "Next: {level} ranking comparison": {
+      sv: "Nästa: rankningsjämförelse för {level}",
     },
+    "Only films with the exact same rating are eligible. Earlier cohort decisions narrow the final global insertion.":
+      {
+        sv: "Endast filmer med exakt samma betyg är valbara. Tidigare gruppbeslut avgränsar den slutliga globala placeringen.",
+      },
     "Comparison film": { sv: "Jämförelsefilm" },
     "Place watched film": { sv: "Placera den sedda filmen" },
     "Before comparison": { sv: "Före jämförelsefilmen" },
@@ -2060,9 +2232,10 @@
     "Fresh watched film": { sv: "Ny sedd film" },
     "From watchlist": { sv: "Från watchlist" },
     "Watched-film intake": { sv: "Intag för sedda filmer" },
-    "Finish rating, one progressive global rank, and explicit awards review for every newly watched film.": {
-      sv: "Slutför betyg, en progressiv global rankning och uttrycklig prisgranskning för varje nyss sedd film.",
-    },
+    "Finish rating, one progressive global rank, and explicit awards review for every newly watched film.":
+      {
+        sv: "Slutför betyg, en progressiv global rankning och uttrycklig prisgranskning för varje nyss sedd film.",
+      },
     "Add watched film": { sv: "Lägg till sedd film" },
     "Preview and add": { sv: "Förhandsgranska och lägg till" },
     "No watched-film intakes yet.": { sv: "Inga intag för sedda filmer ännu." },
@@ -2099,7 +2272,7 @@
     "Screenplay type": { sv: "Manustyp" },
     Screenplays: { sv: "Manus" },
     Search: { sv: "Sök" },
-    "Search shared archive": { sv: "Sök i delat arkiv" },
+    "Search unseen films": { sv: "Sök osedda filmer" },
     Screenwriter: { sv: "Manusförfattare" },
     "Set batch": { sv: "Välj batch" },
     "Set filtered interest": { sv: "Sätt filtrerat intresse" },
@@ -2121,8 +2294,8 @@
     "Shared categories": { sv: "Gemensamma kategorier" },
     "Shared collaborators": { sv: "Gemensamma medarbetare" },
     "Shared films": { sv: "Gemensamma filmer" },
-    "Shared archive": { sv: "Delat arkiv" },
-    "Shared-only films": { sv: "Nya filmer från delat arkiv" },
+    Unseen: { sv: "Osedd" },
+    "Unseen films": { sv: "Osedda filmer" },
     "Shared traits": { sv: "Gemensamma drag" },
     "Show watched and watchlist separately": {
       sv: "Visa sedda och watchlist separat",
@@ -2171,8 +2344,8 @@
     },
     Status: { sv: "Status" },
     Shared: { sv: "Gemensamt" },
-    "Loading shared archive films…": {
-      sv: "Laddar filmer från det delade arkivet…",
+    "Loading unseen films…": {
+      sv: "Laddar osedda filmer…",
     },
     "Not watched or watchlisted": { sv: "Inte sedd eller i watchlist" },
     Sub: { sv: "Sub" },
@@ -2273,9 +2446,10 @@
     "{count} failed import attempt(s)": {
       sv: "{count} misslyckade importförsök",
     },
-    "{posters} poster and {portraits} portrait import attempt(s) have failed.": {
-      sv: "{posters} poster- och {portraits} porträttimportförsök har misslyckats.",
-    },
+    "{posters} poster and {portraits} portrait import attempt(s) have failed.":
+      {
+        sv: "{posters} poster- och {portraits} porträttimportförsök har misslyckats.",
+      },
     "{count} item(s) in queue.": { sv: "{count} poster i kön." },
     "{year}, no films": { sv: "{year}, inga filmer" },
     "all-time rank": { sv: "all-time-rankning" },
@@ -2399,7 +2573,7 @@
     "Watchlist/watched overlap": { sv: "Watchlist/sedda överlappar" },
     "year score": { sv: "årspoäng" },
 
-    // Import report (src/editor/import-report.js)
+    // Import report (src/data/import-report.js)
     "Already watched": { sv: "Redan sedda" },
     "Awards added to existing films": {
       sv: "Priser tillagda på befintliga filmer",
@@ -2463,9 +2637,10 @@
     "Reading and validating official results...": {
       sv: "Läser och validerar officiella resultat...",
     },
-    "Official-results refresh is ready. No local data changed; review the report before applying.": {
-      sv: "Uppdateringen av officiella resultat är klar. Inga lokala data har ändrats; granska rapporten innan du tillämpar den.",
-    },
+    "Official-results refresh is ready. No local data changed; review the report before applying.":
+      {
+        sv: "Uppdateringen av officiella resultat är klar. Inga lokala data har ändrats; granska rapporten innan du tillämpar den.",
+      },
     Kept: { sv: "Behållet" },
     tier: { sv: "tier" },
     Field: { sv: "Fält" },
@@ -2726,9 +2901,10 @@
     "Starting {count} {label}.": { sv: "Startar {count} {label}." },
     "Starting {items}.": { sv: "Startar {items}." },
     "Unknown metadata batch type.": { sv: "Okänd metadata-batchtyp." },
-    "Film details could not be fetched. Check your connection, then try the batch again.": {
-      sv: "Filmuppgifterna kunde inte hämtas. Kontrollera anslutningen och försök sedan köra hämtningen igen.",
-    },
+    "Film details could not be fetched. Check your connection, then try the batch again.":
+      {
+        sv: "Filmuppgifterna kunde inte hämtas. Kontrollera anslutningen och försök sedan köra hämtningen igen.",
+      },
 
     // Data & backups page (src/pages/data.js)
     "(blank)": { sv: "(tomt)" },
@@ -2754,32 +2930,39 @@
     "Clear all locally stored The Oskars data?": {
       sv: "Rensa all lokalt lagrad The Oskars-data?",
     },
-    "Delete all The Oskars data stored in this browser? This cannot be undone here. Download a backup first if you may want to restore it. Published and cloud copies are not deleted.": {
-      sv: "Radera all The Oskars-data som lagras i den här webbläsaren? Det går inte att ångra här. Hämta först en säkerhetskopia om du kan vilja återställa datan. Publicerade kopior och molnkopior raderas inte.",
-    },
+    "Delete all The Oskars data stored in this browser? This cannot be undone here. Download a backup first if you may want to restore it. Published and cloud copies are not deleted.":
+      {
+        sv: "Radera all The Oskars-data som lagras i den här webbläsaren? Det går inte att ångra här. Hämta först en säkerhetskopia om du kan vilja återställa datan. Publicerade kopior och molnkopior raderas inte.",
+      },
     "Clear failed": { sv: "Rensning misslyckades" },
     "Clear log": { sv: "Rensa logg" },
     "Proposal blocked.": { sv: "Förslaget blockerades." },
-    "Review ready: {count} part(s) of your archive would change. Nothing has changed yet.": {
-      sv: "Granskningen är klar: {count} del(ar) av ditt arkiv skulle ändras. Inget har ändrats än.",
-    },
-    "This import cannot be used yet. Review the problems below, fix the Sheets data, and try again.": {
-      sv: "Importen kan inte användas än. Granska problemen nedan, rätta Sheets-datan och försök igen.",
-    },
-    "The Sheets preview could not be prepared. Check your connection and sign-in, then try again.": {
-      sv: "Sheets-granskningen kunde inte förberedas. Kontrollera anslutningen och inloggningen och försök igen.",
-    },
-    "The reviewed Sheets changes are now in this browser. Publishing remains a separate action.": {
-      sv: "De granskade Sheets-ändringarna finns nu i den här webbläsaren. Publicering är fortfarande ett separat steg.",
-    },
-    "The first Sheets import is complete. Future previews will update this browser while keeping local film details.": {
-      sv: "Den första Sheets-importen är klar. Framtida granskningar uppdaterar den här webbläsaren och behåller lokala filmuppgifter.",
-    },
-    "The archive could not be shared. Check your connection and account access, then try again.": {
-      sv: "Arkivet kunde inte delas. Kontrollera anslutningen och kontobehörigheten och försök igen.",
-    },
+    "Review ready: {count} part(s) of your archive would change. Nothing has changed yet.":
+      {
+        sv: "Granskningen är klar: {count} del(ar) av ditt arkiv skulle ändras. Inget har ändrats än.",
+      },
+    "This import cannot be used yet. Review the problems below, fix the Sheets data, and try again.":
+      {
+        sv: "Importen kan inte användas än. Granska problemen nedan, rätta Sheets-datan och försök igen.",
+      },
+    "The Sheets preview could not be prepared. Check your connection and sign-in, then try again.":
+      {
+        sv: "Sheets-granskningen kunde inte förberedas. Kontrollera anslutningen och inloggningen och försök igen.",
+      },
+    "The reviewed Sheets changes are now in this browser. Publishing remains a separate action.":
+      {
+        sv: "De granskade Sheets-ändringarna finns nu i den här webbläsaren. Publicering är fortfarande ett separat steg.",
+      },
+    "The first Sheets import is complete. Future previews will update this browser while keeping local film details.":
+      {
+        sv: "Den första Sheets-importen är klar. Framtida granskningar uppdaterar den här webbläsaren och behåller lokala filmuppgifter.",
+      },
+    "The archive could not be shared. Check your connection and account access, then try again.":
+      {
+        sv: "Arkivet kunde inte delas. Kontrollera anslutningen och kontobehörigheten och försök igen.",
+      },
 
-    // Account page: sign-in and cloud sync (issue #248, src/pages/profile.js)
+    // Profile page: sign-in and profile data (src/pages/profile.js)
     "Sign in": { sv: "Logga in" },
     "Cloud sync isn't set up for this deployment yet.": {
       sv: "Molnsynkronisering är inte konfigurerad för den här driftsättningen än.",
@@ -2833,9 +3016,10 @@
       {
         sv: "Återställ arbetsytans innehåll som behölls innan den här konflikten löstes?",
       },
-    "Restore the version saved before this conflict was resolved? It replaces this browser's current archive. Download a backup first if you may want to return to the current version.": {
-      sv: "Återställ versionen som sparades innan konflikten löstes? Den ersätter den här webbläsarens nuvarande arkiv. Hämta först en säkerhetskopia om du kan vilja återgå till den nuvarande versionen.",
-    },
+    "Restore the version saved before this conflict was resolved? It replaces this browser's current archive. Download a backup first if you may want to return to the current version.":
+      {
+        sv: "Återställ versionen som sparades innan konflikten löstes? Den ersätter den här webbläsarens nuvarande arkiv. Hämta först en säkerhetskopia om du kan vilja återgå till den nuvarande versionen.",
+      },
     "Restored.": { sv: "Återställd." },
     "Nothing to restore.": { sv: "Inget att återställa." },
     "Sync now": { sv: "Synkronisera nu" },
@@ -2855,106 +3039,31 @@
       sv: "Synkroniserat: {pushed} uppladdade, {pulled} nedladdade.",
     },
     "Already up to date.": { sv: "Redan uppdaterad." },
-    "Load complete archive from cloud": { sv: "Läs in fullständigt arkiv från molnet" },
+    "Load complete archive from cloud": {
+      sv: "Läs in fullständigt arkiv från molnet",
+    },
     "Loading from cloud...": { sv: "Läser in från molnet..." },
     "Could not load the cloud archive: {error}": {
       sv: "Kunde inte läsa in molnarkivet: {error}",
     },
-    "The cloud version could not be loaded. Check your connection and sign-in, then try again.": {
-      sv: "Molnversionen kunde inte läsas in. Kontrollera anslutningen och inloggningen och försök igen.",
-    },
+    "The cloud version could not be loaded. Check your connection and sign-in, then try again.":
+      {
+        sv: "Molnversionen kunde inte läsas in. Kontrollera anslutningen och inloggningen och försök igen.",
+      },
     "Previewed below as a replace proposal - review, then apply the reviewed archive to draft it locally.":
       {
         sv: "Förhandsgranskad nedan som ett ersättningsförslag - granska och tillämpa sedan det granskade arkivet för att skapa ett lokalt utkast.",
       },
-    "The cloud version is ready to review below. Nothing has changed yet; use the reviewed version when it looks right.": {
-      sv: "Molnversionen är klar att granska nedan. Inget har ändrats än; använd den granskade versionen när den ser rätt ut.",
-    },
+    "The cloud version is ready to review below. Nothing has changed yet; use the reviewed version when it looks right.":
+      {
+        sv: "Molnversionen är klar att granska nedan. Inget har ändrats än; använd den granskade versionen när den ser rätt ut.",
+      },
     "Cloud version restored": { sv: "Molnversionen har återställts" },
     "Could not preview the cloud archive: {error}": {
       sv: "Kunde inte förhandsgranska molnarkivet: {error}",
     },
     "The cloud version could not be reviewed. Try loading it again.": {
       sv: "Molnversionen kunde inte granskas. Försök läsa in den igen.",
-    },
-
-    // Account page: cloud account deletion (issue #254, src/pages/profile.js)
-    "Stop cloud sync and continue locally? You can sign in again anytime - nothing local is lost either way.":
-      {
-        sv: "Sluta molnsynka och fortsätt lokalt? Du kan logga in igen när som helst - inget lokalt går förlorat oavsett.",
-      },
-    "Signing out downloads a backup, then clears this browser's private archive. Sign back into the same account to sync it again.": {
-      sv: "Utloggning laddar ner en säkerhetskopia och rensar sedan webbläsarens privata arkiv. Logga in med samma konto för att synka det igen.",
-    },
-    "Sign out and clear": { sv: "Logga ut och rensa" },
-    "Sign out and clear this browser's private archive? A backup downloads first. Sign back into the same account to sync it again from the cloud.": {
-      sv: "Logga ut och rensa webbläsarens privata arkiv? En säkerhetskopia laddas ner först. Logga in med samma konto för att synka det igen från molnet.",
-    },
-    "Switch accounts safely": { sv: "Byt konto säkert" },
-    "Switch accounts? A full backup downloads first, an account-bound recovery is retained, and this archive is removed from the active browser before sign-out. Cloud data is not deleted.": {
-      sv: "Byta konto? En fullständig säkerhetskopia laddas först ned, en kontobunden återställning sparas och arkivet tas bort från den aktiva webbläsaren före utloggning. Molndata raderas inte.",
-    },
-    "Preparing safe switch...": { sv: "Förbereder säkert kontobyte..." },
-    "Could not prepare account switch: {reason}": {
-      sv: "Kunde inte förbereda kontobytet: {reason}",
-    },
-    "Backup retained. Locking this browser and signing out...": {
-      sv: "Säkerhetskopian är sparad. Låser webbläsaren och loggar ut...",
-    },
-    "This local workspace is not attached to a cloud account yet. Connect it explicitly before any upload or download.": {
-      sv: "Den lokala arbetsytan är ännu inte kopplad till ett molnkonto. Anslut den uttryckligen före uppladdning eller nedladdning.",
-    },
-    "Connect this workspace to this account": {
-      sv: "Anslut arbetsytan till detta konto",
-    },
-    "Could not connect this workspace: {reason}": {
-      sv: "Kunde inte ansluta arbetsytan: {reason}",
-    },
-    "Cloud actions are locked because this workspace belongs to another account.": {
-      sv: "Molnåtgärder är låsta eftersom arbetsytan tillhör ett annat konto.",
-    },
-    "Cloud sync is locked until this workspace is attached to the signed-in account.": {
-      sv: "Molnsynkronisering är låst tills arbetsytan har kopplats till det inloggade kontot.",
-    },
-    "Delete cloud account data": { sv: "Radera molnkontodata" },
-    "Cloud storage": { sv: "Molnlagring" },
-    "Delete synced cloud copy": { sv: "Radera synkad molnkopia" },
-    "Deletes the private sync copy stored online and clears this browser's private archive, then signs out. Your Google login and any published profile stay. A full backup downloads first.": {
-      sv: "Raderar den privata synkkopian som lagras online och tömmer webbläsarens privata arkiv, och loggar sedan ut. Din Google-inloggning och publicerade profiler finns kvar. En fullständig säkerhetskopia laddas ned först.",
-    },
-    "A public profile ({name}) may still be published. This does not take it down. ": {
-      sv: "En offentlig profil ({name}) kan fortfarande vara publicerad. Den tas inte ner av detta. ",
-    },
-    "Delete the synced cloud copy and this browser's archive? A backup downloads first, then this browser is emptied and you are signed out. Unless another device still has this data, the downloaded backup becomes your only copy.": {
-      sv: "Radera den synkade molnkopian och den här webbläsarens arkiv? En säkerhetskopia laddas ned först. Sedan töms webbläsaren och du loggas ut. Om ingen annan enhet har kvar datan blir den nedladdade säkerhetskopian din enda kopia.",
-    },
-    "Deleted the synced cloud copy and verified {count} part(s), and cleared this browser's archive. Signing out now.": {
-      sv: "Raderade den synkade molnkopian och verifierade {count} del(ar), och tömde webbläsarens arkiv. Loggar ut nu.",
-    },
-    "Deleted the synced cloud copy and verified {count} part(s), but this browser's archive could not be cleared. Try again, or use the Data page's “Remove from this browser” action.": {
-      sv: "Raderade den synkade molnkopian och verifierade {count} del(ar), men webbläsarens arkiv kunde inte tömmas. Försök igen, eller använd datasidans ”Ta bort från webbläsaren”-funktion.",
-    },
-    "Permanently deletes every document Firestore holds for this account - every synced section and this device's sync history. A full backup downloads first. This is final; there is no admin-side recovery once it verifies removal.":
-      {
-        sv: "Raderar permanent alla dokument Firestore lagrar för det här kontot - varje synkroniserad sektion och den här enhetens synkroniseringshistorik. En fullständig säkerhetskopia laddas ned först. Detta är slutgiltigt; det finns ingen återställning från administratörssidan efter att raderingen har verifierats.",
-      },
-    "A public profile ({name}) may currently be published. Deleting your cloud account data does NOT take it down - that needs the separate revocation step on the Data page's publish panel. ":
-      {
-        sv: "En offentlig profil ({name}) kan för närvarande vara publicerad. Att radera dina molnkontodata tar INTE ner den - det kräver det separata återkallningssteget på datasidans publiceringspanel. ",
-      },
-    "This downloads a full backup, then permanently deletes every document Firestore holds for this account. It cannot be undone. Continue?":
-      {
-        sv: "Detta laddar ned en fullständig säkerhetskopia och raderar sedan permanent alla dokument Firestore lagrar för det här kontot. Det kan inte ångras. Fortsätta?",
-      },
-    "Deleted and verified {count} section(s). Signing out - your local archive is untouched.":
-      {
-        sv: "Raderade och verifierade {count} sektion(er). Loggar ut - ditt lokala arkiv är orört.",
-      },
-    "Could not verify deletion for: {sections}. Nothing was signed out - try again.": {
-      sv: "Kunde inte verifiera radering för: {sections}. Ingen utloggning gjordes - försök igen.",
-    },
-    "Deletion failed. Nothing was signed out - try again.": {
-      sv: "Raderingen misslyckades. Ingen utloggning gjordes - försök igen.",
     },
 
     "Public profile name": { sv: "Namn för offentlig profil" },
@@ -2974,9 +3083,10 @@
     "Choose the original .zip file exported by Letterboxd.": {
       sv: "Välj den ursprungliga .zip-filen som exporterades av Letterboxd.",
     },
-    "The Letterboxd review could not be prepared. Choose the original export ZIP and try again.": {
-      sv: "Letterboxd-granskningen kunde inte förberedas. Välj den ursprungliga exportens ZIP-fil och försök igen.",
-    },
+    "The Letterboxd review could not be prepared. Choose the original export ZIP and try again.":
+      {
+        sv: "Letterboxd-granskningen kunde inte förberedas. Välj den ursprungliga exportens ZIP-fil och försök igen.",
+      },
     "Reading and validating the Letterboxd export locally...": {
       sv: "Läser och validerar Letterboxd-exporten lokalt...",
     },
@@ -2984,29 +3094,34 @@
       {
         sv: "Letterboxd-starten är klar. Ingen lokal data har ändrats; granska rapporten före tillämpning.",
       },
-    "Your Letterboxd review is ready. Nothing has changed yet; check the report, then use the reviewed changes.": {
-      sv: "Din Letterboxd-granskning är klar. Inget har ändrats än; kontrollera rapporten och använd sedan de granskade ändringarna.",
-    },
-    "This Letterboxd import cannot be used yet. Review the problems below and try again with a corrected export.": {
-      sv: "Letterboxd-importen kan inte användas än. Granska problemen nedan och försök igen med en rättad export.",
-    },
+    "Your Letterboxd review is ready. Nothing has changed yet; check the report, then use the reviewed changes.":
+      {
+        sv: "Din Letterboxd-granskning är klar. Inget har ändrats än; kontrollera rapporten och använd sedan de granskade ändringarna.",
+      },
+    "This Letterboxd import cannot be used yet. Review the problems below and try again with a corrected export.":
+      {
+        sv: "Letterboxd-importen kan inte användas än. Granska problemen nedan och försök igen med en rättad export.",
+      },
     "Letterboxd data applied to the local draft. Awards and rankings were kept unchanged.":
       {
         sv: "Letterboxd-data har tillämpats på det lokala utkastet. Priser och rankningar lämnades oförändrade.",
       },
-    "The reviewed Letterboxd changes are now in this browser. Awards and rankings were left unchanged.": {
-      sv: "De granskade Letterboxd-ändringarna finns nu i den här webbläsaren. Priser och rankningar lämnades oförändrade.",
-    },
+    "The reviewed Letterboxd changes are now in this browser. Awards and rankings were left unchanged.":
+      {
+        sv: "De granskade Letterboxd-ändringarna finns nu i den här webbläsaren. Priser och rankningar lämnades oförändrade.",
+      },
     "Proposal ready.": { sv: "Förslaget är klart." },
-    "Sheets foundation recorded from {revision}. Further runs create explicit follow-up proposals.": {
-      sv: "Sheets-grunden registrerades från {revision}. Fortsatta körningar skapar uttryckliga uppföljningsförslag.",
-    },
+    "Sheets foundation recorded from {revision}. Further runs create explicit follow-up proposals.":
+      {
+        sv: "Sheets-grunden registrerades från {revision}. Fortsatta körningar skapar uttryckliga uppföljningsförslag.",
+      },
     "Clear the local sheet edit log?": {
       sv: "Rensa den lokala sheet-ändringsloggen?",
     },
-    "Clear the local edit history? This cannot be undone, but it does not change any films, ratings, rankings, awards, or watch history.": {
-      sv: "Rensa den lokala ändringshistoriken? Det går inte att ångra, men inga filmer, betyg, rankningar, priser eller tittningar ändras.",
-    },
+    "Clear the local edit history? This cannot be undone, but it does not change any films, ratings, rankings, awards, or watch history.":
+      {
+        sv: "Rensa den lokala ändringshistoriken? Det går inte att ångra, men inga filmer, betyg, rankningar, priser eller tittningar ändras.",
+      },
     Cleared: { sv: "Rensad" },
     "Clearing...": { sv: "Rensar..." },
     Copied: { sv: "Kopierad" },
@@ -3121,12 +3236,14 @@
     "All-time final": { sv: "All-time-final" },
     "Ranking heat": { sv: "Rankningsheat" },
     "Final settled": { sv: "Finalen avgjord" },
-    "Only comparisons that cross the already-settled narrower scope are shown in later finals.": {
-      sv: "Senare finaler visar bara jämförelser som korsar den redan avgjorda smalare perioden.",
-    },
-    "Every relevant same-rating comparison in this scope is settled, or there are not two films to compare yet.": {
-      sv: "Alla relevanta jämförelser med samma betyg i perioden är avgjorda, eller så finns ännu inte två filmer att jämföra.",
-    },
+    "Only comparisons that cross the already-settled narrower scope are shown in later finals.":
+      {
+        sv: "Senare finaler visar bara jämförelser som korsar den redan avgjorda smalare perioden.",
+      },
+    "Every relevant same-rating comparison in this scope is settled, or there are not two films to compare yet.":
+      {
+        sv: "Alla relevanta jämförelser med samma betyg i perioden är avgjorda, eller så finns ännu inte två filmer att jämföra.",
+      },
     "Continue to {scope}": { sv: "Fortsätt till {scope}" },
     "all-time final": { sv: "all-time-finalen" },
     "Add credit": { sv: "Lägg till credit" },
@@ -3147,9 +3264,10 @@
     "Reset {count} film rank(s).": {
       sv: "Återställde {count} filmrankning(ar).",
     },
-    "Reset the order for {count} film(s). Ratings and awards stayed the same.": {
-      sv: "Återställde ordningen för {count} film(er). Betyg och priser förblev oförändrade.",
-    },
+    "Reset the order for {count} film(s). Ratings and awards stayed the same.":
+      {
+        sv: "Återställde ordningen för {count} film(er). Betyg och priser förblev oförändrade.",
+      },
     "Remove awards": { sv: "Ta bort priser" },
     "Removing...": { sv: "Tar bort..." },
     "Choose at least one period type.": {
@@ -3162,9 +3280,10 @@
     "Removed {count} nomination(s).": {
       sv: "Tog bort {count} nominering(ar).",
     },
-    "Removed {count} award placement(s). Your other opinions stayed the same.": {
-      sv: "Tog bort {count} prisplacering(ar). Dina andra åsikter förblev oförändrade.",
-    },
+    "Removed {count} award placement(s). Your other opinions stayed the same.":
+      {
+        sv: "Tog bort {count} prisplacering(ar). Dina andra åsikter förblev oförändrade.",
+      },
     "every film": { sv: "alla filmer" },
     "{from}–{to}": { sv: "{from}–{to}" },
     "{from} onward": { sv: "{from} och framåt" },

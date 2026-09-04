@@ -111,8 +111,8 @@
   }
 
   // Reuses the existing literal-text translation table (period.js's own
-  // "Other watched"/"Shared archive" strings) instead of duplicating them
-  // under new nav.*/menu.* keys.
+  // "Other watched"/"Unseen" strings) instead of duplicating them under
+  // new nav.*/menu.* keys.
   function literalText(fallback, values) {
     return window.uiText ? window.uiText(fallback, values) : fallback;
   }
@@ -144,14 +144,28 @@
     if (path === "periods.html") return "periods";
     if (path === "categories.html" || path === "category.html")
       return "categories";
-    if (path === "franchises.html" || path === "franchise.html")
-      return "franchises";
-    if (path === "watchlist-film.html") return "films";
-    if (path === "projects.html" || path === "project.html") return "projects";
+    if (
+      path === "directors.html" ||
+      path === "franchises.html" ||
+      path === "franchise.html" ||
+      path === "tags.html" ||
+      path === "tag.html"
+    )
+      return "collections";
+    // collections.html/collection.html (issue #449) join "projects" here
+    // too, not the "collections" branch above (a separate, unrelated
+    // umbrella for Directors/Franchises/Tags) - see entry-loader.js's own
+    // currentSection() for the same reasoning.
+    if (
+      path === "projects.html" ||
+      path === "project.html" ||
+      path === "collections.html" ||
+      path === "collection.html"
+    )
+      return "projects";
     if (path === "compare.html") return "compare";
     if (path === "community.html") return "community";
     if (path === "data.html") return "data";
-    if (path === "editor.html") return "editor";
     if (path === "index.html" || !path) return "home";
     return "";
   }
@@ -165,7 +179,6 @@
       projectOpen: headerText("search.meta.open", "Open"),
       projectComplete: headerText("search.meta.complete", "Complete"),
       projectArchived: headerText("search.meta.archived", "Archived"),
-      sharedArchive: headerText("search.meta.sharedArchive", "Shared archive"),
     };
     let entries = window.buildSearchEntries({
       locale: window.currentOskarsLocale?.(),
@@ -181,9 +194,10 @@
   }
 
   function filmsPreviewLinksHtml(escape) {
-    // Shared archive is a cross-account discovery feature tied to the
-    // viewer's own signed-in account, meaningless (and hidden the same way
-    // period.js's own view-switcher hides it) for a public-profile visitor.
+    // Unseen (issue #453, formerly "Shared archive") reads the viewer's
+    // own signed-in account's watched/watchlist data to compute what's
+    // missing, meaningless (and hidden the same way period.js's own
+    // view-switcher hides it) for a public-profile visitor.
     let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
     let rows = [
       [
@@ -198,7 +212,7 @@
         ? [
             [
               "period.html?type=alltime&view=shared",
-              literalText("Shared archive"),
+              literalText("Unseen"),
             ],
           ]
         : []),
@@ -208,6 +222,15 @@
       ],
     ];
     return `<div class="films-preview-links">${rows.map(([href, label]) => `<a class="films-preview-link" href="${escape(href)}">${escape(label)}</a>`).join("")}</div>`;
+  }
+
+  function collectionsPreviewLinksHtml(escape) {
+    let rows = [
+      ["directors.html", headerText("menu.directors", "Directors")],
+      ["franchises.html", headerText("nav.franchises", "Franchises")],
+      ["tags.html", headerText("menu.tags", "Tags")],
+    ];
+    return `<div class="collections-preview-links">${rows.map(([href, label]) => `<a class="collections-preview-link" href="${escape(href)}">${escape(label)}</a>`).join("")}</div>`;
   }
 
   function primaryPreviewHtml(section, escape) {
@@ -220,6 +243,8 @@
       return `<div class="primary-nav-preview primary-nav-preview--periods" aria-label="${escape(headerText("menu.periods", "Periods"))}"><div class="primary-nav-preview-panel"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.periods", "Periods"))}</strong><a href="periods.html">${escape(headerText("menu.browsePeriods", "Browse all periods"))} →</a></div>${window.renderPeriodIndexMatrix({ compact: true })}</div></div>`;
     if (section === "categories")
       return `<div class="primary-nav-preview primary-nav-preview--categories" aria-label="${escape(headerText("menu.categories", "Categories"))}"><div class="primary-nav-preview-panel"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.categories", "Categories"))}</strong><a href="categories.html">${escape(headerText("menu.browseCategories", "Browse all categories"))} →</a></div>${window.renderCategoryIndexBoard({ compact: true })}</div></div>`;
+    if (section === "collections")
+      return `<div class="primary-nav-preview primary-nav-preview--collections" aria-label="${escape(headerText("menu.collections", "Collections"))}"><div class="primary-nav-preview-panel"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.collections", "Collections"))}</strong></div>${collectionsPreviewLinksHtml(escape)}</div></div>`;
     if (section === "films")
       return `<div class="primary-nav-preview primary-nav-preview--films" aria-label="${escape(headerText("menu.films", "Films"))}"><div class="primary-nav-preview-panel"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.films", "Films"))}</strong></div>${filmsPreviewLinksHtml(escape)}</div></div>`;
     return "";
@@ -227,8 +252,8 @@
 
   function primaryNavHtml(active, escape) {
     // Kept short and fixed so the header never wraps or resizes between pages.
-    // Everything else (Discover, Compare, People, Directors, Tags, Editor,
-    // Data) lives in the site-menu dropdown instead.
+    // Everything else (Discover, Compare, People, Editor, Data) lives in the
+    // site-menu dropdown instead.
     let primaryItems = [
       ["home", headerText("nav.home", "Home"), "index.html"],
       ["periods", headerText("nav.periods", "Periods"), "periods.html"],
@@ -238,8 +263,8 @@
         "categories.html",
       ],
       [
-        "franchises",
-        headerText("nav.franchises", "Franchises"),
+        "collections",
+        headerText("nav.collections", "Collections"),
         "franchises.html",
       ],
       [
@@ -272,10 +297,9 @@
       (window.runtimeModeCapabilities?.(window.getRuntimeMode?.())
         ?.allowOwnerPages ?? true) && !window.resolveActiveProfileSlug?.();
     let ownerLinks = allowOwnerPages
-      ? `<a href="build.html">${escape(headerText("nav.build", "Build your Oskars"))}</a><a href="intake.html">${escape(headerText("nav.intake", "Intake"))}</a><a href="rate-watched.html">${escape(headerText("nav.rateWatched", "Rate watched"))}</a><a href="editor.html">${escape(headerText("nav.editor", "Editor"))}</a><a href="data.html">${escape(headerText("nav.data", "Data"))}</a><a href="profile.html">${escape(headerText("nav.profile", "Account"))}</a>`
+      ? `<a href="build.html">${escape(headerText("nav.build", "Build your Oskars"))}</a><a href="intake.html">${escape(headerText("nav.intake", "Intake"))}</a><a href="rate-watched.html">${escape(headerText("nav.rateWatched", "Rate watched"))}</a><a href="data.html">${escape(headerText("nav.data", "Data"))}</a><a href="profile.html">${escape(headerText("nav.profile", "Profile"))}</a>`
       : "";
-    return `<div class="site-menu-account" data-auth-status>${authStatusInnerHtml(escape)}</div>
-    <section><h2>${escape(headerText("menu.elsewhere", "Elsewhere"))}</h2><div class="site-menu-links"><a href="community.html">${escape(headerText("menu.community", "Community"))}</a><a href="discover.html">${escape(headerText("menu.discover", "Discover"))}</a><a href="compare.html">${escape(headerText("nav.compare", "Compare"))}</a><a href="presentation.html">${escape(headerText("menu.showcase", "Showcase"))}</a><a href="completion.html">${escape(headerText("menu.completion", "Completion"))}</a><a href="stats.html">${escape(headerText("menu.statistics", "Statistics"))}</a><a href="people.html">${escape(headerText("menu.people", "People"))}</a><a href="directors.html">${escape(headerText("menu.directors", "Directors"))}</a><a href="tags.html">${escape(headerText("menu.tags", "Tags"))}</a>${ownerLinks}</div></section>`;
+    return `<section><h2>${escape(headerText("menu.elsewhere", "Elsewhere"))}</h2><div class="site-menu-links"><a href="community.html">${escape(headerText("menu.community", "Community"))}</a><a href="discover.html">${escape(headerText("menu.discover", "Discover"))}</a><a href="compare.html">${escape(headerText("nav.compare", "Compare"))}</a><a href="presentation.html">${escape(headerText("menu.showcase", "Showcase"))}</a><a href="completion.html">${escape(headerText("menu.completion", "Completion"))}</a><a href="stats.html">${escape(headerText("menu.statistics", "Statistics"))}</a><a href="people.html">${escape(headerText("menu.people", "People"))}</a>${ownerLinks}</div></section>`;
   }
 
   function updateLanguageToggle(button) {
@@ -283,52 +307,6 @@
     button.textContent = headerText("language.next", "SV");
     button.title = headerText("language.switchTo", "Switch to Swedish");
     button.setAttribute("aria-label", button.title);
-  }
-
-  // The menu panel's [data-auth-status] container lives inside
-  // dynamicMenuHtml()'s output, which is fully regenerated on every
-  // renderSiteHeader() call (language toggle, etc.) - so its *content*
-  // can't just be set once by onFirebaseAuthChange()'s callback, which
-  // only fires on real sign-in/sign-out, not on every re-render.
-  // lastKnownAuthUser is the cached state authStatusInnerHtml() renders
-  // from on every regeneration; renderAuthStatus() (the live callback)
-  // updates both the cache and, if the container currently exists, its
-  // innerHTML directly.
-  let lastKnownAuthUser = null;
-  let authStatusSubscribed = false;
-
-  // Signed-out state renders an empty container for Google's own "Sign in
-  // with Google" button (issue #255) - not a custom button - since only
-  // Google's own rendered button (via google.accounts.id.renderButton())
-  // reliably works from this app's real deployment shape (GitHub Pages,
-  // not Firebase Hosting); signInWithPopup()/signInWithRedirect() were
-  // both tried and confirmed broken by live testing, a known Firebase SDK
-  // limitation for apps not hosted on Firebase - see
-  // docs/google-signin-firestore-decision.md.
-  function authStatusInnerHtml(escape) {
-    if (!window.oskarsFirebaseConfigured?.()) return "";
-    return lastKnownAuthUser
-      ? `<a class="auth-status-name" href="profile.html">${escape(lastKnownAuthUser.displayName || lastKnownAuthUser.email || "Signed in")}</a><button type="button" data-google-sign-out>${escape(headerText("auth.signOut", "Sign out"))}</button>`
-      : `<div data-google-signin-button></div>`;
-  }
-
-  // Google's rendered button needs a live DOM element, not an HTML string
-  // - called after every point authStatusInnerHtml()'s output lands in the
-  // DOM (both here and at the end of renderSiteHeader()'s own render
-  // cycle, since dynamicMenuHtml() regenerates this container on every
-  // call). A no-op when signed in (no such container then) or unconfigured.
-  function refreshGoogleSignInButton() {
-    let container = document.querySelector("[data-google-signin-button]");
-    if (container) window.renderGoogleSignInButton?.(container);
-  }
-
-  function renderAuthStatus(user) {
-    lastKnownAuthUser = user;
-    let container = document.querySelector("[data-auth-status]");
-    if (!container) return;
-    let escape = window.pageEscape || ((value) => String(value ?? ""));
-    container.innerHTML = authStatusInnerHtml(escape);
-    refreshGoogleSignInButton();
   }
 
   // CSS alone (:hover) drops the periods/categories preview the instant the
@@ -424,41 +402,21 @@
         header.dataset.siteHeaderBound = "";
         window.renderSiteHeader?.();
       });
-    // Delegated on `header` itself, not the [data-auth-status] container:
-    // that container lives inside dynamicMenuHtml()'s output, which gets
-    // torn down and rebuilt on every renderSiteHeader() call (language
-    // toggle, etc.), so a direct listener on it would silently stop
-    // working after the first re-render. `header` is the one element that
-    // never gets replaced (only its innerHTML is reassigned) - but it also
-    // never gets destroyed between rebinds, so this needs its own guard
-    // independent of siteHeaderBound (which resets on every language
-    // toggle) or repeated toggles would stack duplicate listeners. Only
-    // sign-out is handled here - sign-in is Google's own rendered button
-    // (google.accounts.id.renderButton()), which handles its own clicks.
-    if (!header.dataset.authDelegationBound) {
-      header.dataset.authDelegationBound = "true";
-      header.addEventListener("click", async (event) => {
-        if (event.target.closest("[data-google-sign-out]")) {
-          let required = window.oskarsRequiredAccountSession?.();
-          if (
-            !required ||
-            window.confirm(
-              headerText(
-                "auth.confirmSignOutRequired",
-                "Sign out and lock this browser's private archive? Nothing is deleted; the same account can reopen it later.",
-              ),
-            )
-          ) {
-            if (await (window.confirmSignOutWithPendingSync?.() ?? true))
-              await window.signOutOfFirebase?.();
-          }
+    header
+      .querySelector("[data-auth-status]")
+      ?.addEventListener("click", async (event) => {
+        let signOut = event.target.closest("[data-supabase-sign-out]");
+        if (!signOut) return;
+        signOut.disabled = true;
+        try {
+          await window.signOutOfSupabase?.();
+          window.location.reload();
+        } catch (error) {
+          signOut.disabled = false;
+          signOut.title = String(error?.message || error);
         }
       });
-    }
-    if (!authStatusSubscribed) {
-      authStatusSubscribed = true;
-      window.onFirebaseAuthChange?.(renderAuthStatus);
-    }
+    window.onSupabaseAuthChange?.(() => refreshHeaderAuthStatus(header, escape));
     let searchForm = header.querySelector("[data-site-search]");
     let searchInput = header.querySelector("[data-site-search-input]");
     let searchResults = header.querySelector("[data-site-search-results]");
@@ -545,10 +503,7 @@
       let match = searchMatchList.length
         ? searchMatchList[activeResultIndex >= 0 ? activeResultIndex : 0]
         : siteSearchMatches(getSearchEntries(), searchInput.value)[0];
-      if (match)
-        window.location.href = window.prepareOskarsAccountNavigation(
-          match.href,
-        );
+      if (match) window.location.href = match.href;
     });
     searchForm?.addEventListener("focusout", () => {
       setTimeout(() => {
@@ -557,6 +512,58 @@
       }, 120);
     });
   }
+
+  async function refreshHeaderAuthStatus(header, escape) {
+    let status = header.querySelector("[data-auth-status]");
+    if (!status) return;
+    let auth = await window.resolveSupabaseAuthState?.();
+    if (auth?.status !== "signed-in" || !auth.user?.id) {
+      status.innerHTML = `<div class="auth-status-sign-in" data-supabase-sign-in></div>`;
+      window.renderGoogleSignInButtonForSupabase?.(
+        status.querySelector("[data-supabase-sign-in]"),
+      );
+      return;
+    }
+    let profile = await window.loadSupabaseProfile?.().catch(() => null);
+    let displayName =
+      profile?.display_name ||
+      auth.user.user_metadata?.full_name ||
+      auth.user.user_metadata?.name ||
+      auth.user.email ||
+      "Profile";
+    window.renderSignedInHeaderAccount(status, auth.user, displayName);
+  }
+
+  /** Renders the compact signed-in account control inside a header status container.
+   * @param {Element} container Header account-status container.
+   * @param {Object} user Signed-in Supabase user.
+   * @param {string} displayName Account name shown beside the avatar.
+   */
+  window.renderSignedInHeaderAccount = function (container, user, displayName) {
+    if (!container) return;
+    let escape =
+      window.pageEscape ||
+      ((value) =>
+        String(value ?? "").replace(
+          /[&<>"']/g,
+          (character) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[character],
+        ));
+    let name = String(displayName || user?.email || "Profile").trim();
+    let initial = Array.from(name)[0]?.toLocaleUpperCase() || "?";
+    let candidateAvatar =
+      user?.user_metadata?.avatar_url || user?.user_metadata?.picture || "";
+    let avatar = /^https:\/\//i.test(candidateAvatar)
+      ? `<img src="${escape(candidateAvatar)}" alt="" referrerpolicy="no-referrer">`
+      : `<span aria-hidden="true">${escape(initial)}</span>`;
+    container.innerHTML = `<div class="auth-status-account"><a class="auth-status-profile" href="profile.html" title="${escape(name)}"><span class="auth-status-avatar">${avatar}</span><span class="auth-status-name">${escape(name)}</span></a><button class="auth-status-sign-out" type="button" data-supabase-sign-out aria-label="Sign out" title="Sign out"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M8 4H4.8A1.8 1.8 0 0 0 3 5.8v8.4A1.8 1.8 0 0 0 4.8 16H8M12.5 6.5 16 10l-3.5 3.5M7 10h9"/></svg></button></div>`;
+  };
 
   /** Renders or refreshes the shared site header and binds its controls. */
   window.renderSiteHeader = function () {
@@ -586,6 +593,7 @@
       <button class="theme-toggle" type="button" data-theme-toggle title="${escape(themeToggleTitle(nextOskarsTheme(preferredTheme())))}" aria-label="${escape(headerText("theme.switch", "Switch color theme"))}">${THEME_ICON[preferredTheme()] || "☾"}</button>
       <button class="poster-grid-toggle" type="button" data-poster-grid-toggle aria-pressed="${preferredPosterGrid() ? "true" : "false"}" title="${escape(posterGridToggleTitle(preferredPosterGrid()))}" aria-label="${escape(posterGridToggleTitle(preferredPosterGrid()))}">🖼️</button>
       <button class="poster-backdrop-toggle" type="button" data-poster-backdrop-toggle aria-pressed="${preferredPosterBackdrop() ? "true" : "false"}" title="${escape(posterBackdropToggleTitle(preferredPosterBackdrop()))}" aria-label="${escape(posterBackdropToggleTitle(preferredPosterBackdrop()))}">🎞️</button>
+      <div class="auth-status" data-auth-status aria-live="polite"></div>
       <details class="site-menu">
         <summary aria-label="${escape(headerText("menu.openDirectory", "Open site directory"))}" title="${escape(headerText("menu.openDirectory", "Site directory"))}"><span></span><span></span><span></span></summary>
         <div class="site-menu-panel">
@@ -608,12 +616,9 @@
       }
     }
     bindSiteHeader(header, escape);
+    refreshHeaderAuthStatus(header, escape);
     updateLanguageToggle(header.querySelector("[data-language-toggle]"));
     header._siteSearchEntries = null;
-    // dynamicMenuHtml() (called above, both render paths) creates a fresh
-    // [data-google-signin-button] container each time - re-render Google's
-    // button into it every time, not just once at initial bind.
-    refreshGoogleSignInButton();
     done?.();
   };
 })();

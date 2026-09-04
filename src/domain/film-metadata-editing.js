@@ -71,9 +71,16 @@ window.filmMetadataFormValues = function (film) {
 };
 
 // Typed, form-shaped snapshot of the film fields whose edits are reversible
-// (issue #132). Identity (title/year), ranks, and the poster record stay out:
-// their restoration is not an unambiguous field write.
+// (issue #132). Title/year joined this set once a film's id stopped
+// deriving from them (issue #454) - restoring an old title/year no longer
+// risks reintroducing the identity-cascade problem this migration
+// removed. Ranks and the poster record stay out: ranks are a derived
+// aggregate rebuildAggregates() recomputes, not a free-standing field,
+// and poster restoration would need its own fetch/validation, not a
+// plain value write.
 let FILM_UNDO_FIELD_LABELS = {
+  title: "title",
+  year: "year",
   director: "director",
   rating: "rating",
   country: "country",
@@ -96,10 +103,10 @@ function filmUndoSnapshot(source) {
       key === "wantToRewatch"
         ? Boolean(source.wantToRewatch)
         : key === "tags"
-        ? [...(source.tags || [])]
-        : key === "franchises"
-          ? window.formatFranchiseMemberships(source.franchises)
-          : String(source[key] ?? "").trim();
+          ? [...(source.tags || [])]
+          : key === "franchises"
+            ? window.formatFranchiseMemberships(source.franchises)
+            : String(source[key] ?? "").trim();
   });
   return snapshot;
 }
@@ -134,9 +141,15 @@ window.updateFilmMetadata = function (id, values, options = {}) {
   let year = String(values.year || "").trim();
   if (!title) throw new Error("Title is required.");
   if (!/^\d{4}$/.test(year)) throw new Error("Year must contain four digits.");
-  let nextId = window.makeFilmId(year, title);
+  // Compares by normalized title/year rather than a recomputed id
+  // (issue #454): once state.filmsById is keyed by the real Supabase
+  // films.id, no freshly-computed id could ever match an existing key,
+  // which would silently disable this guard entirely.
   let duplicate = Object.values(state.filmsById || {}).find(
-    (candidate) => candidate.id !== film.id && candidate.id === nextId,
+    (candidate) =>
+      candidate.id !== film.id &&
+      window.normalizeTitle(candidate.title) === window.normalizeTitle(title) &&
+      String(candidate.year) === year,
   );
   if (duplicate)
     throw new Error(`${duplicate.title} (${year}) already exists.`);
@@ -154,10 +167,6 @@ window.updateFilmMetadata = function (id, values, options = {}) {
     source.title = title;
     source.normalizedTitle = window.normalizeTitle(title);
     if (sourceUsesActualYear) source.year = year;
-    source.id = window.makeFilmId(
-      sourceUsesActualYear ? year : source.year,
-      title,
-    );
     source.director = String(values.director || "").trim();
     source.directors = directors;
     // Drop the parsed rating fields so normalizeFilmMetadata re-derives them
@@ -220,9 +229,14 @@ window.updateFilmMetadata = function (id, values, options = {}) {
 
   window.markAggregatesDirty?.("film metadata updated");
   window.ensureAggregatesFresh?.();
+  // A film with a known Supabase id resolves by the same `id` passed in
+  // (issue #454 - addFilmToStore() keeps it stable across the rebuild
+  // above). A film with no Supabase id yet still gets a fresh
+  // makeFilmId(year, title) id on that same rebuild, so the title/year
+  // fallback stays necessary for that case.
   let updatedFilm =
-    window.findFilmById(nextId) ||
-    window.findWatchedFilmById?.(nextId) ||
+    window.findFilmById(id) ||
+    window.findWatchedFilmById?.(id) ||
     Object.values(state.filmsById || {}).find(
       (candidate) =>
         candidate.normalizedTitle === window.normalizeTitle(title) &&
@@ -394,4 +408,3 @@ window.updateAwardDetail = function (filmId, category, placement, year, value) {
   }
   return true;
 };
-

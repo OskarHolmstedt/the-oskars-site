@@ -41,6 +41,25 @@ window.getCenturyKey = function (year) {
 };
 
 /**
+ * Derives a public-profile URL slug from an owner-chosen display name
+ * (issue #253) - the display name is the single source of truth, so the
+ * publish panel never needs a separately-typed, driftable slug field.
+ * Pure and backend-agnostic (moved here from canonical-data.js for
+ * issue #430, since state.js - unlike canonical-data.js - loads
+ * unconditionally on every entry, Supabase-backed or not).
+ * @param {string} name Owner-chosen public profile display name.
+ * @returns {string} URL-safe slug, empty if name has no alphanumeric content.
+ */
+window.publicProfileSlugify = function (name) {
+  return String(name || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+};
+
+/**
  * Builds the canonical year-and-title film identifier.
  * @param {string|number} year Film year or an empty value.
  * @param {*} title Film title.
@@ -254,12 +273,13 @@ window.addFilmToStore = function (year, film, options = {}) {
     existing.url = existing.url || film.url;
     existing.letterboxdUrl = existing.letterboxdUrl || film.letterboxdUrl || "";
     existing.tmdbId = existing.tmdbId || film.tmdbId || "";
+    existing.supabaseFilmId =
+      existing.supabaseFilmId || film.supabaseFilmId || "";
     existing.type = existing.type || film.type || "";
     existing.platform = existing.platform || film.platform || "";
     existing.dateWatched = existing.dateWatched || film.dateWatched || "";
     existing.views = existing.views || film.views || null;
-    existing.musicScore =
-      existing.musicScore ?? film.musicScore ?? null;
+    existing.musicScore = existing.musicScore ?? film.musicScore ?? null;
     existing.musicRating = existing.musicRating || film.musicRating || "";
     existing.musicRatingValue =
       existing.musicRatingValue ?? film.musicRatingValue ?? null;
@@ -302,8 +322,14 @@ window.addFilmToStore = function (year, film, options = {}) {
     existing.review = existing.review || film.review || "";
     if (effectiveYear && !/^\d{4}$/.test(String(existing.year || ""))) {
       existing.year = effectiveYear;
-      existing.id = window.makeFilmId(effectiveYear, existing.title);
-      window.replaceFilmStoreId(oldId, existing.id, existing);
+      // A real Supabase id never derives from year/title, so a record
+      // that already has one keeps it - only the legacy year::title id
+      // needs recomputing when a placeholder period year resolves to a
+      // concrete one (issue #454).
+      if (!existing.supabaseFilmId) {
+        existing.id = window.makeFilmId(effectiveYear, existing.title);
+        window.replaceFilmStoreId(oldId, existing.id, existing);
+      }
     } else {
       existing.year = existing.year || effectiveYear || film.year || year;
     }
@@ -320,7 +346,15 @@ window.addFilmToStore = function (year, film, options = {}) {
     mergeAwardsSimple((existing.awards ||= []), (film.awards ||= []));
     window.normalizeFilmRatingFields?.(existing);
   } else {
-    let idNew = window.makeFilmId(effectiveYear || year, film.title);
+    // Prefer the real Supabase films.id (issue #454) over the legacy
+    // year::title primitive, so a film's identity is stable across a
+    // title/year correction and doesn't depend on which state it's in
+    // (Unseen/Watchlisted/Watched). Only offline-built records with no
+    // known Supabase id yet (import preview, before a round-trip) fall
+    // back to the legacy scheme.
+    let idNew =
+      film.supabaseFilmId ||
+      window.makeFilmId(effectiveYear || year, film.title);
     let copy = window.cloneRecord(film);
     copy.id = idNew;
     copy.normalizedTitle = norm;

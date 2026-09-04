@@ -1,4 +1,4 @@
-/** @file Controls film detail rendering, poster selection, ranks, awards, metadata, and editing. */
+/** @file Controls film detail rendering, awards, read-only catalog metadata, and personal editing. */
 
 (function () {
   let filmPageEscape = window.pageEscape;
@@ -12,10 +12,6 @@
   function filmPagePeriodOrder(period) {
     if (period === "alltime") return 100000;
     return Number(String(period || "").replace(/[^0-9]/g, "")) || 0;
-  }
-
-  function selected(value, expected) {
-    return value === expected ? "selected" : "";
   }
 
   function rewatchTierOptions(selectedTier) {
@@ -66,7 +62,6 @@
         });
   }
 
-  window.load();
   // Film credits use the derived peopleByProfession groups. Most pages can keep
   // the people index lazy, but the film page explicitly needs it before render.
   window.ensurePeopleIndex?.();
@@ -76,9 +71,41 @@
   let awardsView =
     window.pageQueryParam("awards") === "matrix" ? "matrix" : "periods";
   let container = document.getElementById("filmPage");
-  let posterOptions = [];
-  let posterOptionIndex = 0;
-  let posterPickerStatus = "";
+
+  // Watchlisted-film detail (issue #451/#457): film.html?id=<filmId> is now
+  // the one canonical URL regardless of status - a Watchlisted film used to
+  // live at a separate watchlist-film.html?id=<watchlistRowId> URL entirely.
+  // Resolved once at load, not recomputed per render, since a film's
+  // Watched/Watchlisted status doesn't change without a navigation away
+  // (mark-as-watched/add-to-watched both redirect elsewhere; removal shows
+  // an inline "Removed from watchlist" state via removedWatchlistSnapshot
+  // below, matching this file's existing shared-preview add flow rather
+  // than re-deriving status from window.state on every render).
+  let watchlistItem = filmId
+    ? window.state.watchlist?.find(
+        (entry) => entry.supabaseFilmId === filmId,
+      ) || null
+    : null;
+  let isWatchlistDetail = Boolean(watchlistItem);
+  let watchlistBusy = false;
+  let removedWatchlistSnapshot = null;
+  let watchlistFranchiseChains = null;
+  // Read-only archive-match hint, ported from watchlist-film.js: built
+  // from the already-hydrated window.state.filmsById (every watched film,
+  // Supabase-side there's no separate "watchedOther" bucket) rather than a
+  // live loadSupabaseWorkspace() call watchlist-film.js's own boot() used
+  // to make - the data's already sitting in window.state by the time this
+  // page's script runs.
+  let watchedTitlesByYear = new Map();
+  if (isWatchlistDetail) {
+    Object.values(window.state.filmsById || {}).forEach((watched) => {
+      let title = window.normalizeTitle(watched.title || "");
+      if (!title) return;
+      let entry = { title: watched.title, year: watched.year };
+      watchedTitlesByYear.set(`${title}::${watched.year || ""}`, entry);
+      watchedTitlesByYear.set(`${title}::`, entry);
+    });
+  }
 
   function filmViewUrl() {
     let url = window.filmPageUrl(filmId);
@@ -94,35 +121,206 @@
     return window.findFilmById(filmId) || window.findWatchedFilmById?.(filmId);
   }
 
-  function currentPosterOptionIndex(film) {
-    let currentUrl = String(film?.poster?.url || "");
-    let index = posterOptions.findIndex((poster) => poster.url === currentUrl);
-    return index >= 0
-      ? index
-      : Math.max(0, Math.min(posterOptionIndex, posterOptions.length - 1));
+  // Ported from watchlist-film.js (issue #457) - metadataLabel/formatRuntime
+  // above are already identical between the two files, reused as-is.
+  function tierOptions(selected) {
+    return `<option value="">${filmPageEscape(ui("Unranked"))}</option>${window.WATCHLIST_TIERS.map(
+      (tier) =>
+        `<option value="${filmPageEscape(tier)}" ${window.normalizeWatchlistTier(selected) === tier ? "selected" : ""}>${filmPageEscape(tier)}</option>`,
+    ).join("")}`;
+  }
+
+  function watchlistMetadataRow(label, value, href) {
+    if (!value) return "";
+    return `<div><dt>${filmPageEscape(label)}</dt><dd>${
+      href
+        ? `<a class="period-link" href="${filmPageEscape(href)}"${/^https?:\/\//i.test(String(href)) ? ' target="_blank" rel="noopener noreferrer"' : ""}>${filmPageEscape(value)}</a>`
+        : filmPageEscape(value)
+    }</dd></div>`;
+  }
+
+  // Read-only archive-match hint (issue #439's confirmed scope reduction
+  // drops metadata/poster editing entirely, but this stays useful and
+  // needs no write of its own): a simple normalized-title/year match
+  // against the signed-in user's own already-watched titles.
+  function archiveMatchCandidate() {
+    let normalizedTitle = window.normalizeTitle(watchlistItem.title || "");
+    let year = String(watchlistItem.year || "");
+    let sameTitleYear = watchedTitlesByYear.get(`${normalizedTitle}::${year}`);
+    let sameTitle = watchedTitlesByYear.get(`${normalizedTitle}::`);
+    if (sameTitleYear)
+      return {
+        level: "exact",
+        label: ui("Title and year match"),
+        film: sameTitleYear,
+      };
+    if (sameTitle)
+      return {
+        level: "possible",
+        label: year
+          ? ui("Same title, different year")
+          : ui("Same title, year unknown"),
+        film: sameTitle,
+      };
+    return null;
+  }
+
+  function renderArchiveMatchReview() {
+    let match = archiveMatchCandidate();
+    if (!match) return "";
+    let film = match.film;
+    let table = window.renderLeaderboardTable({
+      headers: [ui("Confidence"), ui("Film")].map(filmPageEscape),
+      rows: `<tr><td><span class="match-confidence match-confidence--${filmPageEscape(match.level)}">${filmPageEscape(match.level === "exact" ? ui("Exact") : ui("Possible"))}</span><span class="leaderboard-meta">${filmPageEscape(match.label)}</span></td><td class="film-table-cell"><a class="table-film-link" href="${filmPageEscape(window.periodPageUrl("year", film.year))}"><strong>${filmPageEscape(film.title)}</strong></a><span class="leaderboard-meta">${filmPageEscape(film.year || "")}</span></td></tr>`,
+    });
+    return `<section class="archive-match-review"><h2>${filmPageEscape(ui("Archive match review"))}</h2><p>${filmPageEscape(ui("Possible archive matches are shown for review only."))}</p>${table}</section>`;
+  }
+
+  function renderWatchlistWatchedForm() {
+    document.title = `${ui("Mark {title} as watched", { title: watchlistItem.title })} · The Oskars`;
+    container.innerHTML = `<form id="markWatchlistWatchedForm" class="film-edit-form">
+      ${window.renderDetailHeader({ mainHtml: `<h1>${filmPageEscape(ui("Mark {title} as watched", { title: watchlistItem.title }))}</h1><p>${filmPageEscape(ui("Add any viewing facts you know, then mark it watched."))}</p>`, actionsHtml: `${window.renderCollectionActionButton({ kind: "watched", label: ui("Mark as watched"), escape: filmPageEscape, attributes: { type: "submit", disabled: watchlistBusy } })}<button type="button" data-cancel-watchlist-transition>${filmPageEscape(ui("Cancel"))}</button>` })}
+      <section class="film-edit-section"><h2>${filmPageEscape(ui("Viewing facts"))}</h2><div class="film-edit-grid">
+        <label>${filmPageEscape(ui("Rating"))} ${window.renderRatingInput({})}</label>
+        <label>${filmPageEscape(ui("Date watched"))} <input name="dateWatched" type="date"></label>
+        <label>${filmPageEscape(ui("Platform"))} <input name="platform" value="${filmPageEscape(watchlistItem.platform || "")}"></label>
+        <label>${filmPageEscape(ui("Views"))} <input name="views" type="number" min="1" step="1" value="1"></label>
+      </div></section>
+      <p>${filmPageEscape(ui("Any unfinished rating, ranking, and awards work will remain in the intake queue."))}</p>
+    </form>`;
+    window.enhanceRatingInputs?.(container);
+  }
+
+  // canEdit-gated throughout (issue #457): watchlist-film.html was
+  // entirely owner-only before this merge, so its own mutation controls
+  // never needed to check capabilities - film.html is publicly viewable
+  // (matching how the Watched view already gates its own edit controls),
+  // so every control that writes needs the same explicit check here.
+  function renderWatchlistTagEditor() {
+    let tags = watchlistItem.tags || [];
+    let tagsHtml = tags
+      .map((tag) =>
+        canEdit
+          ? `<span class="film-tag">${filmPageEscape(tag)}<button type="button" class="chip-remove" data-remove-tag="${filmPageEscape(tag)}" aria-label="${filmPageEscape(ui("Remove tag {tag}", { tag }))}">×</button></span>`
+          : `<a class="film-tag" href="${filmPageEscape(window.tagPageUrl(tag))}">${filmPageEscape(tag)}</a>`,
+      )
+      .join("");
+    let addFormHtml = canEdit
+      ? `<form class="data-form data-form--inline" data-add-tag-form><label>${filmPageEscape(ui("Add tag"))} <input name="tag" required></label><button type="submit"${watchlistBusy ? " disabled" : ""}>${filmPageEscape(ui("Add"))}</button></form>`
+      : "";
+    if (!tagsHtml && !addFormHtml) return "";
+    return `<section class="film-tags"><h2>${filmPageEscape(ui("Tags"))}</h2><div class="film-tag-list">${tagsHtml}</div>${addFormHtml}</section>`;
+  }
+
+  function renderWatchlistFranchiseEditor() {
+    let franchiseHtml = window.renderFranchiseMembershipLinks(
+      watchlistItem.franchises,
+      { itemId: watchlistItem.id, escape: filmPageEscape },
+    );
+    let addFormHtml = canEdit
+      ? `<form class="data-form data-form--inline" data-add-franchise-form><label>${filmPageEscape(ui("Add franchise"))} <input name="franchise" placeholder="${filmPageEscape(ui("Franchise name"))}" required></label><label>${filmPageEscape(ui("Parent (optional)"))} <input name="parent" placeholder="${filmPageEscape(ui("Parent franchise"))}"></label><button type="submit"${watchlistBusy ? " disabled" : ""}>${filmPageEscape(ui("Add"))}</button></form><p class="data-panel-status">${filmPageEscape(ui("Adds a new membership only - an existing one can't be edited or removed here."))}</p>`
+      : "";
+    if (!franchiseHtml && !addFormHtml) return "";
+    return `<section class="film-franchises"><h2>${filmPageEscape(ui("Franchises"))}</h2>${franchiseHtml ? `<div class="film-franchise-links">${franchiseHtml}</div>` : ""}${addFormHtml}</section>`;
+  }
+
+  function renderWatchlistDetail() {
+    if (!watchlistItem) {
+      if (removedWatchlistSnapshot) {
+        document.title = `${ui("Removed from watchlist")} · The Oskars`;
+        container.innerHTML = `<div class="detail-empty"><h1>${filmPageEscape(ui("Removed from watchlist"))}</h1>${window.renderActionFeedback({ message: ui('Removed "{title}" from your watchlist.', { title: removedWatchlistSnapshot.title }), actionLabel: ui("Undo"), actionAttribute: "data-undo-watchlist-removal", escape: filmPageEscape })}<a href="watchlist-merge.html">${filmPageEscape(ui("Return to watchlist"))}</a></div>`;
+        return;
+      }
+      document.title = `${ui("Watchlist film not found")} · The Oskars`;
+      container.innerHTML = `<div class="detail-empty"><h1>${filmPageEscape(ui("Watchlist film not found"))}</h1><a href="watchlist-merge.html">${filmPageEscape(ui("Return to watchlist"))}</a></div>`;
+      return;
+    }
+
+    let displayTitle = window.localizedFilmTitle(watchlistItem);
+    let localizedTitleMeta = window.hasLocalizedFilmTitle(watchlistItem)
+      ? `<span class="leaderboard-meta localized-title-meta">${filmPageEscape(ui("Original title"))}: ${filmPageEscape(watchlistItem.title)}</span>`
+      : "";
+    let posterHtml = renderPosterArea(watchlistItem);
+    let directorHtml = window.renderLinkedDirectors(watchlistItem.director, {
+      escape: filmPageEscape,
+      expanded: true,
+    });
+    let tmdbId = watchlistItem.tmdbId || "";
+    let metadataHtml = [
+      watchlistMetadataRow(
+        ui("Year"),
+        watchlistItem.year,
+        watchlistItem.year ? window.periodPageUrl("year", watchlistItem.year) : "",
+      ),
+      watchlistMetadataRow(
+        "TMDB",
+        tmdbId ? `#${tmdbId}` : "",
+        tmdbId
+          ? `https://www.themoviedb.org/${window.tmdbResourcePath(window.parseTmdbReference(tmdbId))}`
+          : "",
+      ),
+      watchlistMetadataRow(
+        "Letterboxd",
+        watchlistItem.letterboxdUrl ? "Open on Letterboxd" : "",
+        watchlistItem.letterboxdUrl,
+      ),
+      watchlistMetadataRow(
+        ui("Medium"),
+        watchlistItem.medium && watchlistItem.medium !== "unknown"
+          ? metadataLabel(watchlistItem.medium)
+          : "",
+      ),
+      watchlistMetadataRow(
+        ui("Screenplay"),
+        watchlistItem.screenplayType && watchlistItem.screenplayType !== "unknown"
+          ? metadataLabel(watchlistItem.screenplayType)
+          : "",
+      ),
+      watchlistMetadataRow(ui("Adapted from"), watchlistItem.adaptationSource),
+      watchlistMetadataRow(ui("Swedish title"), watchlistItem.swedishTitle),
+      watchlistItem.country
+        ? `<div><dt>${filmPageEscape(ui("Country"))}</dt><dd>${window.renderCountryLinks(watchlistItem.country, filmPageEscape)}</dd></div>`
+        : "",
+      watchlistMetadataRow(ui("Runtime"), formatRuntime(watchlistItem.runtimeMinutes)),
+    ].join("");
+    let archiveMatchHtml = renderArchiveMatchReview();
+
+    document.title = `${displayTitle} · Watchlist · The Oskars`;
+    container.innerHTML = `<nav class="detail-breadcrumbs" aria-label="Breadcrumb"><a href="watchlist-merge.html">Watchlist</a><span aria-hidden="true">›</span><span aria-current="page">${filmPageEscape(watchlistItem.title)}</span></nav>
+    ${window.renderDetailHeader({
+      classes: posterHtml ? "has-poster" : "",
+      leadingHtml: posterHtml,
+      mainClasses: "detail-header-main film-detail-main",
+      mainHtml: `<div class="film-title-row"><h1>${filmPageEscape(displayTitle)}</h1>${window.renderWatchlistTierBadge(watchlistItem.tier, { escape: filmPageEscape })}</div>
+        ${localizedTitleMeta}
+        ${directorHtml ? `<p>${filmPageEscape(ui("by"))} ${directorHtml}</p>` : ""}
+        ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}
+        ${canEdit ? `<label class="data-field">${filmPageEscape(ui("Interest tier"))}<select name="tier" data-tier-select${watchlistBusy ? " disabled" : ""}>${tierOptions(watchlistItem.tier)}</select></label>` : ""}`,
+      actionsHtml: canEdit
+        ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Mark as watched"), escape: filmPageEscape, attributes: { "data-mark-watchlist-watched": true, disabled: watchlistBusy } })}<button type="button" class="danger-button" data-remove-watchlist-film${watchlistBusy ? " disabled" : ""}>${filmPageEscape(ui("Remove from watchlist"))}</button>`
+        : "",
+    })}
+    ${renderWatchlistTagEditor()}
+    ${renderWatchlistFranchiseEditor()}
+    ${archiveMatchHtml}`;
+  }
+
+  async function reloadWatchlistItem() {
+    if (!watchlistFranchiseChains) {
+      let franchiseCatalog = await window.loadSupabaseFranchiseCatalog();
+      watchlistFranchiseChains =
+        window.buildSupabaseFranchiseChains(franchiseCatalog);
+    }
+    watchlistItem = window.supabaseLegacyHydrationWatchlistItem(
+      await window.loadSupabaseWatchlistItemDetail(watchlistItem.id),
+      0,
+      watchlistFranchiseChains,
+    );
+    render(false);
   }
 
   function renderPosterArea(film) {
-    let posterHtml = window.renderFilmPoster(film, "detail");
-    if (!posterOptions.length && !posterPickerStatus) return posterHtml;
-    posterOptionIndex = currentPosterOptionIndex(film);
-    return window.renderPosterPicker({
-      posterHtml,
-      options: posterOptions,
-      activeIndex: posterOptionIndex,
-      status: posterPickerStatus,
-      escape: filmPageEscape,
-    });
-  }
-
-  function selectPosterOption(index) {
-    if (!posterOptions.length) return;
-    let film = currentFilm();
-    posterOptionIndex = (index + posterOptions.length) % posterOptions.length;
-    window.setFilmPoster(film.id, posterOptions[posterOptionIndex]);
-    posterPickerStatus = "";
-    render(false);
-    container.querySelector("[data-film-poster-picker]")?.focus();
+    return window.renderFilmPoster(film, "detail");
   }
 
   function sortedAwards(film) {
@@ -179,9 +377,7 @@
     let hasOfficialNomination = nominations.length > 0;
     let personalWinner = Number(award?.placement) === 1;
     let agrees =
-      !!award &&
-      hasOfficialNomination &&
-      personalWinner === officialWinner;
+      !!award && hasOfficialNomination && personalWinner === officialWinner;
     let label = officialWinner
       ? ui("Official winner")
       : hasOfficialNomination
@@ -630,15 +826,16 @@
       window.activeProjectsForFilm?.({ archiveId: film.id }) || [],
       { escape: filmPageEscape, title: ui("Active projects") },
     );
-    let awardsHtml = awards.length || officialContext?.nominations.length
-      ? `<section class="film-awards" data-collapsible-section><h2 data-collapsible-heading>${filmPageEscape(ui("Awards"))}</h2><div data-collapsible-body>
+    let awardsHtml =
+      awards.length || officialContext?.nominations.length
+        ? `<section class="film-awards" data-collapsible-section><h2 data-collapsible-heading>${filmPageEscape(ui("Awards"))}</h2><div data-collapsible-body>
   <fieldset class="film-awards-view-controls"><legend>${filmPageEscape(ui("Display"))}</legend><label><input type="radio" name="filmAwardsView" value="periods" ${awardsView === "periods" ? "checked" : ""}> ${filmPageEscape(ui("Period tables"))}</label><label><input type="radio" name="filmAwardsView" value="matrix" ${awardsView === "matrix" ? "checked" : ""}> ${filmPageEscape(ui("Progression table"))}</label></fieldset>
   ${
     awardsView === "matrix"
       ? renderAwardMatrix(film, awards)
       : `<div class="film-award-period-grid">${renderAwardGroups(film, awards, officialContext)}</div>`
   }</div></section>`
-      : "";
+        : "";
     let openIntake = (window.state.intakeWorkflows || []).find(
       (workflow) => workflow.filmId === film.id && !workflow.completedAt,
     );
@@ -646,7 +843,6 @@
       ? `<section class="detail-note"><div><h2>${filmPageEscape(ui("Watched-film intake is open"))}</h2></div><p>${filmPageEscape(ui("Rating, global ranking, or awards review still needs an explicit decision."))}</p><a class="button-link" href="${filmPageEscape(window.intakePageUrl(openIntake.id))}">${filmPageEscape(ui("Continue intake"))}</a></section>`
       : "";
 
-    let moreToolsOpen = posterOptions.length > 0 || !!posterPickerStatus;
     container.innerHTML = `${window.renderDetailHeader({
       classes: posterHtml ? "has-poster" : "",
       leadingHtml: posterHtml,
@@ -658,7 +854,7 @@
       ${film.review ? `<section class="detail-note film-review-compact"><div><h2>${filmPageEscape(ui("Review"))}</h2></div><p>${filmPageEscape(film.review)}</p></section>` : ""}`,
       actionsHtml: `<a class="button-link" href="${filmPageEscape(window.comparePageUrl([film.id]))}">${filmPageEscape(ui("Compare"))}</a>${
         canEdit
-          ? `<button type="button" data-toggle-film-rewatch>${filmPageEscape(ui(film.wantToRewatch ? "Remove from rewatchlist" : "Want to rewatch"))}</button><button type="button" data-edit-film>${filmPageEscape(ui("Edit"))}</button><details class="detail-header-more"${moreToolsOpen ? " open" : ""}><summary class="button-link">${filmPageEscape(ui("More"))}</summary><div class="detail-header-more-panel"><button type="button" data-enrich-film="${filmPageEscape(film.id)}">${filmPageEscape(ui("Find metadata"))}</button><button type="button" data-find-film-poster="${filmPageEscape(film.id)}">${filmPageEscape(film.poster ? ui("Refresh poster") : ui("Find poster"))}</button><button type="button" data-load-poster-options="${filmPageEscape(film.id)}">${filmPageEscape(posterOptions.length ? ui("Reload poster options") : ui("Browse posters"))}</button></div></details>`
+          ? `<button type="button" data-toggle-film-rewatch>${filmPageEscape(ui(film.wantToRewatch ? "Remove from rewatchlist" : "Want to rewatch"))}</button><button type="button" data-edit-film>${filmPageEscape(ui("Edit"))}</button>`
           : ""
       }`,
     })}
@@ -675,30 +871,14 @@
   function renderEdit(film) {
     let awards = sortedAwards(film);
     container.innerHTML = `<form id="filmEditForm" class="film-edit-form">
-    ${window.renderDetailHeader({ mainHtml: `<h1>${filmPageEscape(ui("Edit {title}", { title: film.title }))}</h1><p>${filmPageEscape(ui("Film metadata and credits"))}</p>`, actionsHtml: `<button type="submit">${filmPageEscape(ui("Save"))}</button><button type="button" data-cancel-film-edit>${filmPageEscape(ui("Cancel"))}</button>` })}
-    <section class="film-edit-section"><h2>${filmPageEscape(ui("Details"))}</h2><div class="film-edit-grid">
-      <label>${filmPageEscape(ui("Title"))} <input name="title" value="${filmPageEscape(film.title)}" required></label>
-      <label>${filmPageEscape(ui("Release year"))} <input name="year" type="number" min="1900" max="2099" value="${filmPageEscape(film.year || "")}" required></label>
-      <label class="wide">${filmPageEscape(ui("Director(s)"))} <input name="director" value="${filmPageEscape(film.director || (film.directors || []).join(", "))}"></label>
+    ${window.renderDetailHeader({ mainHtml: `<h1>${filmPageEscape(ui("Edit {title}", { title: film.title }))}</h1><p>${filmPageEscape(ui("Your rating, notes, tags, and memberships"))}</p>`, actionsHtml: `<button type="submit">${filmPageEscape(ui("Save"))}</button><button type="button" data-cancel-film-edit>${filmPageEscape(ui("Cancel"))}</button>` })}
+    <section class="film-edit-section"><h2>${filmPageEscape(ui("Your film data"))}</h2><p class="edit-help">${filmPageEscape(ui("Shared catalog facts and posters are read-only. Corrections are handled through the catalog maintenance workflow."))}</p><div class="film-edit-grid">
       <label>${filmPageEscape(ui("Rating"))} ${window.renderRatingInput({ value: film.rating || "" })}</label>
-      <label>${filmPageEscape(ui("Country"))} <input name="country" value="${filmPageEscape(film.country || "")}"></label>
-      <label>${filmPageEscape(ui("Primary country"))} <input name="primaryCountry" value="${filmPageEscape(window.primaryCountryValue(film))}"></label>
-      <label>${filmPageEscape(ui("Medium"))} <select name="medium"><option value="unknown" ${selected(film.medium, "unknown")}>${filmPageEscape(ui("Unknown"))}</option><option value="live-action" ${selected(film.medium, "live-action")}>${filmPageEscape(ui("Live action"))}</option><option value="animation" ${selected(film.medium, "animation")}>${filmPageEscape(ui("Animation"))}</option><option value="hybrid" ${selected(film.medium, "hybrid")}>${filmPageEscape(ui("Hybrid"))}</option></select></label>
-      <label>${filmPageEscape(ui("Screenplay"))} <select name="screenplayType"><option value="unknown" ${selected(film.screenplayType, "unknown")}>${filmPageEscape(ui("Unknown"))}</option><option value="original" ${selected(film.screenplayType, "original")}>${filmPageEscape(ui("Original"))}</option><option value="adapted" ${selected(film.screenplayType, "adapted")}>${filmPageEscape(ui("Adapted"))}</option></select></label>
-      <label>${filmPageEscape(ui("Adaptation source"))} <input name="adaptationSource" value="${filmPageEscape(film.adaptationSource || "")}" placeholder="${filmPageEscape(ui("Novel, play, video game…"))}"></label>
-      <label class="wide">${filmPageEscape(ui("Film URL"))} <input name="url" type="url" value="${filmPageEscape(film.url || "")}"></label>
-      <label class="wide">${filmPageEscape(ui("Poster URL"))} <input name="posterUrl" type="url" value="${filmPageEscape(film.poster?.url || "")}"></label>
-      <label class="wide">${filmPageEscape(ui("Franchises"))} <textarea name="franchises" rows="5" placeholder="${filmPageEscape(ui("Parent franchise > Subfranchise | rank"))}">${filmPageEscape(window.formatFranchiseMemberships(film.franchises))}</textarea><span class="field-help">${filmPageEscape(ui("One per line. Examples: James Bond | 5 or Marvel Cinematic Universe > Iron Man | 2. Chain as many levels as needed, e.g. Marvel > MCU > Infinity Saga > Phase 1 | 2 — each intermediate name is created automatically."))}</span></label>
+      <label class="wide">${filmPageEscape(ui("Franchises"))} <textarea name="franchises" rows="5" placeholder="${filmPageEscape(ui("Parent franchise > Subfranchise | rank"))}">${filmPageEscape(window.formatFranchiseMemberships(film.franchises))}</textarea><span class="field-help">${filmPageEscape(ui("New memberships can be added. Existing shared-catalog memberships cannot be removed or corrected here."))}</span></label>
       <label class="wide">${filmPageEscape(ui("Tags"))} <input name="tags" value="${filmPageEscape(window.formatFilmTags(film.tags))}" placeholder="${filmPageEscape(ui("Noir, courtroom drama, rewatch"))}"><span class="field-help">${filmPageEscape(ui("Separate tags with commas."))}</span></label>
       <label class="wide">${filmPageEscape(ui("Review / comment"))} <textarea name="review" rows="5" maxlength="1000">${filmPageEscape(film.review || "")}</textarea><span class="field-help">${filmPageEscape(ui("A short personal note about the film."))}</span></label>
       <label><input type="checkbox" name="wantToRewatch" ${film.wantToRewatch ? "checked" : ""}> ${filmPageEscape(ui("Rewatchlist"))}</label>
       <label>${filmPageEscape(ui("Rewatch tier"))} <select name="rewatchTier">${rewatchTierOptions(film.rewatchTier)}</select></label>
-    </div></section>
-    <section class="film-edit-section"><h2>${filmPageEscape(ui("Ranks"))}</h2><div class="film-edit-grid ranks">
-      <label>${filmPageEscape(ui("All-time"))} <input name="allTimeRank" type="number" min="1" value="${filmPageEscape(film.allTimeRank || "")}"></label>
-      <label>${filmPageEscape(ui("Century"))} <input name="centuryRank" type="number" min="1" value="${filmPageEscape(film.centuryRank || "")}"></label>
-      <label>${filmPageEscape(ui("Decade"))} <input name="decadeRank" type="number" min="1" value="${filmPageEscape(film.decadeRank || "")}"></label>
-      <label>${filmPageEscape(ui("Year"))} <input name="yearRank" type="number" min="1" value="${filmPageEscape(film.yearRank || "")}"></label>
     </div></section>
     <section class="film-edit-section"><h2>${filmPageEscape(ui("Award credits"))}</h2><p class="edit-help">${filmPageEscape(ui("Period, placement, and category define the bracket entry and remain structural. Recipients and details can be edited here."))}</p>
       <div class="leaderboard-wrap"><table class="leaderboard film-edit-awards"><thead><tr><th>${filmPageEscape(ui("Period"))}</th><th>${filmPageEscape(ui("Place"))}</th><th>${filmPageEscape(ui("Category"))}</th><th>${filmPageEscape(ui("Recipients"))}</th><th>${filmPageEscape(ui("Detail"))}</th></tr></thead><tbody>${renderEditAwardRows(awards)}</tbody></table></div>
@@ -708,23 +888,30 @@
     window.enhanceRatingInputs?.(container);
   }
 
-  // A shared-archive-only film has no local id yet - it's reached via
-  // film.html?tmdb=<id> from a shared-archive card, a director page's "In
-  // the shared archive" grid, or a header search "Shared film" result.
+  // An Unseen (catalog-only) film has no personal record at all - it's
+  // reached either via film.html?tmdb=<id> (a shared-archive card, a
+  // director page's Unseen grid, or a header search "Unseen" result built
+  // before this film's real id was known) or film.html?id=<filmId> (every
+  // other Unseen link, once resolved to the film's own Supabase id).
   // Rendered with a deliberately separate, much simpler template rather
   // than threading preview-mode conditionals through renderView's full
   // local-film layout, which assumes dozens of fields (medium,
   // screenplayType, rank, awards, notes...) a shared record never has.
+  function currentSharedPreview() {
+    return previewTmdbId
+      ? window.sharedArchiveCandidateFilmByTmdbId?.(previewTmdbId)
+      : window.sharedArchiveCandidateFilmById?.(filmId);
+  }
   function renderSharedPreview() {
-    let preview = window.sharedArchiveCandidateFilmByTmdbId?.(previewTmdbId);
+    let preview = currentSharedPreview();
     if (!preview) {
       let status = window.OSKARS_SHARED_FILM_ARCHIVE_STATUS;
-      document.title = `${ui("Shared film")} · The Oskars`;
+      document.title = `${ui("Unseen film")} · The Oskars`;
       let message =
         status === "loading" || status === "idle"
-          ? ui("Loading shared archive films…")
-          : ui("This shared film could not be found.");
-      container.innerHTML = `<div class="detail-empty"><h1>${filmPageEscape(ui("Shared film"))}</h1><p>${filmPageEscape(message)}</p><a href="index.html">${filmPageEscape(ui("Return home"))}</a></div>`;
+          ? ui("Loading unseen films…")
+          : ui("This film could not be found.");
+      container.innerHTML = `<div class="detail-empty"><h1>${filmPageEscape(ui("Unseen film"))}</h1><p>${filmPageEscape(message)}</p><a href="index.html">${filmPageEscape(ui("Return home"))}</a></div>`;
       return;
     }
     let title = window.localizedFilmTitle?.(preview) || preview.title;
@@ -746,11 +933,13 @@
         ? `<p class="film-localized-title">${filmPageEscape(preview.swedishTitle === localizedTitle ? preview.title : preview.swedishTitle)}</p>`
         : "";
     let metadataRows = [
-      [
-        "TMDB",
-        `#${previewTmdbId}`,
-        `https://www.themoviedb.org/${window.tmdbResourcePath(window.parseTmdbReference(previewTmdbId))}`,
-      ],
+      preview.tmdbId
+        ? [
+            "TMDB",
+            `#${preview.tmdbId}`,
+            `https://www.themoviedb.org/${window.tmdbResourcePath(window.parseTmdbReference(preview.tmdbId))}`,
+          ]
+        : null,
       preview.primaryCountry || preview.country
         ? [ui("Country"), preview.primaryCountry || preview.country]
         : null,
@@ -764,7 +953,10 @@
           `<div><dt>${filmPageEscape(label)}</dt><dd>${href ? `<a href="${filmPageEscape(href)}" target="_blank" rel="noopener">${filmPageEscape(value)}</a>` : filmPageEscape(value)}</dd></div>`,
       )
       .join("");
-    let posterHtml = window.renderFilmPoster({ poster: preview.poster, title }, "detail");
+    let posterHtml = window.renderFilmPoster(
+      { poster: preview.poster, title },
+      "detail",
+    );
     container.innerHTML = `${window.renderDetailHeader({
       classes: posterHtml ? "has-poster" : "",
       leadingHtml: posterHtml,
@@ -773,16 +965,21 @@
       <p>${filmPageEscape(preview.year)}</p>
       ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}`,
       actionsHtml: canEdit
-        ? `<button type="button" data-add-shared-preview-watchlist>${filmPageEscape(ui("Add to watchlist"))}</button><button type="button" data-add-shared-preview-watched>${filmPageEscape(ui("Add to watched"))}</button>`
+        ? `<div class="collection-action-buttons">${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Add to watchlist"), escape: filmPageEscape, attributes: { "data-add-shared-preview-watchlist": true } })}${window.renderCollectionActionButton({ kind: "watched", label: ui("Add to watched"), escape: filmPageEscape, attributes: { "data-add-shared-preview-watched": true } })}</div>`
         : "",
     })}
-    <p class="detail-empty">${filmPageEscape(ui("This film is known to the shared archive but hasn't been added to your own collection yet."))}</p>`;
+    <p class="detail-empty">${filmPageEscape(ui("This film is in the catalog but hasn't been added to your own collection yet."))}</p>`;
   }
 
   function render(editing = false) {
     let finishRenderTimer = window.startOskarsPerformance?.("film:render");
     let film = currentFilm();
-    if (!film && previewTmdbId) {
+    if (!film && isWatchlistDetail) {
+      renderWatchlistDetail();
+      finishRenderTimer?.("watchlist detail");
+      return;
+    }
+    if (!film && (previewTmdbId || filmId)) {
       renderSharedPreview();
       finishRenderTimer?.("shared preview");
       return;
@@ -820,34 +1017,113 @@
   }
 
   container.addEventListener("click", async (event) => {
-    if (event.target.closest("[data-add-shared-preview-watchlist]")) {
-      let preview = window.sharedArchiveCandidateFilmByTmdbId?.(previewTmdbId);
-      let result = window.addFilmRecordToWatchlist(preview);
-      if (!result.ok) {
-        alert(ui(result.reason || "Could not add this film."));
-        return;
+    if (event.target.closest("[data-mark-watchlist-watched]")) {
+      renderWatchlistWatchedForm();
+      return;
+    }
+    if (event.target.closest("[data-cancel-watchlist-transition]")) {
+      render(false);
+      return;
+    }
+    let removeTagButton = event.target.closest("[data-remove-tag]");
+    if (removeTagButton) {
+      watchlistBusy = true;
+      render(false);
+      try {
+        await window.removeSupabaseFilmTag(
+          watchlistItem.supabaseFilmId,
+          removeTagButton.dataset.removeTag,
+        );
+        await reloadWatchlistItem();
+      } catch (err) {
+        alert(err.message || String(err));
+      } finally {
+        watchlistBusy = false;
+        render(false);
       }
-      window.location.href = window.prepareOskarsAccountNavigation(
-        window.watchlistFilmPageUrl(result.item.id),
-      );
+      return;
+    }
+    let removeWatchlistButton = event.target.closest(
+      "[data-remove-watchlist-film]",
+    );
+    if (removeWatchlistButton) {
+      watchlistBusy = true;
+      render(false);
+      try {
+        removedWatchlistSnapshot = {
+          title: watchlistItem.title,
+          filmId: watchlistItem.supabaseFilmId,
+          tier: watchlistItem.tier,
+        };
+        await window.removeFromSupabaseWatchlist(watchlistItem.id);
+        watchlistItem = null;
+        render(false);
+      } catch (err) {
+        alert(err.message || String(err));
+        watchlistBusy = false;
+        render(false);
+      }
+      return;
+    }
+    if (event.target.closest("[data-undo-watchlist-removal]")) {
+      if (!removedWatchlistSnapshot) return;
+      watchlistBusy = true;
+      render(false);
+      try {
+        await window.addToSupabaseWatchlist(removedWatchlistSnapshot.filmId, {
+          tier: removedWatchlistSnapshot.tier,
+        });
+        removedWatchlistSnapshot = null;
+        // Undo recreates a watchlist row for the same film - the URL
+        // (film.html?id=<filmId>) doesn't change, unlike before this merge
+        // when a new watchlist row meant a new watchlist-film.html?id=
+        // <rowId> URL to navigate to.
+        window.location.href = window.filmPageUrl(filmId);
+      } catch (err) {
+        alert(err.message || String(err));
+        watchlistBusy = false;
+        render(false);
+      }
+      return;
+    }
+    if (event.target.closest("[data-add-shared-preview-watchlist]")) {
+      let preview = currentSharedPreview();
+      let backup = window.cloneRecord(window.getSerializableState());
+      try {
+        let result = window.addFilmRecordToWatchlist(preview);
+        if (!result.ok)
+          throw new Error(result.reason || ui("Could not add this film."));
+        await window.save();
+        // One canonical URL regardless of status (issue #451/#457) - no
+        // need to look up the new watchlist row's own id anymore, the
+        // film's own id already resolves the detail page.
+        window.location.href = window.filmPageUrl(result.item.supabaseFilmId);
+      } catch (err) {
+        window.hydrateState(backup);
+        alert(err.message || String(err));
+      }
       return;
     }
     let addWatchedButton = event.target.closest(
       "[data-add-shared-preview-watched]",
     );
     if (addWatchedButton) {
-      let preview = window.sharedArchiveCandidateFilmByTmdbId?.(previewTmdbId);
-      addWatchedButton.disabled = true;
-      addWatchedButton.textContent = ui("Adding…");
+      let preview = currentSharedPreview();
+      window.setCollectionActionButtonState(addWatchedButton, {
+        label: ui("Adding…"),
+        busy: true,
+      });
       try {
         let result = await window.addFilmRecordToWatched(preview);
-        if (!result.ok) throw new Error(result.reason || ui("Could not add this film."));
-        window.location.href = window.prepareOskarsAccountNavigation(
-          window.filmPageUrl(result.filmId),
-        );
+        if (!result.ok)
+          throw new Error(result.reason || ui("Could not add this film."));
+        window.location.href = result.intakeId
+          ? window.intakePageUrl(result.intakeId)
+          : window.filmPageUrl(result.filmId);
       } catch (err) {
-        addWatchedButton.disabled = false;
-        addWatchedButton.textContent = ui("Add to watched");
+        window.setCollectionActionButtonState(addWatchedButton, {
+          label: ui("Add to watched"),
+        });
         alert(err.message || String(err));
       }
       return;
@@ -862,7 +1138,7 @@
             wantToRewatch: !film.wantToRewatch,
           }),
         );
-        window.save();
+        await window.save();
         render(false);
       } catch (err) {
         window.hydrateState(backup);
@@ -879,96 +1155,23 @@
       render(false);
       return;
     }
-    let enrichButton = event.target.closest("[data-enrich-film]");
-    if (enrichButton) {
-      enrichButton.disabled = true;
-      enrichButton.textContent = ui("Finding...");
-      try {
-        let metadata = await window.loadFilmMetadata(
-          enrichButton.dataset.enrichFilm,
-        );
-        if (!metadata) throw new Error(ui("No TMDB match was found."));
-        render(false);
-      } catch (err) {
-        enrichButton.disabled = false;
-        enrichButton.textContent = ui("Find metadata");
-        alert(err.message || String(err));
-      }
-      return;
-    }
-    let optionsButton = event.target.closest("[data-load-poster-options]");
-    if (optionsButton) {
-      optionsButton.disabled = true;
-      optionsButton.textContent = ui("Loading posters...");
-      try {
-        posterOptions = await window.loadFilmPosterOptions(
-          optionsButton.dataset.loadPosterOptions,
-          { limit: 12 },
-        );
-        posterOptionIndex = currentPosterOptionIndex(currentFilm());
-        posterPickerStatus = posterOptions.length
-          ? ""
-          : ui("No TMDB posters were found for this film.");
-        render(false);
-      } catch (err) {
-        optionsButton.disabled = false;
-        optionsButton.textContent = posterOptions.length
-          ? ui("Reload poster options")
-          : ui("Browse posters");
-        posterPickerStatus = window.posterPickerErrorText(err);
-        render(false);
-      }
-      return;
-    }
-    let posterStepButton = event.target.closest("[data-poster-option-step]");
-    if (posterStepButton) {
-      selectPosterOption(
-        currentPosterOptionIndex(currentFilm()) +
-          (Number(posterStepButton.dataset.posterOptionStep) || 0),
-      );
-      return;
-    }
-    let posterSelectButton = event.target.closest(
-      "[data-poster-option-select]",
-    );
-    if (posterSelectButton) {
-      selectPosterOption(
-        Number(posterSelectButton.dataset.posterOptionSelect) || 0,
-      );
-      return;
-    }
-    let button = event.target.closest("[data-find-film-poster]");
-    if (!button) return;
-    button.disabled = true;
-    button.textContent = ui("Finding…");
-    try {
-      let poster = await window.loadFilmPoster(button.dataset.findFilmPoster);
-      if (!poster) throw new Error(ui("No poster was found."));
+  });
+
+  container.addEventListener("change", async (event) => {
+    let tierSelect = event.target.closest("[data-tier-select]");
+    if (tierSelect) {
+      watchlistBusy = true;
       render(false);
-    } catch (err) {
-      button.disabled = false;
-      button.textContent = currentFilm()?.poster
-        ? ui("Refresh poster")
-        : ui("Find poster");
-      alert(err.message || String(err));
-    }
-  });
-
-  container.addEventListener("keydown", (event) => {
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-    if (
-      !posterOptions.length ||
-      !event.target.closest?.("[data-film-poster-picker]")
-    )
+      try {
+        await window.setSupabaseWatchlistTier(watchlistItem.id, tierSelect.value);
+        await reloadWatchlistItem();
+      } catch (err) {
+        alert(err.message || String(err));
+        watchlistBusy = false;
+        render(false);
+      }
       return;
-    event.preventDefault();
-    selectPosterOption(
-      currentPosterOptionIndex(currentFilm()) +
-        (event.key === "ArrowRight" ? 1 : -1),
-    );
-  });
-
-  container.addEventListener("change", (event) => {
+    }
     let input = event.target.closest('input[name="filmAwardsView"]');
     if (!input) return;
     awardsView = input.value;
@@ -976,13 +1179,95 @@
     render(false);
   });
 
-  container.addEventListener("submit", (event) => {
+  container.addEventListener("submit", async (event) => {
+    let transitionForm = event.target.closest("#markWatchlistWatchedForm");
+    if (transitionForm) {
+      event.preventDefault();
+      let values = Object.fromEntries(new FormData(transitionForm).entries());
+      let parsed = window.parseFilmRating(values.rating);
+      watchlistBusy = true;
+      render(false);
+      try {
+        let workflow = await window.createSupabaseWatchlistWatchedIntake(
+          watchlistItem.id,
+          {
+            rating: parsed.value || null,
+            ratingModifier: parsed.modifier,
+            dateWatched: values.dateWatched,
+            platform: values.platform,
+            views: values.views,
+          },
+        );
+        window.location.href = window.intakePageUrl(workflow.id);
+      } catch (err) {
+        alert(err.message || String(err));
+        watchlistBusy = false;
+        render(false);
+      }
+      return;
+    }
+    let watchlistTagForm = event.target.closest("[data-add-tag-form]");
+    if (watchlistTagForm) {
+      event.preventDefault();
+      let name = new FormData(watchlistTagForm).get("tag")?.trim();
+      if (!name) return;
+      watchlistBusy = true;
+      render(false);
+      try {
+        await window.addSupabaseFilmTag(watchlistItem.supabaseFilmId, name);
+        await reloadWatchlistItem();
+      } catch (err) {
+        alert(err.message || String(err));
+      } finally {
+        watchlistBusy = false;
+        render(false);
+      }
+      return;
+    }
+    let watchlistFranchiseForm = event.target.closest(
+      "[data-add-franchise-form]",
+    );
+    if (watchlistFranchiseForm) {
+      event.preventDefault();
+      let values = Object.fromEntries(
+        new FormData(watchlistFranchiseForm).entries(),
+      );
+      let name = values.franchise?.trim();
+      if (!name) return;
+      watchlistBusy = true;
+      render(false);
+      try {
+        await window.addSupabaseFilmFranchiseMembership(
+          watchlistItem.supabaseFilmId,
+          name,
+          values.parent?.trim() || "",
+        );
+        await reloadWatchlistItem();
+      } catch (err) {
+        alert(err.message || String(err));
+      } finally {
+        watchlistBusy = false;
+        render(false);
+      }
+      return;
+    }
     let form = event.target.closest("#filmEditForm");
     if (!form) return;
     event.preventDefault();
     let backup = window.cloneRecord(window.getSerializableState());
     try {
-      let values = Object.fromEntries(new FormData(form).entries());
+      let film = currentFilm();
+      let values = Object.assign(
+        window.filmMetadataFormValues(film),
+        Object.fromEntries(new FormData(form).entries()),
+      );
+      values.wantToRewatch = form.elements.wantToRewatch.checked;
+      values.franchises = window.formatFranchiseMemberships(
+        window.normalizeFranchiseMemberships([
+          ...(film.franchises || []),
+          ...window.parseFranchiseMemberships(values.franchises),
+        ]),
+      );
       let updated = window.updateFilmMetadata(filmId, values);
       if (!updated) throw new Error(ui("Film could not be updated."));
       let nextId = updated.id;
@@ -1014,7 +1299,7 @@
           );
         }
       });
-      window.save();
+      await window.save();
       filmId = nextId;
       updateFilmViewUrl();
       render(false);
@@ -1025,12 +1310,15 @@
     }
   });
 
-  // A direct/bookmarked film.html?tmdb=... load can land here before the
-  // async shared-archive pull finishes - re-render once it does so the
-  // preview appears without a manual reload (same fix as person.js's
-  // director-page shared-films section).
+  // A direct/bookmarked film.html?tmdb=... or ?id=<unseenFilmId> load can
+  // land here before the async shared-archive pull finishes - re-render
+  // once it does so the preview appears without a manual reload (same fix
+  // as person.js's director-page Unseen section). Guarded by
+  // !isWatchlistDetail so an archive refresh doesn't spuriously re-render
+  // a Watchlisted-detail page too, which also has filmId set.
   window.onSharedFilmArchiveChange?.(() => {
-    if (!currentFilm() && previewTmdbId) render(false);
+    if (!currentFilm() && !isWatchlistDetail && (previewTmdbId || filmId))
+      render(false);
   });
 
   render(false);

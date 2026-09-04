@@ -488,7 +488,7 @@
             beforeTitleHtml: item.tier
               ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(item.tier)}</span>`
               : "",
-            titleHtml: `<a class="table-film-link" href="${escape(window.watchlistFilmPageUrl(item.id))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
+            titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
             director: film.director || (film.directors || []).join(", "),
           });
         })

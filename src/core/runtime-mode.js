@@ -53,15 +53,19 @@ window.runtimeAccountAccessRequired = function (mode) {
  * @param {string} mode One of window.OSKARS_RUNTIME_MODES.
  * @returns {{fetchPublishedSnapshot: boolean, allowOwnerPages: boolean, canEdit: boolean, canImport: boolean, canPublish: boolean, canPersistPrivateState: boolean}}
  *   fetchPublishedSnapshot gates the owner-snapshot fetch/reconciliation
- *   startup path. allowOwnerPages gates loading the editor/data/intake and
- *   other owner-only mutation-workflow pages at all, below the page-
+ *   startup path. allowOwnerPages gates loading data/intake and other
+ *   owner-only mutation-workflow pages at all, below the page-
  *   controller layer. canEdit gates using any in-page mutation control.
  *   canImport gates replacing or merging in imported/recovered data.
  *   canPublish gates the owner-only public-profile publish workflow — only a
  *   true owner deployment has access to its repository-backed public output.
- *   canPersistPrivateState gates every write to IndexedDB/localStorage below
- *   the UI layer (`src/core/persistence.js`), the single boundary every
- *   mutation in the app funnels through before anything survives a reload.
+ *   canPersistPrivateState gates every write to IndexedDB/localStorage that
+ *   still goes through `src/core/persistence.js`'s save()/
+ *   replaceStoredState()/saveRecoveryWorkspace() - the remaining
+ *   local-archive write path. It has no bearing on Supabase-cutover
+ *   routes, which write straight to Postgres instead (or, for entries
+ *   that skip legacy data load entirely, treat window.save() as a hard
+ *   error) and hold no browser-stored app data this capability could gate.
  */
 window.runtimeModeCapabilities = function (mode) {
   let isOwner = mode === "owner";

@@ -9,6 +9,68 @@ function filmCardAttributes(attributes, escape) {
     .join("");
 }
 
+function collectionActionIcon(kind) {
+  if (kind === "watched")
+    return `<svg class="collection-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="m8 12 2.5 2.5L16 9"></path></svg>`;
+  return `<svg class="collection-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.5 3.5h11v17l-5.5-3.5-5.5 3.5z"></path><path d="M12 7v6M9 10h6"></path></svg>`;
+}
+
+/**
+ * Renders an accessible icon-only action for adding one film to a collection.
+ * @param {Object} options Action kind, label, attributes, and escaping.
+ * @param {'watchlist'|'watched'} options.kind Destination collection.
+ * @param {string} options.label Localized accessible action name.
+ * @param {Record<string, string|boolean>} [options.attributes] Button attributes.
+ * @param {string|string[]} [options.classes] Additional button classes.
+ * @param {(value: *) => string} [options.escape] HTML escaping function.
+ * @returns {string} Icon-button HTML.
+ */
+window.renderCollectionActionButton = function (options = {}) {
+  let escape = options.escape || window.pageEscape;
+  let kind = options.kind === "watched" ? "watched" : "watchlist";
+  let label = String(options.label || "").trim();
+  let extraClasses = Array.isArray(options.classes)
+    ? options.classes
+    : String(options.classes || "").split(/\s+/);
+  let attributes = Object.assign(
+    {
+      type: "button",
+      class: [
+        "collection-action-button",
+        `collection-action-button--${kind}`,
+        ...extraClasses,
+      ]
+        .filter(Boolean)
+        .join(" "),
+      title: label,
+      "aria-label": label,
+      "data-tooltip": label,
+      "data-collection-action": kind,
+    },
+    options.attributes,
+  );
+  return `<button${filmCardAttributes(attributes, escape)}>${collectionActionIcon(kind)}</button>`;
+};
+
+/**
+ * Updates an existing collection action's accessible busy or ready state.
+ * @param {HTMLElement|null} button Collection action button.
+ * @param {Object} options State and localized label.
+ * @param {string} options.label Localized accessible action name.
+ * @param {boolean} [options.busy=false] Whether the action is in progress.
+ */
+window.setCollectionActionButtonState = function (button, options = {}) {
+  if (!button) return;
+  let label = String(options.label || "").trim();
+  let busy = Boolean(options.busy);
+  button.disabled = busy;
+  button.setAttribute("aria-label", label);
+  button.setAttribute("title", label);
+  button.setAttribute("data-tooltip", label);
+  button.setAttribute("aria-busy", busy ? "true" : "false");
+  button.classList.toggle("is-busy", busy);
+};
+
 /**
  * Renders the standard card removal button.
  * @param {Object} [options] Escaping, title, and HTML attribute options.
@@ -40,18 +102,10 @@ window.renderProjectMembershipSection = function (projects, options = {}) {
   let rows = projects
     .map((project) => {
       let progress = window.projectProgress?.(project);
-      let status =
-        project.id === state.activeProjectId
-          ? window.uiText?.("Active") || "Active"
-          : project.pinned
-            ? window.uiText?.("Pinned") || "Pinned"
-            : window.uiText?.("Open") || "Open";
-      let type =
-        project.id === state.activeProjectId
-          ? "active"
-          : project.pinned
-            ? "pinned"
-            : "open";
+      let status = project.pinned
+        ? window.uiText?.("Pinned") || "Pinned"
+        : window.uiText?.("Open") || "Open";
+      let type = project.pinned ? "pinned" : "open";
       return `<a class="project-membership-card" href="${escape(window.projectPageUrl(project.id))}">
       <span><strong>${escape(project.name)}</strong><small>${escape(project.sourceLabel || project.sourceId || "")}</small></span>
       <span class="project-status-badge project-status-badge--${escape(type)}">${escape(status)}</span>

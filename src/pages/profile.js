@@ -1,496 +1,221 @@
 /**
- * @file Renders the account page: Google sign-in status, Firestore cloud
- * sync controls (issue #248), and the public-profile display name (issue
- * #253) that the Data page's publish panel slugifies into a URL. Moved out
- * of data.html, which had accumulated backup/restore, canonical
- * publication, public-profile publication, Google Sheets/Letterboxd
- * import, danger zones, edit log, data health, and metadata batches
- * alongside it - account/identity settings get their own focused page
- * instead of adding to that pile.
+ * @file Profile page, backed by Supabase (issue #430),
+ * continuing #420/#421/#422/#429's pattern: gate check ->
+ * loadSupabaseProfile() -> render -> each action calls its
+ * supabase-workspace.js function directly.
+ *
+ * Deliberately focused on the current Supabase profile model rather than the
+ * previous implementation's workspace-sync conflict resolution, "load complete archive
+ * from cloud" preview/apply, and "attach workspace to this account" /
+ * "switch accounts safely" have no Supabase equivalent at all - there is
+ * no local-first archive to sync, every write is already live in
+ * Postgres, so that entire category of complexity stops existing rather
+ * than needing a port. Profile deletion removes the Supabase Auth row,
+ * cascading through all app-owned rows, then clears this browser and signs
+ * out the user.
+ *
+ * Single top-level container (#profilePage, matching entry-loader.js's
+ * `document.querySelector("main")` for its own loading-gate render),
+ * not separate pre-existing named child elements like the previous
+ * version used - found running this for real: entry-loader.js's early
+ * "loading" gate render replaces <main>'s entire innerHTML before this
+ * page's own script ever runs, which would silently destroy any static
+ * child elements a page's HTML shell pre-declared.
+ *
+ * Deletion itself (issue #431, reconciled in #452/#453) downloads a
+ * complete backup of every row the account owns first
+ * (window.buildSupabaseAccountBackup - deliberately wider than the Data
+ * page's restore-format backup), states the actual scope in the confirm
+ * prompt (the login itself is deleted, not just its data, and any public
+ * profile slug goes with it), then calls delete_my_account() and clears
+ * this browser.
  */
 
 (function () {
-  let ui = window.uiText || ((text) => text);
-  let escape = window.pageEscape || ((value) => String(value ?? ""));
-  let pendingCloudRestoreProposal = null;
+  let escape = window.pageEscape;
+  let container = document.getElementById("profilePage");
+  let profile = null;
+
+  function downloadJson(value, filename) {
+    let url = URL.createObjectURL(
+      new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }),
+    );
+    let link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  function stampedFilename(prefix) {
+    return `${prefix}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+  }
 
   function authSectionHtml(user) {
-    if (!window.oskarsFirebaseConfigured?.()) {
-      return `<h2>${ui("Sign in")}</h2><p>${ui("Cloud sync isn't set up for this deployment yet.")}</p>`;
-    }
-    if (user) {
-      let required = window.oskarsRequiredAccountSession?.();
-      let syncAccess = window.getWorkspaceSyncAccountAccess?.() || {
-        allowed: false,
-        status: "unlinked",
-      };
-      let lineageAction = "";
-      if (syncAccess.status === "unlinked")
-        lineageAction = `<p>${ui("This local workspace is not attached to a cloud account yet. Connect it explicitly before any upload or download.")}</p><div class="data-actions"><button id="profileAttachAccountBtn" type="button">${ui("Connect this workspace to this account")}</button></div>`;
-      else if (syncAccess.status === "different-account")
-        lineageAction = `<p class="data-panel-status">${ui("Cloud actions are locked because this workspace belongs to another account.")}</p>`;
-      return `<h2>${ui("Sign in")}</h2><p>${ui("Signed in as {name}.", { name: escape(user.displayName || user.email || ui("your Google account")) })}</p>${required ? `<p>${ui("Signing out downloads a backup, then clears this browser's private archive. Sign back into the same account to sync it again.")}</p>` : ""}${lineageAction}<div class="data-actions"><button id="profileSignOutBtn" type="button">${ui(required ? "Sign out and clear" : "Sign out")}</button>${required ? `<button id="profileSwitchAccountBtn" type="button">${ui("Switch accounts safely")}</button>` : ""}</div><p id="profileAccountStatus" class="data-panel-status"></p>`;
-    }
-    return `<h2>${ui("Sign in")}</h2><p>${ui("Sign in with Google to sync this workspace across your devices.")}</p><div id="profileSignInButton"></div>`;
-  }
-
-  function renderAuthSection(user) {
-    let container = document.getElementById("profileAuthSection");
-    if (!container) return;
-    container.innerHTML = authSectionHtml(user);
-    let signInContainer = document.getElementById("profileSignInButton");
-    if (signInContainer) window.renderGoogleSignInButton?.(signInContainer);
-    document
-      .getElementById("profileSignOutBtn")
-      ?.addEventListener("click", async () => {
-        let required = window.oskarsRequiredAccountSession?.();
-        if (
-          !required ||
-          window.confirm(
-            ui(
-              "Sign out and clear this browser's private archive? A backup downloads first. Sign back into the same account to sync it again from the cloud.",
-            ),
-          )
-        ) {
-          if (await (window.confirmSignOutWithPendingSync?.() ?? true)) {
-            // Only the mandatory-account (Shared Edition) session ties local
-            // IndexedDB state to sign-in at all - a plain, optional sign-in
-            // (e.g. owner mode's Google Sheets import) has no private
-            // workspace to clear, so this mirrors data.js's "Remove archive
-            // from this browser" sequence only in that case.
-            if (required) {
-              let stamp = new Date().toISOString().replace(/[:.]/g, "-");
-              window.downloadDataSnapshot?.(
-                `oskars-data-backup-before-sign-out-${stamp}.json`,
-              );
-              await window.clearStoredOskarsData({ scheduleSync: false });
-              window.detachOskarsBrowserWorkspace?.();
-            }
-            await window.signOutOfFirebase?.();
-          }
-        }
-      });
-    document
-      .getElementById("profileAttachAccountBtn")
-      ?.addEventListener("click", async (event) => {
-        event.currentTarget.disabled = true;
-        let result = await window.attachOskarsWorkspaceToCurrentAccount?.();
-        if (result?.ok) render();
-        else {
-          event.currentTarget.disabled = false;
-          let status = document.getElementById("profileAccountStatus");
-          if (status)
-            status.textContent = ui(
-              "Could not connect this workspace: {reason}",
-              { reason: result?.reason || "unknown error" },
-            );
-        }
-      });
-    document
-      .getElementById("profileSwitchAccountBtn")
-      ?.addEventListener("click", runSafeAccountSwitch);
-  }
-
-  async function runSafeAccountSwitch() {
-    if (
-      !window.confirm(
-        ui(
-          "Switch accounts? A full backup downloads first, an account-bound recovery is retained, and this archive is removed from the active browser before sign-out. Cloud data is not deleted.",
-        ),
-      )
-    )
-      return;
-    let button = document.getElementById("profileSwitchAccountBtn");
-    let status = document.getElementById("profileAccountStatus");
-    button.disabled = true;
-    button.textContent = ui("Preparing safe switch...");
-    let result = await window.prepareOskarsAccountSwitch?.();
-    if (!result?.ok) {
-      button.disabled = false;
-      button.textContent = ui("Switch accounts safely");
-      status.textContent = ui("Could not prepare account switch: {reason}", {
-        reason: result?.reason || "unknown error",
-      });
-      return;
-    }
-    status.textContent = ui("Backup retained. Locking this browser and signing out...");
-    await window.signOutOfFirebase?.();
-  }
-
-  function updateCloudSyncPanelVisibility(user) {
-    let panel = document.getElementById("cloudSyncPanel");
-    if (panel)
-      panel.hidden = !user || !window.getWorkspaceSyncAccountAccess?.().allowed;
+    return `<section id="profileAuthSection" class="data-panel">
+      <h2>Profile</h2>
+      <p>Signed in as ${escape(user.email || "your profile")}.</p>
+      <div class="data-actions"><button id="profileSignOutBtn" type="button">Sign out</button></div>
+    </section>`;
   }
 
   function publicProfileNameHtml(user) {
-    let saved = (window.state.publicProfileDisplayName || "").trim();
-    let suggested = saved || user?.displayName || "";
+    let suggested = profile?.display_name || "";
     let slug = window.publicProfileSlugify?.(suggested) || "";
-    return `<h2>${ui("Public profile name")}</h2>
-      <p>${ui("Used as your public profile's display name and URL slug when you publish one (see the Data page's “Publish a public profile” panel).")}</p>
-      <label>${ui("Name")}<input type="text" id="publicProfileNameInput" value="${escape(suggested)}" placeholder="${escape(user?.displayName || "")}"></label>
-      <p class="data-panel-status">${slug ? ui("URL slug: {slug}", { slug }) : ui("Enter a name to see its URL slug.")}</p>
+    return `<section id="publicProfileNamePanel" class="data-panel">
+      <h2>Public profile name</h2>
+      <p>Used as your public profile's display name and URL slug when you publish one.</p>
+      <label>Name<input type="text" id="publicProfileNameInput" value="${escape(suggested)}" placeholder="${escape(user.email || "")}"></label>
+      <p class="data-panel-status">${slug ? `URL slug: ${escape(slug)}` : "Enter a name to see its URL slug."}</p>
       <div class="data-actions">
-        <button id="publicProfileNameSaveBtn" type="button">${ui("Save")}</button>
+        <button id="publicProfileNameSaveBtn" type="button">Save</button>
       </div>
-      <p id="publicProfileNameStatus" class="data-panel-status"></p>`;
+      <p id="publicProfileNameStatus" class="data-panel-status"></p>
+    </section>`;
   }
 
-  function renderPublicProfileNamePanel(user) {
-    let container = document.getElementById("publicProfileNamePanel");
-    if (!container) return;
-    container.innerHTML = publicProfileNameHtml(user);
+  function deleteProfileHtml(profileRecord) {
+    return `<section id="profileDeletePanel" class="data-panel profile-danger-panel">
+      <h2>Delete profile</h2>
+      <p>Permanently deletes this account and every row it owns in Supabase - watched films, watchlist, rankings, tags, personal awards, projects, and everything else - plus all saved Oskars data in this browser. This cannot be undone: the login itself is deleted, not just its data.</p>
+      <p>A complete backup of every row downloads automatically before anything is deleted.</p>
+      ${
+        profileRecord?.public_slug
+          ? `<p>Public profile slug set: <strong>${escape(profileRecord.public_slug)}</strong>. Deleting your account removes this too.</p>`
+          : ""
+      }
+      <div class="data-actions"><button id="profileDeleteBtn" type="button">Delete profile</button></div>
+      <p id="profileDeleteStatus" class="data-panel-status"></p>
+    </section>`;
+  }
+
+  function render(user) {
+    container.innerHTML = `<div class="data-workspace-heading">
+        <div>
+          <span class="eyebrow">Profile</span>
+          <h1>Profile</h1>
+          <p>Sign in with Google to save your ratings, watchlist, and rankings to your profile.</p>
+        </div>
+      </div>
+      <div class="data-panel-stack">
+        ${authSectionHtml(user)}
+        ${publicProfileNameHtml(user)}
+        ${deleteProfileHtml(profile)}
+      </div>`;
+    wireEvents(user);
+  }
+
+  function wireEvents(user) {
+    document
+      .getElementById("profileSignOutBtn")
+      ?.addEventListener("click", async () => {
+        await window.signOutOfSupabase?.();
+        window.location.reload();
+      });
+    document
+      .getElementById("profileDeleteBtn")
+      ?.addEventListener("click", async (event) => {
+        let confirmMessage =
+          "Permanently delete this account and every row it owns in " +
+          "Supabase (watched films, watchlist, rankings, tags, personal " +
+          "awards, projects, and more)? A complete backup downloads " +
+          "first. This cannot be undone — the login itself is " +
+          "deleted, not just its data.";
+        if (profile?.public_slug)
+          confirmMessage += ` Your public profile slug ("${profile.public_slug}") is deleted too.`;
+        if (!window.confirm(confirmMessage)) return;
+        let button = event.currentTarget;
+        button.disabled = true;
+        let status = document.getElementById("profileDeleteStatus");
+        try {
+          if (status) status.textContent = "Downloading backup…";
+          downloadJson(
+            await window.buildSupabaseAccountBackup(),
+            stampedFilename("the-oskars-account-backup"),
+          );
+          if (status) status.textContent = "Deleting account…";
+          await window.deleteSupabaseAccount?.();
+          await window.clearAllStoredOskarsData?.();
+          try {
+            await window.signOutOfSupabase?.();
+          } catch (error) {
+            console.warn(
+              "Profile was deleted, but sign-out reported an error.",
+              error,
+            );
+          }
+          window.location.replace("index.html");
+        } catch (error) {
+          button.disabled = false;
+          if (status) status.textContent = error.message || String(error);
+        }
+      });
+    document
+      .getElementById("publicProfileNameInput")
+      ?.addEventListener("input", (event) => {
+        let slug = window.publicProfileSlugify?.(event.target.value) || "";
+        let status = document.querySelector(
+          "#publicProfileNamePanel .data-panel-status",
+        );
+        if (status)
+          status.textContent = slug
+            ? `URL slug: ${slug}`
+            : "Enter a name to see its URL slug.";
+      });
     document
       .getElementById("publicProfileNameSaveBtn")
       ?.addEventListener("click", async () => {
         let value =
-          document.getElementById("publicProfileNameInput")?.value.trim() ||
-          "";
-        window.state.publicProfileDisplayName = value;
-        // Immediate and awaited, not the usual debounced save: a page
-        // navigation (e.g. straight to the Data page's publish panel)
-        // right after clicking Save must not race the write and lose it.
-        await window.save({ immediate: true });
-        renderPublicProfileNamePanel(user);
+          document.getElementById("publicProfileNameInput")?.value.trim() || "";
+        let button = document.getElementById("publicProfileNameSaveBtn");
         let status = document.getElementById("publicProfileNameStatus");
-        if (status) status.textContent = value ? ui("Saved.") : ui("Cleared.");
+        button.disabled = true;
+        try {
+          profile = await window.setSupabaseProfileDisplayName(value);
+          render(user);
+          let newStatus = document.getElementById("publicProfileNameStatus");
+          if (newStatus) newStatus.textContent = value ? "Saved." : "Cleared.";
+        } catch (error) {
+          button.disabled = false;
+          if (status) status.textContent = error.message || String(error);
+        }
       });
   }
 
-  function renderConflicts() {
-    let container = document.getElementById("cloudSyncConflicts");
-    if (!container) return;
-    let conflicts = window.getWorkspaceSyncConflicts?.() || [];
-    if (!conflicts.length) {
-      container.innerHTML = "";
-      return;
-    }
-    container.innerHTML =
-      `<p>${ui("{count} item(s) differ from the cloud copy - choose which version to keep for each:", { count: conflicts.length })}</p>` +
-      conflicts
-        .map(
-          (conflict) =>
-            `<div class="cloud-sync-conflict-item"><div class="cloud-sync-conflict-row"><span>${escape(window.workspaceSectionLabel?.(conflict.sectionKey) || conflict.sectionKey)}</span><button type="button" data-preview data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Preview changes")}</button><button type="button" data-resolve="keep-local" data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Keep my version")}</button><button type="button" data-resolve="keep-remote" data-section="${escape(conflict.sectionKey)}" data-shard="${escape(conflict.shardKey)}">${ui("Use the cloud version")}</button></div><div class="cloud-sync-conflict-preview" hidden></div></div>`,
-        )
-        .join("");
+  function renderHeaderAuthStatus(user, profileRecord) {
+    let statusContainer = document.querySelector("[data-auth-status]");
+    if (!statusContainer) return;
+    let displayName =
+      profileRecord?.display_name ||
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      user.email ||
+      "Profile";
+    window.renderSignedInHeaderAccount?.(statusContainer, user, displayName);
+    statusContainer
+      .querySelector("[data-supabase-sign-out]")
+      ?.addEventListener("click", async () => {
+        await window.signOutOfSupabase?.();
+        window.location.reload();
+      });
   }
 
-  // Bounded record list rendering shared by the added/removed/changed
-  // groups: first 5 entries visible, the rest behind a native <details> (no
-  // new JS state needed), plus a plain overflow note if the diff itself
-  // already truncated beyond its own cap (issue #334 - "bounded... allow
-  // expansion when detail is needed", not a raw per-record dump).
-  function conflictPreviewGroupHtml(label, group) {
-    if (!group || !group.total) return "";
-    let visible = group.entries.slice(0, 5);
-    let rest = group.entries.slice(5);
-    let restHtml = rest.length
-      ? `<details><summary>${ui("+{count} more", { count: rest.length })}</summary><ul>${rest.map((entry) => `<li>${escape(entry.label)}</li>`).join("")}</ul></details>`
-      : "";
-    let truncatedHtml =
-      group.total > group.entries.length
-        ? `<p class="cloud-sync-conflict-preview-truncated">${ui("(+{count} more not shown)", { count: group.total - group.entries.length })}</p>`
-        : "";
-    return `<div class="cloud-sync-conflict-preview-group"><h4>${escape(label)}</h4><ul>${visible.map((entry) => `<li>${escape(entry.label)}</li>`).join("")}</ul>${restHtml}${truncatedHtml}</div>`;
-  }
-
-  function renderConflictPreview(container, diff) {
-    if (diff.kind === "opaque") {
-      container.innerHTML = `<p>${ui("This content differs from the cloud copy. Individual changes can't be previewed for this data type.")}</p>`;
+  async function boot() {
+    let finish = window.startOskarsPerformance?.("profile:render");
+    let access = await window.resolveSupabaseAccountGate();
+    if (!access.allowed) {
+      window.renderSupabaseAccountGate(access, container);
       return;
     }
-    if (!diff.changed) {
-      container.innerHTML = `<p>${ui("No content differences found.")}</p>`;
-      return;
-    }
-    let groups =
-      conflictPreviewGroupHtml(
-        ui("The cloud version would add"),
-        { entries: diff.added, total: diff.addedTotal },
-      ) +
-      conflictPreviewGroupHtml(
-        ui("Using the cloud version would discard"),
-        { entries: diff.removed, total: diff.removedTotal },
-      ) +
-      conflictPreviewGroupHtml(
-        ui("The cloud version would change"),
-        { entries: diff.changedRecords, total: diff.changedTotal },
-      );
-    container.innerHTML =
-      groups ||
-      `<p>${ui("Content differs, but no individual record changes were found (a field outside per-record tracking may differ).")}</p>`;
-  }
-
-  async function handleConflictPreviewClick(button) {
-    let section = button.dataset.section;
-    let shard = button.dataset.shard;
-    let container = button
-      .closest(".cloud-sync-conflict-item")
-      ?.querySelector(".cloud-sync-conflict-preview");
-    if (!container) return;
-    button.disabled = true;
-    container.hidden = false;
-    container.innerHTML = `<p>${ui("Loading preview...")}</p>`;
-    let result = await window.previewWorkspaceSyncConflict?.(section, shard);
-    button.disabled = false;
-    if (!result?.ok) {
-      container.innerHTML = `<p>${ui("Could not load preview. Try again.")}</p>`;
-      return;
-    }
-    renderConflictPreview(container, result.diff);
-  }
-
-  async function restoreSyncConflictRecovery(status) {
-    if (
-      typeof window.confirm === "function" &&
-      !window.confirm(
-        ui("Restore the version saved before this conflict was resolved? It replaces this browser's current archive. Download a backup first if you may want to return to the current version."),
-      )
-    )
-      return;
-    let restored = await window.restoreRecoveryWorkspace?.();
-    if (restored && typeof window.location?.reload === "function") {
-      window.location.reload();
-      return;
-    }
-    if (status)
-      status.textContent = restored
-        ? ui("Restored.")
-        : ui("Nothing to restore.");
-  }
-
-  async function handleConflictResolveClick(event) {
-    let preview = event.target.closest("[data-preview]");
-    if (preview) {
-      await handleConflictPreviewClick(preview);
-      return;
-    }
-    let button = event.target.closest("[data-resolve]");
-    if (!button) return;
-    if (
-      button.dataset.resolve === "keep-remote" &&
-      typeof window.confirm === "function" &&
-      !window.confirm(
-        ui("Use the cloud version? Your current version will be kept so you can restore it."),
-      )
-    )
-      return;
-    button.disabled = true;
-    let result = await window.resolveWorkspaceSyncConflict?.(
-      button.dataset.section,
-      button.dataset.shard,
-      button.dataset.resolve,
-    );
-    renderConflicts();
-    if (result?.ok && button.dataset.resolve === "keep-remote") {
-      let status = document.getElementById("cloudSyncStatus");
-      if (status && (await window.readRecoveryWorkspace?.())) {
-        let restoreLink = document.createElement("button");
-        restoreLink.type = "button";
-        restoreLink.textContent = ui("Restore previous");
-        restoreLink.addEventListener("click", () =>
-          restoreSyncConflictRecovery(status),
-        );
-        status.textContent = "";
-        status.append(`${ui("Resolved.")} `, restoreLink);
-      }
-    }
-  }
-
-  async function runManualCloudSync() {
-    let button = document.getElementById("cloudSyncNowBtn");
-    let status = document.getElementById("cloudSyncStatus");
-    button.disabled = true;
-    button.textContent = ui("Syncing...");
-    let result = await window.runWorkspaceSync?.({ reason: "manual" });
-    button.disabled = false;
-    button.textContent = ui("Sync now");
-    renderConflicts();
-    if (!result) return;
-    if (result.conflicts?.length) {
-      status.textContent = ui(
-        "{count} item(s) differ from the cloud copy - see below to choose which version to keep.",
-        { count: result.conflicts.length },
-      );
-    } else if (result.unauthorized) {
-      status.textContent = ui(
-        "This account isn't authorized for cloud sync on this deployment. Changes stay saved locally on this device.",
-      );
-    } else if (result.hadError) {
-      status.textContent = ui("Cloud sync hit an error - it will retry automatically.");
-    } else if (
-      result.reason === "unlinked" ||
-      result.reason === "different-account"
-    ) {
-      status.textContent = ui(
-        "Cloud sync is locked until this workspace is attached to the signed-in account.",
-      );
-    } else if (result.pushedCount || result.pulledCount) {
-      status.textContent = ui(
-        "Synced: {pushed} uploaded, {pulled} downloaded.",
-        { pushed: result.pushedCount, pulled: result.pulledCount },
-      );
-    } else {
-      status.textContent = ui("Already up to date.");
-    }
-  }
-
-  async function previewCloudRestore() {
-    let button = document.getElementById("cloudRestoreBtn");
-    let status = document.getElementById("cloudSyncStatus");
-    button.disabled = true;
-    button.textContent = ui("Loading from cloud...");
     try {
-      let fetched = await window.fetchCanonicalDataFromCloud?.();
-      if (!fetched?.ok) {
-        status.innerHTML = `${ui("The cloud version could not be loaded. Check your connection and sign-in, then try again.")}${window.renderTechnicalDetails?.({ text: fetched?.error || "unknown error" }) || ""}`;
-        return;
-      }
-      let proposal = window.proposeJsonImport(fetched.canonical, {
-        mode: "replace",
-        sourceName: "Cloud workspace",
-      });
-      pendingCloudRestoreProposal = proposal;
-      window.showImportReport?.(
-        window.compactImportReport?.(proposal.report, { preview: true }) ||
-          proposal.report,
-      );
-      document.getElementById("cloudRestoreApplyBtn").disabled = !proposal.allowed;
-      status.textContent = ui(
-        "The cloud version is ready to review below. Nothing has changed yet; use the reviewed version when it looks right.",
-      );
-    } catch (err) {
-      status.innerHTML = `${ui("The cloud version could not be reviewed. Try loading it again.")}${window.renderTechnicalDetails?.({ text: err.message || String(err) }) || ""}`;
-    } finally {
-      button.disabled = false;
-      button.textContent = ui("Load complete archive from cloud");
+      profile = await window.loadSupabaseProfile();
+      render(access.user);
+      renderHeaderAuthStatus(access.user, profile);
+      finish?.();
+    } catch (error) {
+      container.innerHTML = `<section class="detail-empty"><h2>Could not load your profile</h2><p>${escape(error.message || String(error))}</p></section>`;
     }
   }
 
-  async function applyCloudRestoreProposal() {
-    let button = document.getElementById("cloudRestoreApplyBtn");
-    if (!pendingCloudRestoreProposal) return;
-    button.disabled = true;
-    button.textContent = ui("Applying...");
-    let result = await window.applyImportProposal(pendingCloudRestoreProposal);
-    if (!result.ok) {
-      button.textContent = ui("Apply failed");
-      alert(result.errors.join("\n"));
-      return;
-    }
-    pendingCloudRestoreProposal = null;
-    button.textContent = ui("Cloud version restored");
-    window.hideImportReport?.();
-  }
-
-  function accountDeletionHtml() {
-    return `<span class="eyebrow">${ui("Cloud storage")}</span><h2>${ui("Delete synced cloud copy")}</h2>
-      <p>${ui("Deletes the private sync copy stored online and clears this browser's private archive, then signs out. Your Google login and any published profile stay. A full backup downloads first.")}</p>
-      <div class="data-actions"><button id="accountDeletionBtn" type="button" class="danger-button">${ui("Delete synced cloud copy")}</button></div>
-      <p id="accountDeletionStatus" class="data-panel-status" role="status"></p>`;
-  }
-
-  function updateAccountDeletionPanelVisibility(user) {
-    let panel = document.getElementById("accountDeletionPanel");
-    if (panel)
-      panel.hidden = !user || !window.getWorkspaceSyncAccountAccess?.().allowed;
-  }
-
-  function renderAccountDeletionPanel(user) {
-    let container = document.getElementById("accountDeletionPanel");
-    if (!container) return;
-    container.innerHTML = accountDeletionHtml();
-    document
-      .getElementById("accountDeletionBtn")
-      ?.addEventListener("click", runAccountDeletion);
-  }
-
-  async function runAccountDeletion() {
-    let publicProfileName = (window.state.publicProfileDisplayName || "").trim();
-    let warning = publicProfileName
-      ? ui(
-          "A public profile ({name}) may still be published. This does not take it down. ",
-          { name: publicProfileName },
-        )
-      : "";
-    if (
-      !window.confirm(
-        warning +
-          ui(
-            "Delete the synced cloud copy and this browser's archive? A backup downloads first, then this browser is emptied and you are signed out. Unless another device still has this data, the downloaded backup becomes your only copy.",
-          ),
-      )
-    )
-      return;
-
-    let button = document.getElementById("accountDeletionBtn");
-    let status = document.getElementById("accountDeletionStatus");
-    button.disabled = true;
-    button.textContent = ui("Deleting...");
-    let stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    window.downloadDataSnapshot?.(`oskars-pre-deletion-backup-${stamp}.json`);
-
-    let result = await window.deleteCloudAccountData?.();
-    if (result?.ok) {
-      let cleared = await window.clearStoredOskarsData?.({ scheduleSync: false });
-      if (cleared) window.detachOskarsBrowserWorkspace?.();
-      status.textContent = cleared
-        ? ui(
-            "Deleted the synced cloud copy and verified {count} part(s), and cleared this browser's archive. Signing out now.",
-            { count: result.sections.length },
-          )
-        : ui(
-            "Deleted the synced cloud copy and verified {count} part(s), but this browser's archive could not be cleared. Try again, or use the Data page's “Remove from this browser” action.",
-            { count: result.sections.length },
-          );
-      if (cleared) await window.signOutOfFirebase?.();
-      else {
-        button.disabled = false;
-        button.textContent = ui("Delete synced cloud copy");
-      }
-    } else {
-      let failed = (result?.sections || [])
-        .filter((s) => !s.ok)
-        .map((s) => s.sectionKey);
-      status.textContent = failed.length
-        ? ui("Could not verify deletion for: {sections}. Nothing was signed out - try again.", {
-            sections: failed.join(", "),
-          })
-        : ui("Deletion failed. Nothing was signed out - try again.");
-      button.disabled = false;
-      button.textContent = ui("Delete synced cloud copy");
-    }
-  }
-
-  function render() {
-    let finishRenderTimer = window.startOskarsPerformance?.("profile:render");
-    let user = window.getFirebaseCurrentUser?.() || null;
-    renderAuthSection(user);
-    renderPublicProfileNamePanel(user);
-    updateCloudSyncPanelVisibility(user);
-    renderAccountDeletionPanel(user);
-    updateAccountDeletionPanelVisibility(user);
-    renderConflicts();
-    finishRenderTimer?.();
-  }
-
-  render();
-  window.onFirebaseAuthChange?.(render);
-
-  document
-    .getElementById("cloudSyncNowBtn")
-    ?.addEventListener("click", runManualCloudSync);
-  document
-    .getElementById("cloudRestoreBtn")
-    ?.addEventListener("click", previewCloudRestore);
-  document
-    .getElementById("cloudRestoreApplyBtn")
-    ?.addEventListener("click", applyCloudRestoreProposal);
-  document
-    .getElementById("cloudSyncConflicts")
-    ?.addEventListener("click", handleConflictResolveClick);
-  document
-    .getElementById("dismissImportReport")
-    ?.addEventListener("click", window.hideImportReport);
+  boot();
 })();

@@ -53,7 +53,7 @@
         if (item)
           records.push({
             film: window.watchlistFilmLike?.(item) || item,
-            href: window.watchlistFilmPageUrl(item.id),
+            href: window.filmPageUrl(item.supabaseFilmId),
           });
       });
     } else if (type === "franchise") {
@@ -78,7 +78,7 @@
         if (item)
           records.push({
             film: window.watchlistFilmLike?.(item) || item,
-            href: window.watchlistFilmPageUrl(item.id),
+            href: window.filmPageUrl(item.supabaseFilmId),
           });
       });
     }

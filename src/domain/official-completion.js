@@ -208,7 +208,7 @@
       } else if (watchlist) {
         film.watchlistItem = watchlist;
         film.year = String(watchlist.year || film.year);
-        film.href = window.watchlistFilmPageUrl(watchlist.id);
+        film.href = window.filmPageUrl(watchlist.supabaseFilmId);
       }
       film.categories.sort(
         (left, right) =>

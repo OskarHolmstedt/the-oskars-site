@@ -3,7 +3,6 @@
 (function () {
   let contextualPaths = new Set([
     "film.html",
-    "watchlist-film.html",
     "person.html",
     "franchise.html",
     "tag.html",
@@ -63,10 +62,14 @@
     let id = params.get("id") || "";
     if (path === "film.html")
       return [
-        window.findFilmById?.(id) || window.findWatchedFilmById?.(id),
+        window.findFilmById?.(id) ||
+          window.findWatchedFilmById?.(id) ||
+          watchlistFilm(
+            window.state.watchlist?.find(
+              (entry) => entry.supabaseFilmId === id,
+            ),
+          ),
       ];
-    if (path === "watchlist-film.html")
-      return [watchlistFilm(window.findWatchlistItemById?.(id))];
     if (path === "person.html") {
       let person = (window.ensurePeopleIndex?.() || window.state.peopleById || {})[
         id

@@ -78,7 +78,7 @@ function dataHealthWatchlistEntry(item) {
   return {
     id,
     title: dataHealthFilmLabel(item),
-    href: window.watchlistFilmPageUrl?.(id) || "",
+    href: window.filmPageUrl?.(item.supabaseFilmId) || "",
   };
 }
 

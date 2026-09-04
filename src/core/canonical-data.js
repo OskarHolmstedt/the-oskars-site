@@ -31,7 +31,7 @@ const CANONICAL_TOP_LEVEL_KEYS = [
 
 // The data-bearing top-level sections, excluding the schema-version marker
 // - shared with src/core/workspace-sections.js (issue #248) so the
-// Firestore sync unit list can never drift from the actual canonical
+// The sync unit list can never drift from the actual canonical
 // contract. Exposed on window rather than duplicated because both files
 // need the identical list, and this one already owns it.
 window.OSKARS_CANONICAL_SECTION_KEYS = CANONICAL_TOP_LEVEL_KEYS.filter(
@@ -1679,24 +1679,6 @@ window.assertPublicData = function (source) {
   error.code = "OSKARS_INVALID_PUBLIC_DATA";
   error.validationErrors = result.errors;
   throw error;
-};
-
-/**
- * Derives a public-profile URL slug from an owner-chosen display name
- * (issue #253) - the display name is the single source of truth, so the
- * publish panel never needs a separately-typed, driftable slug field.
- * Shared between the Account page (name entry, slug preview) and the Data
- * page (publish panel), both of which load this module unconditionally.
- * @param {string} name Owner-chosen public profile display name.
- * @returns {string} URL-safe slug, empty if name has no alphanumeric content.
- */
-window.publicProfileSlugify = function (name) {
-  return String(name || "")
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 };
 
 /**

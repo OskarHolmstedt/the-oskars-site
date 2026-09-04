@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>
+      Supabase workspace cache structural test (not a real app page)
+    </title>
+  </head>
+  <body>
+    <!--
+  Standalone structural check for src/core/supabase-workspace.js (issue
+  #411) - not a real app page, not linked from anywhere. The actual
+  fetch/cache/write-through *logic* is proven against a real backend by
+  tests/supabase-workspace.test.js (Node, mirroring this file's exact
+  shape - the same reason supabase-client.js itself can't be imported
+  into a plain Node test). This harness only confirms the real browser
+  file parses correctly and exposes what it should - this module has no
+  DOM or browser-specific behavior beyond what supabase-client-test.html
+  already proved for the client it's built on, so a full fixture-seeded
+  browser E2E here would mostly duplicate the Node test's coverage
+  without proving anything new about the browser environment itself.
+  Safe to delete once real page-wiring happens.
+-->
+    <h1>Supabase workspace cache structural test</h1>
+    <pre id="status">loading…</pre>
+
+    <script src="supabase.config.js"></script>
+    <script src="src/core/supabase-client.js"></script>
+    <script src="src/core/supabase-workspace.js"></script>
+    <script>
+      async function run() {
+        let status = document.getElementById("status");
+        let lines = [];
+        function log(line) {
+          lines.push(line);
+          status.textContent = lines.join("\n");
+        }
+
+        log(
+          "functions exposed: " +
+            [
+              "loadSupabaseWorkspace",
+              "getSupabaseWorkspace",
+              "refreshSupabaseWorkspace",
+              "setSupabaseWatchedRating",
+            ].every((name) => typeof window[name] === "function"),
+        );
+
+        log(
+          "getSupabaseWorkspace() before any load: " +
+            JSON.stringify(window.getSupabaseWorkspace()),
+        );
+
+        // No real session in this harness (Google sign-in isn't configured
+        // yet, per #410) - loadSupabaseWorkspace() should still resolve
+        // cleanly (not throw) when unconfigured/signed-out, matching
+        // ensureSupabaseClient()'s own "null when unconfigured" contract
+        // that resolveSupabaseAuthState() already relies on.
+        let result = await window.loadSupabaseWorkspace();
+        log("loadSupabaseWorkspace() resolved: " + JSON.stringify(result));
+
+        log("DONE");
+      }
+      run().catch((err) => {
+        document.getElementById("status").textContent =
+          "ERROR: " + (err?.message || err);
+        console.error(err);
+      });
+    </script>
+  </body>
+</html>

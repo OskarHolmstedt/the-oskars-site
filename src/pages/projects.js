@@ -1,380 +1,166 @@
-/** @file Controls the project hub, status views, progress cards, and project creation dialog. */
-
+/**
+ * @file Controls the Supabase-backed projects hub (issue #439): lists the
+ * signed-in user's own projects and offers a Create dialog. Core v1
+ * scope only - a project is a generic named film collection ("created in
+ * any which way": search and add any film, regardless of watched/
+ * watchlist status), not tied to a live-refreshable source the way the
+ * previous model's per-source-type derivation was. The create flow
+ * reflects that directly: one film search box feeding one generic
+ * createSupabaseProject(name, filmIds) call, rather than a source-type
+ * picker per collection kind.
+ */
 (function () {
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
-  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
-  window.load();
-  let finishRenderTimer = window.startOskarsPerformance?.("projects:render");
   let container = document.getElementById("projectsPage");
-  let allProjects = [...(state.projects || [])];
-  let validViews = ["open", "pinned", "active", "complete", "archived", "all"];
-  let view = validViews.includes(window.pageQueryParam("view"))
-    ? window.pageQueryParam("view")
-    : "open";
-  let projects = allProjects
-    .filter((project) => {
-      let status = ["archived", "complete"].includes(project.status)
-        ? project.status
-        : "active";
-      if (view === "all") return true;
-      if (view === "open") return status === "active";
-      if (view === "pinned") return Boolean(project.pinned);
-      if (view === "active") return project.id === state.activeProjectId;
-      return status === view;
-    })
-    .sort(
-      (left, right) =>
-        Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) ||
-        Number(right.id === state.activeProjectId) -
-          Number(left.id === state.activeProjectId) ||
-        String(right.updatedAt || right.createdAt || "").localeCompare(
-          String(left.updatedAt || left.createdAt || ""),
-        ) ||
-        String(left.name || "").localeCompare(String(right.name || "")),
-    );
-  document.title = `${ui("Projects")} · The Oskars`;
 
-  function projectViewUrl(nextView) {
-    return nextView === "open"
-      ? "projects.html"
-      : `projects.html?view=${encodeURIComponent(nextView)}`;
-  }
-
-  function projectStatus(project) {
-    return ["archived", "complete"].includes(project.status)
-      ? project.status
-      : "active";
-  }
-
-  function projectCounts() {
-    return {
-      open: allProjects.filter((project) => projectStatus(project) === "active")
-        .length,
-      pinned: allProjects.filter((project) => project.pinned).length,
-      active: allProjects.filter(
-        (project) => project.id === state.activeProjectId,
-      ).length,
-      complete: allProjects.filter(
-        (project) => projectStatus(project) === "complete",
-      ).length,
-      archived: allProjects.filter(
-        (project) => projectStatus(project) === "archived",
-      ).length,
-      all: allProjects.length,
-    };
-  }
-
-  function viewLink(value, label, count) {
-    let text = `${ui(label)} ${count}`;
-    return value === view
-      ? `<strong>${escape(text)}</strong>`
-      : `<a href="${escape(projectViewUrl(value))}">${escape(text)}</a>`;
-  }
-
-  function projectBadge(label, type) {
-    return `<span class="project-status-badge project-status-badge--${escape(type)}">${escape(label)}</span>`;
-  }
-
-  function projectBadges(project, status, isActive) {
-    return `<div class="project-status-badges">${[
-      project.pinned ? projectBadge(ui("Pinned"), "pinned") : "",
-      projectBadge(
-        isActive
-          ? ui("Active")
-          : status === "active"
-            ? ui("Open")
-            : ui(status === "complete" ? "Complete" : "Archived"),
-        isActive ? "active" : status === "active" ? "open" : status,
-      ),
-    ]
-      .filter(Boolean)
-      .join("")}</div>`;
-  }
-
-  function projectCardDeck(progress) {
-    let films = window.projectPosterDeckFilms(progress);
-    return films.length
-      ? `<div class="project-card-visual">${window.renderPosterDeck(films, { classes: "project-card-poster-deck" })}</div>`
-      : "";
-  }
-
-  function projectCard(project) {
-    let progress = window.projectProgress(project);
-    let status = projectStatus(project);
-    let next = status === "active" ? progress.next : null;
-    let sourceHref = window.projectSourceHref(project);
-    let isActive = project.id === state.activeProjectId;
-    let nextTitle = next
-      ? window.localizedFilmTitle?.(next.film) || next.film.title
-      : "";
-    let nextHtml = next
-      ? `<p class="leaderboard-meta">${escape(ui("Next"))}: <a href="${escape(next.href)}">${escape(nextTitle)}</a>${next.film.year ? ` (${escape(next.film.year)})` : ""}${next.item?.tier ? ` · ${escape(ui("Tier"))} ${escape(next.item.tier)}` : ""}</p>`
-      : status === "complete"
-        ? `<p class="leaderboard-meta">${escape(ui("Closed as complete."))}</p>`
-        : status === "archived"
-          ? `<p class="leaderboard-meta">${escape(ui("Archived."))}</p>`
-          : `<p class="leaderboard-meta">${escape(ui("No unwatched films left."))}</p>`;
-    return `<article class="project-card project-card--deck">
-    ${projectCardDeck(progress)}
-    <div class="project-card-body">
-    <header><h2><a href="${escape(window.projectPageUrl(project.id))}">${escape(project.name)}</a></h2>${projectBadges(project, status, isActive)}</header>
-    <div class="project-progress-meter" aria-label="${escape(ui("{percent} percent complete", { percent: progress.percent }))}"><span style="width:${escape(progress.percent)}%"></span></div>
-    <dl class="project-card-stats"><div><dt>${escape(ui("Watched"))}</dt><dd>${escape(progress.watchedCount)}/${escape(progress.total)}</dd></div><div><dt>Watchlist</dt><dd>${escape(progress.watchlistCount)}</dd></div><div><dt>${escape(ui("Complete"))}</dt><dd>${escape(progress.percent)}%</dd></div><div><dt>${escape(ui("Average rating"))}</dt><dd>${escape(window.formatAverageRating(progress.ratingStatistics.mean))}</dd></div><div><dt>${escape(ui("Rated"))}</dt><dd>${escape(progress.ratingStatistics.ratedCount)}</dd></div></dl>
-    <p>${sourceHref ? `<a href="${escape(sourceHref)}">${escape(project.sourceLabel || project.sourceId)}</a>` : escape(project.sourceLabel || "")}</p>
-    ${nextHtml}
-    <div class="project-card-actions">${canEdit ? `${isActive ? "" : `<button type="button" class="button-link" data-active-project="${escape(project.id)}">${escape(ui("Make active"))}</button>`}<button type="button" class="button-link" data-pin-project="${escape(project.id)}">${escape(project.pinned ? ui("Unpin") : ui("Pin"))}</button>` : ""}</div>
-    </div>
-  </article>`;
-  }
-
-  async function saveProjectHubActionAndReload() {
-    let saving = window.save?.({ immediate: true, rebuild: false });
-    if (saving?.then) await saving;
-    window.location.reload();
-  }
-
-  let counts = projectCounts();
-  let emptyCopy = allProjects.length
-    ? `<div class="detail-empty"><h2>${escape(ui("No {view} projects", { view: ui(view === "open" ? "Open" : view === "all" ? "All" : view === "active" ? "Active" : view === "complete" ? "Complete" : view === "archived" ? "Archived" : "Pinned").toLowerCase() }))}</h2><p>${escape(ui("Try another project filter."))}</p></div>`
-    : `<div class="detail-empty"><h2>${escape(ui("No projects yet"))}</h2><p>${escape(ui("Start one from a director or franchise page."))}</p></div>`;
-
-  function createProjectDialogHtml() {
-    return `<dialog id="createProjectDialog">
-    <form id="createProjectForm" method="dialog">
-      <h2>${escape(ui("Create project"))}</h2>
-      <div class="form-grid">
-        <label>${escape(ui("Source"))}
-          <select name="sourceType" data-create-project-type>
-            <option value="franchise">${escape(ui("Franchise"))}</option>
-            <option value="person">${escape(ui("Person"))}</option>
-            <option value="tag">${escape(ui("Tag"))}</option>
-            <option value="custom">${escape(ui("Custom films"))}</option>
-          </select>
-        </label>
-        <label data-create-project-source-row>${escape(ui("Name"))}
-          <input name="sourceName" list="createProjectSourceOptions" autocomplete="off" placeholder="${escape(ui("Start typing…"))}">
-          <datalist id="createProjectSourceOptions"></datalist>
-        </label>
-        <label class="wide" data-create-project-name-row hidden>${escape(ui("Project name"))}
-          <input name="projectName" autocomplete="off">
-        </label>
-        <label class="wide" data-create-project-film-row hidden>${escape(ui("Add film"))}
-          <input name="filmName" list="createProjectFilmOptions" autocomplete="off" placeholder="${escape(ui("Start typing…"))}">
-          <datalist id="createProjectFilmOptions"></datalist>
-        </label>
-        <div class="wide" data-create-project-film-list hidden></div>
-      </div>
-      <p class="data-panel-status" data-create-project-status></p>
-      <div class="dialog-actions"><button type="button" data-create-project-cancel>${escape(ui("Cancel"))}</button><button type="submit">${escape(ui("Create project"))}</button></div>
-    </form>
-  </dialog>`;
-  }
-
-  container.innerHTML = `${window.renderBreadcrumbs([{ label: ui("Projects") }], { escape })}
-  ${window.renderDetailHeader({ mainHtml: `<h1>${escape(ui("Projects"))}</h1><p>${escape(ui("Focused watch queues from directors, franchises, and watchlist filters."))}</p>`, actionsHtml: canEdit ? `<button type="button" class="button-link" data-create-project>${escape(ui("Create project"))}</button>` : "" })}
-  <nav class="person-filmography-sort-controls project-view-controls" aria-label="${escape(ui("Project view"))}"><span>${escape(ui("View"))}</span>${viewLink("open", "Open", counts.open)}${viewLink("pinned", "Pinned", counts.pinned)}${viewLink("active", "Active", counts.active)}${viewLink("complete", "Complete", counts.complete)}${viewLink("archived", "Archived", counts.archived)}${viewLink("all", "All", counts.all)}</nav>
-  ${projects.length ? `<div class="project-grid">${projects.map(projectCard).join("")}</div>` : emptyCopy}
-  ${canEdit ? createProjectDialogHtml() : ""}`;
-
-  container.querySelectorAll("[data-active-project]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      window.setActiveProject?.(button.dataset.activeProject, { save: false });
-      await saveProjectHubActionAndReload();
-    });
-  });
-  container.querySelectorAll("[data-pin-project]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      let project = window.findProjectById?.(button.dataset.pinProject);
-      window.setProjectPinned?.(button.dataset.pinProject, !project?.pinned, {
-        save: false,
-      });
-      await saveProjectHubActionAndReload();
-    });
-  });
-
-  // --- Create project dialog ---
-  let createDialog = container.querySelector("#createProjectDialog");
-  let createForm = container.querySelector("#createProjectForm");
+  let projects = [];
   let pickedFilms = [];
 
-  function createProjectSources(type) {
-    if (type === "franchise") {
-      return Object.values(
-        window.ensureFranchiseIndex?.() || state.franchisesById || {},
-      ).map((franchise) => ({ label: franchise.name, id: franchise.id }));
-    }
-    if (type === "person") {
-      return Object.values(
-        window.ensurePeopleIndex?.() || state.peopleById || {},
-      ).map((person) => ({ label: person.name, id: person.id }));
-    }
-    if (type === "tag") {
-      return (window.getFilmTagIndex?.() || []).map((tag) => ({
-        label: tag.name,
-        id: tag.name,
-      }));
-    }
-    return [];
+  function projectCard(project) {
+    let statusLabel =
+      project.status === "complete"
+        ? ui("Complete")
+        : project.status === "archived"
+          ? ui("Archived")
+          : ui("Active");
+    return `<a class="film-card project-card" href="${escape(window.projectPageUrl(project.id))}">
+      <div class="project-card-title">${project.pinned ? '<span aria-hidden="true">📌</span> ' : ""}${escape(project.name)}</div>
+      <div class="leaderboard-meta">${project.source_label ? escape(project.source_label) : escape(ui("Custom project"))}</div>
+      <div class="leaderboard-meta"><span class="project-status-badge">${escape(statusLabel)}</span> · <b>${escape(project.itemCount)}</b> ${escape(ui(project.itemCount === 1 ? "film" : "films"))}</div>
+    </a>`;
   }
 
-  function createProjectFilmOptions() {
-    return window
-      .buildSearchEntries({ cacheKeySuffix: "project-film-picker" })
-      .filter(
-        (entry) =>
-          entry.target?.type === "film" || entry.target?.type === "watchlist",
-      )
-      .map((entry) => ({
-        label: `${entry.name} (${entry.year || "?"})${entry.target.type === "watchlist" ? " · Watchlist" : ""}`,
-        ref: window.projectFilmRef(
-          entry.target.type === "film" ? "archive" : "watchlist",
-          entry.target.id,
-        ),
-      }));
+  function createDialogHtml() {
+    return `<dialog id="createProjectDialog">
+      <form id="createProjectForm" method="dialog">
+        <h2>${escape(ui("Create project"))}</h2>
+        <label class="wide">${escape(ui("Project name"))}
+          <input name="name" required maxlength="120" autocomplete="off">
+        </label>
+        <label class="wide">${escape(ui("Add film"))}
+          <input name="filmSearch" autocomplete="off" placeholder="${escape(ui("Start typing…"))}">
+        </label>
+        <ul class="project-manage-list" data-create-project-picked></ul>
+        <p class="data-panel-status" data-create-project-status></p>
+        <div class="dialog-actions"><button type="button" data-create-project-cancel>${escape(ui("Cancel"))}</button><button type="submit">${escape(ui("Create project"))}</button></div>
+      </form>
+    </dialog>`;
   }
 
-  let sourceLookup = new Map();
-  let filmLookup = new Map();
+  function render() {
+    let finishRenderTimer = window.startOskarsPerformance?.("projects:render");
+    document.title = `${ui("Projects")} · The Oskars`;
+    let cards = projects.map(projectCard).join("");
+    container.innerHTML = `${window.renderDetailHeader({
+      mainHtml: `<h1>${escape(ui("Projects"))}</h1><p>${escape(ui("Focused watch queues built from any films you pick."))} <a href="collections.html">${escape(ui("Browse your collections"))}</a></p>`,
+      actionsHtml: `<button type="button" class="button-link" data-create-project>${escape(ui("Create project"))}</button>`,
+    })}
+    <div class="film-grid project-film-grid">${cards || `<p class="detail-empty">${escape(ui("No projects yet."))}</p>`}</div>
+    ${createDialogHtml()}`;
 
-  function fillCreateProjectOptions() {
-    let type = createForm.querySelector("[data-create-project-type]").value;
-    let sourceList = createForm.querySelector("#createProjectSourceOptions");
-    sourceLookup = new Map();
-    sourceList.innerHTML = createProjectSources(type)
-      .map((entry) => {
-        sourceLookup.set(window.normalizeSearchText(entry.label), entry.id);
-        return `<option value="${escape(entry.label)}"></option>`;
-      })
-      .join("");
-    let filmList = createForm.querySelector("#createProjectFilmOptions");
-    if (type === "custom" && !filmLookup.size) {
-      filmLookup = new Map();
-      filmList.innerHTML = createProjectFilmOptions()
-        .map((entry) => {
-          filmLookup.set(window.normalizeSearchText(entry.label), entry.ref);
-          return `<option value="${escape(entry.label)}"></option>`;
-        })
+    let createDialog = container.querySelector("#createProjectDialog");
+    let createForm = container.querySelector("#createProjectForm");
+    let statusEl = container.querySelector("[data-create-project-status]");
+    let pickedList = container.querySelector("[data-create-project-picked]");
+    let searchInput = createForm.querySelector('[name="filmSearch"]');
+
+    function renderPicked() {
+      pickedList.innerHTML = pickedFilms
+        .map(
+          (film) =>
+            `<li>${escape(film.title)} (${escape(film.year || "")}) <button type="button" data-remove-picked-film="${escape(film.id)}">${escape(ui("Remove"))}</button></li>`,
+        )
         .join("");
     }
-  }
+    renderPicked();
 
-  function renderPickedFilms() {
-    let list = createForm.querySelector("[data-create-project-film-list]");
-    list.innerHTML = pickedFilms.length
-      ? pickedFilms
-          .map(
-            (entry, index) =>
-              `<div class="create-project-picked"><span>${escape(entry.label)}</span><button type="button" data-remove-picked-film="${index}" aria-label="${escape(ui("Remove"))}">×</button></div>`,
-          )
-          .join("")
-      : `<p class="leaderboard-meta">${escape(ui("No films added yet."))}</p>`;
-  }
+    container
+      .querySelector("[data-create-project]")
+      ?.addEventListener("click", () => {
+        pickedFilms = [];
+        createForm.reset();
+        renderPicked();
+        statusEl.textContent = "";
+        createDialog?.showModal();
+      });
+    container
+      .querySelector("[data-create-project-cancel]")
+      ?.addEventListener("click", () => createDialog?.close());
 
-  function updateCreateProjectMode() {
-    let type = createForm.querySelector("[data-create-project-type]").value;
-    let custom = type === "custom";
-    createForm.querySelector("[data-create-project-source-row]").hidden =
-      custom;
-    createForm.querySelector("[data-create-project-name-row]").hidden = !custom;
-    createForm.querySelector("[data-create-project-film-row]").hidden = !custom;
-    createForm.querySelector("[data-create-project-film-list]").hidden =
-      !custom;
-    createForm.querySelector("[data-create-project-status]").textContent = "";
-    fillCreateProjectOptions();
-    if (custom) renderPickedFilms();
-  }
-
-  function setCreateProjectStatus(message) {
-    createForm.querySelector("[data-create-project-status]").textContent =
-      message;
-  }
-
-  function addPickedFilm() {
-    let input = createForm.querySelector('[name="filmName"]');
-    let ref = filmLookup.get(window.normalizeSearchText(input.value));
-    if (!ref) {
-      setCreateProjectStatus(ui("Pick a film from the suggestions."));
-      return;
-    }
-    if (
-      !pickedFilms.some(
-        (entry) => entry.ref.type === ref.type && entry.ref.id === ref.id,
-      )
-    ) {
-      pickedFilms.push({ label: input.value.trim(), ref });
-    }
-    input.value = "";
-    setCreateProjectStatus("");
-    renderPickedFilms();
-  }
-
-  container
-    .querySelector("[data-create-project]")
-    ?.addEventListener("click", () => {
-      pickedFilms = [];
-      createForm.reset();
-      updateCreateProjectMode();
-      if (createDialog.showModal) createDialog.showModal();
-      else createDialog.setAttribute("open", "");
+    let searchTimer = null;
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchTimer);
+      let query = searchInput.value;
+      searchTimer = setTimeout(async () => {
+        if (!query.trim()) return;
+        try {
+          let results = await window.searchSupabaseFilmsByTitle(query);
+          let existingIds = new Set(pickedFilms.map((film) => film.id));
+          let list = results.filter((film) => !existingIds.has(film.id));
+          statusEl.innerHTML = list
+            .slice(0, 8)
+            .map(
+              (film) =>
+                `<button type="button" class="sort-order-button" data-pick-film="${escape(film.id)}" data-pick-title="${escape(film.title)}" data-pick-year="${escape(film.year || "")}">${escape(film.title)} (${escape(film.year || "")})</button>`,
+            )
+            .join(" ");
+        } catch (err) {
+          statusEl.textContent = err.message || String(err);
+        }
+      }, 250);
     });
-  container
-    .querySelector("[data-create-project-cancel]")
-    ?.addEventListener("click", () => {
-      if (createDialog.close) createDialog.close();
-      else createDialog.removeAttribute("open");
+    statusEl.addEventListener("click", (event) => {
+      let button = event.target.closest("[data-pick-film]");
+      if (!button) return;
+      pickedFilms.push({
+        id: button.dataset.pickFilm,
+        title: button.dataset.pickTitle,
+        year: button.dataset.pickYear,
+      });
+      searchInput.value = "";
+      statusEl.innerHTML = "";
+      renderPicked();
     });
-  createForm
-    ?.querySelector("[data-create-project-type]")
-    ?.addEventListener("change", updateCreateProjectMode);
-  createForm
-    ?.querySelector('[name="filmName"]')
-    ?.addEventListener("change", addPickedFilm);
-  createForm?.addEventListener("click", (event) => {
-    let removeButton = event.target.closest("[data-remove-picked-film]");
-    if (!removeButton) return;
-    pickedFilms.splice(Number(removeButton.dataset.removePickedFilm), 1);
-    renderPickedFilms();
-  });
-  createForm?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    let type = createForm.querySelector("[data-create-project-type]").value;
-    if (type === "custom") {
-      let name = createForm.querySelector('[name="projectName"]').value;
-      if (!String(name || "").trim()) {
-        setCreateProjectStatus(ui("Project name is required."));
-        return;
-      }
-      if (!pickedFilms.length) {
-        setCreateProjectStatus(ui("Add at least one film."));
-        return;
-      }
-      let project = window.createCustomProject(
-        name,
-        pickedFilms.map((entry) => entry.ref),
-        { save: false },
+    pickedList.addEventListener("click", (event) => {
+      let button = event.target.closest("[data-remove-picked-film]");
+      if (!button) return;
+      pickedFilms = pickedFilms.filter(
+        (film) => film.id !== button.dataset.removePickedFilm,
       );
-      if (!project) {
-        setCreateProjectStatus(ui("Could not create the project."));
-        return;
+      renderPicked();
+    });
+    createForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      let name = String(new FormData(createForm).get("name") || "").trim();
+      if (!name) return;
+      statusEl.textContent = ui("Creating…");
+      try {
+        let created = await window.createSupabaseProject(
+          name,
+          pickedFilms.map((film) => film.id),
+        );
+        window.location.href = window.projectPageUrl(created.id);
+      } catch (err) {
+        statusEl.textContent = err.message || String(err);
       }
-      let saving = window.save?.({ immediate: true, rebuild: false });
-      if (saving?.then) await saving;
-      window.location.href = window.prepareOskarsAccountNavigation(
-        window.projectPageUrl(project.id),
-      );
+    });
+    finishRenderTimer?.(`${projects.length} projects`);
+  }
+
+  async function boot() {
+    let access = await window.resolveSupabaseAccountGate();
+    if (!access.allowed) {
+      window.renderSupabaseAccountGate(access, container);
       return;
     }
-    let sourceId = sourceLookup.get(
-      window.normalizeSearchText(
-        createForm.querySelector('[name="sourceName"]').value,
-      ),
-    );
-    if (!sourceId) {
-      setCreateProjectStatus(ui("Pick a source from the suggestions."));
-      return;
+    try {
+      projects = await window.listSupabaseProjects();
+      render();
+    } catch (error) {
+      container.innerHTML = `<section class="detail-empty"><h2>${escape(ui("Could not load projects"))}</h2><p>${escape(error.message || String(error))}</p></section>`;
     }
-    await window.startProjectFromSourceAndOpen(type, sourceId);
-  });
-  finishRenderTimer?.(`${projects.length} project(s)`);
+  }
+
+  boot();
 })();

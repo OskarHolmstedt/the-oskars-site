@@ -74,7 +74,7 @@ window.renderPublicProfilePublication = function (container) {
   let ownerName = (window.state.publicProfileDisplayName || "").trim();
   let slug = window.publicProfileSlugify?.(ownerName) || "";
   if (!ownerName) {
-    container.innerHTML = `<h2>Publish a public profile</h2><p class="data-panel-status">Set a public profile name on the <a href="profile.html">Account page</a> first — it becomes both the display name and the URL slug.</p>`;
+    container.innerHTML = `<h2>Publish a public profile</h2><p class="data-panel-status">Set a public profile name on the <a href="profile.html">Profile page</a> first — it becomes both the display name and the URL slug.</p>`;
     return;
   }
   let previewHtml = "";
@@ -99,7 +99,7 @@ window.renderPublicProfilePublication = function (container) {
   let downloadDisabled = preparedPublicProfilePreview && !preparedPublicProfilePreview.valid;
   container.innerHTML = `<h2>Publish a public profile</h2>
     <p>Create a read-only public version of selected archive information. Reviewing and downloading here never publishes anything.</p>
-    <p>Publishing as <strong>${publicProfileEscape(ownerName)}</strong>. Change the name on the <a href="profile.html">Account page</a>.</p>
+    <p>Publishing as <strong>${publicProfileEscape(ownerName)}</strong>. Change the name on the <a href="profile.html">Profile page</a>.</p>
     <label><input type="checkbox" data-public-profile-opt-in="localRanks" ${preparedPublicProfileOptIn.includes("localRanks") ? "checked" : ""}> Include local ranks (opt-in)</label>
     <div class="data-actions">
       <button type="button" data-public-profile-preview>Review public profile</button>

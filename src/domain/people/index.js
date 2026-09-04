@@ -99,6 +99,7 @@ window.rebuildPeopleIndex = function () {
       filmIds: [],
       watchedOtherIds: [],
       watchlistIds: [],
+      catalogIds: [],
       _creditKeys: new Set(),
     });
     if (!person.aliases.includes(String(name).trim()))
@@ -229,6 +230,14 @@ window.rebuildPeopleIndex = function () {
   Object.values(peopleById).forEach((person) => {
     person.aliases.sort((a, b) => a.localeCompare(b));
     person.professions.sort((a, b) => a.localeCompare(b));
+    // Unseen films (issue #453) - catalog films this director is credited
+    // on that the viewer hasn't watched, other-watched, or watchlisted.
+    // sharedArchiveFilmsForDirector() already does alias resolution and
+    // de-dup; only real catalog rows (a real films.id) are kept here,
+    // since an official-results nominee placeholder has none.
+    person.catalogIds = (window.sharedArchiveFilmsForDirector?.(person) || [])
+      .map((film) => film.id)
+      .filter(Boolean);
     person.credits.sort(
       (a, b) =>
         String(b.period || "").localeCompare(

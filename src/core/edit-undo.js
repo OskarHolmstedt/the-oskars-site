@@ -16,8 +16,7 @@
   function stableJson(value) {
     if (value === null || typeof value !== "object")
       return JSON.stringify(value);
-    if (Array.isArray(value))
-      return `[${value.map(stableJson).join(",")}]`;
+    if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
     return `{${Object.keys(value)
       .sort()
       .map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`)
@@ -151,7 +150,9 @@
           (awardKey) => {
             let beforeAward = beforeAwards.get(awardKey);
             let afterAward = afterAwards.get(awardKey);
-            if (stableJson(beforeAward ?? null) === stableJson(afterAward ?? null))
+            if (
+              stableJson(beforeAward ?? null) === stableJson(afterAward ?? null)
+            )
               return;
             let award = beforeAward || afterAward;
             let awardPeriod = String(award?.year || periodKey);
@@ -380,22 +381,21 @@
       plan: planNominationPeriodsUndo,
       apply: applyNominationPeriodsUndo,
     },
-    "watchlist-transition": {
-      structural: true,
-      plan(entry) {
-        return window.planWatchlistTransitionUndo?.(entry) || {
-          ok: false,
-          reason: "unsupported",
-          entry,
-        };
-      },
-      apply(payload) {
-        return Boolean(window.applyWatchlistTransitionUndo?.(payload));
-      },
-    },
     "film-metadata": {
       targetKeys: ["filmId"],
+      // Kept in sync with FILM_UNDO_FIELD_LABELS
+      // (src/domain/film-metadata-editing.js) - normalizeEditLogUndo()
+      // nulls out the *entire* payload if any field it contains isn't in
+      // this set, so a key present in one but not the other silently
+      // disables undo for any edit touching it. title/year added
+      // together with that file's own allowlist (issue #454) - a film's
+      // id no longer derives from them, so restoring either is now an
+      // unambiguous field write. rewatchTier was already in the other
+      // allowlist but missing here - a pre-existing instance of the same
+      // gap, fixed alongside since it's the identical bug.
       fieldKeys: new Set([
+        "title",
+        "year",
         "director",
         "rating",
         "country",
@@ -408,6 +408,7 @@
         "tags",
         "franchises",
         "wantToRewatch",
+        "rewatchTier",
       ]),
       resolve(target) {
         return (
@@ -428,7 +429,9 @@
           window.filmMetadataFormValues(film),
           restores,
         );
-        return Boolean(window.updateFilmMetadata(film.id, values, { log: false }));
+        return Boolean(
+          window.updateFilmMetadata(film.id, values, { log: false }),
+        );
       },
     },
     "watchlist-metadata": {
@@ -500,8 +503,6 @@
     if (!payload || typeof payload !== "object") return null;
     if (payload.kind === "nomination-periods")
       return normalizeNominationPeriodsUndo(payload);
-    if (payload.kind === "watchlist-transition")
-      return window.normalizeWatchlistTransitionUndo?.(payload) || null;
     let kind = EDIT_UNDO_KINDS[payload.kind];
     if (!kind) return null;
     let target = {};

@@ -1,614 +1,394 @@
-/** @file Controls project detail, progress, notes, next-film guidance, sorting, pagination, and queue ordering. */
-
+/**
+ * @file Controls the Supabase-backed project detail (issue #439): a
+ * generic named film collection, "created in any which way" rather than
+ * tied to a live-refreshable source the way the previous model's
+ * person/franchise/tag/watchlist-filter/watch-goal/official-results
+ * source types were - source_label is purely descriptive text captured
+ * once at creation, never re-derived. Core v1 scope only: view, sort,
+ * queue drag-and-drop reorder, status/pin, remove an item, and permanent
+ * delete. Deliberately deferred, not silently dropped: refresh-from-
+ * source (there is no live source link to refresh from in this model),
+ * dismissed-ref tracking (follows from the same), tier filtering, and
+ * pagination - all real, flagged reductions from the original's fuller
+ * management UI, matching every other #439 cutover's precedent.
+ */
 (function () {
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
-  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
-  window.load();
   let container = document.getElementById("projectPage");
-  let projectSortValues = new Set([
-    "project",
-    "title",
-    "year",
-    "rank",
-    "rating",
-    "tier",
-    "wins",
-    "nominations",
-    "score",
-    "shuffle",
-  ]);
-  let projectUrlState = window.createPageViewState({
-    path: "project.html",
-    schema: {
-      id: { default: "", omit: () => false },
-      sort: {
-        default: "project",
-        validate: (value) => projectSortValues.has(value),
-      },
-      order: {
-        default: (state) => window.defaultOrderForProjectSort(state.sort),
-        validate: (value) => value === "asc" || value === "desc",
-        omit: (value, state) =>
-          state.sort === "shuffle" ||
-          value === window.defaultOrderForProjectSort(state.sort),
-      },
-      seed: {
-        default: "",
-        omit: (value, state) => state.sort !== "shuffle" || !value,
-      },
-      view: {
-        default: "grid",
-        validate: (value) => value === "grid" || value === "list",
-      },
-      tier: {
-        default: "",
-        parse: (value) => window.normalizeWatchlistTier?.(value) || "",
-      },
-      queuePage: {
-        default: 1,
-        parse: (value) => Math.max(1, Number(value) || 1),
-      },
-      watchedPage: {
-        default: 1,
-        parse: (value) => Math.max(1, Number(value) || 1),
-      },
-      edit: {
-        default: "",
-        validate: (value) => value === "" || value === "queue-order",
-        omit: (value, state) =>
-          state.sort !== "project" || value !== "queue-order",
-      },
-      manage: {
-        default: "",
-        validate: (value) => value === "" || value === "films",
-      },
-    },
-  });
-  let initialViewState = projectUrlState.read();
-  let project = (state.projects || []).find(
-    (item) => item.id === initialViewState.id,
-  );
-  let sort = initialViewState.sort;
-  let order = initialViewState.order;
+
+  let projectId = window.pageQueryParam("id");
+  let project = null;
+  let items = [];
+  let rawItems = [];
+  let noteState = { note: "", editing: false, busy: false };
+  let busy = false;
+
+  let sortValues = new Set(["year", "title", "rating", "shuffle"]);
+  let requestedSort = window.pageQueryParam("sort");
+  let sort = sortValues.has(requestedSort) ? requestedSort : "year";
+  let requestedOrder = window.pageQueryParam("order");
+  let order =
+    requestedOrder === "asc" || requestedOrder === "desc"
+      ? requestedOrder
+      : window.defaultOrderForFilmAxis(sort);
   let shuffleSeed =
-    sort === "shuffle" ? initialViewState.seed || String(Date.now()) : "";
-  let view = initialViewState.view;
-  let queuePage = initialViewState.queuePage;
-  let watchedPage = initialViewState.watchedPage;
-  let pageSize = 50;
-  let queueOrderEditMode =
-    sort === "project" && initialViewState.edit === "queue-order";
-  let manageFilms = initialViewState.manage === "films";
-  let tierFilter = initialViewState.tier;
+    sort === "shuffle"
+      ? window.pageQueryParam("seed") || String(Date.now())
+      : "";
+  let filmView = window.filmViewMode("list");
+  let queueEditMode = window.pageQueryParam("edit") === "queue-order";
 
-  try {
-    function projectUrl(next = {}) {
-      return projectUrlState.build(
-        {
-          id: project.id,
-          sort,
-          order,
-          seed: shuffleSeed,
-          view,
-          tier: tierFilter,
-          queuePage,
-          watchedPage,
-          edit: queueOrderEditMode ? "queue-order" : "",
-          manage: manageFilms ? "films" : "",
-        },
-        next,
-      );
+  function projectViewUrl(next = {}) {
+    let nextSort = next.sort || sort;
+    let nextOrder = next.order || order;
+    let view = next.view || filmView;
+    let seed = next.seed || shuffleSeed;
+    let parts = [];
+    if (nextSort !== "year") parts.push(`sort=${encodeURIComponent(nextSort)}`);
+    if (nextSort === "shuffle") {
+      if (seed) parts.push(`seed=${encodeURIComponent(seed)}`);
+    } else if (nextOrder !== window.defaultOrderForFilmAxis(nextSort)) {
+      parts.push(`order=${nextOrder}`);
     }
+    if (view === "grid") parts.push("view=grid");
+    if (queueEditMode && nextSort !== "shuffle") parts.push("edit=queue-order");
+    return `${window.projectPageUrl(projectId)}${parts.length ? `&${parts.join("&")}` : ""}`;
+  }
 
-    function projectBadge(label, type) {
-      return `<span class="project-status-badge project-status-badge--${escape(type)}">${escape(label)}</span>`;
-    }
+  function reload() {
+    window.location.href = projectViewUrl();
+  }
 
-    function projectBadges(status, isActive) {
-      return `<div class="project-status-badges project-status-badges--detail">${[
-        project.pinned ? projectBadge(ui("Pinned"), "pinned") : "",
-        projectBadge(
-          isActive
-            ? ui("Active")
-            : status === "active"
-              ? ui("Open")
-              : ui(status === "complete" ? "Complete" : "Archived"),
-          isActive ? "active" : status === "active" ? "open" : status,
-        ),
-      ]
-        .filter(Boolean)
-        .join("")}</div>`;
-    }
+  function recordCompare(left, right) {
+    return window.compareFilmAxisRecords(left, right, {
+      axis: sort,
+      order,
+      seed: shuffleSeed,
+    });
+  }
 
-    function projectFilmCard(record, options = {}) {
-      let film = record.film;
-      let isQueue = record.status === "watchlist" || record.rewatch;
-      let title = window.localizedFilmTitle?.(film) || film.title;
-      let directorHtml = window.renderLinkedDirectors(film, { escape });
-      let queueTier = record.item?.tier ?? film.rewatchTier;
-      let queueLabel = record.rewatch
-        ? ui("Rewatch")
-        : record.official
-          ? ui("Oscar collection")
-          : isQueue
-            ? ui("Watchlist")
-            : ui("Watched");
+  function itemCard(record, index = 0, editable = false) {
+    if (record.status === "watchlist") {
+      let item = record.item;
+      let film = window.watchlistFilmLike(item);
       return window.renderSharedFilmCard(film, {
         classes: [
           "project-film-card",
-          isQueue ? "watchlist-card" : "",
-          options.reorder ? "watchlist-order-card" : "",
+          "watchlist-card",
+          editable ? "watchlist-order-card" : "",
         ],
         attributes: window.orderEditItemAttributes({
-          enabled: options.reorder,
-          scope: "project-queue",
-          id: record.ref.id,
-          type: record.ref.type,
-          index: options.index || 0,
+          enabled: editable,
+          scope: "queue",
+          id: item.supabaseFilmId,
+          index,
+          group: "queue",
         }),
         openFilm: false,
         showYear: true,
         escape,
-        titleHtml: `<a class="table-film-link" href="${escape(record.href)}">${escape(title)}</a>`,
-        beforeTitleHtml:
-          isQueue && queueTier
-            ? window.renderWatchlistTierBadge(queueTier, { escape })
-            : "",
-        bodyHtml: `<div class="leaderboard-meta">${queueLabel}${directorHtml ? ` · ${directorHtml}` : ""}${film.allTimeRank ? ` · ${ui("all-time #{rank}", { rank: escape(film.allTimeRank) })}` : ""}</div>`,
-        actionsHtml: options.manage
-          ? window.renderCardRemoveButton({
-              escape,
-              title: ui("Remove {title}", { title }),
-              attributes: {
-                "data-remove-project-ref": record.ref.type,
-                "data-remove-project-ref-id": record.ref.id,
-              },
-            })
+        beforeTitleHtml: item.tier
+          ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(item.tier)}</span>`
           : "",
+        titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
+        bodyHtml: `<div class="watchlist-card-actions"><span>${escape(ui("Watchlist"))}</span></div>`,
       });
     }
-
-    function projectSection(
-      title,
-      records,
-      pageState,
-      pageAttribute,
-      emptyText,
-      options = {},
-    ) {
-      let visible = records.slice(pageState.sliceStart, pageState.sliceEnd);
-      let reorder = Boolean(options.reorder);
-      let orderControls = canEdit && options.canReorder
-        ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-project-queue-order-edit-toggle>${escape(ui(queueOrderEditMode ? "Finish order" : "Reorder"))}</button>${queueOrderEditMode ? `<span>${escape(ui("Edits this project queue only."))}</span>` : ""}</div>`
-        : "";
-      let countText = escape(
-        window.uiCount?.(records.length, "film", "films") ||
-          `${records.length} ${records.length === 1 ? "film" : "films"}`,
-      );
-      let sectionBody = "";
-      if (view === "list") {
-        // Standard collection rows (issue #136): the queue section is
-        // Order | Film | Tier and the watched section is Rank | Film |
-        // Rating - Position keeps the section's own meaning (project order
-        // vs all-time rank) and the director stays in Film metadata.
-        let rows = visible
-          .map((record, index) => {
-            let film = record.film;
-            let isQueue = record.status === "watchlist" || record.rewatch;
-            let directorHtml = window.renderLinkedDirectors(film, { escape });
-            let attributes = window.renderOrderEditItemAttributes(
-              {
-                enabled: reorder,
-                scope: "project-queue",
-                id: record.ref.id,
-                type: record.ref.type,
-                index,
-              },
-              escape,
-            );
-            let manageCell = manageFilms
-              ? `<td class="project-manage-cell">${window.renderCardRemoveButton({
-                  escape,
-                  title: ui("Remove {title}", {
-                    title: window.localizedFilmTitle?.(film) || film.title,
-                  }),
-                  attributes: {
-                    "data-remove-project-ref": record.ref.type,
-                    "data-remove-project-ref-id": record.ref.id,
-                  },
-                })}</td>`
-              : "";
-            return `<tr${attributes}><td class="leaderboard-position">${escape(isQueue ? record.ref?.projectOrder || "—" : film.allTimeRank || "—")}</td>${window.renderFilmIdentityCell(
-              film,
-              {
-                escape,
-                href: record.href,
-                year: true,
-                metaFragments: directorHtml ? [directorHtml] : [],
-              },
-            )}${window.renderRatingTierCell(
-              isQueue ? { item: record.item } : { film },
-              {
-                escape,
-                editHtml:
-                  isQueue && !record.item
-                    ? window.renderWatchlistTierBadge(film.rewatchTier, {
-                        escape,
-                      })
-                    : "",
-              },
-            )}${manageCell}</tr>`;
-          })
-          .join("");
-        sectionBody = `${orderControls}${window.renderPaginationControls({ total: records.length, page: pageState.page, pageSize, dataAttribute: pageAttribute, itemLabel: ui("films"), variant: "extended" })}<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(options.positionHeader || ui("Rank"))}</th><th>${escape(ui("Film"))}</th><th>${escape(options.valueHeader || ui("Rating"))}</th>${manageFilms ? `<th>${escape(ui("Manage"))}</th>` : ""}</tr></thead><tbody>${rows || `<tr><td colspan="${manageFilms ? 4 : 3}">${escape(emptyText)}</td></tr>`}</tbody></table></div>${window.renderPaginationControls({ total: records.length, page: pageState.page, pageSize, dataAttribute: pageAttribute, itemLabel: ui("films"), variant: "extended" })}`;
-      } else {
-        sectionBody = `${orderControls}${window.renderPaginationControls({ total: records.length, page: pageState.page, pageSize, dataAttribute: pageAttribute, itemLabel: ui("films"), variant: "extended" })}<div class="film-grid person-film-grid project-film-grid">${visible.map((record, index) => projectFilmCard(record, { reorder, index, manage: manageFilms })).join("") || `<p>${escape(emptyText)}</p>`}</div>${window.renderPaginationControls({ total: records.length, page: pageState.page, pageSize, dataAttribute: pageAttribute, itemLabel: ui("films"), variant: "extended" })}`;
-      }
-      if (options.collapsible) {
-        return `<details class="project-film-section project-film-section--history" open><summary class="project-section-heading"><span class="project-section-title" role="heading" aria-level="2">${escape(title)}</span><span>${countText}</span></summary>${sectionBody}</details>`;
-      }
-      return `<section class="project-film-section"><div class="project-section-heading"><h2>${escape(title)}</h2><span>${countText}</span></div>${sectionBody}</section>`;
-    }
-
-    function missingRefSection(refs) {
-      if (!refs?.length) return "";
-      let rows = refs
-        .map(
-          (ref) =>
-            `<tr><td>${escape(ref.type || "")}</td><td>${escape(ref.id || "")}</td><td><button type="button" data-remove-project-ref="${escape(ref.type || "")}" data-remove-project-ref-id="${escape(ref.id || "")}">${escape(ui("Remove"))}</button></td></tr>`,
-        )
-        .join("");
-      return `<section class="project-missing-section"><div class="project-section-heading"><h2>${escape(ui("Missing references"))}</h2><span>${escape(refs.length)} ${escape(ui("unresolved"))}</span></div><div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Type"))}</th><th>${escape(ui("Reference"))}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
-    }
-
-    async function saveProjectActionAndReload(options = {}) {
-      let saving = window.save?.(Object.assign({ immediate: true }, options));
-      if (saving?.then) await saving;
-      window.location.reload();
-    }
-
-    async function saveProjectAction(options = {}) {
-      let saving = window.save?.(Object.assign({ immediate: true }, options));
-      if (saving?.then) await saving;
-    }
-
-    function projectNextHtml(next) {
-      if (!next) return "";
-      let film = next.film;
-      let title = window.localizedFilmTitle?.(film) || film.title;
-      let directorHtml = window.renderLinkedDirectors(film, { escape });
-      let tier = next.item?.tier ?? film.rewatchTier;
-      let context = [
-        film.year ? escape(film.year) : "",
-        directorHtml,
-        tier ? `${escape(ui("Tier"))} ${escape(tier)}` : "",
-        next.rewatch ? escape(ui("Rewatch")) : "",
-      ]
-        .filter(Boolean)
-        .join(" · ");
-      return `<section class="project-next project-next--featured"><div class="project-next-poster">${window.renderFilmPoster(film, "card")}</div><div class="project-next-body"><p class="project-next-kicker">${escape(ui("Up next"))}</p><h2>${escape(title)}</h2>${context ? `<p>${context}</p>` : ""}<a class="button-link" href="${escape(next.href)}">${escape(ui("Open film"))}</a></div></section>`;
-    }
-
-    function deleteProjectDialogHtml() {
-      return `<dialog id="deleteProjectDialog" class="project-delete-dialog"><form method="dialog"><h2>${escape(ui("Delete project?"))}</h2><p>${escape(ui('Delete "{name}" permanently?', { name: project.name }))}</p><p>${escape(ui("The project, its note, local order, and dismissed-film history will be removed. Films, ratings, awards, and watchlist entries will not be changed."))}</p><div class="dialog-actions"><button type="button" data-delete-project-cancel>${escape(ui("Cancel"))}</button><button type="button" class="danger-button" data-delete-project-confirm>${escape(ui("Delete project"))}</button></div></form></dialog>`;
-    }
-
-    function bindProjectControls() {
-      container
-        .querySelector("[data-project-sort]")
-        ?.addEventListener("change", (event) => {
-          queueOrderEditMode = false;
-          window.location.href = window.prepareOskarsAccountNavigation(
-            projectUrl({
-              sort: event.target.value,
-              order: window.defaultOrderForProjectSort(event.target.value),
-              queuePage: 1,
-              watchedPage: 1,
-            }),
-          );
-        });
-      container
-        .querySelector("[data-project-queue-order-edit-toggle]")
-        ?.addEventListener("click", () => {
-          queueOrderEditMode = !queueOrderEditMode;
-          window.location.href = window.prepareOskarsAccountNavigation(
-            projectUrl({ sort: "project", queuePage: 1 }),
-          );
-        });
-      container
-        .querySelector("[data-project-manage-films]")
-        ?.addEventListener("click", () => {
-          manageFilms = !manageFilms;
-          window.location.href = window.prepareOskarsAccountNavigation(
-            projectUrl({ manage: manageFilms ? "films" : "" }),
-          );
-        });
-
-      container
-        .querySelectorAll("[data-project-queue-page]")
-        .forEach((button) => {
-          button.addEventListener("click", () => {
-            window.location.href = window.prepareOskarsAccountNavigation(
-              projectUrl({
-                queuePage: Number(button.dataset.projectQueuePage) || 1,
-              }),
-            );
-          });
-        });
-
-      container
-        .querySelectorAll("[data-project-watched-page]")
-        .forEach((button) => {
-          button.addEventListener("click", () => {
-            window.location.href = window.prepareOskarsAccountNavigation(
-              projectUrl({
-                watchedPage: Number(button.dataset.projectWatchedPage) || 1,
-              }),
-            );
-          });
-        });
-
-      container
-        .querySelector("[data-active-project]")
-        ?.addEventListener("click", async (event) => {
-          window.setActiveProject?.(event.currentTarget.dataset.activeProject, {
-            save: false,
-          });
-          await saveProjectActionAndReload({ rebuild: false });
-        });
-      container
-        .querySelector("[data-refresh-project]")
-        ?.addEventListener("click", async (event) => {
-          window.refreshProjectFromSource?.(
-            event.currentTarget.dataset.refreshProject,
-            { save: false },
-          );
-          await saveProjectActionAndReload();
-        });
-      container
-        .querySelector("[data-project-tier-filter]")
-        ?.addEventListener("change", (event) => {
-          window.location.href = window.prepareOskarsAccountNavigation(
-            projectUrl({ tier: event.target.value, queuePage: 1 }),
-          );
-        });
-      container
-        .querySelector("[data-restore-project-dismissed]")
-        ?.addEventListener("click", async () => {
-          window.clearProjectDismissedRefs?.(project.id, { save: false });
-          window.refreshProjectFromSource?.(project.id, { save: false });
-          await saveProjectActionAndReload();
-        });
-      container
-        .querySelector("[data-pin-project]")
-        ?.addEventListener("click", async (event) => {
-          window.setProjectPinned?.(
-            event.currentTarget.dataset.pinProject,
-            !project.pinned,
-            { save: false },
-          );
-          await saveProjectActionAndReload({ rebuild: false });
-        });
-      container.querySelectorAll("[data-project-status]").forEach((button) => {
-        button.addEventListener("click", async () => {
-          window.setProjectStatus?.(project.id, button.dataset.projectStatus, {
-            save: false,
-          });
-          await saveProjectActionAndReload({ rebuild: false });
-        });
-      });
-      container
-        .querySelectorAll("[data-remove-project-ref]")
-        .forEach((button) => {
-          button.addEventListener("click", async () => {
-            window.removeProjectFilmRef?.(
-              project.id,
-              button.dataset.removeProjectRef,
-              button.dataset.removeProjectRefId,
-              { save: false },
-            );
-            await saveProjectAction({ rebuild: false });
-            renderProjectPage();
-          });
-        });
-      let deleteDialog = container.querySelector("#deleteProjectDialog");
-      container
-        .querySelector("[data-delete-project]")
-        ?.addEventListener("click", () => deleteDialog?.showModal());
-      container
-        .querySelector("[data-delete-project-cancel]")
-        ?.addEventListener("click", () => deleteDialog?.close());
-      container
-        .querySelector("[data-delete-project-confirm]")
-        ?.addEventListener("click", async () => {
-          if (!window.deleteProject?.(project.id, { save: false })) return;
-          await saveProjectAction({ rebuild: false });
-          window.location.href = window.prepareOskarsAccountNavigation(
-            "projects.html",
-          );
-        });
-    }
-
-    function renderProjectPage() {
-      let finishRenderTimer = window.startOskarsPerformance?.("project:render");
-
-      if (!project) {
-        document.title = `${ui("Project not found")} · The Oskars`;
-        container.innerHTML = `<div class="detail-empty"><h1>${escape(ui("Project not found"))}</h1><a href="projects.html">${escape(ui("Browse projects"))}</a></div>`;
-        finishRenderTimer?.("not found");
-        return;
-      }
-
-      let progress = window.projectProgress(project);
-      let records = window.sortProjectRecords(
-        progress.records,
-        sort,
-        shuffleSeed,
-        order,
-      );
-      // The queue also includes already-watched films marked for rewatch
-      // (issue #180), alongside genuinely unwatched refs.
-      let allQueueRecords = records.filter(
-        (record) => record.status === "watchlist" || record.rewatch,
-      );
-      function queueRecordTier(record) {
-        return window.normalizeWatchlistTier?.(
-          record.item?.tier ?? record.film?.rewatchTier,
-        );
-      }
-      // Queue tier filter (issue #11): narrow the unwatched queue to one interest
-      // tier; the watched section is unaffected.
-      let queueTiers = [
-        ...new Set(allQueueRecords.map(queueRecordTier).filter(Boolean)),
-      ].sort(
-        (left, right) =>
-          window.watchlistTierRank(left) - window.watchlistTierRank(right),
-      );
-      let queueRecords = tierFilter
-        ? allQueueRecords.filter(
-            (record) => queueRecordTier(record) === tierFilter,
-          )
-        : allQueueRecords;
-      let watchedRecords = records.filter(
-        (record) => record.status === "watched",
-      );
-      let queuePagination = window.paginationState(
-        queueRecords.length,
-        queuePage,
-        pageSize,
-      );
-      let watchedPagination = window.paginationState(
-        watchedRecords.length,
-        watchedPage,
-        pageSize,
-      );
-      queuePage = queuePagination.page;
-      watchedPage = watchedPagination.page;
-      let sourceHref = window.projectSourceHref(project);
-      let isActiveProject = project.id === state.activeProjectId;
-      let status = ["archived", "complete"].includes(project.status)
-        ? project.status
-        : "active";
-      let next = status === "active" ? progress.next : null;
-      let nextNotice =
-        status === "complete"
-          ? `<section class="project-next project-next--notice"><h2>${escape(ui("Closed"))}</h2><p>${escape(ui("This project is marked complete. Reopen it to put it back in the open queue."))}</p></section>`
-          : status === "archived"
-            ? `<section class="project-next project-next--notice"><h2>${escape(ui("Archived"))}</h2><p>${escape(ui("This project is paused and hidden from the default project hub."))}</p></section>`
-            : "";
-      let representativeFilm = window.projectRepresentativeFilm?.(progress);
-      let representativePoster = representativeFilm
-        ? window.renderFilmPoster(representativeFilm, "detail")
-        : "";
-      let dismissedCount = project.dismissedRefs?.length || 0;
-      let dismissedNotice = dismissedCount
-        ? `<p class="project-dismissed-note">${escape(ui("{count} removed film(s) stay out when refreshing from source.", { count: dismissedCount }))} <button type="button" class="button-link" data-restore-project-dismissed>${escape(ui("Restore removed films"))}</button></p>`
-        : "";
-      let tierFilterControl =
-        queueTiers.length > 1 || tierFilter
-          ? `<label class="project-tier-filter">${escape(ui("Queue tier"))} <select data-project-tier-filter><option value="">${escape(ui("All tiers"))}</option>${queueTiers.map((tier) => `<option value="${escape(tier)}"${tier === tierFilter ? " selected" : ""}>${escape(tier)}</option>`).join("")}${tierFilter && !queueTiers.includes(tierFilter) ? `<option value="${escape(tierFilter)}" selected>${escape(tierFilter)}</option>` : ""}</select></label>`
-          : "";
-      let statusActionHtml = [
-        project.sourceType && project.sourceId
-          ? `<button type="button" class="button-link" data-refresh-project="${escape(project.id)}">${escape(ui("Refresh from source"))}</button>`
+    let film = record.film;
+    let missingEditable = editable && record.status === "missing";
+    return window.renderSharedFilmCard(film, {
+      classes: [
+        "project-film-card",
+        missingEditable ? "watchlist-order-card" : "",
+      ],
+      attributes: window.orderEditItemAttributes({
+        enabled: missingEditable,
+        scope: "queue",
+        id: film.supabaseFilmId,
+        index,
+        group: "queue",
+      }),
+      showYear: true,
+      escape,
+      director: film.director,
+      bodyHtml:
+        record.status === "missing"
+          ? `<div class="leaderboard-meta">${escape(ui("Not in your collection yet"))}</div>`
           : "",
-        `<button type="button" class="button-link" data-pin-project="${escape(project.id)}">${escape(project.pinned ? ui("Unpin") : ui("Pin"))}</button>`,
-        status === "archived"
-          ? `<button type="button" class="button-link" data-project-status="active">${escape(ui("Unarchive"))}</button>`
-          : `<button type="button" class="button-link" data-project-status="archived">${escape(ui("Archive"))}</button>`,
-        status === "complete"
-          ? `<button type="button" class="button-link" data-project-status="active">${escape(ui("Reopen"))}</button>`
-          : `<button type="button" class="button-link" data-project-status="complete">${escape(ui("Close as complete"))}</button>`,
-      ]
-        .filter(Boolean)
-        .join("");
-      let progressSummary = `<div class="project-journey-progress"><div class="project-journey-progress-copy"><strong>${escape(progress.percent)}%</strong><span>${escape(progress.watchedCount)}/${escape(progress.total)} ${escape(ui("watched"))} · ${escape(progress.watchlistCount)} ${escape(ui("queued"))}</span></div><div class="project-progress-meter project-progress-meter--detail" aria-label="${escape(ui("{percent} percent complete", { percent: progress.percent }))}"><span style="width:${escape(progress.percent)}%"></span></div></div>`;
-      let manageModeNotice = manageFilms
-        ? `<div class="project-manage-mode"><span>${escape(ui("Film management is on. Remove controls are visible."))}</span><button type="button" class="button-link" data-project-manage-films>${escape(ui("Finish managing"))}</button></div>`
-        : "";
-      let projectManagementHtml = canEdit
-        ? `<details class="project-management"${manageFilms ? " open" : ""}><summary><span class="project-section-title" role="heading" aria-level="2">${escape(ui("Project management"))}</span><span>${escape(ui("Refresh, lifecycle, films, and deletion"))}</span></summary><div class="project-management-body"><div class="project-management-actions">${statusActionHtml}<button type="button" class="button-link" data-project-manage-films>${escape(ui(manageFilms ? "Finish managing films" : "Manage films"))}</button><button type="button" class="danger-button" data-delete-project>${escape(ui("Delete project"))}</button></div>${dismissedNotice}${missingRefSection(progress.missingRefs)}</div></details>`
-        : "";
-      document.title = `${project.name} · The Oskars`;
-      container.innerHTML = `${window.renderBreadcrumbs(
-        [
-          { label: ui("Projects"), href: "projects.html" },
-          { label: project.name },
-        ],
-        { escape },
-      )}
-  ${window.renderDetailHeader({ classes: "project-detail-header", leadingHtml: representativePoster ? `<div class="project-detail-poster">${representativePoster}</div>` : "", mainHtml: `<h1>${escape(project.name)}</h1><p>${sourceHref ? `<a href="${escape(sourceHref)}">${escape(project.sourceLabel || project.sourceId)}</a>` : escape(project.sourceLabel || "")}</p>${projectBadges(status, isActiveProject)}${progressSummary}`, actionsHtml: isActiveProject ? "" : `<button type="button" class="button-link" data-active-project="${escape(project.id)}">${escape(ui("Make active"))}</button>` })}
-  ${window.renderDetailStats({ classes: "project-stats project-rating-stats", itemsHtml: window.renderRatingStatisticsItems(progress.ratingStatistics, { escape, ui }) })}
-  ${window.renderEntityNote("projects", project.id, ui("Project note"))}
-  ${projectNextHtml(next)}
-  ${nextNotice}
-  ${manageModeNotice}
-  <div class="detail-toolbar"><div class="detail-toolbar-controls">${window.renderSortAxisControl(
-    {
+    });
+  }
+
+  function itemRow(record, index = 0, editable = false) {
+    if (record.status === "watchlist") {
+      let item = record.item;
+      let film = window.watchlistFilmLike(item);
+      let attributes = window.renderOrderEditItemAttributes(
+        {
+          enabled: editable,
+          scope: "queue",
+          id: item.supabaseFilmId,
+          index,
+          group: "queue",
+        },
+        escape,
+      );
+      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", item.year))}">${escape(item.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, href: window.filmPageUrl(item.supabaseFilmId) })}${window.renderRatingTierCell({ item }, { escape })}</tr>`;
+    }
+    let film = record.film;
+    let missingEditable = editable && record.status === "missing";
+    let attributes = window.renderOrderEditItemAttributes(
+      {
+        enabled: missingEditable,
+        scope: "queue",
+        id: film.supabaseFilmId,
+        index,
+        group: "queue",
+      },
+      escape,
+    );
+    return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}${record.status === "missing" ? `<td>${escape(ui("Not in your collection yet"))}</td>` : window.renderRatingTierCell({ film }, { escape })}</tr>`;
+  }
+
+  function render() {
+    if (!project) {
+      document.title = `${ui("Project not found")} · The Oskars`;
+      container.innerHTML = `<div class="detail-empty"><h1>${escape(ui("Project not found"))}</h1><a href="projects.html">${escape(ui("Browse projects"))}</a></div>`;
+      return;
+    }
+    document.title = `${project.name} · The Oskars`;
+    let finishRenderTimer = window.startOskarsPerformance?.("project:render");
+    let watched = items.filter((record) => record.status === "watched");
+    let queue = items
+      .filter((record) => record.status !== "watched")
+      .sort(recordCompare);
+    let sortedWatched = [...watched].sort(recordCompare);
+    let ratingStatistics = window.collectionRatingStatistics(
+      watched.map((record) => record.film),
+    );
+    let total = items.length;
+    let percent = total ? Math.round((watched.length / total) * 100) : 0;
+
+    let sortAxisControl = window.renderSortAxisControl({
       escape,
       value: sort === "shuffle" ? "" : sort,
       attribute: "data-project-sort",
       axes: [
-        { value: "project", label: "Project order" },
-        { value: "title", label: "Title" },
-        { value: "tier", label: "Watchlist tier" },
         { value: "year", label: "Release year" },
-        { value: "rank", label: "All-time rank" },
+        { value: "title", label: "Title" },
         { value: "rating", label: "Rating" },
-        { value: "wins", label: "Wins" },
-        { value: "nominations", label: "Nominations" },
-        { value: "score", label: "Score" },
       ],
-    },
-  )}${window.renderChronologyControl({ order, href: projectUrl({ sort: sort === "shuffle" ? "project" : sort, order: order === "asc" ? "desc" : "asc", queuePage: 1, watchedPage: 1 }), escape, iconOnly: true, title: ui("Reverse current order") })}${window.renderShuffleControl({ href: projectUrl({ sort: "shuffle", seed: window.freshShuffleSeed(), queuePage: 1, watchedPage: 1 }), escape, label: ui("Shuffle") })}${tierFilterControl}</div>${window.renderFilmViewToggle(
-    {
-      view,
-      listUrl: projectUrl({ view: "list", queuePage: 1, watchedPage: 1 }),
-      gridUrl: projectUrl({ view: "grid", queuePage: 1, watchedPage: 1 }),
-      escape,
-      classes: "project-film-view-toggle",
-      ariaLabel: ui("Project film display"),
-    },
-  )}</div>
-  ${projectSection(ui("Queue"), queueRecords, queuePagination, "data-project-queue-page", tierFilter ? ui("No queued films in this tier.") : ui("No unwatched or rewatch-marked films in this project."), { canReorder: sort === "project" && !tierFilter && queueRecords.length > 1, reorder: queueOrderEditMode, positionHeader: ui("Order"), valueHeader: ui("Tier") })}
-  ${projectSection(ui("Watched"), watchedRecords, watchedPagination, "data-project-watched-page", ui("No watched films in this project yet."), { positionHeader: ui("Rank"), valueHeader: ui("Rating"), collapsible: true })}
-  ${projectManagementHtml}
-  ${deleteProjectDialogHtml()}`;
+    });
+    let reverseTargetSort = sort === "shuffle" ? "year" : sort;
+    let toolbarHtml = `<div class="project-toolbar collection-film-toolbar detail-toolbar"><div class="detail-toolbar-controls">${sortAxisControl}${window.renderChronologyControl({ order, href: projectViewUrl({ sort: reverseTargetSort, order: order === "asc" ? "desc" : "asc" }), escape, iconOnly: true })}${window.renderShuffleControl({ href: projectViewUrl({ sort: "shuffle", seed: window.freshShuffleSeed() }), escape, label: ui("Shuffle") })}</div>${window.renderFilmViewToggle({ view: filmView, listUrl: projectViewUrl({ view: "list" }), gridUrl: projectViewUrl({ view: "grid" }), escape, ariaLabel: ui("Project display") })}</div>`;
 
-      bindProjectControls();
-      finishRenderTimer?.(
-        `${queueRecords.length} queue, ${watchedRecords.length} watched`,
-      );
+    let queueCards = queue
+      .map((record, index) => itemCard(record, index, queueEditMode))
+      .join("");
+    let queueRows = queue
+      .map((record, index) => itemRow(record, index, queueEditMode))
+      .join("");
+    let watchedCards = sortedWatched.map((record) => itemCard(record)).join("");
+    let watchedRows = sortedWatched.map((record) => itemRow(record)).join("");
+
+    let queueControls =
+      queue.length > 1
+        ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-project-queue-edit-toggle${busy ? " disabled" : ""}>${escape(ui(queueEditMode ? "Finish order" : "Reorder"))}</button>${queueEditMode ? `<span>${escape(ui("Drag to set this project's queue order."))}</span>` : ""}</div>`
+        : "";
+    let statusLabel =
+      project.status === "complete"
+        ? ui("Complete")
+        : project.status === "archived"
+          ? ui("Archived")
+          : ui("Active");
+    let statusButtons = ["active", "complete", "archived"]
+      .map(
+        (value) =>
+          `<button type="button" class="sort-order-button${project.status === value ? " is-active" : ""}" data-project-status="${escape(value)}"${busy ? " disabled" : ""}>${escape(ui(value === "active" ? "Active" : value === "complete" ? "Complete" : "Archived"))}</button>`,
+      )
+      .join("");
+
+    container.innerHTML = `${window.renderBreadcrumbs([{ label: ui("Projects"), href: "projects.html" }, { label: project.name }], { escape })}${window.renderDetailHeader(
+      {
+        mainHtml: `<h1>${escape(project.name)}</h1><p>${project.source_label ? escape(project.source_label) : escape(ui("Custom project"))} · <span class="project-status-badge">${escape(statusLabel)}</span></p>`,
+        actionsHtml: `<button type="button" class="sort-order-button" data-pin-project${busy ? " disabled" : ""}>${escape(ui(project.pinned ? "Unpin" : "Pin"))}</button>`,
+      },
+    )}
+    ${window.renderDetailStats({ itemsHtml: `<span><b>${watched.length}</b> ${escape(ui("Watched"))}</span><span><b>${queue.length}</b> ${escape(ui("Queue"))}</span><span><b>${total}</b> ${escape(ui("Total"))}</span><span><b>${percent}%</b> ${escape(ui("Complete"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}
+    ${window.renderSupabaseEntityNote({ entityKind: "project", entityKey: project.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, label: ui("Project note"), escape })}
+    <div class="project-progress-meter project-progress-meter--detail" aria-label="${escape(ui("{percent} percent complete", { percent }))}"><span style="width:${escape(percent)}%"></span></div>
+    <div class="period-edit-controls">${statusButtons}</div>
+    <h2>${escape(ui("Queue"))}</h2>${toolbarHtml}${queueControls}${
+      filmView === "grid"
+        ? `<div class="film-grid project-film-grid">${queueCards || `<p>${escape(ui("No films"))}</p>`}</div>`
+        : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))} / ${escape(ui("Tier"))}</th></tr></thead><tbody>${queueRows || `<tr><td colspan="4">${escape(ui("No films"))}</td></tr>`}</tbody></table></div>`
     }
+    ${watched.length ? `<h2>${escape(ui("Watched"))}</h2>${filmView === "grid" ? `<div class="film-grid project-film-grid">${watchedCards}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))}</th></tr></thead><tbody>${watchedRows}</tbody></table></div>`}` : ""}
+    <section class="project-manage" data-project-manage>
+      <h2>${escape(ui("Manage"))}</h2>
+      <ul class="project-manage-list">${items
+        .map(
+          (record) =>
+            `<li>${escape((record.film || record.item).title)} <button type="button" class="sort-order-button" data-remove-project-item="${escape((record.film || record.item).supabaseFilmId)}"${busy ? " disabled" : ""}>${escape(ui("Remove"))}</button></li>`,
+        )
+        .join("")}</ul>
+      <button type="button" class="sort-order-button" data-delete-project${busy ? " disabled" : ""}>${escape(ui("Delete project"))}</button>
+      <dialog id="deleteProjectDialog">
+        <form method="dialog">
+          <h2>${escape(ui("Delete this project?"))}</h2>
+          <p>${escape(ui("This permanently removes the project. Films stay in your collection."))}</p>
+          <div class="dialog-actions"><button type="button" data-delete-project-cancel>${escape(ui("Cancel"))}</button><button type="button" data-delete-project-confirm>${escape(ui("Delete"))}</button></div>
+        </form>
+      </dialog>
+    </section>`;
 
+    container
+      .querySelector("[data-project-sort]")
+      ?.addEventListener("change", (event) => {
+        window.location.href = projectViewUrl({
+          sort: event.target.value,
+          order: window.defaultOrderForFilmAxis(event.target.value),
+        });
+      });
+    container
+      .querySelector("[data-project-queue-edit-toggle]")
+      ?.addEventListener("click", () => {
+        queueEditMode = !queueEditMode;
+        window.location.href = projectViewUrl();
+      });
+    container
+      .querySelector("[data-pin-project]")
+      ?.addEventListener("click", async () => {
+        busy = true;
+        render();
+        try {
+          await window.setSupabaseProjectPinned(project.id, !project.pinned);
+          project.pinned = !project.pinned;
+        } catch (err) {
+          alert(err.message || String(err));
+        } finally {
+          busy = false;
+          render();
+        }
+      });
+    container.querySelectorAll("[data-project-status]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        let status = button.dataset.projectStatus;
+        busy = true;
+        render();
+        try {
+          await window.setSupabaseProjectStatus(project.id, status);
+          project.status = status;
+        } catch (err) {
+          alert(err.message || String(err));
+        } finally {
+          busy = false;
+          render();
+        }
+      });
+    });
+    container
+      .querySelectorAll("[data-remove-project-item]")
+      .forEach((button) => {
+        button.addEventListener("click", async () => {
+          let filmId = button.dataset.removeProjectItem;
+          busy = true;
+          render();
+          try {
+            await window.removeSupabaseCollectionItem(project.id, filmId);
+            items = items.filter(
+              (record) =>
+                (record.film || record.item).supabaseFilmId !== filmId,
+            );
+            rawItems = rawItems.filter((row) => row.film_id !== filmId);
+          } catch (err) {
+            alert(err.message || String(err));
+          } finally {
+            busy = false;
+            render();
+          }
+        });
+      });
+    let deleteDialog = container.querySelector("#deleteProjectDialog");
+    container
+      .querySelector("[data-delete-project]")
+      ?.addEventListener("click", () => deleteDialog?.showModal());
+    container
+      .querySelector("[data-delete-project-cancel]")
+      ?.addEventListener("click", () => deleteDialog?.close());
+    container
+      .querySelector("[data-delete-project-confirm]")
+      ?.addEventListener("click", async () => {
+        try {
+          await window.deleteSupabaseCollection(project.id);
+          window.location.href = "projects.html";
+        } catch (err) {
+          alert(err.message || String(err));
+        }
+      });
     window.createOrderEditController({
       container,
-      scope: "project-queue",
-      enabled: () => queueOrderEditMode,
-      commit: (from, target, position) =>
-        window.moveProjectQueueRef?.(
+      scope: "queue",
+      enabled: () => queueEditMode,
+      commit: async (from, target, position) => {
+        let ids = queue.map(
+          (record) => (record.film || record.item).supabaseFilmId,
+        );
+        let fromIndex = ids.indexOf(from.id);
+        let toIndex = ids.indexOf(target.id);
+        if (fromIndex < 0 || toIndex < 0)
+          return { ok: false, reason: "Both films must exist in the queue." };
+        let beforeId =
+          position === "after" ? target.id : ids[toIndex - 1] || null;
+        let afterId =
+          position === "after" ? ids[toIndex + 1] || null : target.id;
+        await window.moveSupabaseCollectionItem(
           project.id,
-          from.type,
           from.id,
-          target.type,
-          target.id,
-          position,
-          { save: false },
-        ),
-      rerender: async () => {
-        await saveProjectAction({ rebuild: false });
-        renderProjectPage();
+          rawItems,
+          beforeId,
+          afterId,
+        );
+        return { ok: true };
       },
+      rerender: reload,
     });
-    renderProjectPage();
-    window.bindEntityNoteEditor(container);
-  } catch (err) {
-    let finishErrorRenderTimer =
-      window.startOskarsPerformance?.("project:render");
-    console.error("Failed to render project page", err);
-    document.title = `${ui("Project error")} · The Oskars`;
-    container.innerHTML = `<div class="detail-empty"><h1>${escape(ui("Could not load project"))}</h1><p>${escape(err?.message || String(err))}</p><a href="projects.html">${escape(ui("Browse projects"))}</a></div>`;
-    finishErrorRenderTimer?.("error");
+    finishRenderTimer?.(
+      `${project.id}, ${watched.length} watched, ${queue.length} queue`,
+    );
   }
+
+  async function boot() {
+    let access = await window.resolveSupabaseAccountGate();
+    if (!access.allowed) {
+      window.renderSupabaseAccountGate(access, container);
+      return;
+    }
+    window.bindSupabaseEntityNoteEditor({
+      container,
+      entityKind: "project",
+      entityKey: projectId,
+      state: noteState,
+      rerender: render,
+    });
+    try {
+      let result = await window.loadSupabaseProject(projectId);
+      if (!result) {
+        render();
+        return;
+      }
+      project = result.project;
+      items = result.items;
+      rawItems = result.rawItems;
+      noteState.note = await window.loadSupabaseEntityNote(
+        "project",
+        project.id,
+      );
+      render();
+    } catch (error) {
+      container.innerHTML = `<section class="detail-empty"><h2>${escape(ui("Could not load this project"))}</h2><p>${escape(error.message || String(error))}</p></section>`;
+    }
+  }
+
+  boot();
 })();

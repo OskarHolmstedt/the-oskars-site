@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Supabase client test (not a real app page)</title>
+  </head>
+  <body>
+    <!--
+  Standalone verification harness for src/core/supabase-client.js
+  (issue #410) - deliberately NOT part of the app's real page routing
+  (no data-entry attribute, not loaded through entry-loader.js, not
+  linked from anywhere). Exists only to prove the client module actually
+  works in a real browser before it's ever wired into a real page at
+  stage 5's cutover. Safe to delete once that wiring happens for real and
+  this harness's job is done.
+-->
+    <h1>Supabase client test</h1>
+    <pre id="status">loading…</pre>
+    <p>Click the button below to test real Google sign-in. Success or
+      failure both appear as new lines above - nothing happens silently.</p>
+    <div id="google-button"></div>
+
+    <script>
+      // Defined before supabase-client.js loads so reportSupabaseError()'s
+      // call to this becomes a visible line here, instead of only ever
+      // reaching the devtools console (this harness has no app chrome to
+      // define the real one) - a real sign-in failure (nonce mismatch,
+      // provider misconfigured, etc.) needs to be visible on the page
+      // itself, not just assumed absent because nothing printed.
+      window.showStorageStatus = function (message, kind) {
+        window.__oskarsHarnessLog?.("STATUS (" + kind + "): " + message);
+      };
+    </script>
+    <script src="supabase.config.js"></script>
+    <script src="src/core/supabase-client.js"></script>
+    <script>
+      async function run() {
+        let status = document.getElementById("status");
+        let lines = [];
+        function log(line) {
+          lines.push(line);
+          status.textContent = lines.join("\n");
+        }
+        window.__oskarsHarnessLog = log;
+
+        log("configured: " + window.oskarsSupabaseConfigured());
+
+        let ready = await window.ensureSupabaseClient();
+        log("client created: " + Boolean(ready?.client));
+
+        let authState = await window.resolveSupabaseAuthState({
+          timeoutMs: 8000,
+        });
+        log("auth state: " + JSON.stringify(authState));
+
+        // Reports real sign-in/sign-out as it happens, so clicking the
+        // real button below produces a visible result either way, not
+        // just a page that looks the same before and after clicking it.
+        window.onSupabaseAuthChange((user, meta) => {
+          log(
+            "auth change: " +
+              (user ? `signed in as ${user.email}` : "signed out") +
+              " (deliberate: " +
+              meta.deliberate +
+              ")",
+          );
+        });
+
+        // Nonce path verification (issue: Supabase's Google provider
+        // checks the ID token's nonce claim, the client wasn't sending
+        // one). Runs into a detached, never-rendered container with a
+        // stubbed Google Identity Services and a fake client id, entirely
+        // before the real GIS script ever loads - so it can't clobber the
+        // real, clickable button rendered further down.
+        let realClientId = window.OSKARS_SUPABASE_CONFIG.googleWebClientId;
+        let capturedConfigs = [];
+        window.google = {
+          accounts: {
+            id: {
+              initialize: (cfg) => capturedConfigs.push(cfg),
+              renderButton: () => {},
+            },
+          },
+        };
+        window.OSKARS_SUPABASE_CONFIG.googleWebClientId = "test-client-id";
+        let throwaway = document.createElement("div");
+        await window.renderGoogleSignInButtonForSupabase(throwaway);
+        await window.renderGoogleSignInButtonForSupabase(throwaway);
+        let [first, second] = capturedConfigs;
+        let nonceLooksHashed =
+          /^[0-9a-f]{64}$/.test(first?.nonce) &&
+          /^[0-9a-f]{64}$/.test(second?.nonce);
+        let nonceFreshPerRender = first?.nonce !== second?.nonce;
+        log(
+          "nonce sent to Google looks like a sha256 hex digest: " +
+            nonceLooksHashed,
+        );
+        log(
+          "nonce is fresh on every render (not reused): " +
+            nonceFreshPerRender,
+        );
+        delete window.google;
+        window.OSKARS_SUPABASE_CONFIG.googleWebClientId = realClientId;
+
+        // The real, clickable button - rendered last so the stub above
+        // never touches it. loadGoogleIdentityScript() sees window.google
+        // is gone and loads the real Google Identity Services script for
+        // real, against the real client id.
+        await window.renderGoogleSignInButtonForSupabase(
+          document.getElementById("google-button"),
+        );
+        log(
+          "real sign-in button rendered: " +
+            Boolean(window.google?.accounts?.id),
+        );
+
+        log("DONE - click the button above to test real sign-in");
+      }
+      run().catch((err) => {
+        document.getElementById("status").textContent =
+          "ERROR: " + (err?.message || err);
+        console.error(err);
+      });
+    </script>
+  </body>
+</html>

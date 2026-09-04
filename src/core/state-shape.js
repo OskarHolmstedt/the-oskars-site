@@ -59,7 +59,16 @@
  * A canonical archive film. Stored in source period records
  * (`state.years[key].films`) and indexed into the derived `state.filmsById`.
  * @typedef {Object} FilmRecord
- * @property {string} id Usually `${year}::${normalized title}`.
+ * @property {string} id The real Supabase `films.id` UUID once known
+ *   (issue #454), preferred everywhere over the legacy
+ *   `${year}::${normalized title}` primitive `makeFilmId()` still
+ *   produces as a placeholder for records with no Supabase id yet
+ *   (offline import preview, before a `find_or_create_film()`
+ *   round-trip). Stable across a title/year correction once real.
+ * @property {string} [supabaseFilmId] The real Supabase `films.id` UUID,
+ *   tracked separately from `id` for records still on the legacy id
+ *   (import preview, or a canonical record that predates learning its
+ *   real id) - `addFilmToStore()` adopts it as `id` once known.
  * @property {string} title
  * @property {string} [normalizedTitle] Cached `normalizeTitle(title)`.
  * @property {string} year Four-digit year as a string.
@@ -376,9 +385,9 @@
  * Derived progress for one release year in the Build your Oskars journey.
  * @typedef {Object} BuildYearProgress
  * @property {string} year
- * @property {FilmRecord[]} archiveFilms Ranked/award-eligible films.
- * @property {WatchedOtherEntry[]} otherFilms Rating-only standalone works.
- * @property {FilmRecord[]} ratingFilms All unique watched records rated here.
+ * @property {SupabaseFilmRow[]} archiveFilms Award-eligible watched films.
+ * @property {SupabaseFilmRow[]} otherFilms Retained compatibility field; empty in Supabase.
+ * @property {SupabaseFilmRow[]} ratingFilms All watched films rated here.
  * @property {number} totalCount
  * @property {number} ratedCount
  * @property {number} ratingPercent
@@ -392,8 +401,63 @@
  * @property {number} awardPercent
  * @property {boolean} awardStarted
  * @property {boolean} awardComplete
- * @property {FilmRecord[]} posterFilms Representative poster-deck records.
+ * @property {SupabaseFilmRow[]} posterFilms Representative poster-deck records.
  * @property {'rating'|'ranking'|'awards'|'complete'} stage Next useful stage.
+ */
+
+/**
+ * A shared-catalog film joined into a Supabase workflow query.
+ * @typedef {Object} SupabaseFilmRow
+ * @property {string} id
+ * @property {string} title
+ * @property {number|null} year
+ * @property {string|null} poster_url
+ */
+
+/**
+ * A private watched row joined with its shared-catalog film.
+ * @typedef {Object} SupabaseWatchedRow
+ * @property {string} id
+ * @property {string} film_id
+ * @property {number|null} rating
+ * @property {string|null} rating_modifier
+ * @property {string|null} date_watched
+ * @property {string|null} platform
+ * @property {number|null} views
+ * @property {SupabaseFilmRow} films
+ */
+
+/**
+ * A durable Supabase watched-film Intake joined with its watched row.
+ * @typedef {Object} SupabaseIntakeWorkflow
+ * @property {string} id
+ * @property {string} watched_id
+ * @property {number} version
+ * @property {'fresh'|'watchlist'} source
+ * @property {Object} steps Versioned rating, progressive-ranking, and four-level awards decisions.
+ * @property {string|null} summary
+ * @property {string|null} completed_at
+ * @property {string} created_at
+ * @property {string} updated_at Optimistic-concurrency token.
+ * @property {SupabaseWatchedRow} watched
+ */
+
+/**
+ * One film in a Supabase ranking.
+ * @typedef {Object} SupabaseRankingEntry
+ * @property {string} film_id
+ * @property {string} position
+ * @property {boolean} rank_confirmed
+ * @property {SupabaseFilmRow} films
+ */
+
+/**
+ * A durable annual-category outcome in Supabase.
+ * @typedef {Object} SupabaseAwardReview
+ * @property {number} year
+ * @property {string} category
+ * @property {'complete'|'none'} status
+ * @property {string} reviewed_at
  */
 
 /**
@@ -1058,7 +1122,7 @@
  *   Explicit annual ballot completion, including reviewed-none categories.
  * @property {OpinionRebuildSession|null} opinionRebuildSession Private baseline
  *   retained while the owner rebuilds the active opinion layer blind.
- * @property {{baseRevision: string, dirty: boolean, changedAt?: string, reason?: string, publishedRevision?: string, reconciliationStatus?: string, requiredAction?: string, lastCanonicalCheckAt?: string, publication?: PublicationAttempt, remoteSync?: WorkspaceRemoteSync, pushHeld?: boolean}|null} draftMetadata Local-change marker, legacy canonical-reconciliation metadata, and account-bound sync baseline. Always null for a public-profile viewer state (issue #256) - that state is never a private draft. The optional `publication` field is backward-compatible legacy state, not a current workflow. `pushHeld` (issue #384) holds automatic cloud push (not pull) until an explicit manual sync or conflict resolution - set only by clearStoredOskarsData({keepRemoteSync: true}), cleared automatically by performWorkspaceSync the moment anything actually pushes.
+ * @property {{baseRevision: string, dirty: boolean, changedAt?: string, reason?: string, publishedRevision?: string, reconciliationStatus?: string, requiredAction?: string, lastCanonicalCheckAt?: string, publication?: PublicationAttempt, remoteSync?: WorkspaceRemoteSync, pushHeld?: boolean}|null} draftMetadata Local-change marker and legacy canonical-reconciliation/Firestore-sync metadata. Always null for a public-profile viewer state (issue #256) - that state is never a private draft. `publication`/`remoteSync`/`pushHeld` are backward-compatible legacy fields, never written by current code (the reconciliation and Firestore-sync engines that wrote them are retired) - kept only so an old already-persisted workspace or JSON backup still hydrates without loss.
  * @property {boolean} isPublicProfileView Set by `hydratePublicProfileState()`
  *   (issue #256) when state was hydrated from another owner's published
  *   public-profile document rather than a private canonical/workspace
@@ -1231,12 +1295,16 @@ window.getSerializableState = function () {
     entityNotes: window.state.entityNotes,
     localRanks: window.state.localRanks,
     rejectedPersonAliases: window.state.rejectedPersonAliases,
-    declinedOfficialWatchlistAdds: window.state.declinedOfficialWatchlistAdds || [],
+    declinedOfficialWatchlistAdds:
+      window.state.declinedOfficialWatchlistAdds || [],
     watchlist: window.state.watchlist,
     watchedOther: window.state.watchedOther || [],
     intakeWorkflows: window.state.intakeWorkflows || [],
     rankingReviews: window.state.rankingReviews || {
-      years: {}, decades: {}, centuries: {}, allTime: {},
+      years: {},
+      decades: {},
+      centuries: {},
+      allTime: {},
     },
     awardReviews: window.state.awardReviews || { years: {} },
     opinionRebuildSession: window.state.opinionRebuildSession || null,
@@ -1347,7 +1415,9 @@ window.canonicalDataRevision = function (canonical) {
     if (typeof value === "string") value = value.replace(/\r\n?/g, "\n");
     if (Object.is(value, -0)) value = 0;
     let serialized = JSON.stringify(value);
-    append(serialized === undefined && arrayEntry ? "null" : serialized || "null");
+    append(
+      serialized === undefined && arrayEntry ? "null" : serialized || "null",
+    );
   }
   visit(canonical);
   return `fnv1a32:${(hash >>> 0).toString(16)}:${length}`;
@@ -1360,7 +1430,9 @@ window.canonicalDataRevision = function (canonical) {
  * @returns {boolean} Whether dirty.
  */
 window.canonicalDraftDiffersFromBase = function (canonical, baseRevision) {
-  return !baseRevision || window.canonicalDataRevision(canonical) !== baseRevision;
+  return (
+    !baseRevision || window.canonicalDataRevision(canonical) !== baseRevision
+  );
 };
 
 /**
@@ -1408,7 +1480,7 @@ function buildDraftMetadata(existing, baseRevision, defaultReason) {
     // published-canonical adoption is a different data lineage, and
     // resetting remoteSync makes the next cloud sync pass treat it as a
     // fresh device (pulling the account's cloud copy back down, per
-    // docs/firestore-workspace-sync-decision.md's bootstrap rules) rather
+    // the legacy workspace-sync bootstrap rules) rather
     // than pushing the wipe/replacement up to the cloud.
     ...(existing.remoteSync
       ? { remoteSync: window.cloneRecord(existing.remoteSync) }
@@ -1457,9 +1529,15 @@ window.browserPersistenceToRuntimeState = function (stored) {
     let runtime = window.canonicalDataToRuntimeState(stored.draft.data);
     let migrations = stored.local?.migrations || {};
     let diagnostics = stored.local?.diagnostics || {};
-    return Object.assign(runtime, migrations, stored.preferences || {}, diagnostics, {
-      draftMetadata: window.cloneRecord(stored.draft.metadata || null),
-    });
+    return Object.assign(
+      runtime,
+      migrations,
+      stored.preferences || {},
+      diagnostics,
+      {
+        draftMetadata: window.cloneRecord(stored.draft.metadata || null),
+      },
+    );
   }
   let legacy = Object.assign({}, stored || {});
   let existing = legacy.draftMetadata || {};

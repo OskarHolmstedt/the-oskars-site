@@ -413,15 +413,6 @@ window.watchlistArchiveMatchCandidates = function (item, options = {}) {
 };
 
 /**
- * Builds the detail-page URL for a watchlist item.
- * @param {string} id Watchlist identifier.
- * @returns {string}
- */
-window.watchlistFilmPageUrl = function (id) {
-  return `watchlist-film.html?id=${encodeURIComponent(String(id || ""))}`;
-};
-
-/**
  * Projects a watchlist item and optional archive match into a film-like record.
  * @param {WatchlistItem} item Watchlist item.
  * @param {FilmRecord|null} [archiveFilm] Matching archive film.
@@ -1022,7 +1013,6 @@ window.setWatchlistTmdbMetadata = function (id, metadata, options = {}) {
   if (metadata.poster && (!item.poster || options.overwritePoster))
     item.poster = metadata.poster;
   window.markAggregatesDirty?.("watchlist metadata enriched");
-  window.pushSharedFilmMetadata?.(item, metadata);
   if (options.save !== false) window.save();
   return true;
 };

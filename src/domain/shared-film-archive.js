@@ -1,9 +1,8 @@
 /**
- * @file Client-side index over the shared film-metadata discovery archive
- * (`sharedArchive/sharedFilmMetadata`, published by
- * scripts/publish-shared-film-metadata-archive.mjs from the
- * `/sharedFilmMetadata/<tmdbId>` collection - see
- * docs/shared-film-discovery-decision.md). Lets director filmographies,
+ * @file Client-side index over the shared film catalog, built from
+ * Supabase's `films`/`credits` tables (`buildSharedFilmArchiveFromSupabase()`
+ * in src/domain/supabase-legacy-hydration.js) and applied once per
+ * hydration via `applySharedFilmArchive()`. Lets director filmographies,
  * period pages, and global search surface films other eligible accounts
  * have already shared, even when the viewer has never personally watched
  * or watchlisted them.
@@ -11,6 +10,7 @@
 
 window.OSKARS_SHARED_FILM_ARCHIVE = {};
 window.OSKARS_SHARED_FILM_ARCHIVE_BY_DIRECTOR = {};
+window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID = {};
 window.OSKARS_SHARED_FILM_ARCHIVE_VERSION = 0;
 window.OSKARS_SHARED_FILM_ARCHIVE_STATUS = "idle";
 let sharedFilmArchiveListeners = new Set();
@@ -58,6 +58,22 @@ window.rebuildSharedFilmArchiveByDirectorIndex = function (map) {
 };
 
 /**
+ * Indexes a flat tmdbId-keyed shared-film map by its own real Supabase
+ * films.id, for a caller (a film.html?id=<filmId> visit) that needs to
+ * resolve a catalog-only film by that id rather than by tmdbId. Pure
+ * function of the map alone, mirroring rebuildSharedFilmArchiveByDirectorIndex.
+ * @param {Object} map `{ [tmdbId]: {id, tmdbId, title, year, people, ...} }`.
+ * @returns {Record<string, Object>} id -> shared film record.
+ */
+window.rebuildSharedFilmArchiveByIdIndex = function (map) {
+  let byId = {};
+  Object.values(map || {}).forEach((film) => {
+    if (film.id) byId[film.id] = film;
+  });
+  return byId;
+};
+
+/**
  * Applies a freshly-pulled sharedFilmMetadata archive section, rebuilding
  * the by-director index alongside it. The index only ever changes as a
  * result of a successful pull (sign-in / periodic recheck / reconnect),
@@ -72,17 +88,11 @@ window.applySharedFilmArchive = function (map) {
     window.rebuildSharedFilmArchiveByDirectorIndex(
       window.OSKARS_SHARED_FILM_ARCHIVE,
     );
+  window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID = window.rebuildSharedFilmArchiveByIdIndex(
+    window.OSKARS_SHARED_FILM_ARCHIVE,
+  );
   window.OSKARS_SHARED_FILM_ARCHIVE_VERSION += 1;
   window.OSKARS_SHARED_FILM_ARCHIVE_STATUS = "ready";
-  sharedFilmArchiveListeners.forEach((listener) => listener());
-};
-
-/**
- * Updates shared-film loading status without replacing the current archive.
- * @param {'idle'|'loading'|'ready'|'unavailable'} status Current pull status.
- */
-window.setSharedFilmArchiveStatus = function (status) {
-  window.OSKARS_SHARED_FILM_ARCHIVE_STATUS = status;
   sharedFilmArchiveListeners.forEach((listener) => listener());
 };
 
@@ -429,6 +439,22 @@ window.sharedArchiveCandidateFilmByTmdbId = function (tmdbId) {
     window.sharedArchiveCandidateFilms().find((candidate) => String(candidate.tmdbId || "") === id) ||
     null
   );
+};
+
+/**
+ * Looks up one Shared-archive candidate by its own real Supabase films.id
+ * (issue #453's Unseen-film work) - the id-keyed counterpart to
+ * sharedArchiveCandidateFilmByTmdbId(), for film.html?id=<filmId> visits.
+ * Official-results nominee placeholders have no real films.id, so unlike
+ * the tmdbId lookup there is no nominee-set fallback to scan - a miss here
+ * genuinely means "not a real catalog film."
+ * @param {string} filmId Supabase films.id.
+ * @returns {Object|null}
+ */
+window.sharedArchiveCandidateFilmById = function (filmId) {
+  let id = String(filmId || "");
+  if (!id) return null;
+  return window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID?.[id] || null;
 };
 
 /**

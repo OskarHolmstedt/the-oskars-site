@@ -1,10 +1,10 @@
-/** @file Renders the owner-only Build your Oskars journey hub and visual year map. */
+/** @file Renders the Supabase-backed owner-only Build your Oskars journey hub and visual year map. */
 
 (function () {
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
   let container = document.getElementById("buildPage");
-  window.load();
+  let journeyYears = [];
 
   function stageLabel(stage) {
     return ui(
@@ -92,7 +92,7 @@
 
   function render() {
     let finish = window.startOskarsPerformance?.("build:render");
-    let years = window.buildJourneyYears();
+    let years = journeyYears;
     let recommendation = window.buildJourneyRecommendation(years);
     let milestone = window.buildJourneyMilestone(years);
     let requestedStage = window.pageQueryParam("stage");
@@ -148,6 +148,31 @@
     render();
   });
 
-  render();
   window.addEventListener?.("oskars:localechange", render);
+
+  async function boot() {
+    let access = await window.resolveSupabaseAccountGate();
+    if (!access.allowed) {
+      window.renderSupabaseAccountGate(access, container);
+      return;
+    }
+    try {
+      let [workspace, ranking, awardReviews] = await Promise.all([
+        window.loadSupabaseWorkspace(),
+        window.loadSupabaseRanking("alltime", "allTime"),
+        window.loadSupabaseAwardReviews(),
+      ]);
+      journeyYears = window.buildJourneyYears(
+        workspace.watched,
+        ranking.entries,
+        awardReviews,
+        window.getOrderedCategories?.() || [],
+      );
+      render();
+    } catch (error) {
+      container.innerHTML = `<section class="detail-empty"><h2>${escape(ui("Could not load your journey"))}</h2><p>${escape(error.message || String(error))}</p></section>`;
+    }
+  }
+
+  boot();
 })();

@@ -134,6 +134,15 @@ window.projectPageUrl = function (id) {
 };
 
 /**
+ * Builds a bare collection's detail URL (issue #449).
+ * @param {string} id Collection id.
+ * @returns {string} Relative collection URL.
+ */
+window.collectionPageUrl = function (id) {
+  return `collection.html?id=${encodeURIComponent(String(id || ""))}`;
+};
+
+/**
  * Builds a local-rank merge-tool URL (issue #165).
  * @param {'franchises'|'people'|'tags'} type Collection kind.
  * @param {string} id Collection entity id (a tag's name for `tags`).

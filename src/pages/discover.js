@@ -273,7 +273,7 @@
       rating: false,
       escape,
       beforeTitleHtml: options.beforeTitleHtml || "",
-      titleHtml: `<h2><a href="${escape(window.watchlistFilmPageUrl(item.id))}">${escape(title)}</a></h2>`,
+      titleHtml: `<h2><a href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(title)}</a></h2>`,
       bodyHtml: `<p>${escape(item.year || "")}${item.director ? ` · ${escape(item.director)}` : ""}</p>${window.renderWatchlistTierBadge(item.tier, { escape })}${options.extraBodyHtml || ""}${tags.length ? `<div class="film-tag-list">${tags.map((tag) => `<a class="film-tag" href="${escape(window.tagPageUrl(tag))}">${escape(tag)}</a>`).join("")}</div>` : ""}`,
     });
   }

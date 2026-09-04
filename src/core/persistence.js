@@ -3,10 +3,13 @@
  * localStorage fallback, legacy migration, debounced writes, and stale-tab
  * protection. save()/replaceStoredState()/saveRecoveryWorkspace() are the
  * only paths that ever write private state here (issue #256) — every
- * mutation across the app funnels through one of them, so gating these
- * three functions on the active runtime mode's canPersistPrivateState
- * capability is the single enforcement point that keeps a viewer-mode
- * session from persisting anything, however it was reached.
+ * mutation on a page that still loads this module funnels through one of
+ * them, so gating these three functions on the active runtime mode's
+ * canPersistPrivateState capability keeps a viewer-mode session from
+ * persisting anything here, however it was reached. Supabase-cutover
+ * routes (issue #428) don't load this module at all and write straight to
+ * Postgres instead - this file's write boundary has nothing to do with
+ * those pages' capability gating.
  */
 
 window.OSKARS_DATABASE_NAME = "oskars";
@@ -20,7 +23,6 @@ let databasePromise = null;
 let loadPromise = null;
 let saveTimer = null;
 let saveWaiters = [];
-let saveNeedsWorkspaceSync = false;
 let persistenceTabId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 let lastSeenWriteCounter = 0;
 let staleWriteDetected = false;
@@ -53,13 +55,15 @@ function staleWriteError() {
 function persistenceAllowed() {
   if (window.oskarsAccountAccessBlocked?.()) return false;
   if (window.state?.isPublicProfileView) return false;
-  return window.oskarsCapabilities ? window.oskarsCapabilities().canPersistPrivateState : true;
+  return window.oskarsCapabilities
+    ? window.oskarsCapabilities().canPersistPrivateState
+    : true;
 }
 
 /**
  * Whether the current session may persist private state - the exact same
  * check save()/replaceStoredState()/saveRecoveryWorkspace() gate on.
- * Exposed so firestore-sync.js (issue #248) never runs a remote sync pass
+ * Exposed so the legacy remote-sync module never runs a remote sync pass
  * anywhere local persistence itself is refused (viewer mode, or hydrated
  * public-profile state, issue #256).
  * @returns {boolean}
@@ -309,22 +313,22 @@ function writeRecoveryDatabase(database, snapshot, options = {}) {
       window.OSKARS_STATE_STORE,
       "readwrite",
     );
-    transaction
-      .objectStore(window.OSKARS_STATE_STORE)
-      .put(
-        {
-          workspace: snapshot,
-          reason: String(options.reason || "workspace-replacement"),
-          savedAt: new Date().toISOString(),
-          ...(options.accountUid
-            ? { accountUid: String(options.accountUid) }
-            : {}),
-        },
-        window.OSKARS_RECOVERY_STATE_KEY,
-      );
+    transaction.objectStore(window.OSKARS_STATE_STORE).put(
+      {
+        workspace: snapshot,
+        reason: String(options.reason || "workspace-replacement"),
+        savedAt: new Date().toISOString(),
+        ...(options.accountUid
+          ? { accountUid: String(options.accountUid) }
+          : {}),
+      },
+      window.OSKARS_RECOVERY_STATE_KEY,
+    );
     transaction.oncomplete = () => resolve(true);
     transaction.onerror = () =>
-      reject(transaction.error || new Error("Could not save recovery workspace."));
+      reject(
+        transaction.error || new Error("Could not save recovery workspace."),
+      );
     transaction.onabort = transaction.onerror;
   });
 }
@@ -516,8 +520,6 @@ async function flushScheduledSave() {
   }
   if (!saveWaiters.length) return true;
   let waiters = saveWaiters.splice(0);
-  let shouldScheduleWorkspaceSync = saveNeedsWorkspaceSync;
-  saveNeedsWorkspaceSync = false;
   let saved = false;
   try {
     let database = await openStateDatabase();
@@ -538,9 +540,7 @@ async function flushScheduledSave() {
         {
           label: "Back up now",
           run: () => {
-            window.location.href = window.prepareOskarsAccountNavigation(
-              "data.html",
-            );
+            window.location.href = "data.html";
           },
         },
       ]);
@@ -568,16 +568,6 @@ async function flushScheduledSave() {
       storageStatus("Save failed — download a backup", "error");
     }
   }
-  // A successful local save is the trigger for a background cloud push
-  // (issue #248) - debounced independently inside firestore-sync.js, so a
-  // burst of edits produces one sync pass rather than one per save. A
-  // no-op (never defined) when Firestore sync hasn't loaded or the user
-  // isn't signed in - scheduleWorkspaceSync itself checks both.
-  if (saved && shouldScheduleWorkspaceSync) {
-    window.scheduleWorkspaceSync?.();
-    window.scheduleSharedFilmMetadataSync?.();
-    window.refreshPendingSyncBadge?.();
-  }
   waiters.forEach((resolve) => resolve(saved));
   return saved;
 }
@@ -590,12 +580,29 @@ async function flushScheduledSave() {
  * @param {Object} [options] Save controls.
  * @param {boolean} [options.rebuild] Whether to force, skip, or conditionally perform an aggregate rebuild.
  * @param {boolean} [options.immediate] Whether to flush the IndexedDB queue immediately.
- * @param {boolean} [options.scheduleSync=true] Whether this local write represents a change that should schedule cloud synchronization. Sync-internal bookkeeping passes false to avoid save/sync trigger loops.
  * @returns {boolean|Promise<boolean>} Save result or queued save result.
  */
 window.save = function (options = {}) {
   if (!persistenceAllowed()) {
     readOnlyViewerStatus();
+    return false;
+  }
+  // Real bug found live on already-shipped Supabase-hydrated pages
+  // (issue #439): tags.js/compare.js/completion.js's "Start project"
+  // button (window.startProjectFromSourceAndOpen, unconditionally
+  // rendered since state.projects is never hydrated for these entries,
+  // so projectForSource() always reports "no existing project") called
+  // this completely unguarded - it would have written to IndexedDB and
+  // scheduled a legacy remote sync from a page with no legacy backend loaded,
+  // then navigated to project.html. Same class of gap as window.load()'s
+  // below: nothing about being Supabase-hydrated stopped a write call site
+  // from reaching this legacy persistence
+  // choke point once nothing calls ensureOskarsData()/window.load()
+  // first to establish it shouldn't be reachable at all.
+  if (window.OSKARS_ENTRY_SKIPS_LEGACY_DATA_LOAD) {
+    console.error(
+      "window.save() was called on a Supabase-backed entry with no legacy persistence write path - this action isn't available here yet.",
+    );
     return false;
   }
   if (options.rebuild === true && window.rebuildAggregates)
@@ -609,11 +616,6 @@ window.save = function (options = {}) {
       writeFallbackState(window.getBrowserPersistenceState());
       doneSnapshot?.();
       storageStatus("Saved using fallback storage", "warning");
-      if (options.scheduleSync !== false) {
-        window.scheduleWorkspaceSync?.();
-        window.scheduleSharedFilmMetadataSync?.();
-        window.refreshPendingSyncBadge?.();
-      }
       return true;
     } catch (err) {
       if (err?.code === "OSKARS_STALE_STATE") {
@@ -626,7 +628,6 @@ window.save = function (options = {}) {
     }
   }
   storageStatus("Saving…", "saving");
-  if (options.scheduleSync !== false) saveNeedsWorkspaceSync = true;
   let promise = new Promise((resolve) => saveWaiters.push(resolve));
   if (options.immediate) flushScheduledSave();
   else {
@@ -652,7 +653,6 @@ window.flushOskarsSave = flushScheduledSave;
  * @param {Object} [options] User-facing status messages.
  * @param {string} [options.message] IndexedDB success message.
  * @param {string} [options.fallbackMessage] localStorage success message.
- * @param {boolean} [options.scheduleSync=true] Whether replacement should schedule cloud reconciliation.
  * @returns {Promise<boolean>} Whether replacement state was persisted.
  */
 window.replaceStoredState = async function (nextState, options = {}) {
@@ -666,9 +666,13 @@ window.replaceStoredState = async function (nextState, options = {}) {
   try {
     let database = await openStateDatabase();
     if (database) {
-      await writeDatabaseState(database, () => window.getBrowserPersistenceState(), {
-        allowOverwrite: true,
-      });
+      await writeDatabaseState(
+        database,
+        () => window.getBrowserPersistenceState(),
+        {
+          allowOverwrite: true,
+        },
+      );
       try {
         localStorage.removeItem("oskars");
       } catch (err) {}
@@ -695,82 +699,28 @@ window.replaceStoredState = async function (nextState, options = {}) {
       storageStatus("Save failed — download a backup", "error");
     }
   }
-  // Same trigger as flushScheduledSave() (issue #248): replaceStoredState()
-  // is the write path for local replacement, recovery restore, and canonical
-  // adoption, none of which go through window.save(). Callers that are
-  // deliberately detaching this browser suppress the trigger so the retained
-  // cloud copy cannot immediately refill the newly emptied local archive.
-  if (saved && options.scheduleSync !== false) {
-    window.scheduleWorkspaceSync?.();
-    window.scheduleSharedFilmMetadataSync?.();
-    window.refreshPendingSyncBadge?.();
-  }
   loadPromise = window.state;
   return saved;
 };
 
 /**
- * Creates draft metadata that distinguishes an intentional clear from a clean,
- * outdated copy that owner-mode startup may safely replace from publication.
- * @returns {Object} Dirty draft metadata for the cleared local state.
+ * Removes all account-owned browser persistence, including recovery data.
+ * @returns {Promise<void>}
  */
-function intentionalClearDraftMetadata() {
-  let plan = window.getStartupReconciliationPlan?.() || {};
-  let publishedRevision = String(plan.publishedRevision || "");
-  let baseRevision = String(
-    publishedRevision ||
-      window.state?.draftMetadata?.baseRevision ||
-      plan.baseRevision ||
-      "",
+window.clearAllStoredOskarsData = async function () {
+  localStorage.removeItem("oskars");
+  localStorage.removeItem(window.OSKARS_FALLBACK_RECOVERY_KEY);
+  sessionStorage.removeItem(
+    window.OSKARS_PROFILE_ACTIVE_SLUG_KEY || "oskars-active-profile",
   );
-  return {
-    baseRevision,
-    dirty: true,
-    changedAt: new Date().toISOString(),
-    reason: "clear-all-data",
-    reconciliationStatus: "unpublished",
-    ...(publishedRevision ? { publishedRevision } : {}),
-  };
-}
-
-/**
- * Replaces persisted data with empty, fully migrated local state.
- * @param {Object} [options] Clear behavior.
- * @param {boolean} [options.scheduleSync=true] Whether cloud reconciliation is scheduled afterward.
- * @param {boolean} [options.keepRemoteSync=false] Whether to carry this
- *   device's per-shard last-synced revisions (`draftMetadata.remoteSync`)
- *   forward through the clear instead of dropping them, and mark the
- *   workspace `pushHeld` (issue #384 Stage 1). Dropping them (the default,
- *   used by the destructive "remove this browser" flow, which also
- *   detaches and signs out) makes every shard look never-synced to
- *   `planWorkspaceShardSync` - safe there only because signing out means
- *   nothing syncs again until a fresh, deliberate sign-in. Keeping them
- *   (used by a same-session "clear but stay signed in" flow) makes every
- *   shard compare as a local-only change instead - and since ordinary
- *   sync passes now push local-only changes automatically (issue #384
- *   Stage 1, not just on an explicit manual sync anymore), `pushHeld` is
- *   what actually keeps the cleared state from being silently pushed over
- *   the untouched cloud copy by the very next automatic trigger, before
- *   the user gets to choose sync-vs-discard. `performWorkspaceSync`
- *   clears `pushHeld` itself the moment anything successfully pushes
- *   (manually, while held) - see `firestore-sync.js`.
- * @returns {Promise<boolean>} Whether cleared state was persisted.
- */
-window.clearStoredOskarsData = function (options = {}) {
-  let cleared = window.createClearedLocalState
-    ? window.createClearedLocalState()
-    : window.createEmptyState();
-  cleared.draftMetadata = options.keepRemoteSync
-    ? {
-        ...intentionalClearDraftMetadata(),
-        remoteSync: window.state?.draftMetadata?.remoteSync,
-        pushHeld: true,
-      }
-    : intentionalClearDraftMetadata();
-  return window.replaceStoredState(cleared, {
-    message: "Local data cleared",
-    fallbackMessage: "Local data cleared using fallback storage",
-    scheduleSync: options.scheduleSync !== false,
+  if (!window.indexedDB) return;
+  await new Promise((resolve, reject) => {
+    let request = window.indexedDB.deleteDatabase(window.OSKARS_DATABASE_NAME);
+    request.onsuccess = resolve;
+    request.onerror = () =>
+      reject(request.error || new Error("Could not clear browser data."));
+    request.onblocked = () =>
+      reject(new Error("Close other Oskars tabs before deleting the profile."));
   });
 };
 
@@ -821,6 +771,19 @@ window.hydrateState = function (imported) {
  * @returns {OskarsState|Promise<OskarsState>} Loaded state or the shared in-flight load.
  */
 window.load = function () {
+  // Every legacy page calls window.load() unconditionally at its own top
+  // (expecting the loadPromise memoization below to make it a harmless
+  // no-op after ensureOskarsData()'s own earlier call) - but neither a
+  // Supabase-hydrated entry's ensureOskarsData() nor a Supabase-backed
+  // page controller managing its own data directly (issue #439) ever
+  // calls window.load() at all, so this would otherwise be a genuine
+  // first IndexedDB read that could silently overwrite already-Supabase-
+  // sourced state sometime later (issue #438). Short-circuit here instead
+  // of touching every page's own call site.
+  if (window.OSKARS_ENTRY_SKIPS_LEGACY_DATA_LOAD) {
+    loadPromise ||= Promise.resolve(window.state);
+    return loadPromise;
+  }
   if (loadPromise) return loadPromise;
   if (!hasIndexedDB()) {
     let legacy = readLegacyState();
@@ -853,7 +816,10 @@ window.load = function () {
         window.hydrateState(imported);
         persistenceLoadInfo = { found: true, source: "indexedDB" };
         markPersistenceFresh(imported);
-        if (imported.workspaceSchemaVersion !== window.OSKARS_WORKSPACE_SCHEMA_VERSION)
+        if (
+          imported.workspaceSchemaVersion !==
+          window.OSKARS_WORKSPACE_SCHEMA_VERSION
+        )
           await writeDatabaseState(
             database,
             () => window.getBrowserPersistenceState(),

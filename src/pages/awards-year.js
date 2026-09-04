@@ -1,126 +1,130 @@
-/** @file Builds one year's Oskars ballot category by category and hands the completed ceremony into presentation. */
+/**
+ * @file Builds one year's Oskars ballot category by category, cut over to
+ * Supabase for real (issue #435), continuing #420/.../#432's pattern:
+ * gate check -> loadSupabaseWorkspace() +
+ * supabaseAnnualAwardReviewProgress(year) -> render -> each action calls
+ * its supabase-workspace.js function directly.
+ *
+ * Deliberate, documented scope cut from the previous implementation this
+ * replaces: category-specific eligibility rules (Best Animated Picture
+ * requires animation medium, Best Original/Adapted Screenplay requires a
+ * matching screenplay type, Best International Picture's US/UK warning,
+ * Best Director's credited-recipient-matches-director check) are not
+ * ported. films.medium/screenplay_type/adaptation_source columns do
+ * exist (issue #406's field audit), but no real write path populates
+ * them yet - find_or_create_film accepts them, but nothing in src/ calls
+ * it with real values today, so every row's value would be null
+ * regardless. Previously, unknown metadata already degraded
+ * every one of these rules to a non-blocking warning, never a hard block
+ * - dropping them here means every watched film is eligible for every
+ * category, the same practical outcome as today's all-null data. Real
+ * gap, not silently dropped - once a real import path populates these
+ * columns, this page should read them back and restore the rules.
+ *
+ * Also drops tie support (two nominees sharing one placement) - confirmed
+ * by reading the previous implementation in full that this page never sets
+ * planNominationInsertion's `tie` option; that branch belongs to a
+ * different page's tooling this cutover doesn't touch.
+ *
+ * insertSupabasePersonalNomination()/deleteSupabasePersonalNomination()
+ * do the real work (atomic placement-bump-cascade / shift-up via a
+ * Postgres RPC - see their migration), matching the previous implementation's
+ * planNominationInsertion/applyNominationPlacementPlan bump-cascade
+ * exactly, just server-side instead of a window.state clone-and-diff.
+ */
+
 (function () {
   let escape = window.pageEscape;
-  let ui = window.uiText || ((text) => text);
-  window.load();
-
   let container = document.getElementById("awardsYearPage");
   let year = String(window.pageQueryParam?.("year") || "").trim();
   let valid = /^\d{4}$/.test(year);
 
-  if (!valid) {
-    document.title = `${ui("Build annual awards")} · The Oskars`;
-    container.innerHTML = `<div class="detail-empty"><h1>${escape(ui("Year not found"))}</h1><a href="index.html">${escape(ui("Return home"))}</a></div>`;
-    return;
-  }
+  let personalAwardId = null;
+  let progress = null; // supabaseAnnualAwardReviewProgress(year) result
+  let watchedByFilmId = new Map();
 
-  document.title = `${ui("Build {year} awards", { year })} · The Oskars`;
-
-  function yearFilms() {
-    return [...(window.state.years?.alltime?.films || [])].filter(
-      (film) =>
-        String(window.filmConcreteYear?.(film.year) || film.year || "") ===
-        year,
-    );
-  }
-
-  // ---- Bracket state ----
-  let expandedCategory; // undefined opens the next unfinished ballot category.
-  // Staged rather than instant-add for every category except Best Picture,
-  // which has no recipient concept at all: adding or editing a credit
-  // needs the same small recipient(+detail) form, so both flows share it.
+  // ---- Bracket state (session-only) ----
+  let expandedCategory;
   let pendingNominee = null; // { category, filmId, placement }
-  let editingNominee = null; // { category, filmId, placement }
-  // Films X'd out of a category's eligible pool while narrowing down
-  // choices. Deliberately in-memory only (like expandedCategory) rather
-  // than saved state: this is scratch work for thinking it through, not a
-  // real judgment about the film, so it resets on reload and never touches
-  // the domain layer. Scoped per category, since a film ruled out for Best
-  // Picture can still be very much in play for Best Actor.
+  let editingNominee = null; // { category, nominationId, placement }
   let excludedFromPool = new Map(); // category -> Set<filmId>
+
+  let CAPACITIES = { picture: 10, category: 5 };
 
   function excludedFromPoolFor(category) {
     return excludedFromPool.get(category) || new Set();
   }
 
-  function categoryDefaultRecipient(category, film) {
-    return category === "Best Director"
-      ? (film.directors || []).join(", ") || film.director || ""
-      : "";
+  function capacityFor(category) {
+    return category === "Best Picture" ? CAPACITIES.picture : CAPACITIES.category;
+  }
+
+  function yearWatchedFilms() {
+    let workspace = window.getSupabaseWorkspace();
+    return (workspace?.watched || [])
+      .filter((row) => String(row.films?.year) === year)
+      .map((row) => row.films);
+  }
+
+  // The previous implementation pre-filled Best Director's recipient from the
+  // film's own director credit. The session workspace cache doesn't carry
+  // per-film credits (only watched/watchlist rows), and a per-nomination
+  // query just for this convenience isn't worth it - dropped, the owner
+  // types the name once same as any other category.
+  function categoryDefaultRecipient() {
+    return "";
   }
 
   function creditFieldsHtml(category, recipient, detail) {
-    let detailField = window.creditDetailFieldHtml(category, detail, {
-      escape,
-      ui,
-    });
-    return `<label>${escape(ui("Recipient(s)"))}<input name="recipient" value="${escape(recipient || "")}"></label>${detailField}`;
+    let detailField = window.creditDetailFieldHtml?.(category, detail, { escape }) || "";
+    return `<label>Recipient(s)<input name="recipient" value="${escape(recipient || "")}"></label>${detailField}`;
+  }
+
+  function nominationRecipientText(nomination) {
+    return (nomination.personal_nomination_recipients || [])
+      .map((row) => row.recipient_name)
+      .join(", ");
+  }
+
+  function renderCreditHtml(category, nomination) {
+    let recipient = nominationRecipientText(nomination);
+    let detail = nomination.detail || "";
+    if (recipient && detail) return `${escape(recipient)} <span class="credit-divider">·</span> ${escape(detail)}`;
+    return escape(recipient || detail);
   }
 
   function renderPoolCard(film, category) {
-    return window.renderSharedFilmCard(film, {
-      classes: ["setup-year-pool-card"],
-      openFilm: false,
-      attributes: {
-        draggable: "true",
-        "data-setup-award-film": film.id,
-        "data-setup-award-add": category,
-        tabindex: "0",
-        role: "button",
-      },
-      showYear: false,
-      actionsHtml: window.renderCardRemoveButton({
-        escape,
-        title: ui("Not a contender - hide from this pool"),
-        attributes: { "data-setup-pool-exclude": "" },
-      }),
-      escape,
-    });
+    return `<article class="film-card setup-year-pool-card" draggable="true" data-setup-award-film="${escape(film.id)}" data-setup-award-add="${escape(category)}" tabindex="0" role="button">
+      ${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" class="rate-watched-poster-thumb">` : ""}
+      <span class="table-film-link">${escape(film.title)}</span>
+      <button type="button" class="card-remove-button" title="Not a contender - hide from this pool" data-setup-pool-exclude></button>
+    </article>`;
   }
 
-  function renderNomineeRow(entry, category) {
-    let rankBadge = `<span class="${window.placementEmoji?.[entry.award.placement] ? "rank medal" : "rank numeric"}">${window.pagePlacement(entry.award.placement)}</span>`;
-    let filmLink = `<a class="table-film-link" href="${escape(window.filmPageUrl(entry.film.id))}">${escape(entry.film.title)}</a>`;
-    let removeButton = window.renderCardRemoveButton({
-      escape,
-      title: ui("Remove"),
-      attributes: {
-        "data-setup-award-remove": "",
-        "data-setup-award-category": category,
-        "data-setup-award-film-id": entry.film.id,
-        "data-setup-award-placement": entry.award.placement,
-      },
-    });
-    let isEditing =
-      editingNominee?.category === category &&
-      editingNominee?.filmId === entry.film.id &&
-      Number(editingNominee?.placement) === Number(entry.award.placement);
+  function renderNomineeRow(nomination, category) {
+    let film = nomination.films || {};
+    let rankBadge = `<span class="${window.placementEmoji?.[nomination.placement] ? "rank medal" : "rank numeric"}">${escape(window.pagePlacement?.(nomination.placement) ?? nomination.placement)}</span>`;
+    let filmLink = `<span class="table-film-link">${escape(film.title || "Unknown film")}</span>`;
+    let removeButton = `<button type="button" class="card-remove-button" title="Remove" data-setup-award-remove data-setup-award-category="${escape(category)}" data-setup-award-film-id="${escape(film.id)}" data-setup-award-placement="${escape(nomination.placement)}"></button>`;
+    let isEditing = editingNominee?.nominationId === nomination.id;
     if (isEditing) {
       return `<div class="card setup-year-nominee">
         ${rankBadge}
-        <form class="setup-year-credit-form" data-setup-award-credit-form data-setup-award-mode="edit" data-setup-award-category="${escape(category)}" data-setup-award-film-id="${escape(entry.film.id)}" data-setup-award-placement="${escape(entry.award.placement)}">
-          ${creditFieldsHtml(category, window.awardRecipientText?.(entry.award) || "", window.awardDetail?.(entry.award) || "")}
-          <button type="submit">${escape(ui("Save"))}</button>
-          <button type="button" data-setup-award-credit-cancel>${escape(ui("Cancel"))}</button>
+        <form class="setup-year-credit-form" data-setup-award-credit-form data-setup-award-mode="edit" data-setup-award-nomination-id="${escape(nomination.id)}">
+          ${creditFieldsHtml(category, nominationRecipientText(nomination), nomination.detail || "")}
+          <button type="submit">Save</button>
+          <button type="button" data-setup-award-credit-cancel>Cancel</button>
         </form>
         ${filmLink}
         ${removeButton}
       </div>`;
     }
-    let credit =
-      window.renderAwardCreditHtml?.({
-        film: entry.film,
-        award: entry.award,
-        category,
-        escape,
-        detailStyle: "divider",
-        wrapperClass: "nominee-recipient-credit",
-      })?.html || "";
+    let credit = renderCreditHtml(category, nomination);
     let creditControl =
       category === "Best Picture"
         ? ""
-        : `<button type="button" class="setup-year-credit-edit" data-setup-award-credit-edit data-setup-award-category="${escape(category)}" data-setup-award-film-id="${escape(entry.film.id)}" data-setup-award-placement="${escape(entry.award.placement)}">${credit || escape(ui("Add credit"))}</button><span class="separator">—</span>`;
-    return `<div class="card setup-year-nominee" data-setup-award-target="${escape(entry.award.placement)}">
+        : `<button type="button" class="setup-year-credit-edit" data-setup-award-credit-edit data-setup-award-nomination-id="${escape(nomination.id)}">${credit || "Add credit"}</button><span class="separator">—</span>`;
+    return `<div class="card setup-year-nominee" data-setup-award-target="${escape(nomination.placement)}">
       ${rankBadge}
       ${creditControl}
       ${filmLink}
@@ -128,84 +132,71 @@
     </div>`;
   }
 
-  function renderCategoryRow(category, films) {
-    let nominees = window.nomineesForCategory(year, "years", category);
-    let review = window.annualAwardReview(year, category);
-    let capacities = window.bracketCapacities("years");
-    let capacity =
-      category === "Best Picture" ? capacities.picture : capacities.category;
+  function renderCategoryRow(entry, films) {
+    let category = entry.category;
+    let nominations = entry.nominations;
+    let review = entry.review;
+    let capacity = capacityFor(category);
     let isExpanded = expandedCategory === category;
-    let statusClass = review ? "is-full" : nominees.length ? "is-started" : "is-empty";
-    let toggleLabel = isExpanded ? ui("Collapse") : review ? ui("Review") : ui("Fill");
+    let statusClass = review ? "is-full" : nominations.length ? "is-started" : "is-empty";
+    let toggleLabel = isExpanded ? "Collapse" : review ? "Review" : "Fill";
     let header = `<div class="setup-year-category-header">
-      <a class="category-link" href="${escape(window.categoryPageUrl(category))}">${escape(window.localizedCategoryName?.(category) || category)}</a>
-      <span class="setup-year-category-progress ${statusClass}">${review?.status === "none" ? escape(ui("None")) : `${escape(nominees.length)}/${escape(capacity)}`}</span>
+      <a class="category-link" href="${escape(window.categoryPageUrl?.(category) || "#")}">${escape(window.localizedCategoryName?.(category) || category)}</a>
+      <span class="setup-year-category-progress ${statusClass}">${review?.status === "none" ? "None" : `${escape(nominations.length)}/${escape(capacity)}`}</span>
       <button type="button" class="sort-order-button" data-setup-award-toggle="${escape(category)}">${escape(toggleLabel)}</button>
     </div>`;
     if (!isExpanded) return `<div class="setup-year-category-row">${header}</div>`;
 
-    let nomineeRowsHtml = nominees.map((entry) => renderNomineeRow(entry, category)).join("");
-    // A film already nominated here drops out of the pool, unless the
-    // category allows more than one nominee from the same film (acting
-    // categories, Best Song) - a different person/song from that film can
-    // still take another slot.
-    let multiNominee = window.isMultiNomineeCategory(category);
-    let nominatedIds = multiNominee
-      ? new Set()
-      : new Set(nominees.map((entry) => entry.film.id));
+    let nomineeRowsHtml = nominations.map((nomination) => renderNomineeRow(nomination, category)).join("");
+    let multiNominee = window.isMultiNomineeCategory?.(category);
+    let nominatedIds = multiNominee ? new Set() : new Set(nominations.map((n) => n.film_id));
     let excludedIds = excludedFromPoolFor(category);
-    let pool = window
-      .eligibleFilmsForCategory(films, category, "years")
-      .filter(
-        (entry) =>
-          !nominatedIds.has(entry.film.id) && !excludedIds.has(entry.film.id),
-      );
+    let pool = films.filter(
+      (film) => !nominatedIds.has(film.id) && !excludedIds.has(film.id),
+    );
     let isPending = pendingNominee?.category === category;
     let poolHtml = isPending
       ? renderPendingNomineeForm(films)
       : pool.length
-        ? `<div class="film-grid setup-year-pool-grid">${pool.map((entry) => renderPoolCard(entry.film, category)).join("")}</div>`
-        : `<p class="setup-year-section-empty">${escape(ui("No more of {year}'s watched films are eligible for this category.", { year }))}</p>`;
+        ? `<div class="film-grid setup-year-pool-grid">${pool.map((film) => renderPoolCard(film, category)).join("")}</div>`
+        : `<p class="setup-year-section-empty">No more of ${escape(year)}'s watched films are eligible for this category.</p>`;
     let fullNotice =
-      nominees.length >= capacity
-        ? `<p class="setup-year-category-full">${escape(ui("{category} is full. Drop a film onto a nominee above to bump it in, or remove one first.", { category: window.localizedCategoryName?.(category) || category }))}</p>`
+      nominations.length >= capacity
+        ? `<p class="setup-year-category-full">${escape(window.localizedCategoryName?.(category) || category)} is full. Drop a film onto a nominee above to bump it in, or remove one first.</p>`
         : "";
     let restoreHtml = excludedIds.size
-      ? `<button type="button" class="sort-order-button" data-setup-pool-restore="${escape(category)}">${escape(ui("Show {count} hidden", { count: excludedIds.size }))}</button>`
+      ? `<button type="button" class="sort-order-button" data-setup-pool-restore="${escape(category)}">Show ${escape(excludedIds.size)} hidden</button>`
       : "";
 
     return `<div class="setup-year-category-row is-expanded">
       ${header}
       <div class="board full-width setup-year-board" data-setup-award-board="${escape(category)}">
         <div class="board-content">
-          <div class="board-nominees">${nomineeRowsHtml || `<p class="setup-year-section-empty">${escape(ui("No nominees yet."))}</p>`}</div>
+          <div class="board-nominees">${nomineeRowsHtml || `<p class="setup-year-section-empty">No nominees yet.</p>`}</div>
         </div>
       </div>
       ${fullNotice}
-      <h4>${escape(ui("Eligible films from {year}", { year }))} ${restoreHtml}</h4>
+      <h4>Eligible films from ${escape(year)} ${restoreHtml}</h4>
       ${poolHtml}
-      <div class="setup-ballot-actions">${nominees.length ? `<button type="button" data-setup-award-finish="${escape(category)}">${escape(ui("Finish category"))}</button>` : `<button type="button" class="button-secondary" data-setup-award-none="${escape(category)}">${escape(ui("No award this year"))}</button>`}</div>
+      <div class="setup-ballot-actions">${nominations.length ? `<button type="button" data-setup-award-finish="${escape(category)}">Finish category</button>` : `<button type="button" class="button-secondary" data-setup-award-none="${escape(category)}">No award this year</button>`}</div>
     </div>`;
   }
 
   function renderBracketSection() {
-    let films = yearFilms();
-    let progress = window.annualAwardReviewProgress(year);
-    if (expandedCategory === undefined)
-      expandedCategory = progress.nextCategory || null;
-    let rows = progress.categories
-      .map((entry) => entry.category)
-      .map((category) => renderCategoryRow(category, films))
+    let films = yearWatchedFilms();
+    if (expandedCategory === undefined) expandedCategory = progress.nextCategory || null;
+    let rows = progress.categories.map((entry) => renderCategoryRow(entry, films)).join("");
+    let nav = progress.categories
+      .map((entry) => {
+        let label = window.localizedCategoryName?.(entry.category) || entry.category;
+        let percent = entry.reviewed ? 100 : entry.nominations.length ? 50 : 0;
+        return `<button type="button" class="setup-ballot-nav-item${entry.reviewed ? " is-complete" : ""}${entry.category === progress.nextCategory ? " is-next" : ""}" style="--ballot-progress:${percent}%" data-setup-award-toggle="${escape(entry.category)}"><span>${entry.reviewed ? "✓" : escape(entry.nominations.length)}</span><b>${escape(label)}</b></button>`;
+      })
       .join("");
-    let nav = progress.categories.map((entry) => {
-      let label = window.localizedCategoryName?.(entry.category) || entry.category;
-      let percent = entry.reviewed ? 100 : entry.nominees.length ? 50 : 0;
-      return `<button type="button" class="setup-ballot-nav-item${entry.reviewed ? " is-complete" : ""}${entry.category === progress.nextCategory ? " is-next" : ""}" style="--ballot-progress:${percent}%" data-setup-award-toggle="${escape(entry.category)}"><span>${entry.reviewed ? "✓" : escape(entry.nominees.length)}</span><b>${escape(label)}</b></button>`;
-    }).join("");
     let ceremony = progress.complete
-      ? `<section class="setup-ceremony-summary"><span class="eyebrow">${escape(ui("The envelope is sealed"))}</span><h3>${escape(ui("Your {year} ceremony is ready", { year }))}</h3><div class="setup-ceremony-winners">${progress.winners.slice(0, 8).map((entry) => window.renderFilmPoster(entry.film, "thumb")).join("")}</div><div class="setup-ballot-actions"><a class="button-link" href="presentation.html?scope=period&amp;id=year:${escape(year)}">${escape(ui("Run the ceremony"))} →</a><a class="button-link" href="${escape(window.periodPageUrl("decade", window.getDecadeKey(year)))}&amp;view=awards">${escape(ui("Continue to decade awards"))}</a></div></section>`
-      : `<p class="setup-ballot-next">${escape(ui("Next: {category}", { category: window.localizedCategoryName?.(progress.nextCategory) || progress.nextCategory }))} · ${escape(progress.reviewed)} / ${escape(progress.total)} ${escape(ui("reviewed"))}</p>`;
-    return `<nav class="setup-ballot-nav" aria-label="${escape(ui("Ballot categories"))}">${nav}</nav><div class="setup-year-category-list">${rows}</div>${ceremony}`;
+      ? `<section class="setup-ceremony-summary"><span class="eyebrow">The envelope is sealed</span><h3>Your ${escape(year)} ceremony is ready</h3><div class="setup-ballot-actions"><a class="button-link" href="presentation.html?scope=period&amp;id=year:${escape(year)}">Run the ceremony →</a><a class="button-link" href="${escape(window.periodPageUrl?.("decade", window.getDecadeKey(year)) || "#")}&amp;view=awards">Continue to decade awards</a></div></section>`
+      : `<p class="setup-ballot-next">Next: ${escape(window.localizedCategoryName?.(progress.nextCategory) || progress.nextCategory)} · ${escape(progress.reviewed)} / ${escape(progress.total)} reviewed</p>`;
+    return `<nav class="setup-ballot-nav" aria-label="Ballot categories">${nav}</nav><div class="setup-year-category-list">${rows}</div>${ceremony}`;
   }
 
   function renderPendingNomineeForm(films) {
@@ -213,18 +204,13 @@
     let film = films.find((candidate) => candidate.id === filmId);
     let defaultRecipient = film ? categoryDefaultRecipient(category, film) : "";
     return `<form class="setup-year-credit-form" data-setup-award-credit-form data-setup-award-mode="add" data-setup-award-category="${escape(category)}" data-setup-award-film-id="${escape(filmId)}" data-setup-award-placement="${escape(placement)}">
-      <p>${escape(ui("Nominate {title} for {category}", { title: film?.title || filmId, category: window.localizedCategoryName?.(category) || category }))}</p>
+      <p>Nominate ${escape(film?.title || filmId)} for ${escape(window.localizedCategoryName?.(category) || category)}</p>
       ${creditFieldsHtml(category, defaultRecipient, "")}
-      <button type="submit">${escape(ui("Add"))}</button>
-      <button type="button" data-setup-award-credit-cancel>${escape(ui("Cancel"))}</button>
+      <button type="submit">Add</button>
+      <button type="button" data-setup-award-credit-cancel>Cancel</button>
     </form>`;
   }
 
-  // Best Picture has no recipient concept (no PERSON_AWARD_PROFESSIONS
-  // entry) and adds instantly; every other category stages the pick and
-  // collects a recipient (+ detail for role/song categories) first, since
-  // a second same-film nomination in a multi-nominee category needs a
-  // distinct recipient to avoid colliding with the first at the plan layer.
   function beginNominee(category, filmId, placement) {
     if (category === "Best Picture") {
       addNominee(category, filmId, placement, "", "");
@@ -235,66 +221,59 @@
     render();
   }
 
-  function addNominee(category, filmId, placement, recipient, detail) {
-    let plan = window.planNominationInsertion({
-      periodType: "years",
-      periodKey: year,
-      category,
-      filmId,
-      placement,
-      recipient: recipient || "",
-      detail: detail || "",
-    });
-    if (!plan.ok) {
-      window.alert?.(plan.errors.join("\n"));
-      return;
-    }
-    window.applyNominationPlacementPlan(plan);
-    window.reopenAnnualAwardReview(year, category);
-    window.save?.({ immediate: true });
-    pendingNominee = null;
-    render();
+  async function refreshProgress() {
+    progress = await window.supabaseAnnualAwardReviewProgress(year);
+    personalAwardId = progress.personalAwardId;
   }
 
-  function saveNomineeCredit(category, filmId, placement, recipient, detail) {
-    let ok = window.updateAwardRecipient(
-      filmId,
-      category,
-      Number(placement),
-      year,
-      recipient,
-    );
-    if (!ok) {
-      window.alert?.(
-        window.lastRuleViolation?.errors?.join("\n") ||
-          ui("Could not update the recipient."),
+  async function addNominee(category, filmId, placement, recipient, detail) {
+    try {
+      let recipients = recipient ? window.splitRecipientNames?.(recipient) || [recipient] : [];
+      await window.insertSupabasePersonalNomination(
+        personalAwardId,
+        category,
+        placement,
+        capacityFor(category),
+        filmId,
+        detail || "",
+        recipients,
       );
-      return;
+      await window.reopenSupabaseAwardReview(year, category);
+      pendingNominee = null;
+      await refreshProgress();
+      render();
+    } catch (error) {
+      alert(error.message || String(error));
     }
-    if (detail !== undefined)
-      window.updateAwardDetail(filmId, category, Number(placement), year, detail);
-    window.save?.({ immediate: true });
-    editingNominee = null;
-    render();
+  }
+
+  async function saveNomineeCredit(nominationId, recipient, detail) {
+    try {
+      let recipients = recipient ? window.splitRecipientNames?.(recipient) || [recipient] : [];
+      await window.updateSupabaseNominationRecipients(nominationId, recipients);
+      if (detail !== undefined) await window.updateSupabaseNominationDetail(nominationId, detail);
+      editingNominee = null;
+      await refreshProgress();
+      render();
+    } catch (error) {
+      alert(error.message || String(error));
+    }
   }
 
   function nextOpenPlacement(category) {
-    let nominees = window.nomineesForCategory(year, "years", category);
-    let capacities = window.bracketCapacities("years");
-    let capacity =
-      category === "Best Picture" ? capacities.picture : capacities.category;
-    return Math.min(nominees.length + 1, capacity);
+    let entry = progress.categories.find((candidate) => candidate.category === category);
+    return Math.min((entry?.nominations.length || 0) + 1, capacityFor(category));
   }
 
-  function removeNominee(category, filmId, placement) {
-    let result = window.deleteNomination(year, category, filmId, Number(placement));
-    if (!result.ok) {
-      window.alert?.(result.reason);
-      return;
+  async function removeNominee(category, filmId, placement) {
+    try {
+      await window.deleteSupabasePersonalNomination(personalAwardId, category, Number(placement), filmId);
+      await window.reopenSupabaseAwardReview(year, category);
+      await refreshProgress();
+      render();
+    } catch (error) {
+      alert(error.message || String(error));
     }
-    window.reopenAnnualAwardReview(year, category);
-    window.save?.({ immediate: true });
-    render();
   }
 
   function toggleCategory(category) {
@@ -307,15 +286,15 @@
   function render() {
     let finish = window.startOskarsPerformance?.("awardsYear:render");
     let header = window.renderDetailHeader({
-      mainHtml: `<span class="eyebrow">${escape(ui("Annual awards"))}</span><h1>${escape(year)}</h1><p>${escape(ui("Build the ballot category by category, then run the ceremony."))}</p>`,
-      actionsHtml: `<a class="button-link" href="build.html">${escape(ui("Build your Oskars"))}</a><a class="button-link" href="${escape(window.yearRankingPageUrl(year))}">${escape(ui("Rank this year"))}</a><a class="button-link" href="${escape(window.periodPageUrl("years", year))}">${escape(ui("View {year}", { year }))}</a>`,
+      mainHtml: `<span class="eyebrow">Annual awards</span><h1>${escape(year)}</h1><p>Build the ballot category by category, then run the ceremony.</p>`,
+      actionsHtml: `<a class="button-link" href="build.html">Build your Oskars</a><a class="button-link" href="${escape(window.yearRankingPageUrl?.(year) || "#")}">Rank this year</a><a class="button-link" href="${escape(window.periodPageUrl?.("years", year) || "#")}">View ${escape(year)}</a>`,
     });
     container.innerHTML = `${header}
       <section class="setup-year-section">
-        <h2>${escape(ui("Annual ballot"))}</h2>
+        <h2>Annual ballot</h2>
         ${renderBracketSection()}
       </section>`;
-    finish?.(`${year} · ${window.annualAwardReviewProgress(year).reviewed} reviewed`);
+    finish?.(`${year} · ${progress.reviewed} reviewed`);
   }
 
   container.addEventListener("keydown", (event) => {
@@ -336,12 +315,19 @@
     let finishTarget = event.target.closest("[data-setup-award-finish]");
     let noneTarget = event.target.closest("[data-setup-award-none]");
     if (finishTarget || noneTarget) {
-      let category = (finishTarget || noneTarget).dataset.setupAwardFinish ||
+      let category =
+        (finishTarget || noneTarget).dataset.setupAwardFinish ||
         (finishTarget || noneTarget).dataset.setupAwardNone;
-      window.setAnnualAwardReview(year, category, finishTarget ? "complete" : "none");
-      expandedCategory = undefined;
-      window.save?.({ immediate: true, rebuild: false });
-      render();
+      (async () => {
+        try {
+          await window.setSupabaseAwardReview(year, category, finishTarget ? "complete" : "none");
+          expandedCategory = undefined;
+          await refreshProgress();
+          render();
+        } catch (error) {
+          alert(error.message || String(error));
+        }
+      })();
       return;
     }
 
@@ -351,8 +337,7 @@
       let category = card?.dataset.setupAwardAdd;
       let filmId = card?.dataset.setupAwardFilm;
       if (category && filmId) {
-        if (!excludedFromPool.has(category))
-          excludedFromPool.set(category, new Set());
+        if (!excludedFromPool.has(category)) excludedFromPool.set(category, new Set());
         excludedFromPool.get(category).add(filmId);
         render();
       }
@@ -368,20 +353,17 @@
 
     let removeTarget = event.target.closest("[data-setup-award-remove]");
     if (removeTarget) {
-      return removeNominee(
+      removeNominee(
         removeTarget.dataset.setupAwardCategory,
         removeTarget.dataset.setupAwardFilmId,
         removeTarget.dataset.setupAwardPlacement,
       );
+      return;
     }
 
     let creditEditTarget = event.target.closest("[data-setup-award-credit-edit]");
     if (creditEditTarget) {
-      editingNominee = {
-        category: creditEditTarget.dataset.setupAwardCategory,
-        filmId: creditEditTarget.dataset.setupAwardFilmId,
-        placement: creditEditTarget.dataset.setupAwardPlacement,
-      };
+      editingNominee = { nominationId: creditEditTarget.dataset.setupAwardNominationId };
       pendingNominee = null;
       render();
       return;
@@ -405,15 +387,20 @@
     let form = event.target.closest("[data-setup-award-credit-form]");
     if (!form) return;
     event.preventDefault();
-    let category = form.dataset.setupAwardCategory;
-    let filmId = form.dataset.setupAwardFilmId;
-    let placement = Number(form.dataset.setupAwardPlacement);
     let recipient = form.querySelector('[name="recipient"]')?.value || "";
     let detailInput = form.querySelector('[name="detail"]');
     let detail = detailInput ? detailInput.value : undefined;
-    if (form.dataset.setupAwardMode === "edit")
-      saveNomineeCredit(category, filmId, placement, recipient, detail);
-    else addNominee(category, filmId, placement, recipient, detail || "");
+    if (form.dataset.setupAwardMode === "edit") {
+      saveNomineeCredit(form.dataset.setupAwardNominationId, recipient, detail);
+    } else {
+      addNominee(
+        form.dataset.setupAwardCategory,
+        form.dataset.setupAwardFilmId,
+        Number(form.dataset.setupAwardPlacement),
+        recipient,
+        detail || "",
+      );
+    }
   });
 
   let draggedFilmId = null;
@@ -429,17 +416,13 @@
     draggedFilmId = null;
   });
   container.addEventListener("dragover", (event) => {
-    let target = draggedFilmId
-      ? event.target.closest("[data-setup-award-target]")
-      : null;
+    let target = draggedFilmId ? event.target.closest("[data-setup-award-target]") : null;
     if (!target) return;
     event.preventDefault();
     target.classList.add("drop-target");
   });
   container.addEventListener("dragleave", (event) => {
-    event.target
-      .closest("[data-setup-award-target]")
-      ?.classList.remove("drop-target");
+    event.target.closest("[data-setup-award-target]")?.classList.remove("drop-target");
   });
   container.addEventListener("drop", (event) => {
     if (!draggedFilmId) return;
@@ -452,6 +435,26 @@
     beginNominee(category, draggedFilmId, Number(target.dataset.setupAwardTarget));
   });
 
-  render();
-  window.addEventListener?.("oskars:localechange", render);
+  async function boot() {
+    if (!valid) {
+      document.title = "Build annual awards · The Oskars";
+      container.innerHTML = `<div class="detail-empty"><h1>Year not found</h1><a href="index.html">Return home</a></div>`;
+      return;
+    }
+    document.title = `Build ${year} awards · The Oskars`;
+    let access = await window.resolveSupabaseAccountGate();
+    if (!access.allowed) {
+      window.renderSupabaseAccountGate(access, container);
+      return;
+    }
+    try {
+      await window.loadSupabaseWorkspace();
+      await refreshProgress();
+      render();
+    } catch (error) {
+      container.innerHTML = `<section class="detail-empty"><h2>Could not load this year's ballot</h2><p>${escape(error.message || String(error))}</p></section>`;
+    }
+  }
+
+  boot();
 })();

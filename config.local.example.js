@@ -1,9 +1,6 @@
 /** @file Documents the optional browser-local Google Sheets configuration shape. */
 
 window.OSKARS_LOCAL_CONFIG = {
-  // Reveals a link to owner-data.html in source checkouts. Deployment
-  // artifacts exclude that page regardless of this example value.
-  ownerDataTools: false,
   googleClientId: "your-google-oauth-client-id.apps.googleusercontent.com",
   googleSheets: {
     spreadsheetId: "your-private-google-sheet-id",

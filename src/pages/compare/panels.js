@@ -62,8 +62,7 @@ let ui = window.uiText || ((text) => text);
     return items
       .map((item) => {
         let film = window.watchlistFilmLike?.(item) || item;
-        let id = item.id || window.watchlistItemId?.(item);
-        let href = window.watchlistFilmPageUrl?.(id) || "";
+        let href = window.filmPageUrl?.(item.supabaseFilmId) || "";
         let title =
           window.localizedFilmTitle?.(film) || item.title || film.title;
         let meta = [

@@ -45,44 +45,6 @@ window.projectFilmRef = function (type, id, meta = {}) {
   return Object.assign({ type, id }, meta);
 };
 
-function projectRefKey(ref) {
-  return `${ref?.type || ""}\n${ref?.id || ""}`;
-}
-
-function withProjectOrder(refs, existingRefs = []) {
-  let hasExistingRefs = (existingRefs || []).length > 0;
-  let existingOrder = new Map(
-    (existingRefs || []).map((ref, index) => [
-      projectRefKey(ref),
-      Number(ref.projectOrder) || index + 1,
-    ]),
-  );
-  let maxOrder = Array.from(existingOrder.values()).reduce(
-    (max, order) => Math.max(max, Number(order) || 0),
-    0,
-  );
-  let next = projectUniqueRefs(refs || []).map((ref) => Object.assign({}, ref));
-  next.forEach((ref, index) => {
-    let order =
-      existingOrder.get(projectRefKey(ref)) || Number(ref.projectOrder) || 0;
-    if (order > 0) {
-      ref.projectOrder = order;
-      maxOrder = Math.max(maxOrder, order);
-    } else {
-      ref.projectOrder = hasExistingRefs ? ++maxOrder : index + 1;
-    }
-  });
-  next.sort(
-    (left, right) =>
-      Number(left.projectOrder || 999999) -
-      Number(right.projectOrder || 999999),
-  );
-  next.forEach((ref, index) => {
-    ref.projectOrder = index + 1;
-  });
-  return next;
-}
-
 /** Derives project references for a person. @param {string} personId Person id. @returns {ProjectFilmRef[]} References. */
 window.projectRefsForPerson = function (personId) {
   let person = (window.ensurePeopleIndex?.() || state.peopleById || {})[
@@ -230,117 +192,143 @@ window.projectSourceRecord = function (sourceType, sourceId) {
   return null;
 };
 
-// Films the user explicitly removed from a source-backed project stay out
-// when the project is rebuilt from its source (issue #11) — without this,
-// every refresh silently resurrected them.
-function withoutDismissedRefs(filmRefs, project) {
-  let dismissed = project?.dismissedRefs?.length
-    ? new Set(project.dismissedRefs.map((ref) => `${ref.type}\n${ref.id}`))
-    : null;
-  if (!dismissed) return filmRefs;
-  return (filmRefs || []).filter(
-    (ref) => !dismissed.has(`${ref.type}\n${ref.id}`),
-  );
+// Resolves one filmRef (as computed by projectSourceRecord() above) down to
+// the real Supabase films.id start_project_from_source() needs (issue
+// #455). "archive"/"watched" refs already carry the real film id directly
+// in ref.id (since #454, filmsById/findWatchedFilmById are keyed by the
+// real Supabase id whenever a film is Supabase-backed); "watchlist" refs
+// carry the watchlist row's own id instead, resolved through its
+// supabaseFilmId; "official" refs may resolve to either, or to neither
+// (a nomination never watched or watchlisted) - resolveProjectFilmRef
+// already does exactly this three-way resolution.
+function projectRefFilmId(ref) {
+  if (ref?.type === "archive" || ref?.type === "watched") return ref.id;
+  if (ref?.type === "watchlist")
+    return window.findWatchlistItemById?.(ref.id)?.supabaseFilmId || null;
+  if (ref?.type === "official") {
+    let resolved = window.resolveProjectFilmRef(ref);
+    if (!resolved) return null;
+    return resolved.status === "watched"
+      ? resolved.film?.id || null
+      : resolved.item?.supabaseFilmId || null;
+  }
+  return null;
 }
 
-/** Creates or refreshes a source-backed project. @param {string} sourceType Source type. @param {string} sourceId Source id. @param {Object} [options] Save controls. @returns {ProjectRecord|null} Project. */
-window.upsertProjectFromSource = function (sourceType, sourceId, options = {}) {
-  state.projects ||= [];
+// Shared click-through for every "Start project" source button (issue
+// #455). Writes straight to Supabase via start_project_from_source() -
+// a second call for the same sourceType/sourceId refreshes the existing
+// project's source_label and item list rather than creating a duplicate,
+// matching the old (broken) upsertProjectFromSource()'s intent, just
+// actually persisted this time.
+/** Creates or refreshes a source-backed Supabase project and opens its page. @param {string} sourceType Source type. @param {string} sourceId Source id. @returns {Promise<Object|null>} Project row, or null if there was nothing real to add or the source doesn't resolve. */
+window.startProjectFromSourceAndOpen = async function (sourceType, sourceId) {
+  let ui = window.uiText || ((text) => text);
   let source = window.projectSourceRecord(sourceType, sourceId);
   if (!source) return null;
-  let id = window.projectIdForSource(sourceType, sourceId);
-  let now = new Date().toISOString();
-  let existing = state.projects.find((project) => project.id === id);
-  if (existing) {
-    existing.name = existing.name || source.name;
-    existing.sourceLabel = source.sourceLabel;
-    existing.sourceHref = source.sourceHref || existing.sourceHref || "";
-    existing.filmRefs = withProjectOrder(
-      withoutDismissedRefs(source.filmRefs, existing),
-      existing.filmRefs,
-    );
-    existing.updatedAt = now;
-    existing.status = existing.status || "active";
-    if (options.save !== false) window.save();
-    return existing;
+  let filmIds = [
+    ...new Set(
+      (source.filmRefs || []).map(projectRefFilmId).filter(Boolean),
+    ),
+  ];
+  if (!filmIds.length) {
+    alert(ui("None of these films are in the catalog yet."));
+    return null;
   }
-  let project = {
-    id,
-    name: source.name,
-    sourceType,
-    sourceId,
-    sourceLabel: source.sourceLabel,
-    sourceHref: source.sourceHref || "",
-    filmRefs: withProjectOrder(source.filmRefs),
-    createdAt: now,
-    updatedAt: now,
-    status: "active",
-  };
-  state.projects.push(project);
-  if (options.save !== false) window.save();
-  return project;
+  try {
+    let project = await window.createSupabaseProjectFromSource(
+      sourceType,
+      sourceId,
+      source.name,
+      filmIds,
+      source.sourceLabel,
+    );
+    window.location.href = window.projectPageUrl(project.id);
+    return project;
+  } catch (err) {
+    alert(err.message || String(err));
+    return null;
+  }
 };
 
-// A custom project starts from a hand-picked film set instead of a source
-// entity, so it has no sourceId and can never be refreshed from source.
-/** Creates a custom project from selected film references. @param {string} name Name. @param {ProjectFilmRef[]} filmRefs References. @param {Object} [options] Save controls. @returns {ProjectRecord|null} Project. */
-window.createCustomProject = function (name, filmRefs, options = {}) {
-  let trimmedName = String(name || "").trim();
-  if (!trimmedName) return null;
-  state.projects ||= [];
-  let base = window.normalizeProjectId(trimmedName) || "project";
-  let id = `custom-${base}`;
-  let suffix = 2;
-  while (state.projects.some((project) => project.id === id))
-    id = `custom-${base}-${suffix++}`;
-  let now = new Date().toISOString();
-  let project = {
-    id,
-    name: trimmedName,
-    sourceType: "custom",
-    sourceId: "",
-    sourceLabel: trimmedName,
-    sourceHref: "",
-    filmRefs: withProjectOrder(filmRefs || []),
-    createdAt: now,
-    updatedAt: now,
-    status: "active",
-  };
-  state.projects.push(project);
-  if (options.save !== false) window.save();
-  return project;
-};
-
-// Shared click-through for every "Start project" source button. The save must
-// finish before navigating: window.save() debounces its IndexedDB write, so
-// navigating right after upsert unloads the page before the write lands and
-// project.html then loads a state snapshot without the new project.
-/** Creates or refreshes a source project, saves it, and opens its page. @param {string} sourceType Source type. @param {string} sourceId Source id. @returns {Promise<ProjectRecord|null>} Project. */
-window.startProjectFromSourceAndOpen = async function (sourceType, sourceId) {
-  let project = window.upsertProjectFromSource(sourceType, sourceId, {
-    save: false,
-  });
-  if (!project) return null;
-  let saving = window.save?.({ immediate: true, rebuild: false });
-  if (saving?.then) await saving;
-  window.location.href = window.prepareOskarsAccountNavigation(
-    window.projectPageUrl(project.id),
+// Resolves one collection_items row's film_id to a ProjectFilmRef
+// (issue #458): "archive" if it's a watched film already in the ranked
+// archive, "watchlist" (keyed by the watchlist row's own id, not the
+// film id) if it's watchlisted instead, or omitted entirely if the
+// viewer has neither - matching the same accepted-gap pattern an
+// unresolvable official-results nominee ref already has.
+function projectSourceIndexRef(filmId) {
+  if (state.filmsById?.[filmId]) return window.projectFilmRef("archive", filmId);
+  let watchlistItem = (state.watchlist || []).find(
+    (entry) => entry.supabaseFilmId === filmId,
   );
-  return project;
+  if (watchlistItem) return window.projectFilmRef("watchlist", watchlistItem.id);
+  return null;
+}
+
+/**
+ * Reshapes every project the signed-in user owns (issue #458) into the
+ * same ProjectRecord shape upsertProjectFromSource() used to build, so
+ * the existing pure functions that already know how to read one
+ * (projectProgress, resolveProjectFilmRef, renderSourceProjectAction,
+ * projectFilmSets in compare-targets.js, resolveProjectPackScope in
+ * presentation-packs.js) keep working completely unchanged, fed by real
+ * Supabase data instead of the never-hydrated state.projects.
+ * @param {Object[]} rows Raw rows from loadSupabaseLegacyHydrationSource()'s `ownProjects`.
+ * @returns {ProjectRecord[]}
+ */
+window.buildProjectSourceIndexFromSupabase = function (rows) {
+  return (rows || []).map((row) => {
+    let project = row.projects || {};
+    return {
+      id: row.id,
+      name: row.name,
+      sourceType: row.source_type || "",
+      sourceId: row.source_id || "",
+      sourceLabel: row.source_label || "",
+      status: project.status,
+      pinned: project.pinned,
+      updatedAt: project.updated_at,
+      createdAt: row.created_at,
+      filmRefs: (row.collection_items || [])
+        .map((item) => projectSourceIndexRef(item.film_id))
+        .filter(Boolean),
+    };
+  });
+};
+
+window.OSKARS_PROJECT_SOURCE_INDEX_BY_ID = {};
+window.OSKARS_PROJECT_SOURCE_INDEX_BY_SOURCE = {};
+
+/**
+ * Applies a freshly-hydrated project-source index (issue #458), indexing
+ * it both by the project's own id and by its source identity.
+ * @param {Object[]} rows Raw rows from loadSupabaseLegacyHydrationSource()'s `ownProjects`.
+ */
+window.applyProjectSourceIndex = function (rows) {
+  let projects = window.buildProjectSourceIndexFromSupabase(rows);
+  let byId = {};
+  let bySource = {};
+  projects.forEach((project) => {
+    byId[project.id] = project;
+    if (project.sourceType && project.sourceId)
+      bySource[`${project.sourceType}::${project.sourceId}`] = project;
+  });
+  window.OSKARS_PROJECT_SOURCE_INDEX_BY_ID = byId;
+  window.OSKARS_PROJECT_SOURCE_INDEX_BY_SOURCE = bySource;
 };
 
 /** Finds a project by id. @param {string} projectId Project id. @returns {ProjectRecord|null} Project. */
 window.findProjectById = function (projectId) {
-  return (
-    (state.projects || []).find((project) => project.id === projectId) || null
-  );
+  return window.OSKARS_PROJECT_SOURCE_INDEX_BY_ID?.[projectId] || null;
 };
 
 /** Finds a project by source identity. @param {string} sourceType Source type. @param {string} sourceId Source id. @returns {ProjectRecord|null} Project. */
 window.projectForSource = function (sourceType, sourceId) {
-  let expectedId = window.projectIdForSource(sourceType, sourceId);
   return (
-    (state.projects || []).find((project) => project.id === expectedId) || null
+    window.OSKARS_PROJECT_SOURCE_INDEX_BY_SOURCE?.[
+      `${sourceType}::${sourceId}`
+    ] || null
   );
 };
 
@@ -373,166 +361,6 @@ window.renderSourceProjectAction = function (
     ? `${progress.watchedCount}/${progress.total} ${ui("watched")} · ${progress.percent}%`
     : statusLabel;
   return `<div class="${actionClasses}">${actionLink}<span>${escape(progressText)} · ${escape(statusLabel)}</span></div>`;
-};
-
-/** Returns the active project. @returns {ProjectRecord|null} Project. */
-window.activeProject = function () {
-  let project = window.findProjectById?.(state.activeProjectId);
-  if (project) return project;
-  if (state.activeProjectId) state.activeProjectId = "";
-  return null;
-};
-
-/** Sets or clears the active project. @param {string} projectId Project id. @param {Object} [options] Save controls. @returns {ProjectRecord|null} Active project. */
-window.setActiveProject = function (projectId, options = {}) {
-  let project = window.findProjectById?.(projectId);
-  if (!project) return null;
-  state.activeProjectId = project.id;
-  if (["archived", "complete"].includes(project.status))
-    project.status = "active";
-  project.updatedAt = new Date().toISOString();
-  if (options.save !== false) window.save({ rebuild: false });
-  return project;
-};
-
-/** Refreshes a source-backed project's references. @param {string} projectId Project id. @param {Object} [options] Save controls. @returns {ProjectRecord|null} Project. */
-window.refreshProjectFromSource = function (projectId, options = {}) {
-  let project = window.findProjectById?.(projectId);
-  if (!project?.sourceType || !project.sourceId) return null;
-  let source = window.projectSourceRecord(project.sourceType, project.sourceId);
-  if (!source) return null;
-  project.name = project.name || source.name;
-  project.sourceLabel = source.sourceLabel;
-  project.sourceHref = source.sourceHref || project.sourceHref || "";
-  project.filmRefs = withProjectOrder(
-    withoutDismissedRefs(source.filmRefs, project),
-    project.filmRefs,
-  );
-  project.updatedAt = new Date().toISOString();
-  if (project.status === "complete") {
-    let progress = window.projectProgress(project);
-    if (progress.watchlistCount) project.status = "active";
-  }
-  if (options.save !== false) window.save();
-  return project;
-};
-
-/** Sets a project status. @param {string} projectId Project id. @param {'active'|'complete'|'archived'} status Status. @param {Object} [options] Save controls. @returns {ProjectRecord|null} Project. */
-window.setProjectStatus = function (projectId, status, options = {}) {
-  let project = window.findProjectById?.(projectId);
-  if (!project) return null;
-  let nextStatus = ["active", "archived", "complete"].includes(status)
-    ? status
-    : "active";
-  project.status = nextStatus;
-  project.updatedAt = new Date().toISOString();
-  if (
-    state.activeProjectId === project.id &&
-    ["archived", "complete"].includes(nextStatus)
-  )
-    state.activeProjectId = "";
-  if (options.save !== false) window.save({ rebuild: false });
-  return project;
-};
-
-/** Sets whether a project is pinned. @param {string} projectId Project id. @param {boolean} pinned Pinned state. @param {Object} [options] Save controls. @returns {ProjectRecord|null} Project. */
-window.setProjectPinned = function (projectId, pinned, options = {}) {
-  let project = window.findProjectById?.(projectId);
-  if (!project) return null;
-  project.pinned = Boolean(pinned);
-  project.updatedAt = new Date().toISOString();
-  if (options.save !== false) window.save({ rebuild: false });
-  return project;
-};
-
-/** Permanently removes a project and its project-owned note without changing any referenced film data. @param {string} projectId Project id. @param {Object} [options] Save controls. @returns {boolean} Whether a project was removed. */
-window.deleteProject = function (projectId, options = {}) {
-  state.projects ||= [];
-  let index = state.projects.findIndex((project) => project.id === projectId);
-  if (index < 0) return false;
-  state.projects.splice(index, 1);
-  if (state.activeProjectId === projectId) state.activeProjectId = "";
-  if (state.entityNotes?.projects) delete state.entityNotes.projects[projectId];
-  if (options.save !== false) window.save({ rebuild: false });
-  return true;
-};
-
-/** Dismisses a film reference from a project. @param {string} projectId Project id. @param {string} type Store type. @param {string} id Film id. @param {Object} [options] Save controls. @returns {ProjectRecord|null} Updated project. */
-window.removeProjectFilmRef = function (projectId, type, id, options = {}) {
-  let project = window.findProjectById?.(projectId);
-  if (!project) return null;
-  let before = project.filmRefs?.length || 0;
-  project.filmRefs = (project.filmRefs || []).filter(
-    (ref) => !(ref.type === type && ref.id === id),
-  );
-  if (project.filmRefs.length === before) return project;
-  // Source-backed projects remember the removal so a source refresh cannot
-  // bring the film back; custom projects have no refresh path to guard.
-  if (project.sourceType && project.sourceType !== "custom") {
-    project.dismissedRefs ||= [];
-    if (
-      !project.dismissedRefs.some((ref) => ref.type === type && ref.id === id)
-    ) {
-      project.dismissedRefs.push({ type, id });
-    }
-  }
-  project.updatedAt = new Date().toISOString();
-  if (options.save !== false) window.save();
-  return project;
-};
-
-/** Restores dismissed references to a project. @param {string} projectId Project id. @param {Object} [options] Save controls. @returns {ProjectRecord|null} Updated project. */
-window.clearProjectDismissedRefs = function (projectId, options = {}) {
-  let project = window.findProjectById?.(projectId);
-  if (!project?.dismissedRefs?.length) return project;
-  project.dismissedRefs = [];
-  project.updatedAt = new Date().toISOString();
-  if (options.save !== false) window.save();
-  return project;
-};
-
-/** Reorders one project queue reference around another. @param {string} projectId Project id. @param {string} fromType Moved store type. @param {string} fromId Moved id. @param {string} toType Target store type. @param {string} toId Target id. @param {'before'|'after'} [position] Position. @param {Object} [options] Save controls. @returns {{ok: boolean, reason: string}|{ok: boolean}} Move result. */
-window.moveProjectQueueRef = function (
-  projectId,
-  fromType,
-  fromId,
-  toType,
-  toId,
-  position = "before",
-  options = {},
-) {
-  let project = window.findProjectById?.(projectId);
-  if (!project) return { ok: false, reason: "Project not found." };
-  let refs = withProjectOrder(project.filmRefs || []);
-  let fromRef = refs.find((ref) => ref.type === fromType && ref.id === fromId);
-  let toRef = refs.find((ref) => ref.type === toType && ref.id === toId);
-  if (!fromRef || !toRef)
-    return { ok: false, reason: "Both films must exist in the project." };
-  let fromRecord = window.resolveProjectFilmRef(fromRef);
-  let toRecord = window.resolveProjectFilmRef(toRef);
-  let inQueue = (record) =>
-    record?.status === "watchlist" || Boolean(record?.rewatch);
-  if (!inQueue(fromRecord) || !inQueue(toRecord)) {
-    return {
-      ok: false,
-      reason:
-        "Project queue ordering is limited to unwatched or rewatch-marked films.",
-    };
-  }
-  let fromIndex = refs.indexOf(fromRef);
-  let toIndex = refs.indexOf(toRef);
-  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex)
-    return { ok: false, reason: "No project move needed." };
-  refs.splice(fromIndex, 1);
-  toIndex = refs.indexOf(toRef);
-  refs.splice(position === "after" ? toIndex + 1 : toIndex, 0, fromRef);
-  refs.forEach((ref, index) => {
-    ref.projectOrder = index + 1;
-  });
-  project.filmRefs = refs;
-  project.updatedAt = new Date().toISOString();
-  if (options.save !== false) window.save({ rebuild: false });
-  return { ok: true };
 };
 
 /** Tests whether a project is active and incomplete. @param {ProjectRecord} project Project. @returns {boolean} Whether open. */
@@ -594,7 +422,7 @@ window.activeProjectsForFilm = function ({
   watchlistId = "",
   watchedId = "",
 } = {}) {
-  return [...(state.projects || [])]
+  return Object.values(window.OSKARS_PROJECT_SOURCE_INDEX_BY_ID || {})
     .filter(
       (project) =>
         window.projectIsOpen(project) &&
@@ -606,8 +434,6 @@ window.activeProjectsForFilm = function ({
     )
     .sort(
       (left, right) =>
-        Number(right.id === state.activeProjectId) -
-          Number(left.id === state.activeProjectId) ||
         Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) ||
         String(right.updatedAt || right.createdAt || "").localeCompare(
           String(left.updatedAt || left.createdAt || ""),
@@ -643,7 +469,7 @@ window.resolveProjectFilmRef = function (ref, options = {}) {
       status: archiveFilm ? "watched" : "watchlist",
       href: archiveFilm
         ? window.filmPageUrl(archiveFilm.id)
-        : window.watchlistFilmPageUrl(ref.id),
+        : window.filmPageUrl(item.supabaseFilmId),
       rewatch: Boolean(archiveFilm?.wantToRewatch),
     };
   }
@@ -685,7 +511,7 @@ window.resolveProjectFilmRef = function (ref, options = {}) {
         film,
         official,
         status: "watchlist",
-        href: window.watchlistFilmPageUrl(item.id),
+        href: window.filmPageUrl(item.supabaseFilmId),
         rewatch: false,
       };
     }
@@ -927,7 +753,7 @@ function completionNextFromWatchlistItem(item) {
     title: item.title || "",
     year: item.year || "",
     tier: item.tier || "",
-    href: window.watchlistFilmPageUrl?.(item.id) || "",
+    href: window.filmPageUrl?.(item.supabaseFilmId) || "",
   };
 }
 
@@ -989,7 +815,7 @@ window.completionHubData = function (options = {}) {
 
   let projects = [];
   let completeProjects = 0;
-  (state.projects || []).forEach((project) => {
+  Object.values(window.OSKARS_PROJECT_SOURCE_INDEX_BY_ID || {}).forEach((project) => {
     if (project.status === "archived") return;
     let progress = window.projectProgress(project);
     if (!progress.total) return;

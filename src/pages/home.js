@@ -3,6 +3,18 @@
 (function () {
   let homeEscape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
+  // entry-loader.js's early Supabase account-gate render replaces <main>'s
+  // entire innerHTML before this script ever runs (issue #430's finding,
+  // proven again in #437/#438) - render the static search shell fresh
+  // here, matching every other single-container Supabase-backed page,
+  // rather than relying on any pre-existing static markup in index.html.
+  document.getElementById("homePage").innerHTML =
+    `<section class="home-search-band">
+      <label for="globalSearch">Search</label>
+      <input id="globalSearch" type="search" autocomplete="off" placeholder="Films, people, roles, songs, categories, periods">
+    </section>
+    <section id="searchResults" class="home-search-results" hidden></section>
+    <div id="homeContent"><p class="home-loading">Loading database…</p></div>`;
   let homeTopSortValues = new Set([
     "allTimeRank",
     "rating",
@@ -45,21 +57,15 @@
         if (/^\d{4}$/.test(String(award.year || ""))) annualAwardCount += 1;
       }),
     );
-    let activeProject = window.activeProject?.();
-    let activeProjectHtml = "";
-    if (activeProject) {
-      let activeProgress = window.projectProgress(activeProject);
-      let next = activeProgress.next;
-      activeProjectHtml = `<section class="home-active-project">
-      <div>
-        <span class="eyebrow">${homeEscape(ui("Active project"))}</span>
-        <h2><a href="${homeEscape(window.projectPageUrl(activeProject.id))}">${homeEscape(activeProject.name)}</a></h2>
-        <p>${homeEscape(activeProgress.watchedCount)}/${homeEscape(activeProgress.total)} ${homeEscape(ui("watched"))} · ${homeEscape(activeProgress.percent)}% ${homeEscape(ui("complete"))}${activeProgress.watchlistCount ? ` · ${homeEscape(activeProgress.watchlistCount)} ${homeEscape(ui("to watch"))}` : ""}</p>
-      </div>
-      ${next ? `<a class="button-link" href="${homeEscape(next.href)}">${homeEscape(ui("Next"))}: ${homeEscape(window.localizedFilmTitle?.(next.film) || next.film.title)}${next.film.year ? ` (${homeEscape(next.film.year)})` : ""}</a>` : `<span class="project-active-label">${homeEscape(ui("No unwatched films left"))}</span>`}
-    </section>`;
-    }
-    let recentProjectLinks = [...(state.projects || [])]
+    // "Active project" (window.activeProject()/state.activeProjectId) is
+    // retired, not fixed (issue #459) - it had no real UI to set it even
+    // before the Supabase cutover (its only setter, setActiveProject(),
+    // was already confirmed dead code and deleted in #458) and no
+    // Supabase-backed equivalent concept exists; `pinned` is the one real,
+    // persisted "highlight this project" signal a project actually has.
+    let recentProjectLinks = [
+      ...Object.values(window.OSKARS_PROJECT_SOURCE_INDEX_BY_ID || {}),
+    ]
       .filter((project) => !["archived", "complete"].includes(project.status))
       .sort((left, right) =>
         String(right.updatedAt || right.createdAt || "").localeCompare(
@@ -185,7 +191,6 @@
 
     document.getElementById("homeContent").innerHTML = `
     <section class="home-summary"><span><b>${films.length}</b> ${homeEscape(ui("Films"))}</span><span><b>${people.length}</b> ${homeEscape(ui("People"))}</span><span><b>${years.length}</b> ${homeEscape(ui("Years"))}</span><span><b>${annualAwardCount}</b> ${homeEscape(ui("Annual nominations"))}</span></section>
-    ${activeProjectHtml}
     ${recentProjectsHtml}
     <section class="home-top-films"><h2>${homeEscape(ui("Top films"))} <span>${homeEscape(ui("sorted by"))} ${homeEscape(sortLabel)}</span></h2><div class="leaderboard-wrap"><table class="leaderboard home-top-table"><thead><tr><th>#</th><th>${homeEscape(ui("Film"))}</th><th>${sortButton("allTimeRank", ui("All-time"))}</th><th>${sortButton("rating", ui("Rating"))}</th><th>${sortButton("yearScore", ui("Year score"))} <small>0–1</small></th><th>${sortButton("decadeScore", ui("Decade score"))} <small>0–1</small></th><th>${sortButton("centuryScore", ui("Century score"))} <small>0–1</small></th><th>${sortButton("allTimeScore", ui("All-time score"))} <small>0–1</small></th><th>${sortButton("wins", ui("Wins"))}</th><th>${sortButton("nominations", ui("Noms"))}</th></tr></thead><tbody>${topRows}</tbody></table></div></section>`;
     window.enhanceCollapsibles?.(document.getElementById("homeContent"));
@@ -222,17 +227,7 @@
     .ensureOskarsData()
     .then(() => {
       if (window.oskarsAccountAccessBlocked?.()) return;
-      if (
-        window.shouldShowOnboarding({
-          runtimeMode: window.getRuntimeMode(),
-          persistenceLoadInfo: window.getPersistenceLoadInfo(),
-          isPublicProfileView: window.state.isPublicProfileView,
-        })
-      ) {
-        window.renderOnboarding();
-      } else {
-        renderHome();
-      }
+      renderHome();
       let entries = null;
       document
         .getElementById("homeContent")
@@ -267,6 +262,6 @@
     .catch((err) => {
       console.error("Failed to initialize Oskars", err);
       document.getElementById("homeContent").innerHTML =
-        `<div class="detail-empty"><h1>${homeEscape(ui("Could not load The Oskars"))}</h1><p>${homeEscape(err.message)}</p><a href="editor.html">${homeEscape(ui("Open editor"))}</a></div>`;
+        `<div class="detail-empty"><h1>${homeEscape(ui("Could not load The Oskars"))}</h1><p>${homeEscape(err.message)}</p><a href="data.html">${homeEscape(ui("Open Data"))}</a></div>`;
     });
 })();

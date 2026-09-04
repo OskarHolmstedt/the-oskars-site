@@ -36,7 +36,7 @@ window.mergeOfficialResultsIntoCanonical = function (
  * bundled-official-results globals (`src/core/bundled-official-results.js`),
  * overwriting the bundled defaults - the same "bundled default, live fetch
  * overwrites" pattern `officialResults` itself already follows. Called
- * after a fresh owner-mode fetch and after a successful Firestore
+ * after a fresh owner-mode fetch and after a successful backend
  * shared-archive pull (`shared-archive-sync.js`), so
  * `official-results-view.js`'s rendering always reads from these two
  * globals regardless of which tier supplied them.

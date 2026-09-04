@@ -258,10 +258,15 @@ window.applyImportProposal = async function (proposal) {
   let plan = window.planImportProposalApplication(proposal);
   if (!plan.ok) return { ok: false, errors: plan.errors };
   let beforeState = window.cloneRecord(window.state);
-  let retained = await window.saveRecoveryWorkspace(
-    window.getBrowserPersistenceState(),
-    { reason: `before-import-proposal:${proposal.sourceKind}:${proposal.mode}` },
-  );
+  let retained = true;
+  if (window.saveRecoveryWorkspace) {
+    retained = await window.saveRecoveryWorkspace(
+      window.getBrowserPersistenceState(),
+      {
+        reason: `before-import-proposal:${proposal.sourceKind}:${proposal.mode}`,
+      },
+    );
+  }
   if (!retained)
     return {
       ok: false,

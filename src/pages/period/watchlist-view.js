@@ -328,7 +328,7 @@ window.renderAddWatchlistForm = function (options = {}) {
         ),
       )
       .join("");
-    return `<fieldset class="period-filter-controls"><legend>${escape(ui("Add film"))}</legend><form data-add-watchlist-form><label>${escape(ui("Title"))} <input type="text" name="title" required></label><label>${escape(ui("Year"))} <input type="number" name="year" min="1888" max="2100"></label><label>${escape(ui("Director"))} <input type="text" name="director"></label><label>${escape(ui("Interest"))} <select name="tier">${tierOptions}</select></label><button type="submit" class="sort-order-button">${escape(ui("Add"))}</button></form></fieldset>`;
+    return `<fieldset class="period-filter-controls"><legend>${escape(ui("Add film"))}</legend><form data-add-watchlist-form><label>${escape(ui("Title"))} <input type="text" name="title" required></label><label>${escape(ui("Year"))} <input type="number" name="year" min="1888" max="2100"></label><label>${escape(ui("Director"))} <input type="text" name="director"></label><label>${escape(ui("Interest"))} <select name="tier">${tierOptions}</select></label>${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Add to watchlist"), escape, attributes: { type: "submit" } })}</form></fieldset>`;
 };
 
 /**
@@ -492,7 +492,7 @@ window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
         ? `<div class="film-director">${escape(ui("by"))} ${directorHtml}</div>`
         : "",
       escape: escape,
-      titleHtml: `<a class="table-film-link" href="${escape(window.watchlistFilmPageUrl(item.id))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
+      titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
       bodyHtml: tierEditMode
         ? watchlistTierEditor(item, escape, ui)
         : window.renderWatchlistTierBadge(item.tier, {
@@ -538,7 +538,7 @@ window.renderWatchlistRow = function (entry, visibleIndex = 0, options = {}) {
       film,
       {
         escape: escape,
-        href: window.watchlistFilmPageUrl(item.id),
+        href: window.filmPageUrl(item.supabaseFilmId),
         year: true,
       },
     )}<td class="film-people-cell">${directorHtml}</td>${window.renderRatingTierCell({ item }, { escape: escape, editHtml: tierEditMode ? watchlistTierEditor(item, escape, window.uiText || ((text) => text)) : "" })}</tr>`;
@@ -595,7 +595,7 @@ window.renderWatchlistQueue = function (entries, options = {}) {
       .map((pick, index) => {
         let item = pick.item;
         let title = window.localizedFilmTitle?.(item) || item.title;
-        return `<li><span class="watchlist-queue-position">${index + 1}</span><div><a href="${escape(window.watchlistFilmPageUrl(item.id))}">${escape(title)}</a>${window.renderWatchlistTierBadge(item.tier, { escape })}<p class="discovery-reason">${escape(window.watchQueueReasonText(pick.reason))}</p></div></li>`;
+        return `<li><span class="watchlist-queue-position">${index + 1}</span><div><a href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(title)}</a>${window.renderWatchlistTierBadge(item.tier, { escape })}<p class="discovery-reason">${escape(window.watchQueueReasonText(pick.reason))}</p></div></li>`;
       })
       .join("");
     return `<div class="watchlist-queue-panel"><p>${escape(ui("A disposable queue recomputed from the current filters every time - nothing here is saved."))}</p><ol class="watchlist-queue-list">${rows}</ol></div>`;
