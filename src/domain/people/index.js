@@ -222,6 +222,32 @@ window.rebuildPeopleIndex = function () {
       : window.parsePersonCredit(film.director).names;
     directors.forEach((name) => addWatchedOtherDirector(name, film));
   });
+  // Unseen catalog credits (issue #467): a person credited only on a
+  // catalog film the viewer hasn't watched, other-watched, or watchlisted
+  // previously never got a peopleById entry at all (every path above needs
+  // a personal film/watchlist/otherWatched record to call ensurePerson
+  // from), so their person.html page was always "Person not found" - the
+  // old catalogIds enrichment (issue #453) only ever extended a person who
+  // already existed for some other reason. This creates (or extends) a
+  // person from every profession credited in sharedArchiveCandidateFilms()
+  // - the same already-collection-filtered "unseen" film set period.html's
+  // Unseen tab uses - not just directors, since the underlying credit data
+  // already carries every profession. Nominee-only records (no real
+  // films.id) are skipped - catalogIds only ever holds real catalog rows,
+  // since there's no id to link a film.html?id= page to otherwise.
+  (window.sharedArchiveCandidateFilms?.() || []).forEach((film) => {
+    if (!film.id) return;
+    Object.values(film.people || {}).forEach((credit) => {
+      let person = ensurePerson(credit.name);
+      if (!person) return;
+      (credit.professions || []).forEach((profession) => {
+        if (!person.professions.includes(profession))
+          person.professions.push(profession);
+      });
+      if (!person.catalogIds.includes(film.id))
+        person.catalogIds.push(film.id);
+    });
+  });
   doneCollect?.();
 
   let doneFinalize = window.startOskarsPerformance?.(
@@ -230,14 +256,9 @@ window.rebuildPeopleIndex = function () {
   Object.values(peopleById).forEach((person) => {
     person.aliases.sort((a, b) => a.localeCompare(b));
     person.professions.sort((a, b) => a.localeCompare(b));
-    // Unseen films (issue #453) - catalog films this director is credited
-    // on that the viewer hasn't watched, other-watched, or watchlisted.
-    // sharedArchiveFilmsForDirector() already does alias resolution and
-    // de-dup; only real catalog rows (a real films.id) are kept here,
-    // since an official-results nominee placeholder has none.
-    person.catalogIds = (window.sharedArchiveFilmsForDirector?.(person) || [])
-      .map((film) => film.id)
-      .filter(Boolean);
+    // Unseen films (issue #453, generalized in #467): catalogIds is
+    // already populated above, while collecting credits - nothing left
+    // to do here.
     person.credits.sort(
       (a, b) =>
         String(b.period || "").localeCompare(

@@ -16,10 +16,15 @@ function collectionActionIcon(kind) {
 }
 
 /**
- * Renders an accessible icon-only action for adding one film to a collection.
+ * Renders an accessible icon-only action for adding one film to a
+ * collection, or (with `active`) a pressed toggle representing "already in
+ * this collection, click to remove."
  * @param {Object} options Action kind, label, attributes, and escaping.
  * @param {'watchlist'|'watched'} options.kind Destination collection.
  * @param {string} options.label Localized accessible action name.
+ * @param {boolean} [options.active] Renders a filled/pressed toggle state
+ *   (`is-active` class, `aria-pressed="true"`) for a removal action, instead
+ *   of the default "add" appearance.
  * @param {Record<string, string|boolean>} [options.attributes] Button attributes.
  * @param {string|string[]} [options.classes] Additional button classes.
  * @param {(value: *) => string} [options.escape] HTML escaping function.
@@ -29,6 +34,7 @@ window.renderCollectionActionButton = function (options = {}) {
   let escape = options.escape || window.pageEscape;
   let kind = options.kind === "watched" ? "watched" : "watchlist";
   let label = String(options.label || "").trim();
+  let active = Boolean(options.active);
   let extraClasses = Array.isArray(options.classes)
     ? options.classes
     : String(options.classes || "").split(/\s+/);
@@ -38,6 +44,7 @@ window.renderCollectionActionButton = function (options = {}) {
       class: [
         "collection-action-button",
         `collection-action-button--${kind}`,
+        active ? "is-active" : "",
         ...extraClasses,
       ]
         .filter(Boolean)
@@ -47,6 +54,7 @@ window.renderCollectionActionButton = function (options = {}) {
       "data-tooltip": label,
       "data-collection-action": kind,
     },
+    active ? { "aria-pressed": "true" } : null,
     options.attributes,
   );
   return `<button${filmCardAttributes(attributes, escape)}>${collectionActionIcon(kind)}</button>`;

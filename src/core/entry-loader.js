@@ -5,6 +5,7 @@
 
 (function () {
   let entry = document.currentScript?.dataset.entry;
+  window.OSKARS_ENTRY = entry;
   let pageEntries = new Set([
     "home",
     "data",
@@ -253,7 +254,8 @@
       if (!status || !window.resolveSupabaseAuthState) return;
       let auth = await window.resolveSupabaseAuthState();
       if (auth?.status !== "signed-in" || !auth.user?.id) {
-        status.innerHTML = '<div class="auth-status-sign-in" data-supabase-sign-in></div>';
+        status.innerHTML =
+          '<div class="auth-status-sign-in" data-supabase-sign-in></div>';
         window.renderGoogleSignInButtonForSupabase?.(
           status.querySelector("[data-supabase-sign-in]"),
         );
@@ -325,6 +327,16 @@
       ? ["src/domain/official-comparison.js"]
       : []),
     ...(entry === "person" ? ["src/domain/official-people.js"] : []),
+    ...([
+      "period",
+      "category",
+      "stats",
+      "completion",
+      "film",
+      "person",
+    ].includes(entry)
+      ? ["src/domain/supabase-official-results-hydration.js"]
+      : []),
     "src/domain/projects.js",
     "src/domain/watch-queue.js",
     "src/domain/local-rank.js",
@@ -444,14 +456,13 @@
     ...(entry === "compare" ? ["src/pages/compare/panels.js"] : []),
     ...(entry === "data"
       ? [
-          "src/data/transfer.js",
           "src/data/public-profile-publication.js",
           "src/data/import-proposals.js",
           "src/imports/zip.js",
           "src/imports/letterboxd.js",
         ]
       : entry === "profile"
-        ? ["src/data/transfer.js", "src/data/import-proposals.js"]
+        ? ["src/data/import-proposals.js"]
         : []),
     "src/core/persistence.js",
     "src/core/migrations.js",
@@ -463,6 +474,12 @@
   // contract. Keep the shared-header search usable (state.js supplies its
   // text normalizer; tags.js supplies the one non-optional index it calls),
   // then load only the UI/domain helpers each controller actually invokes.
+  // Every list here omitted src/ui/scroll-affordance.js (found via #447's
+  // responsive-audit repair) - the giant legacy `dependencies` array below
+  // carries it for every other entry, but these 9 pages load only this
+  // trimmed list, so their mobile primary nav never got the horizontal-
+  // overflow scroll affordance at all. Added uniformly rather than only to
+  // the one entry (intake) the audit happens to exercise.
   let supabaseEntryDependencies = {
     "rate-watched": [
       "src/core/state.js",
@@ -470,6 +487,7 @@
       "src/ui/film-rating.js",
       "src/ui/detail-scaffold.js",
       "src/ui/search.js",
+      "src/ui/scroll-affordance.js",
     ],
     "watchlist-merge": [
       "src/core/state.js",
@@ -479,6 +497,7 @@
       "src/ui/detail-scaffold.js",
       "src/ui/film-table.js",
       "src/ui/search.js",
+      "src/ui/scroll-affordance.js",
     ],
     "local-rank-merge": [
       "src/core/state.js",
@@ -486,17 +505,24 @@
       "src/domain/merge-order.js",
       "src/ui/detail-scaffold.js",
       "src/ui/search.js",
+      "src/ui/scroll-affordance.js",
     ],
     "ranking-review": [
       "src/core/state.js",
       "src/ui/film-rating.js",
       "src/ui/detail-scaffold.js",
+      "src/ui/scroll-affordance.js",
     ],
-    profile: ["src/core/state.js", "src/core/persistence.js"],
+    profile: [
+      "src/core/state.js",
+      "src/core/persistence.js",
+      "src/ui/scroll-affordance.js",
+    ],
     "rank-year": [
       "src/core/state.js",
       "src/ui/film-rating.js",
       "src/ui/detail-scaffold.js",
+      "src/ui/scroll-affordance.js",
     ],
     "awards-year": [
       "src/core/state.js",
@@ -504,17 +530,20 @@
       "src/domain/credits.js",
       "src/ui/award-credit.js",
       "src/ui/detail-scaffold.js",
+      "src/ui/scroll-affordance.js",
     ],
     build: [
       "src/core/state.js",
       "src/ui/poster-deck.js",
       "src/ui/detail-scaffold.js",
+      "src/ui/scroll-affordance.js",
     ],
     intake: [
       "src/core/state.js",
       "src/domain/people/index.js",
       "src/ui/film-rating.js",
       "src/ui/detail-scaffold.js",
+      "src/ui/scroll-affordance.js",
     ],
   };
 
@@ -656,7 +685,8 @@
   // real IndexedDB read/write can't silently race with Supabase-sourced
   // state.
   window.OSKARS_ENTRY_SKIPS_LEGACY_DATA_LOAD =
-    supabaseHydratedEntries.has(entry) || supabaseFullDependencyEntries.has(entry);
+    supabaseHydratedEntries.has(entry) ||
+    supabaseFullDependencyEntries.has(entry);
 
   (async function () {
     await loadScript("src/core/runtime-mode.js");
@@ -786,6 +816,12 @@
         return;
       }
       window.OSKARS_ACCOUNT_ACCESS_BLOCKED = false;
+      // Clears the "loading" overlay renderSupabaseAccountGate() prepended
+      // above - some pages (data.html) have real static <main> content the
+      // controller below needs intact, so nothing may have replaced it, but
+      // the transient overlay itself still needs removing now that this
+      // visit turned out to be signed in.
+      window.renderSupabaseAccountGate(access, document.querySelector("main"));
     }
     // page-utils.js has a top-level `let` - loading it twice throws a
     // real redeclaration SyntaxError in the browser (found running this

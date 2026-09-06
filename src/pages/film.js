@@ -88,6 +88,7 @@
     : null;
   let isWatchlistDetail = Boolean(watchlistItem);
   let watchlistBusy = false;
+  let watchedBusy = false;
   let removedWatchlistSnapshot = null;
   let watchlistFranchiseChains = null;
   // Read-only archive-match hint, ported from watchlist-film.js: built
@@ -250,7 +251,9 @@
       watchlistMetadataRow(
         ui("Year"),
         watchlistItem.year,
-        watchlistItem.year ? window.periodPageUrl("year", watchlistItem.year) : "",
+        watchlistItem.year
+          ? window.periodPageUrl("year", watchlistItem.year)
+          : "",
       ),
       watchlistMetadataRow(
         "TMDB",
@@ -272,7 +275,8 @@
       ),
       watchlistMetadataRow(
         ui("Screenplay"),
-        watchlistItem.screenplayType && watchlistItem.screenplayType !== "unknown"
+        watchlistItem.screenplayType &&
+          watchlistItem.screenplayType !== "unknown"
           ? metadataLabel(watchlistItem.screenplayType)
           : "",
       ),
@@ -281,7 +285,10 @@
       watchlistItem.country
         ? `<div><dt>${filmPageEscape(ui("Country"))}</dt><dd>${window.renderCountryLinks(watchlistItem.country, filmPageEscape)}</dd></div>`
         : "",
-      watchlistMetadataRow(ui("Runtime"), formatRuntime(watchlistItem.runtimeMinutes)),
+      watchlistMetadataRow(
+        ui("Runtime"),
+        formatRuntime(watchlistItem.runtimeMinutes),
+      ),
     ].join("");
     let archiveMatchHtml = renderArchiveMatchReview();
 
@@ -297,7 +304,7 @@
         ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}
         ${canEdit ? `<label class="data-field">${filmPageEscape(ui("Interest tier"))}<select name="tier" data-tier-select${watchlistBusy ? " disabled" : ""}>${tierOptions(watchlistItem.tier)}</select></label>` : ""}`,
       actionsHtml: canEdit
-        ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Mark as watched"), escape: filmPageEscape, attributes: { "data-mark-watchlist-watched": true, disabled: watchlistBusy } })}<button type="button" class="danger-button" data-remove-watchlist-film${watchlistBusy ? " disabled" : ""}>${filmPageEscape(ui("Remove from watchlist"))}</button>`
+        ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Mark as watched"), escape: filmPageEscape, attributes: { "data-mark-watchlist-watched": true, disabled: watchlistBusy } })}${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Remove from watchlist"), escape: filmPageEscape, active: true, attributes: { "data-remove-watchlist-film": true, disabled: watchlistBusy } })}`
         : "",
     })}
     ${renderWatchlistTagEditor()}
@@ -854,7 +861,7 @@
       ${film.review ? `<section class="detail-note film-review-compact"><div><h2>${filmPageEscape(ui("Review"))}</h2></div><p>${filmPageEscape(film.review)}</p></section>` : ""}`,
       actionsHtml: `<a class="button-link" href="${filmPageEscape(window.comparePageUrl([film.id]))}">${filmPageEscape(ui("Compare"))}</a>${
         canEdit
-          ? `<button type="button" data-toggle-film-rewatch>${filmPageEscape(ui(film.wantToRewatch ? "Remove from rewatchlist" : "Want to rewatch"))}</button><button type="button" data-edit-film>${filmPageEscape(ui("Edit"))}</button>`
+          ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Remove from watched"), escape: filmPageEscape, active: true, attributes: { "data-remove-watched-film": true, disabled: watchedBusy } })}<button type="button" data-toggle-film-rewatch>${filmPageEscape(ui(film.wantToRewatch ? "Remove from rewatchlist" : "Want to rewatch"))}</button><button type="button" data-edit-film>${filmPageEscape(ui("Edit"))}</button>`
           : ""
       }`,
     })}
@@ -971,7 +978,11 @@
     <p class="detail-empty">${filmPageEscape(ui("This film is in the catalog but hasn't been added to your own collection yet."))}</p>`;
   }
 
+  // Tracked only so the post-hydration re-render below can't kick a user
+  // out of an in-progress edit by hardcoding false.
+  let currentlyEditing = false;
   function render(editing = false) {
+    currentlyEditing = editing;
     let finishRenderTimer = window.startOskarsPerformance?.("film:render");
     let film = currentFilm();
     if (!film && isWatchlistDetail) {
@@ -1128,6 +1139,28 @@
       }
       return;
     }
+    let removeWatchedButton = event.target.closest(
+      "[data-remove-watched-film]",
+    );
+    if (removeWatchedButton) {
+      let film = currentFilm();
+      watchedBusy = true;
+      render(false);
+      try {
+        await window.removeFromSupabaseWatched(film.supabaseWatchedId);
+        delete window.state.filmsById?.[film.id];
+        if (Array.isArray(window.state.watchedOther))
+          window.state.watchedOther = window.state.watchedOther.filter(
+            (entry) => entry.id !== film.id,
+          );
+        render(false);
+      } catch (err) {
+        watchedBusy = false;
+        alert(err.message || String(err));
+        render(false);
+      }
+      return;
+    }
     if (event.target.closest("[data-toggle-film-rewatch]")) {
       let film = currentFilm();
       let backup = window.cloneRecord(window.getSerializableState());
@@ -1163,7 +1196,10 @@
       watchlistBusy = true;
       render(false);
       try {
-        await window.setSupabaseWatchlistTier(watchlistItem.id, tierSelect.value);
+        await window.setSupabaseWatchlistTier(
+          watchlistItem.id,
+          tierSelect.value,
+        );
         await reloadWatchlistItem();
       } catch (err) {
         alert(err.message || String(err));
@@ -1322,4 +1358,7 @@
   });
 
   render(false);
+  window
+    .hydrateOfficialResultsFromSupabase?.()
+    .then(() => render(currentlyEditing));
 })();

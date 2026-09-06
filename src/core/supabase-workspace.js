@@ -368,6 +368,31 @@ window.removeFromSupabaseWatchlist = async function (watchlistId) {
 };
 
 /**
+ * Removes one row from the signed-in user's watched films, straight
+ * through to Supabase, then updates the in-memory cache. Mirrors
+ * removeFromSupabaseWatchlist exactly - the "watched: own rows, eligible
+ * only" RLS policy is `for all`, so delete is already permitted for the
+ * row owner with no migration needed.
+ * @param {string} watchedId The watched row's id (from a cached entry).
+ */
+window.removeFromSupabaseWatched = async function (watchedId) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+
+  let { error } = await ready.client
+    .from("watched")
+    .delete()
+    .eq("id", watchedId);
+  if (error) throw error;
+
+  if (workspaceState) {
+    workspaceState.watched = workspaceState.watched.filter(
+      (row) => row.id !== watchedId,
+    );
+  }
+};
+
+/**
  * Moves a film from the signed-in user's watchlist to watched, straight
  * through to Supabase's move_watchlist_to_watched RPC (already proven
  * atomic in tests/supabase-integration.test.js), then updates the
@@ -1496,6 +1521,56 @@ window.updateSupabaseNominationRecipients = async function (
   if (insertError) throw insertError;
 };
 
+// PostgREST's stock max_rows cap (supabase/config.toml). Several shared,
+// non-personal tables already exceed this - the films catalog and
+// official_categories/official_nominations among them - so a plain
+// .select() would silently truncate them rather than error.
+const SUPABASE_FETCH_PAGE_SIZE = 1000;
+
+/**
+ * Fetches every row of one table across as many `.range()` pages as
+ * needed, learning the exact total from the first page (PostgREST's
+ * Content-Range header, surfaced by supabase-js as `count` when the query
+ * passes `{ count: "exact" }`) and firing every remaining page in
+ * parallel via `Promise.all` - wall-clock time is bounded by the slowest
+ * single request, not their sum. Mirrors
+ * scripts/import-official-results-to-supabase.mjs's own fetchAll() in
+ * spirit, but that Node script loops one page at a time (fine for a
+ * one-off import; too slow for a page load).
+ * @param {function(boolean): Object} buildQuery Returns a FRESH,
+ *   not-yet-sent query every call - e.g. `(withCount) =>
+ *   client.from("official_categories").select("id,name", withCount ?
+ *   { count: "exact" } : undefined)`. Never return/reuse a single shared
+ *   builder: two in-flight `.range()` calls on the same builder instance
+ *   would race each other's request state, since `.range()` mutates the
+ *   builder rather than cloning it.
+ * @param {number} [pageSize] Rows per page - defaults to PostgREST's max_rows.
+ * @returns {Promise<Object[]>} Every row, first-page order then ascending range order.
+ */
+async function fetchAllSupabaseRows(
+  buildQuery,
+  pageSize = SUPABASE_FETCH_PAGE_SIZE,
+) {
+  let first = await buildQuery(true).range(0, pageSize - 1);
+  if (first.error) throw first.error;
+  let rows = first.data || [];
+  let total = typeof first.count === "number" ? first.count : rows.length;
+  if (rows.length >= total) return rows;
+  let pageStarts = [];
+  for (let from = pageSize; from < total; from += pageSize)
+    pageStarts.push(from);
+  let pages = await Promise.all(
+    pageStarts.map((from) =>
+      buildQuery(false).range(from, from + pageSize - 1),
+    ),
+  );
+  pages.forEach((page) => {
+    if (page.error) throw page.error;
+    rows = rows.concat(page.data || []);
+  });
+  return rows;
+}
+
 // Every field a legacy read-only page's FilmRecord might display -
 // credits/tags/franchises embedded directly (one round trip, no per-film
 // N+1 query) rather than a separate bulk fetch per film id, since
@@ -1535,8 +1610,8 @@ window.loadSupabaseLegacyHydrationSource = async function () {
     watchlistResult,
     rankingsResult,
     personalAwardsResult,
-    franchisesResult,
-    catalogFilmsResult,
+    franchises,
+    catalogFilms,
     ownProjectsResult,
     profileResult,
   ] = await Promise.all([
@@ -1563,8 +1638,26 @@ window.loadSupabaseLegacyHydrationSource = async function () {
         "id, scope, scope_type, personal_nominations(id, category, placement, film_id, detail, personal_nomination_recipients(recipient_name))",
       )
       .order("placement", { foreignTable: "personal_nominations" }),
-    client.from("franchises").select("id, name, parent_id"),
-    client.from("films").select(LEGACY_HYDRATION_FILM_FIELDS),
+    // Both paginated (issue #463) - the shared, non-personal catalog is
+    // large enough that a plain .select() risks PostgREST's max_rows cap
+    // silently truncating it, the same way official_categories/
+    // official_nominations did before #462's identical fix.
+    fetchAllSupabaseRows((withCount) =>
+      client
+        .from("franchises")
+        .select(
+          "id, name, parent_id",
+          withCount ? { count: "exact" } : undefined,
+        ),
+    ),
+    fetchAllSupabaseRows((withCount) =>
+      client
+        .from("films")
+        .select(
+          LEGACY_HYDRATION_FILM_FIELDS,
+          withCount ? { count: "exact" } : undefined,
+        ),
+    ),
     // issue #458: every project the signed-in user owns, with its
     // collection's source identity and full item list - lets
     // findProjectById()/projectForSource() answer "does a project exist
@@ -1590,21 +1683,74 @@ window.loadSupabaseLegacyHydrationSource = async function () {
     watchlistResult,
     rankingsResult,
     personalAwardsResult,
-    franchisesResult,
-    catalogFilmsResult,
     ownProjectsResult,
     profileResult,
   ])
     if (result.error) throw result.error;
+  // franchises/catalogFilms already resolved to plain row arrays (or threw)
+  // inside fetchAllSupabaseRows() above - no {data, error} shape to check.
   return {
     watched: watchedResult.data,
     watchlist: watchlistResult.data,
     rankings: rankingsResult.data,
     personalAwards: personalAwardsResult.data,
-    franchises: franchisesResult.data,
-    catalogFilms: catalogFilmsResult.data,
+    franchises,
+    catalogFilms,
     ownProjects: ownProjectsResult.data,
     profile: profileResult.data,
+  };
+};
+
+/**
+ * Loads every table src/domain/supabase-official-results-hydration.js
+ * needs to rebuild state.officialResults from live data - every ceremony,
+ * category, and nomination across every imported source
+ * (academy-awards, cannes, guldbaggen), each nomination's matched film
+ * embedded directly so no per-nomination lookup is needed. Deliberately
+ * separate from loadSupabaseLegacyHydrationSource() above, and NOT called
+ * from ensureOskarsData()'s shared bootstrap: only the handful of pages
+ * that render official-results content call this, since paginating
+ * ~1,900 categories and ~9,300 nominations on every one of the app's
+ * pages would regress every other page's performance budget for no
+ * benefit. Not cached - called fresh on every visit to a page that needs
+ * it, matching every other page-specific Supabase read in this codebase.
+ * @returns {Promise<{ceremonies: Object[], categories: Object[], nominations: Object[]}>}
+ */
+window.loadSupabaseOfficialResultsSource = async function () {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let authState = await window.resolveSupabaseAuthState();
+  if (authState.status !== "signed-in")
+    return { ceremonies: [], categories: [], nominations: [] };
+  let client = ready.client;
+  let [ceremoniesResult, categories, nominations] = await Promise.all([
+    client
+      .from("official_ceremonies")
+      .select(
+        "id, source, year, period_key, period_type, ceremony_label, source_url",
+      ),
+    fetchAllSupabaseRows((withCount) =>
+      client
+        .from("official_categories")
+        .select(
+          "id, ceremony_id, name",
+          withCount ? { count: "exact" } : undefined,
+        ),
+    ),
+    fetchAllSupabaseRows((withCount) =>
+      client
+        .from("official_nominations")
+        .select(
+          "id, category_id, film_id, is_winner, source_id, source_title, original_title, source_category, detail, country, recipient_text, films(id, tmdb_id, title, year)",
+          withCount ? { count: "exact" } : undefined,
+        ),
+    ),
+  ]);
+  if (ceremoniesResult.error) throw ceremoniesResult.error;
+  return {
+    ceremonies: ceremoniesResult.data || [],
+    categories,
+    nominations,
   };
 };
 

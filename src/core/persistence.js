@@ -196,8 +196,11 @@ function readBackupReminderStamp() {
 
 /**
  * Stamps that a backup was just taken or the reminder was just shown,
- * resetting the reminder interval. Called after a real backup download
- * (src/data/transfer.js) and whenever the reminder itself displays.
+ * resetting the reminder interval. Currently only called when the reminder
+ * itself displays - src/data/transfer.js's JSON download, the other
+ * documented call site, was deleted as dead pre-Supabase code; data.js's
+ * current backupValue() download does not call this (pre-existing gap,
+ * unrelated to this cleanup).
  */
 window.noteBackupTaken = function () {
   try {
@@ -335,20 +338,8 @@ function writeRecoveryDatabase(database, snapshot, options = {}) {
 
 function recoveryAccountUid(options = {}) {
   return String(
-    options.accountUid ||
-      window.state?.draftMetadata?.remoteSync?.uid ||
-      window.getOskarsBrowserAccountUid?.() ||
-      "",
+    options.accountUid || window.state?.draftMetadata?.remoteSync?.uid || "",
   );
-}
-
-function recoveryVisibleToCurrentAccount(recovery) {
-  if (!recovery || !window.oskarsAccountCanAccessRecovery) return true;
-  return window.oskarsAccountCanAccessRecovery({
-    currentUid: window.getFirebaseCurrentUser?.()?.uid,
-    browserUid: window.getOskarsBrowserAccountUid?.(),
-    recoveryUid: recovery.accountUid,
-  });
 }
 
 function readRecoveryDatabase(database) {
@@ -481,18 +472,21 @@ window.saveRecoveryWorkspace = async function (snapshot, options = {}) {
 
 /**
  * Reads the latest recoverable workspace.
+ *
+ * The per-account visibility check this used to apply here was removed: its
+ * backing globals - getFirebaseCurrentUser, getOskarsBrowserAccountUid,
+ * oskarsAccountCanAccessRecovery - were deleted in c44d485 and never got a
+ * Supabase-era replacement, so the check had become a permanent no-op.
+ * Revisit account-scoping here before wiring restoreRecoveryWorkspace into
+ * any UI.
  * @returns {Promise<Object|null>} Recovery record.
  */
 window.readRecoveryWorkspace = async function () {
   try {
     let database = await openStateDatabase();
-    if (database) {
-      let recovery = await readRecoveryDatabase(database);
-      return recoveryVisibleToCurrentAccount(recovery) ? recovery : null;
-    }
+    if (database) return await readRecoveryDatabase(database);
     let stored = localStorage.getItem(window.OSKARS_FALLBACK_RECOVERY_KEY);
-    let recovery = stored ? JSON.parse(stored) : null;
-    return recoveryVisibleToCurrentAccount(recovery) ? recovery : null;
+    return stored ? JSON.parse(stored) : null;
   } catch (err) {
     console.error("Could not read recovery workspace", err);
     return null;

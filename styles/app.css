@@ -3332,6 +3332,22 @@ textarea {
   cursor: wait;
   opacity: 0.58;
 }
+/* Pressed/filled toggle state (issue #466): "already in this collection,
+   click to remove" - reuses the same add-to-X button so removal reads as
+   depressing the button you'd use to add it, not a separate destructive
+   control. */
+.collection-action-button.is-active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--surface);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.collection-action-button.is-active:hover,
+.collection-action-button.is-active:focus-visible {
+  border-color: var(--accent-dark);
+  background: var(--accent-dark);
+  color: var(--surface);
+}
 .collection-action-icon {
   width: 100%;
   height: 100%;

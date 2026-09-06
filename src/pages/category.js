@@ -64,13 +64,18 @@
   let ratingStatistics = window.collectionRatingStatistics(
     window.filmsForAwardCategory(category),
   );
-  let officialCategoryComparison =
-    window.officialAwardCategoryHistoryComparison({
+  // Reassigned by refreshOfficialCategoryComparison(), including on the
+  // post-hydration re-render - every read site below is inside a function
+  // called from render(), so it picks up the fresh value via closure.
+  let officialCategoryComparison;
+  function refreshOfficialCategoryComparison() {
+    officialCategoryComparison = window.officialAwardCategoryHistoryComparison({
       category,
       personalEntries: entries,
-      officialSource:
-        window.state?.officialResults?.["academy-awards"] || null,
+      officialSource: window.state?.officialResults?.["academy-awards"] || null,
     });
+  }
+  refreshOfficialCategoryComparison();
   let officialNominationSources = new WeakMap();
 
   function updateViewUrl() {
@@ -340,11 +345,13 @@
                 .filter(Boolean),
             );
             let showSourceCategory = sourceCategories.size > 1;
-            let sortedNominations = nominations.slice().sort(
-              (left, right) =>
-                Number(right.winner) - Number(left.winner) ||
-                left.sourceTitle.localeCompare(right.sourceTitle),
-            );
+            let sortedNominations = nominations
+              .slice()
+              .sort(
+                (left, right) =>
+                  Number(right.winner) - Number(left.winner) ||
+                  left.sourceTitle.localeCompare(right.sourceTitle),
+              );
             let ceremony = period.ceremony
               ? `${ui("Ceremony")} ${period.ceremony}`
               : "";
@@ -483,74 +490,72 @@
       viewMode === "official"
         ? renderOfficialResultsView()
         : viewMode === "progression"
-        ? renderProgressionView()
-        : typeOrder
-            .filter((type) => selectedTypes.has(type))
-            .map((type) => {
-              let typeEntries = visibleEntries.filter(
-                (entry) => entry.type === type,
-              );
-              if (!typeEntries.length) return "";
-              let periods = [
-                ...new Set(
-                  typeEntries.map((entry) => String(entry.award.year || "")),
-                ),
-              ].sort(
-                (left, right) =>
-                  chronologyFactor *
-                  (window.pagePeriodNumber(left) -
-                    window.pagePeriodNumber(right)),
-              );
-              let periodTables = periods
-                .map((period) => {
-                  let periodEntries = typeEntries
-                    .filter(
-                      (entry) => String(entry.award.year || "") === period,
-                    )
-                    .sort(
-                      (left, right) =>
-                        Number(left.award.placement) -
-                        Number(right.award.placement),
-                    );
-                  if (displayMode === "grid") {
-                    let cards = periodEntries
-                      .map(rankingEntryCard)
-                      .join("");
-                    return `<div class="category-period-result"><div><h3><a class="period-link" href="${categoryEscape(window.periodPageUrl(type, period))}">${categoryEscape(period)}</a></h3><div class="category-winner-grid">${cards}</div></div></div>`;
-                  }
-                  let rows = periodEntries
-                    .map((entry) => {
-                      let credit = creditForEntry(entry);
-                      return `<tr>
+          ? renderProgressionView()
+          : typeOrder
+              .filter((type) => selectedTypes.has(type))
+              .map((type) => {
+                let typeEntries = visibleEntries.filter(
+                  (entry) => entry.type === type,
+                );
+                if (!typeEntries.length) return "";
+                let periods = [
+                  ...new Set(
+                    typeEntries.map((entry) => String(entry.award.year || "")),
+                  ),
+                ].sort(
+                  (left, right) =>
+                    chronologyFactor *
+                    (window.pagePeriodNumber(left) -
+                      window.pagePeriodNumber(right)),
+                );
+                let periodTables = periods
+                  .map((period) => {
+                    let periodEntries = typeEntries
+                      .filter(
+                        (entry) => String(entry.award.year || "") === period,
+                      )
+                      .sort(
+                        (left, right) =>
+                          Number(left.award.placement) -
+                          Number(right.award.placement),
+                      );
+                    if (displayMode === "grid") {
+                      let cards = periodEntries.map(rankingEntryCard).join("");
+                      return `<div class="category-period-result"><div><h3><a class="period-link" href="${categoryEscape(window.periodPageUrl(type, period))}">${categoryEscape(period)}</a></h3><div class="category-winner-grid">${cards}</div></div></div>`;
+                    }
+                    let rows = periodEntries
+                      .map((entry) => {
+                        let credit = creditForEntry(entry);
+                        return `<tr>
             <td class="detail-place">${placementEmoji[entry.award.placement] || `<b>${categoryEscape(entry.award.placement)}</b>`}</td>
             <td><a class="table-film-link${credit.hasRecipient ? " nominee-film-link" : ""}" href="${categoryEscape(window.filmPageUrl(entry.film.id))}">${categoryEscape(window.localizedFilmTitle?.(entry.film) || entry.film.title)}</a><span class="leaderboard-meta">${categoryEscape(entry.film.year || "")}</span></td>
             <td>${credit.html ? `<span class="nominee-recipient-credit">${credit.html}</span>` : ""}</td>
           </tr>`;
-                    })
-                    .join("");
-                  let winner = periodEntries.find(
-                    (entry) => Number(entry.award.placement) === 1,
-                  );
-                  let winnerImage = winner
-                    ? window.renderAwardWinnerImage(
-                        winner.film,
-                        winner.award,
-                        "winner",
-                      )
-                    : "";
-                  let table = window.renderLeaderboardTable({
-                    headers: [ui("Place"), ui("Film"), ui("Credit")].map(
-                      categoryEscape,
-                    ),
-                    rows,
-                    classes: "category-results",
-                  });
-                  return `<div class="category-period-result${winnerImage ? " has-winner-poster" : ""}">${winnerImage}<div><h3><a class="period-link" href="${categoryEscape(window.periodPageUrl(type, period))}">${categoryEscape(period)}</a></h3>${table}</div></div>`;
-                })
-                .join("");
-              return `<section class="category-period-section"><h2>${categoryEscape(ui(typeLabels[type]))}</h2>${periodTables}</section>`;
-            })
-            .join("");
+                      })
+                      .join("");
+                    let winner = periodEntries.find(
+                      (entry) => Number(entry.award.placement) === 1,
+                    );
+                    let winnerImage = winner
+                      ? window.renderAwardWinnerImage(
+                          winner.film,
+                          winner.award,
+                          "winner",
+                        )
+                      : "";
+                    let table = window.renderLeaderboardTable({
+                      headers: [ui("Place"), ui("Film"), ui("Credit")].map(
+                        categoryEscape,
+                      ),
+                      rows,
+                      classes: "category-results",
+                    });
+                    return `<div class="category-period-result${winnerImage ? " has-winner-poster" : ""}">${winnerImage}<div><h3><a class="period-link" href="${categoryEscape(window.periodPageUrl(type, period))}">${categoryEscape(period)}</a></h3>${table}</div></div>`;
+                  })
+                  .join("");
+                return `<section class="category-period-section"><h2>${categoryEscape(ui(typeLabels[type]))}</h2>${periodTables}</section>`;
+              })
+              .join("");
     finishSectionsTimer?.(
       `${viewMode}, ${visibleEntries.length} visible entry(s), ${displayedEntries.length} displayed entry(s)`,
     );
@@ -586,6 +591,10 @@
   render();
   window.bindEntityNoteEditor(container);
   window.addEventListener?.("oskars:localechange", render);
+  window.hydrateOfficialResultsFromSupabase?.().then(() => {
+    refreshOfficialCategoryComparison();
+    render();
+  });
   container.addEventListener("change", (event) => {
     let viewInput = event.target.closest('input[name="categoryViewMode"]');
     if (viewInput) {

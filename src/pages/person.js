@@ -17,14 +17,21 @@
  * is a create-only shared catalog table by RLS design (no UPDATE policy),
  * same architecture decision already made for watchlist-film.html's shared
  * film metadata, so there's no Supabase-side place a found portrait could
- * be written back to. The shared-archive integration (films other eligible
- * accounts have shared for this director) is dropped too - that's a
- * separate legacy archive subsystem with no
- * Supabase equivalent, tracked separately for the whole app (see #428's own
- * scope notes on shared-archive-sync.js/shared-film-metadata-sync.js). A
- * director with no local peopleById entry (credited only on shared-archive
- * films) now gets a plain "Person not found" instead of the shared-archive
- * preview that branch used to render, for the same reason.
+ * be written back to.
+ *
+ * The Firestore-era shared-archive integration itself has a Supabase-
+ * native replacement (issue #453): rebuildPeopleIndex() reads
+ * OSKARS_SHARED_FILM_ARCHIVE (buildSharedFilmArchiveFromSupabase() below,
+ * applied via applySharedFilmArchive() before rebuildAggregates()) to
+ * populate each person's catalogIds - catalog films they're credited on
+ * that the viewer hasn't watched, other-watched, or watchlisted, shown in
+ * this page's own "Unseen" section. Issue #467 generalized this from a
+ * director-only enrichment of an already-existing person into the thing
+ * that creates the peopleById entry in the first place, for every
+ * profession - previously a person with zero personal films/watchlist/
+ * watchedOther presence (credited only on catalog films) had no entry at
+ * all and always hit "Person not found," regardless of any Unseen data
+ * that existed for them.
  */
 (function () {
   let personPageEscape = window.pageEscape;
@@ -1034,12 +1041,13 @@
       // ensureOskarsData() normally does this (bootstrap.js) - needed here
       // too since person.html hydrates itself directly rather than going
       // through that shared path, and rebuildPeopleIndex()'s Unseen bucket
-      // (issue #453) reads OSKARS_SHARED_FILM_ARCHIVE_BY_DIRECTOR, built
-      // from this call.
+      // (issue #453, generalized in #467) reads OSKARS_SHARED_FILM_ARCHIVE,
+      // built from this call.
       window.applySharedFilmArchive?.(
         window.buildSharedFilmArchiveFromSupabase(source.catalogFilms),
       );
       window.rebuildAggregates();
+      await window.hydrateOfficialResultsFromSupabase();
       await window.loadSupabaseWorkspace();
       peopleById = window.ensurePeopleIndex();
       person = peopleById[personId] || null;

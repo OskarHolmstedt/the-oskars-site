@@ -1923,6 +1923,7 @@
     "Reload poster options": { sv: "Ladda om poster-val" },
     Remove: { sv: "Ta bort" },
     "Remove {title}": { sv: "Ta bort {title}" },
+    "Remove from watched": { sv: "Ta bort som sedd" },
     "Remove from watchlist": { sv: "Ta bort från watchlist" },
     "Removed from watchlist": { sv: "Borttagen från watchlist" },
     'Removed "{title}" from your watchlist.': {

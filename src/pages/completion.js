@@ -25,15 +25,22 @@
   // source: they're generic styling hooks now, not Oscar-specific, and
   // renaming them would touch styles/app.css and a long tail of test
   // literals for zero functional or visible benefit.
-  let officialSourceIds = Object.keys(
-    window.state?.officialResults || {},
-  ).sort((a, b) => (a === "academy-awards" ? -1 : b === "academy-awards" ? 1 : 0));
-  let officialCompletions = new Map(
-    officialSourceIds.map((sourceId) => [
-      sourceId,
-      window.officialCollectionCompletion(sourceId),
-    ]),
-  );
+  // Reassigned by refreshOfficialCompletions(), including on the
+  // post-hydration re-render.
+  let officialSourceIds;
+  let officialCompletions;
+  function refreshOfficialCompletions() {
+    officialSourceIds = Object.keys(window.state?.officialResults || {}).sort(
+      (a, b) => (a === "academy-awards" ? -1 : b === "academy-awards" ? 1 : 0),
+    );
+    officialCompletions = new Map(
+      officialSourceIds.map((sourceId) => [
+        sourceId,
+        window.officialCollectionCompletion(sourceId),
+      ]),
+    );
+  }
+  refreshOfficialCompletions();
   let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   function officialWatchlistTierKey(sourceId) {
     return `oskars-official-watchlist-tier-${sourceId}`;
@@ -171,17 +178,19 @@
 
   function completionGridControls(section, options) {
     let state = sortState[section];
-    return `<div class="completion-grid-controls">${window.renderSortAxisControl({
-      escape,
-      value: state.key,
-      attribute: `data-completion-sort-axis="${escape(section)}"`,
-      axes: [
-        { value: "name", label: options.nameLabel },
-        { value: "watchedCount", label: ui("Watched") },
-        { value: "watchlistCount", label: ui("To watch") },
-        { value: "percent", label: ui("Complete") },
-      ],
-    })}${window.renderChronologyControl({
+    return `<div class="completion-grid-controls">${window.renderSortAxisControl(
+      {
+        escape,
+        value: state.key,
+        attribute: `data-completion-sort-axis="${escape(section)}"`,
+        axes: [
+          { value: "name", label: options.nameLabel },
+          { value: "watchedCount", label: ui("Watched") },
+          { value: "watchlistCount", label: ui("To watch") },
+          { value: "percent", label: ui("Complete") },
+        ],
+      },
+    )}${window.renderChronologyControl({
       order: state.dir === 1 ? "asc" : "desc",
       iconOnly: true,
       escape,
@@ -192,12 +201,14 @@
 
   function periodGridControls(section, axes) {
     let state = sortState[section];
-    return `<div class="completion-grid-controls">${window.renderSortAxisControl({
-      escape,
-      value: state.key,
-      attribute: `data-completion-sort-axis="${escape(section)}"`,
-      axes,
-    })}${window.renderChronologyControl({
+    return `<div class="completion-grid-controls">${window.renderSortAxisControl(
+      {
+        escape,
+        value: state.key,
+        attribute: `data-completion-sort-axis="${escape(section)}"`,
+        axes,
+      },
+    )}${window.renderChronologyControl({
       order: state.dir === 1 ? "asc" : "desc",
       iconOnly: true,
       escape,
@@ -207,9 +218,8 @@
   }
 
   function periodGrid(cards, classes = "", itemCount = 0) {
-    let countClass = itemCount === PAGE_SIZE
-      ? " completion-period-grid--full-page"
-      : "";
+    let countClass =
+      itemCount === PAGE_SIZE ? " completion-period-grid--full-page" : "";
     return `<div class="completion-period-grid${countClass} ${escape(classes)}">${cards}</div>`;
   }
 
@@ -235,11 +245,12 @@
   }
 
   function completionSourceProject(row, options = {}) {
-    let sourceType = row.type === "director"
-      ? "person"
-      : row.type === "franchise"
-        ? "franchise"
-        : "";
+    let sourceType =
+      row.type === "director"
+        ? "person"
+        : row.type === "franchise"
+          ? "franchise"
+          : "";
     if (!sourceType) return null;
     return {
       action: minimalSourceProjectAction(sourceType, row.id, options),
@@ -267,19 +278,17 @@
 
   function completionGrid(rows, start) {
     return `<div class="completion-ranking-grid">${rows
-      .map(
-        (row, index) => {
-          let media = completionGridMedia(row);
-          let sourceProject = completionSourceProject(row);
-          return `<article class="completion-ranking-card completion-ranking-card--${escape(row.type)}${media ? " completion-ranking-card--media" : ""}">
+      .map((row, index) => {
+        let media = completionGridMedia(row);
+        let sourceProject = completionSourceProject(row);
+        return `<article class="completion-ranking-card completion-ranking-card--${escape(row.type)}${media ? " completion-ranking-card--media" : ""}">
     ${media ? `<div class="completion-ranking-card-media">${media}</div>` : ""}
     <div class="completion-ranking-card-body"><header><span class="leaderboard-position">#${start + index + 1}</span><h3><a href="${escape(row.href)}">${escape(row.name)}</a></h3>${sourceProject?.action || ""}</header>
     <div class="completion-ranking-card-stats"><span><b>${row.watchedCount}</b> ${escape(ui("Watched"))}</span><span><b>${row.watchlistCount}</b> ${escape(ui("To watch"))}</span></div>
     ${meterHtml(row.percent)}
     </div>
   </article>`;
-        },
-      )
+      })
       .join("")}</div>`;
   }
 
@@ -312,19 +321,19 @@
       ? layout === "grid"
         ? `${completionGridControls(section, options)}${completionGrid(page.rows, page.start)}`
         : window.renderLeaderboardTable({
-          headers: [
-            escape("#"),
-            sortHeader(section, "name", options.nameLabel),
-            sortHeader(section, "watchedCount", ui("Watched")),
-            sortHeader(section, "watchlistCount", ui("To watch")),
-            sortHeader(section, "percent", ui("Complete")),
-            ...(section === "directors" || section === "franchises"
-              ? [escape(ui("Project"))]
-              : []),
-          ],
-          rows: body,
-          classes: "completion-table",
-        })
+            headers: [
+              escape("#"),
+              sortHeader(section, "name", options.nameLabel),
+              sortHeader(section, "watchedCount", ui("Watched")),
+              sortHeader(section, "watchlistCount", ui("To watch")),
+              sortHeader(section, "percent", ui("Complete")),
+              ...(section === "directors" || section === "franchises"
+                ? [escape(ui("Project"))]
+                : []),
+            ],
+            rows: body,
+            classes: "completion-table",
+          })
       : `<p class="completion-empty">${escape(ui("Nothing in progress."))}</p>`;
     return `${ranking}${page.controls}${completeNote}`;
   }
@@ -365,49 +374,44 @@
     let content = page.rows.length
       ? layout === "grid"
         ? `${periodGridControls("brackets", [
-          { value: "period", label: ui("Period") },
-          { value: "filledSlots", label: ui("Slots filled") },
-          { value: "completeCategories", label: ui("Categories complete") },
-          { value: "percent", label: ui("Progress") },
-        ])}${periodGrid(
-          page.rows
-            .map((period) => {
-              let percent = period.totalSlots
-                ? Math.round((period.filledSlots / period.totalSlots) * 100)
-                : 0;
-              return `<article class="completion-period-card"><h4><a href="${escape(`${window.periodPageUrl(period.periodType, period.period)}&view=awards`)}">${escape(period.period)}</a></h4><div class="completion-period-card-stats"><span><b>${period.filledSlots} / ${period.totalSlots}</b> ${escape(ui("Slots filled"))}</span><span><b>${period.completeCategories} / ${period.categoryCount}</b> ${escape(ui("Categories complete"))}</span></div>${meterHtml(percent)}</article>`;
-            })
-            .join(""),
-          "completion-bracket-period-grid",
-          page.rows.length,
-        )}`
+            { value: "period", label: ui("Period") },
+            { value: "filledSlots", label: ui("Slots filled") },
+            { value: "completeCategories", label: ui("Categories complete") },
+            { value: "percent", label: ui("Progress") },
+          ])}${periodGrid(
+            page.rows
+              .map((period) => {
+                let percent = period.totalSlots
+                  ? Math.round((period.filledSlots / period.totalSlots) * 100)
+                  : 0;
+                return `<article class="completion-period-card"><h4><a href="${escape(`${window.periodPageUrl(period.periodType, period.period)}&view=awards`)}">${escape(period.period)}</a></h4><div class="completion-period-card-stats"><span><b>${period.filledSlots} / ${period.totalSlots}</b> ${escape(ui("Slots filled"))}</span><span><b>${period.completeCategories} / ${period.categoryCount}</b> ${escape(ui("Categories complete"))}</span></div>${meterHtml(percent)}</article>`;
+              })
+              .join(""),
+            "completion-bracket-period-grid",
+            page.rows.length,
+          )}`
         : window.renderLeaderboardTable({
-          headers: [
-            sortHeader("brackets", "period", ui("Period")),
-            sortHeader("brackets", "filledSlots", ui("Slots filled")),
-            sortHeader(
-              "brackets",
-              "completeCategories",
-              ui("Categories complete"),
-            ),
-            sortHeader("brackets", "percent", ui("Progress")),
-          ],
-          rows: body,
-          classes: "completion-table",
-        })
+            headers: [
+              sortHeader("brackets", "period", ui("Period")),
+              sortHeader("brackets", "filledSlots", ui("Slots filled")),
+              sortHeader(
+                "brackets",
+                "completeCategories",
+                ui("Categories complete"),
+              ),
+              sortHeader("brackets", "percent", ui("Progress")),
+            ],
+            rows: body,
+            classes: "completion-table",
+          })
       : `<p class="completion-empty">${escape(ui("All imported brackets are fully filled."))}</p>`;
     return `${content}${page.controls}${completeNote}`;
   }
 
   function fixedCategoryGrid(categories, renderCard, classes) {
-    let rowsByCategory = new Map(
-      categories.map((row) => [row.category, row]),
-    );
+    let rowsByCategory = new Map(categories.map((row) => [row.category, row]));
     let slots = window.getCategoryPresentationSlots();
-    let presented = new Set([
-      "Best Picture",
-      ...slots.filter(Boolean),
-    ]);
+    let presented = new Set(["Best Picture", ...slots.filter(Boolean)]);
     let card = (category) => {
       if (!category)
         return '<div class="category-board-spacer" aria-hidden="true"></div>';
@@ -429,7 +433,9 @@
     }
     return fixedCategoryGrid(
       categories,
-      (row) => `<article class="browse-index-card category-index-card completion-category-card${row.category === "Best Picture" ? " full-width" : ""}">
+      (
+        row,
+      ) => `<article class="browse-index-card category-index-card completion-category-card${row.category === "Best Picture" ? " full-width" : ""}">
     <h2><a href="${escape(window.categoryPageUrl(row.category))}">${escape(window.localizedCategoryName?.(row.category) || row.category)}</a></h2>
     <div class="completion-category-progress completion-bracket-category-progress"><div><span>${escape(ui("Slots filled"))}</span><b>${row.filledSlots} / ${row.totalSlots}</b>${meterHtml(row.percent)}</div><div><span>${escape(ui("Periods complete"))}</span><b>${row.completePeriods} / ${row.periodCount}</b></div></div>
   </article>`,
@@ -458,10 +464,10 @@
         let projectAction =
           project || row.projectCandidateCount
             ? minimalSourceProjectAction(
-              "watch-goal",
-              row.sourceId,
-              projectColumnActionOptions(),
-            )
+                "watch-goal",
+                row.sourceId,
+                projectColumnActionOptions(),
+              )
             : "";
         return `<tr>
     <td><a class="period-link" href="${escape(`${window.periodPageUrl(periodType, row.period)}&view=films`)}"><strong>${escape(row.period)}</strong></a></td>
@@ -477,37 +483,37 @@
     let content = page.rows.length
       ? layout === "grid"
         ? `${periodGridControls(section, [
-          { value: "period", label: ui("Period") },
-          { value: "watchedCount", label: ui("Watched") },
-          { value: "percent", label: ui("Progress") },
-        ])}${periodGrid(
-          page.rows
-            .map((row) => {
-              let percent = Math.round((row.watchedCount / row.target) * 100);
-              let project = window.projectForSource?.(
-                "watch-goal",
-                row.sourceId,
-              );
-              let projectAction =
-                project || row.projectCandidateCount
-                  ? minimalSourceProjectAction("watch-goal", row.sourceId)
-                  : "";
-              return `<article class="completion-period-card"><header><h4><a href="${escape(`${window.periodPageUrl(periodType, row.period)}&view=films`)}">${escape(row.period)}</a></h4>${projectAction}</header><div class="completion-period-card-stats"><span><b>${row.watchedCount} / ${row.target}</b> ${escape(ui("Watched"))}</span></div>${meterHtml(percent)}</article>`;
-            })
-            .join(""),
-          "completion-watch-goal-grid",
-          page.rows.length,
-        )}`
+            { value: "period", label: ui("Period") },
+            { value: "watchedCount", label: ui("Watched") },
+            { value: "percent", label: ui("Progress") },
+          ])}${periodGrid(
+            page.rows
+              .map((row) => {
+                let percent = Math.round((row.watchedCount / row.target) * 100);
+                let project = window.projectForSource?.(
+                  "watch-goal",
+                  row.sourceId,
+                );
+                let projectAction =
+                  project || row.projectCandidateCount
+                    ? minimalSourceProjectAction("watch-goal", row.sourceId)
+                    : "";
+                return `<article class="completion-period-card"><header><h4><a href="${escape(`${window.periodPageUrl(periodType, row.period)}&view=films`)}">${escape(row.period)}</a></h4>${projectAction}</header><div class="completion-period-card-stats"><span><b>${row.watchedCount} / ${row.target}</b> ${escape(ui("Watched"))}</span></div>${meterHtml(percent)}</article>`;
+              })
+              .join(""),
+            "completion-watch-goal-grid",
+            page.rows.length,
+          )}`
         : window.renderLeaderboardTable({
-          headers: [
-            sortHeader(section, "period", ui("Period")),
-            sortHeader(section, "watchedCount", ui("Watched")),
-            sortHeader(section, "percent", ui("Progress")),
-            escape(ui("Project")),
-          ],
-          rows: body,
-          classes: "completion-table",
-        })
+            headers: [
+              sortHeader(section, "period", ui("Period")),
+              sortHeader(section, "watchedCount", ui("Watched")),
+              sortHeader(section, "percent", ui("Progress")),
+              escape(ui("Project")),
+            ],
+            rows: body,
+            classes: "completion-table",
+          })
       : `<p class="completion-empty">${escape(ui("Every period has reached its goal."))}</p>`;
     return `${content}${page.controls}${completeNote}`;
   }
@@ -557,9 +563,13 @@
   }
 
   function officialWatchlistActionPair(sourceId, group, options = {}) {
-    return `${officialProjectButton(group, options)}${officialWatchlistButton(sourceId, group, {
-      shortLabel: true,
-    })}`;
+    return `${officialProjectButton(group, options)}${officialWatchlistButton(
+      sourceId,
+      group,
+      {
+        shortLabel: true,
+      },
+    )}`;
   }
 
   function officialSummaryCard(sourceId, eyebrow, title, subtitle, group) {
@@ -605,28 +615,29 @@
     let content = page.rows.length
       ? layout === "grid"
         ? `${periodGridControls(sortSection, [
-          { value: "period", label: ui("Period") },
-          { value: "winnerPercent", label: ui("Winners") },
-          { value: "nomineePercent", label: ui("Nominees") },
-        ])}${periodGrid(
-          page.rows
-            .map(
-              (period) => `<article class="completion-period-card completion-oscar-period-card"><header><h4><a href="${escape(period.href)}">${escape(period.period)}</a></h4><div class="oscar-category-actions">${officialWatchlistActionPair(sourceId, period.nominees)}</div></header><div class="completion-oscar-period-metrics"><div><span>${escape(ui("Winners"))}</span>${officialGroupProgress(period.winners)}</div><div><span>${escape(ui("Nominees"))}</span>${officialGroupProgress(period.nominees)}</div></div></article>`,
-            )
-            .join(""),
-          "completion-oscar-period-grid",
-          page.rows.length,
-        )}`
+            { value: "period", label: ui("Period") },
+            { value: "winnerPercent", label: ui("Winners") },
+            { value: "nomineePercent", label: ui("Nominees") },
+          ])}${periodGrid(
+            page.rows
+              .map(
+                (period) =>
+                  `<article class="completion-period-card completion-oscar-period-card"><header><h4><a href="${escape(period.href)}">${escape(period.period)}</a></h4><div class="oscar-category-actions">${officialWatchlistActionPair(sourceId, period.nominees)}</div></header><div class="completion-oscar-period-metrics"><div><span>${escape(ui("Winners"))}</span>${officialGroupProgress(period.winners)}</div><div><span>${escape(ui("Nominees"))}</span>${officialGroupProgress(period.nominees)}</div></div></article>`,
+              )
+              .join(""),
+            "completion-oscar-period-grid",
+            page.rows.length,
+          )}`
         : window.renderLeaderboardTable({
-          headers: [
-            sortHeader(sortSection, "period", ui("Period")),
-            sortHeader(sortSection, "winnerPercent", ui("Winners watched")),
-            sortHeader(sortSection, "nomineePercent", ui("Nominees watched")),
-            escape(ui("Actions")),
-          ],
-          rows,
-          classes: "completion-table",
-        })
+            headers: [
+              sortHeader(sortSection, "period", ui("Period")),
+              sortHeader(sortSection, "winnerPercent", ui("Winners watched")),
+              sortHeader(sortSection, "nomineePercent", ui("Nominees watched")),
+              escape(ui("Actions")),
+            ],
+            rows,
+            classes: "completion-table",
+          })
       : `<p class="completion-empty">${escape(ui("Every official period is fully watched."))}</p>`;
     return `${content}${page.controls}${completeNote}`;
   }
@@ -636,7 +647,9 @@
       return `<p class="completion-empty">${escape(ui("No official data imported yet for this source."))}</p>`;
     return fixedCategoryGrid(
       categories,
-      (row) => `<article class="browse-index-card category-index-card completion-category-card completion-oscar-category-card${row.category === "Best Picture" ? " full-width" : ""}">
+      (
+        row,
+      ) => `<article class="browse-index-card category-index-card completion-category-card completion-oscar-category-card${row.category === "Best Picture" ? " full-width" : ""}">
     <h2><a href="${escape(window.categoryPageUrl(row.category))}&view=official">${escape(window.localizedCategoryName?.(row.category) || row.category)}</a></h2>
     <div class="completion-category-progress">${officialCategoryMetric(sourceId, row.winners, ui("Winners"))}${officialCategoryMetric(sourceId, row.nominees, ui("Nominees"))}</div>
   </article>`,
@@ -667,16 +680,19 @@
     let reviewQueue = overallPlan?.needsReview.length
       ? `<details class="oscar-watchlist-review"><summary>${escape(ui("{count} films need year review", { count: overallPlan.needsReview.length }))}</summary><p>${escape(ui("Multi-year ceremonies stay out of the watchlist until their release year is known."))}</p><div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Film"))}</th><th>${escape(ui("Ceremony"))}</th><th>${escape(ui("Possible years"))}</th></tr></thead><tbody>${overallPlan.needsReview
           .map(
-            (candidate) => `<tr><td><strong>${escape(candidate.title)}</strong></td><td><a class="period-link" href="${escape(candidate.href)}">${escape(candidate.periodKey)}</a></td><td>${escape(candidate.possibleYears.join(" / "))}</td></tr>`,
+            (candidate) =>
+              `<tr><td><strong>${escape(candidate.title)}</strong></td><td><a class="period-link" href="${escape(candidate.href)}">${escape(candidate.periodKey)}</a></td><td>${escape(candidate.possibleYears.join(" / "))}</td></tr>`,
           )
           .join("")}</tbody></table></div></details>`
       : "";
-    return `${watchlistTools}<p class="completion-note oscar-completion-scope">${escape(ui("Based on {count} imported {source} periods, {first}–{last}.", {
-      count: completion.periodKeys.length,
-      source: displayName,
-      first: firstPeriod,
-      last: lastPeriod,
-    }))}</p>${reviewQueue}<div class="oscar-completion-highlights">${officialSummaryCard(
+    return `${watchlistTools}<p class="completion-note oscar-completion-scope">${escape(
+      ui("Based on {count} imported {source} periods, {first}–{last}.", {
+        count: completion.periodKeys.length,
+        source: displayName,
+        first: firstPeriod,
+        last: lastPeriod,
+      }),
+    )}</p>${reviewQueue}<div class="oscar-completion-highlights">${officialSummaryCard(
       sourceId,
       ui("{source} completion", { source: displayName }),
       ui("{source}-winning films watched", { source: displayName }),
@@ -698,14 +714,20 @@
     let reviewRows = plan.needsReview
       .slice(0, 20)
       .map(
-        (candidate) => `<li><strong>${escape(candidate.title)}</strong> · ${escape(candidate.periodKey)} (${escape(candidate.possibleYears.join(" / "))})</li>`,
+        (candidate) =>
+          `<li><strong>${escape(candidate.title)}</strong> · ${escape(candidate.periodKey)} (${escape(candidate.possibleYears.join(" / "))})</li>`,
       )
       .join("");
-    return `<dialog id="oscarWatchlistDialog-${escape(plan.sourceId)}" class="oscar-watchlist-dialog" data-official-watchlist-dialog="${escape(plan.sourceId)}"><form method="dialog"><h2>${escape(ui("Add unseen films?"))}</h2><p>${escape(ui("{ready} films are ready for tier {tier}. {review} need year review and will be skipped.", {
-      ready: plan.ready.length,
-      tier,
-      review: plan.needsReview.length,
-    }))}</p>${reviewRows ? `<details open><summary>${escape(ui("Needs review"))}</summary><ul>${reviewRows}</ul></details>` : ""}<div class="dialog-actions"><button type="button" data-cancel-oscar-watchlist>${escape(ui("Cancel"))}</button>${plan.ready.length ? `<button type="button" data-confirm-oscar-watchlist>${escape(ui("Add {count} films", { count: plan.ready.length }))}</button>` : ""}</div></form></dialog>`;
+    return `<dialog id="oscarWatchlistDialog-${escape(plan.sourceId)}" class="oscar-watchlist-dialog" data-official-watchlist-dialog="${escape(plan.sourceId)}"><form method="dialog"><h2>${escape(ui("Add unseen films?"))}</h2><p>${escape(
+      ui(
+        "{ready} films are ready for tier {tier}. {review} need year review and will be skipped.",
+        {
+          ready: plan.ready.length,
+          tier,
+          review: plan.needsReview.length,
+        },
+      ),
+    )}</p>${reviewRows ? `<details open><summary>${escape(ui("Needs review"))}</summary><ul>${reviewRows}</ul></details>` : ""}<div class="dialog-actions"><button type="button" data-cancel-oscar-watchlist>${escape(ui("Cancel"))}</button>${plan.ready.length ? `<button type="button" data-confirm-oscar-watchlist>${escape(ui("Add {count} films", { count: plan.ready.length }))}</button>` : ""}</div></form></dialog>`;
   }
 
   function updateOfficialWatchlistStatus(sourceId, message) {
@@ -840,7 +862,10 @@
     return officialSourceIds
       .map((sourceId) => {
         let completion = officialCompletions.get(sourceId);
-        let displayName = window.officialSourceDisplayName(sourceId, completion);
+        let displayName = window.officialSourceDisplayName(
+          sourceId,
+          completion,
+        );
         return `
   <span><b>${completion.winners.watchedCount}/${completion.winners.total}</b> ${escape(ui("{source}-winning films watched", { source: displayName }))}</span>
   <span><b>${completion.nominees.watchedCount}/${completion.nominees.total}</b> ${escape(ui("{source}-nominated films watched", { source: displayName }))}</span>`;
@@ -852,7 +877,10 @@
     return officialSourceIds
       .map((sourceId) => {
         let completion = officialCompletions.get(sourceId);
-        let displayName = window.officialSourceDisplayName(sourceId, completion);
+        let displayName = window.officialSourceDisplayName(
+          sourceId,
+          completion,
+        );
         return completionSection(
           sourceId,
           ui("{source} film completion", { source: displayName }),
@@ -890,13 +918,15 @@
   <p>${escape(ui("Official completion covers every imported official nominee, per source. Director, franchise, and project completion covers known films in the archive and watchlist."))}</p>
   ${summaryHtml}
 </header>
-<div class="completion-view-toolbar"><span>${escape(ui("Completion display"))}</span>${window.renderFilmViewToggle({
-      view: layout,
-      listUrl: completionViewUrl("list"),
-      gridUrl: completionViewUrl("grid"),
-      escape,
-      ariaLabel: ui("Completion display"),
-    })}</div>
+<div class="completion-view-toolbar"><span>${escape(ui("Completion display"))}</span>${window.renderFilmViewToggle(
+      {
+        view: layout,
+        listUrl: completionViewUrl("list"),
+        gridUrl: completionViewUrl("grid"),
+        escape,
+        ariaLabel: ui("Completion display"),
+      },
+    )}</div>
 ${completionSection(
   "watch-goals",
   ui("Watch goals"),
@@ -944,7 +974,9 @@ ${officialCompletionSections()}
 ${completionSection(
   "brackets",
   ui("Award brackets"),
-  ui("How much of each imported award period's category slots are filled in — data entry, not watch progress."),
+  ui(
+    "How much of each imported award period's category slots are filled in — data entry, not watch progress.",
+  ),
   `${bracketCompletionTable(bracketCompletion)}<div class="completion-subsection completion-bracket-categories"><h3>${escape(ui("By category"))}</h3><p>${escape(ui("Annual award slots across years with at least one watched film."))}</p>${bracketCategoryCompletionGrid(bracketCategoryCompletion)}</div>`,
 )}
 ${inProgressTotal || anyOfficialNomineesTotal() ? "" : `<div class="detail-empty"><h2>${escape(ui("Nothing in progress."))}</h2><p>${escape(ui("Import a watchlist or start a project to track completion."))}</p></div>`}
@@ -961,11 +993,22 @@ ${officialWatchlistDialog()}`;
   finishRenderTimer?.(
     `${inProgressTotal} in progress, ${hub.completeDirectors + hub.completeFranchises + hub.completeProjects} complete, ${officialSourceIds.map((sourceId) => `${officialCompletions.get(sourceId).nominees.watchedCount}/${officialCompletions.get(sourceId).nominees.total}`).join(", ")} official films watched by source, ${bracketCompletion.length} bracket period(s)`,
   );
+  window.hydrateOfficialResultsFromSupabase?.().then(() => {
+    refreshOfficialCompletions();
+    // Backfill only - never overwrite an existing entry, since a user's
+    // in-session tier change (line ~1071 below) must survive this refresh.
+    officialSourceIds.forEach((sourceId) => {
+      if (!officialWatchlistTiers.has(sourceId))
+        officialWatchlistTiers.set(
+          sourceId,
+          preferredOfficialWatchlistTier(sourceId),
+        );
+    });
+    render();
+  });
 
   container.addEventListener("click", async (event) => {
-    let addWatchlistButton = event.target.closest(
-      "[data-add-oscar-watchlist]",
-    );
+    let addWatchlistButton = event.target.closest("[data-add-oscar-watchlist]");
     if (addWatchlistButton) {
       let scopeId = addWatchlistButton.dataset.addOscarWatchlist;
       let plan = window.officialCollectionWatchlistPlan?.(scopeId);
@@ -1015,9 +1058,7 @@ ${officialWatchlistDialog()}`;
       render();
       return;
     }
-    let projectButton = event.target.closest(
-      "[data-start-project-source]",
-    );
+    let projectButton = event.target.closest("[data-start-project-source]");
     if (projectButton) {
       projectButton.disabled = true;
       await window.startProjectFromSourceAndOpen?.(

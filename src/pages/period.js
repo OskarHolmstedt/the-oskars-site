@@ -228,29 +228,37 @@
   }
 
   rebuildPeriodViewModel();
-  // Academy Awards first (the primary source, and the only one with a
-  // personal-pick comparison), then every other populated source
-  // alphabetically - matches completion.js's own source ordering.
-  let officialSourceIds =
-    type === "year"
-      ? Object.keys(window.state?.officialResults || {}).sort(
-          (left, right) =>
-            (left === "academy-awards"
-              ? -1
-              : right === "academy-awards"
-                ? 1
-                : 0) || left.localeCompare(right),
-        )
-      : [];
-  let officialResult =
-    type === "year" ? window.officialResultsPeriod(key) : null;
-  let officialResultsBySource = officialSourceIds
-    .map((sourceId) => ({
-      sourceId,
-      result: window.officialResultsPeriod(key, sourceId),
-    }))
-    .filter((entry) => entry.result);
-  let hasOfficialResults = officialResultsBySource.length > 0;
+  // Reassigned by refreshOfficialResultsViewModel(), including on the
+  // post-hydration re-render.
+  let officialSourceIds;
+  let officialResult;
+  let officialResultsBySource;
+  let hasOfficialResults;
+  function refreshOfficialResultsViewModel() {
+    // Academy Awards first (the primary source, and the only one with a
+    // personal-pick comparison), then every other populated source
+    // alphabetically - matches completion.js's own source ordering.
+    officialSourceIds =
+      type === "year"
+        ? Object.keys(window.state?.officialResults || {}).sort(
+            (left, right) =>
+              (left === "academy-awards"
+                ? -1
+                : right === "academy-awards"
+                  ? 1
+                  : 0) || left.localeCompare(right),
+          )
+        : [];
+    officialResult = type === "year" ? window.officialResultsPeriod(key) : null;
+    officialResultsBySource = officialSourceIds
+      .map((sourceId) => ({
+        sourceId,
+        result: window.officialResultsPeriod(key, sourceId),
+      }))
+      .filter((entry) => entry.result);
+    hasOfficialResults = officialResultsBySource.length > 0;
+  }
+  refreshOfficialResultsViewModel();
   let countryValues = [
     ...new Set(
       allFilms.flatMap((film) => window.countryListValues(film.country)),
@@ -1572,6 +1580,10 @@
   });
   if ((state.watchlist || []).length || !window.ensureWatchlistData) render();
   else window.ensureWatchlistData().then(render);
+  window.hydrateOfficialResultsFromSupabase?.().then(() => {
+    refreshOfficialResultsViewModel();
+    render();
+  });
   window.bindEntityNoteEditor(container);
 
   function clearAwardDropTargets() {

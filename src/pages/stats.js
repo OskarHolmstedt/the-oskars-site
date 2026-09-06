@@ -4,11 +4,9 @@
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
   window.load();
-  let finishRenderTimer = window.startOskarsPerformance?.("stats:render");
   let container = document.getElementById("statsPage");
   document.title = `${ui("Statistics")} · The Oskars`;
 
-  let finishCollectTimer = window.startOskarsPerformance?.("stats:collect");
   let stats = window.viewingStatistics();
   let personalAnnualAwardEntries = Object.values(
     window.state?.filmsById || {},
@@ -17,14 +15,9 @@
       .filter((award) => window.getAwardPeriodType(award) === "years")
       .map((award) => ({ film, award })),
   );
-  let awardAgreement = window.officialAwardAgreementStatistics({
-    personalEntries: personalAnnualAwardEntries,
-    officialSource:
-      window.state?.officialResults?.["academy-awards"] || null,
-  });
-  finishCollectTimer?.(
-    `${stats.filmCount} films, ${stats.ratedCount} rated, ${stats.datedCount} dated, ${awardAgreement.comparedCount} award comparison(s)`,
-  );
+  // Reassigned by renderStatsPage() below, including on the post-hydration
+  // re-render - awardsContent() reads it by closure.
+  let awardAgreement;
 
   function percent(count, total = stats.filmCount) {
     return total ? Math.round((count / total) * 100) : 0;
@@ -94,7 +87,12 @@
 
   function ratingPeriodTable(type, label, rows) {
     return statsTable(
-      [label, ui("Average rating"), ui("Standard deviation"), ui("Rated coverage")],
+      [
+        label,
+        ui("Average rating"),
+        ui("Standard deviation"),
+        ui("Rated coverage"),
+      ],
       rows.map(
         (row) => `<tr>
       <th scope="row"><a href="${escape(window.periodPageUrl(type, row.key))}">${escape(row.key)}</a></th>
@@ -134,13 +132,10 @@
     let links = `<div class="stats-awards-links"><a class="button-link" href="categories.html">${escape(ui("Browse award categories"))}</a><a class="button-link" href="periods.html">${escape(ui("Browse award periods"))}</a></div>`;
     if (!awardAgreement.comparedCount)
       return `<p class="stats-empty stats-awards-empty">${escape(ui("No comparable Oskars and Oscars winners yet."))}</p>${links}`;
-    let scoreContext = ui(
-      "{matches} of {total} comparable category-periods",
-      {
-        matches: awardAgreement.matches,
-        total: awardAgreement.comparedCount,
-      },
-    )
+    let scoreContext = ui("{matches} of {total} comparable category-periods", {
+      matches: awardAgreement.matches,
+      total: awardAgreement.comparedCount,
+    })
       .replace("{matches}", awardAgreement.matches)
       .replace("{total}", awardAgreement.comparedCount);
     return `<div class="stats-awards-overview">
@@ -168,7 +163,17 @@
 `,
   });
 
-  container.innerHTML = `<header class="stats-hero">
+  function renderStatsPage() {
+    let finishRenderTimer = window.startOskarsPerformance?.("stats:render");
+    let finishCollectTimer = window.startOskarsPerformance?.("stats:collect");
+    awardAgreement = window.officialAwardAgreementStatistics({
+      personalEntries: personalAnnualAwardEntries,
+      officialSource: window.state?.officialResults?.["academy-awards"] || null,
+    });
+    finishCollectTimer?.(
+      `${stats.filmCount} films, ${stats.ratedCount} rated, ${stats.datedCount} dated, ${awardAgreement.comparedCount} award comparison(s)`,
+    );
+    container.innerHTML = `<header class="stats-hero">
   <span class="eyebrow">${escape(ui("The archive by the numbers"))}</span>
   <h1>${escape(ui("Viewing statistics"))}</h1>
   <p>${escape(ui("A read-only summary of ratings, coverage, and viewing habits. Counts reflect the currently loaded archive."))}</p>
@@ -212,10 +217,15 @@ ${section(
 ${section(
   "awards",
   ui("Awards"),
-  ui("How often your annual category winner matches the official Academy winner."),
+  ui(
+    "How often your annual category winner matches the official Academy winner.",
+  ),
   awardsContent(),
 )} `;
-  finishRenderTimer?.(
-    `${stats.filmCount} films, ${stats.ratingRows.length} rating rows, ${stats.decadeRows.length} decade rows`,
-  );
+    finishRenderTimer?.(
+      `${stats.filmCount} films, ${stats.ratingRows.length} rating rows, ${stats.decadeRows.length} decade rows`,
+    );
+  }
+  renderStatsPage();
+  window.hydrateOfficialResultsFromSupabase?.().then(renderStatsPage);
 })();
