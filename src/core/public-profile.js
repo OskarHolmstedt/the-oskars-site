@@ -1,13 +1,14 @@
 /**
- * @file Fetches and hydrates a published public profile by stable slug URL
- * (issue #253). Works as a per-tab override on top of whatever the
- * deployment's baked runtime mode is — a `local`-mode deployment that
- * normally supports its own editable archive still becomes read-only for
+ * @file Owns public-profile tab routing and immutable Community snapshot
+ * fetch helpers (issue #253). A profile URL works as a per-tab override on
+ * top of whatever the deployment's baked runtime mode is — a `local`-mode
+ * deployment that normally supports its own editable archive becomes read-only for
  * the duration of an active profile view, exactly like a `viewer`-mode
  * deployment, via the enforcement points in persistence.js/entry-loader.js/
  * bootstrap.js that consult `resolveActiveProfileSlug()`/
- * `state.isPublicProfileView`. This file only ever consumes already-
- * published static JSON, never writes any of it.
+ * `state.isPublicProfileView`. Direct profile views hydrate from Supabase in
+ * public-profile-supabase.js; the static helpers here support pinned Community
+ * comparisons and backward-compatible immutable revision retrieval.
  */
 
 window.OSKARS_PROFILE_MANIFEST_SCHEMA_VERSION = 1;
@@ -45,9 +46,8 @@ window.resolveActiveProfileSlug = function () {
   }
   try {
     return String(
-      window.sessionStorage?.getItem(
-        window.OSKARS_PROFILE_ACTIVE_SLUG_KEY,
-      ) || "",
+      window.sessionStorage?.getItem(window.OSKARS_PROFILE_ACTIVE_SLUG_KEY) ||
+        "",
     ).trim();
   } catch (err) {
     return "";
@@ -72,7 +72,10 @@ window.stopViewingPublicProfile = function () {
 function validateProfileManifestShape(manifest, slug) {
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest))
     return "manifest is not a JSON object";
-  if (manifest.profileManifestSchemaVersion !== window.OSKARS_PROFILE_MANIFEST_SCHEMA_VERSION)
+  if (
+    manifest.profileManifestSchemaVersion !==
+    window.OSKARS_PROFILE_MANIFEST_SCHEMA_VERSION
+  )
     return `manifest.profileManifestSchemaVersion must be ${window.OSKARS_PROFILE_MANIFEST_SCHEMA_VERSION}`;
   if (typeof manifest.slug !== "string" || manifest.slug !== slug)
     return "manifest.slug does not match the requested profile";
@@ -92,11 +95,17 @@ window.fetchPublicProfileManifest = async function (slug) {
   let path = `./profiles/${encodeURIComponent(slug)}/manifest.json`;
   let response;
   try {
-    let doneFetch = window.startOskarsPerformance?.(`profile:fetchManifest ${slug}`);
+    let doneFetch = window.startOskarsPerformance?.(
+      `profile:fetchManifest ${slug}`,
+    );
     response = await fetch(path, { cache: "no-store" });
     doneFetch?.();
   } catch (err) {
-    return { ok: false, error: "unavailable", detail: String(err?.message || err) };
+    return {
+      ok: false,
+      error: "unavailable",
+      detail: String(err?.message || err),
+    };
   }
   if (!response.ok)
     return { ok: false, error: "not-found", detail: `HTTP ${response.status}` };
@@ -123,14 +132,24 @@ window.fetchPublicProfileRevision = async function (slug, revisionId) {
   let path = `./profiles/${encodeURIComponent(slug)}/${encodeURIComponent(revisionId)}.json`;
   let response;
   try {
-    let doneFetch = window.startOskarsPerformance?.(`profile:fetchRevision ${slug}`);
+    let doneFetch = window.startOskarsPerformance?.(
+      `profile:fetchRevision ${slug}`,
+    );
     response = await fetch(path, { cache: "no-store" });
     doneFetch?.();
   } catch (err) {
-    return { ok: false, error: "unavailable", detail: String(err?.message || err) };
+    return {
+      ok: false,
+      error: "unavailable",
+      detail: String(err?.message || err),
+    };
   }
   if (!response.ok)
-    return { ok: false, error: "unavailable", detail: `HTTP ${response.status}` };
+    return {
+      ok: false,
+      error: "unavailable",
+      detail: `HTTP ${response.status}`,
+    };
   try {
     return { ok: true, data: await response.json() };
   } catch (err) {
@@ -148,8 +167,7 @@ window.fetchPublicProfileRevision = async function (slug, revisionId) {
  * @returns {Promise<{ok: boolean, meta?: Object, error?: string, detail?: string}>}
  */
 window.loadPublicProfile = async function (slug) {
-  if (typeof fetch !== "function")
-    return { ok: false, error: "offline" };
+  if (typeof fetch !== "function") return { ok: false, error: "offline" };
   let manifestResult = await window.fetchPublicProfileManifest(slug);
   if (!manifestResult.ok) return manifestResult;
   let revisionResult = await window.fetchPublicProfileRevision(

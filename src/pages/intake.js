@@ -32,6 +32,20 @@
     selected = updated;
   }
 
+  function stepStatuses(workflow) {
+    return [
+      workflow.steps.rating.status,
+      workflow.steps.ranking.status,
+      ...AWARD_LEVELS.map((level) => workflow.steps.awards[level].status),
+    ];
+  }
+
+  function progressMeter(workflow) {
+    let statuses = stepStatuses(workflow);
+    let completed = statuses.filter((status) => status === "complete").length;
+    return `<section class="intake-progress card"><div><b>${escape(completed)}</b> / ${escape(statuses.length)} steps complete</div><progress value="${escape(completed)}" max="${escape(statuses.length)}"></progress></section>`;
+  }
+
   function stepList(workflow) {
     let rows = [
       ["Rating and viewing facts", workflow.steps.rating.status],
@@ -175,9 +189,28 @@
     </form>`;
   }
 
+  function nextOpenWorkflow(currentId) {
+    return (
+      workflows.find(
+        (workflow) => workflow.id !== currentId && !workflow.completed_at,
+      ) || null
+    );
+  }
+
   function guideHtml(workflow) {
-    if (workflow.completed_at)
-      return `<section class="film-edit-section"><h3>Completed Intake</h3><p>${escape(workflow.summary || "Rating, ranking, and awards review complete.")}</p><p class="data-panel-status">${escape(workflow.completed_at)}</p><button type="button" data-intake-reopen="${escape(workflow.id)}"${busy ? " disabled" : ""}>Reopen Intake</button></section>`;
+    if (workflow.completed_at) {
+      let next = nextOpenWorkflow(workflow.id);
+      return `<section class="film-edit-section intake-complete">
+        <h3><span class="project-status-badge project-status-badge--complete">✓ Complete</span> ${escape(workflowFilm(workflow).title || "This Intake")}</h3>
+        <p>${escape(workflow.summary || "Rating, ranking, and awards review complete.")}</p>
+        <p class="data-panel-status">${escape(workflow.completed_at)}</p>
+        <div class="data-form-actions">
+          ${next ? `<a class="button-link" href="${escape(workflowUrl(next.id))}">Continue to next Intake</a>` : ""}
+          <a class="button-link" href="intake.html">Back to queue</a>
+          <button type="button" data-intake-reopen="${escape(workflow.id)}"${busy ? " disabled" : ""}>Reopen Intake</button>
+        </div>
+      </section>`;
+    }
     if (workflow.steps.rating.status !== "complete")
       return ratingForm(workflow);
     if (workflow.steps.ranking.status !== "complete")
@@ -189,14 +222,18 @@
       return awardGuide
         ? awardForm(workflow)
         : '<p class="data-panel-status">Loading awards…</p>';
-    return `<section class="film-edit-section"><h3>Ready to complete</h3><p>Rating, four ranking scopes, and every awards category have been reviewed.</p><button type="button" data-intake-complete="${escape(workflow.id)}"${busy ? " disabled" : ""}>Complete Intake</button></section>`;
+    return `<section class="film-edit-section intake-ready"><h3>Ready to complete</h3><p>Rating, four ranking scopes, and every awards category have been reviewed.</p><button type="button" data-intake-complete="${escape(workflow.id)}"${busy ? " disabled" : ""}>Complete Intake</button></section>`;
   }
 
   function render() {
     let finish = window.startOskarsPerformance?.("intake:render");
     container.innerHTML = `<div class="edit-log-heading"><div><h2>Watched-film Intake</h2><p>Finish rating, progressive exact-rating placement, and explicit awards review for every newly watched film.</p></div><div class="data-actions"><a class="button-link" href="build.html">Build your Oskars</a><a class="button-link" href="rate-watched.html">Rate unrated watched</a><a class="button-link" href="data.html">Open Data</a></div>${freshForm()}</div>
       <div class="project-membership-list">${queueHtml()}</div>
-      ${selected ? `<section class="film-edit-section"><h3>${escape(workflowFilm(selected).title || "Unknown film")}</h3>${stepList(selected)}${guideHtml(selected)}</section>` : ""}`;
+      ${
+        selected
+          ? `<section class="film-edit-section"><h3>${escape(workflowFilm(selected).title || "Unknown film")}</h3>${progressMeter(selected)}${stepList(selected)}<div class="intake-step-enter">${guideHtml(selected)}</div></section>`
+          : ""
+      }`;
     window.enhanceRatingInputs?.(container);
     finish?.(`${workflows.length} workflow(s)`);
   }

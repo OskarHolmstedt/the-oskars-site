@@ -488,13 +488,20 @@ window.addFilmRecordToWatched = async function (record) {
         runtimeMinutes: record.runtimeMinutes,
         poster: record.poster,
       },
-      { save: false, log: false },
+      // planFreshWatchedFilm already stored record.tmdbId onto the film for
+      // exact-match dedup, ahead of this call - without this flag that
+      // makes setFilmTmdbMetadata's own !film.tmdbId check see this as a
+      // routine refresh instead of the film's real first classification,
+      // and it never moves out of watchedOther into the ranked archive
+      // (issue #373).
+      { save: false, log: false, assumeFirstResolution: true },
     );
     window.save();
   } else {
     await window.loadFilmMetadata?.(result.film.id, {
       skipSharedArchive: true,
       log: false,
+      assumeFirstResolution: true,
     });
   }
   return { ok: true, filmId: result.film.id };

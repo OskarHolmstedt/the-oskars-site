@@ -1,35 +1,24 @@
 /** @file Resolves imported official award recipients to existing canonical people on demand. */
 
 (function () {
-  const SOURCE_ID = "academy-awards";
-
-  function canonicalPersonId(name) {
-    let variantId = window.normalizePersonName(name);
-    if (!variantId) return "";
-    let canonicalName = window.state?.peopleAliases?.[variantId] || name;
-    return window.normalizePersonName(canonicalName);
-  }
-
-  function recipientNames(value) {
-    return String(value || "")
-      .split("|")
-      .flatMap((part) => window.splitRecipientNames(part))
-      .map((name) => name.trim())
-      .filter(Boolean);
-  }
+  const ACADEMY_SOURCE_ID = "academy-awards";
 
   function recipientNeedles(person, targetIds) {
     let values = [person?.name, ...(person?.aliases || []), ...targetIds];
     Object.entries(window.state?.peopleAliases || {}).forEach(
       ([variantId, canonicalName]) => {
-        if (targetIds.has(canonicalPersonId(canonicalName)))
+        if (targetIds.has(window.resolveAwardRecipientPersonId(canonicalName)))
           values.push(variantId);
       },
     );
     return [
       ...new Set(
         values
-          .map((value) => String(value || "").trim().toLowerCase())
+          .map((value) =>
+            String(value || "")
+              .trim()
+              .toLowerCase(),
+          )
           .filter(Boolean),
       ),
     ];
@@ -41,23 +30,22 @@
    * @returns {string[]} Deduplicated canonical person ids.
    */
   window.officialRecipientPersonIds = function (recipient) {
-    return [
-      ...new Set(
-        recipientNames(recipient).map(canonicalPersonId).filter(Boolean),
-      ),
-    ];
+    return window
+      .resolveAwardRecipients({ recipient })
+      .map((record) => record.personId);
   };
 
   /**
-   * Derives one existing person's record from imported Academy Awards results.
+   * Derives one existing person's record from one imported official source.
    * @param {PersonRecord} person Existing derived person.
-   * @returns {OfficialPersonOscarRecord} Matched official record.
+   * @param {string} sourceId Official-results source id.
+   * @returns {OfficialPersonRecord} Matched official record.
    */
-  window.officialPersonOscarRecord = function (person) {
-    let source = window.state?.officialResults?.[SOURCE_ID] || null;
+  window.officialPersonRecord = function (person, sourceId) {
+    let source = window.state?.officialResults?.[sourceId] || null;
     let targetIds = new Set(
       [person?.id, ...(person?.aliases || [])]
-        .map(canonicalPersonId)
+        .map(window.resolveAwardRecipientPersonId)
         .filter(Boolean),
     );
     let needles = recipientNeedles(person, targetIds);
@@ -80,10 +68,7 @@
           recipientIds = window.officialRecipientPersonIds(recipient);
           recipientIdCache.set(recipient, recipientIds);
         }
-        if (
-          !recipientIds.some((personId) => targetIds.has(personId))
-        )
-          return;
+        if (!recipientIds.some((personId) => targetIds.has(personId))) return;
         let key = `${periodKey}\n${nomination.id || index}`;
         if (seen.has(key)) return;
         seen.add(key);
@@ -120,6 +105,7 @@
         window.compareEnglishTitles(left.filmTitle, right.filmTitle),
     );
     return {
+      sourceId,
       source,
       personId: person?.id || "",
       credits,
@@ -127,5 +113,32 @@
       nominations: credits.length,
       periodKeys: [...new Set(credits.map((credit) => credit.periodKey))],
     };
+  };
+
+  /**
+   * Derives every populated official-source record that matches a person.
+   * @param {PersonRecord} person Existing derived person.
+   * @returns {OfficialPersonRecord[]} Matched records, Academy Awards first.
+   */
+  window.officialPersonRecords = function (person) {
+    return Object.keys(window.state?.officialResults || {})
+      .sort((left, right) => {
+        if (left === ACADEMY_SOURCE_ID) return -1;
+        if (right === ACADEMY_SOURCE_ID) return 1;
+        let leftName = window.state.officialResults[left]?.name || left;
+        let rightName = window.state.officialResults[right]?.name || right;
+        return window.compareEnglishTitles(leftName, rightName);
+      })
+      .map((sourceId) => window.officialPersonRecord(person, sourceId))
+      .filter((record) => record.nominations > 0);
+  };
+
+  /**
+   * Derives the Academy Awards record retained for compatibility.
+   * @param {PersonRecord} person Existing derived person.
+   * @returns {OfficialPersonOscarRecord} Matched Academy Awards record.
+   */
+  window.officialPersonOscarRecord = function (person) {
+    return window.officialPersonRecord(person, ACADEMY_SOURCE_ID);
   };
 })();

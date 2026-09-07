@@ -10,6 +10,30 @@ window.normalizeProjectId = function (value) {
     .replace(/^-|-$/g, "");
 };
 
+const transientProjectSources = new Map();
+
+function transientProjectSourceKey(sourceType, sourceId) {
+  return `${String(sourceType || "").trim()}\n${String(sourceId || "").trim()}`;
+}
+
+/**
+ * Registers a render-derived project source for the current page session.
+ * @param {string} sourceType Source type.
+ * @param {string} sourceId Stable source id.
+ * @param {Object} source Resolved source record.
+ * @returns {string} The registered source id.
+ */
+window.registerTransientProjectSource = function (
+  sourceType,
+  sourceId,
+  source,
+) {
+  let key = transientProjectSourceKey(sourceType, sourceId);
+  if (!sourceType || !sourceId || !source || !key.trim()) return "";
+  transientProjectSources.set(key, source);
+  return sourceId;
+};
+
 /** Builds a deterministic project id for a source. @param {string} sourceType Source type. @param {string} sourceId Source id. @returns {string} Project id. */
 window.projectIdForSource = function (sourceType, sourceId) {
   return `${String(sourceType || "").trim()}-${window.normalizeProjectId(sourceId)}`;
@@ -173,7 +197,9 @@ window.projectSourceRecord = function (sourceType, sourceId) {
     };
   }
   if (sourceType === "watchlist-filter") {
-    let filter = state.watchlistProjectSources?.[sourceId];
+    let filter = transientProjectSources.get(
+      transientProjectSourceKey(sourceType, sourceId),
+    );
     if (!filter) return null;
     let filmRefs = filter.itemIds
       ? window.projectRefsForWatchlistItemIds(filter.itemIds)

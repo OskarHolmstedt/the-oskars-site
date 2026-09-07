@@ -90,12 +90,12 @@ window.renderCollectionAwardsView = function (model, options = {}) {
           let film = entry.href
             ? `<a class="table-film-link" href="${escape(entry.href)}"><strong>${escape(entry.sourceTitle)}</strong></a>`
             : `<strong>${escape(entry.sourceTitle)}</strong><span class="leaderboard-meta">${escape(ui(entry.ambiguous ? "Ambiguous collection match" : "Not matched to collection"))}</span>`;
-          // window.awardRecipients()/pageLinkedRecipients() already accept
+          // resolveAwardRecipients()/pageLinkedRecipients() already accept
           // a plain `.recipient` string as a fallback input (built for
           // exactly this dual-shape tolerance) and already gate person-
           // linking by category via PERSON_AWARD_PROFESSIONS - reusing them
           // here converges this bracket's recipients onto the same
-          // resolved-identity scheme AwardRecord's already use, with no
+          // alias-aware identity scheme AwardRecord's already use, with no
           // stored-schema change (issue #450).
           let recipientHtml = window.pageLinkedRecipients?.(entry) || "";
           let credit = [recipientHtml, entry.detail ? escape(entry.detail) : ""]

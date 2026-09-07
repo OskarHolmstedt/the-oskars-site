@@ -1153,7 +1153,6 @@ const SUPABASE_ACCOUNT_BACKUP_TABLES = [
   ["collections", "*, collection_items(*)"],
   ["projects", "*"],
   ["local_ranks", "*"],
-  ["watchlist_project_sources", "*"],
   ["ranking_pair_reviews", "*"],
   ["award_reviews", "*"],
   ["entity_notes", "*"],

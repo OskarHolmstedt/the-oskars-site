@@ -3,7 +3,7 @@
  * path-aware validation, runtime adaptation, and deterministic serialization.
  */
 
-window.OSKARS_CANONICAL_SCHEMA_VERSION = 1;
+window.OSKARS_CANONICAL_SCHEMA_VERSION = 2;
 
 const CANONICAL_TOP_LEVEL_KEYS = [
   "canonicalSchemaVersion",
@@ -17,7 +17,6 @@ const CANONICAL_TOP_LEVEL_KEYS = [
   "awardReviews",
   "opinionRebuildSession",
   "projects",
-  "watchlistProjectSources",
   "peopleAliases",
   "rejectedPersonAliases",
   "declinedOfficialWatchlistAdds",
@@ -219,7 +218,6 @@ function canonicalEmptyDocument() {
     awardReviews: { years: {} },
     opinionRebuildSession: null,
     projects: [],
-    watchlistProjectSources: {},
     peopleAliases: {},
     rejectedPersonAliases: [],
     declinedOfficialWatchlistAdds: [],
@@ -258,7 +256,6 @@ function canonicalLegacyMigration(source) {
   migrated.awardReviews = source.awardReviews || migrated.awardReviews;
   migrated.opinionRebuildSession = source.opinionRebuildSession || null;
   migrated.projects = source.projects || [];
-  migrated.watchlistProjectSources = source.watchlistProjectSources || {};
   migrated.peopleAliases = source.peopleAliases || {};
   migrated.rejectedPersonAliases = source.rejectedPersonAliases || [];
   migrated.declinedOfficialWatchlistAdds =
@@ -297,6 +294,10 @@ window.migrateCanonicalData = function (source) {
     );
   let migrated = canonicalClone(source);
   if (version === 1) {
+    delete migrated.watchlistProjectSources;
+    migrated.canonicalSchemaVersion = 2;
+  }
+  if (migrated.canonicalSchemaVersion === 2) {
     let defaults = canonicalEmptyDocument();
     CANONICAL_TOP_LEVEL_KEYS.forEach((key) => {
       if (migrated[key] === undefined) migrated[key] = defaults[key];
@@ -1097,7 +1098,6 @@ window.validateCanonicalData = function (source) {
   canonicalValidateWorkflows(errors, source.intakeWorkflows);
   canonicalValidateProjects(errors, source.projects);
   [
-    "watchlistProjectSources",
     "peopleAliases",
     "personPortraits",
     "franchiseLinks",
@@ -1207,7 +1207,6 @@ window.getCanonicalData = function (source = window.state, options = {}) {
     awardReviews: source.awardReviews || canonicalEmptyDocument().awardReviews,
     opinionRebuildSession: source.opinionRebuildSession || null,
     projects: source.projects || [],
-    watchlistProjectSources: source.watchlistProjectSources || {},
     peopleAliases: source.peopleAliases || {},
     rejectedPersonAliases: source.rejectedPersonAliases || [],
     declinedOfficialWatchlistAdds: source.declinedOfficialWatchlistAdds || [],
@@ -1352,7 +1351,6 @@ window.canonicalDataToRuntimeState = function (source) {
     awardReviews: canonical.awardReviews,
     opinionRebuildSession: canonical.opinionRebuildSession,
     projects: canonical.projects,
-    watchlistProjectSources: canonical.watchlistProjectSources,
     peopleAliases: canonical.peopleAliases,
     rejectedPersonAliases: canonical.rejectedPersonAliases,
     declinedOfficialWatchlistAdds: canonical.declinedOfficialWatchlistAdds,
@@ -1403,13 +1401,13 @@ const CANONICAL_OPT_IN_SECTIONS = new Set(["localRanks"]);
 // trails (editLog's free-form changes/context/undo payloads routinely
 // embed the exact private content — reviews, notes, whole watchlist
 // records, source spreadsheet ids — this is disclosing, so exclusion is
-// the only safe option, not per-field redaction); projects and
-// watchlistProjectSources reference private watchlist items by id and
-// would otherwise leak their existence; entityNotes is the app's literal
+// the only safe option, not per-field redaction); projects reference
+// private watchlist items by id and would otherwise leak their existence;
+// entityNotes is the app's literal
 // "notes" feature; rejectedPersonAliases is internal curation housekeeping
 // with no public value; declinedOfficialWatchlistAdds references the
-// private watchlist the same way watchlistProjectSources does, and is
-// itself just curation housekeeping for the shared-archive auto-add
+// private watchlist and is itself just curation housekeeping for the
+// shared-archive auto-add
 // reconciliation, with no public value either.
 const CANONICAL_PRIVATE_SECTIONS = new Set([
   "watchlist",
@@ -1418,7 +1416,6 @@ const CANONICAL_PRIVATE_SECTIONS = new Set([
   "awardReviews",
   "opinionRebuildSession",
   "projects",
-  "watchlistProjectSources",
   "rejectedPersonAliases",
   "declinedOfficialWatchlistAdds",
   "entityNotes",
@@ -1766,12 +1763,6 @@ window.publicProjectionPreview = function (canonical, options = {}) {
       disclosure: "private",
       includedRecordCount: 0,
       totalRecordCount: (canonical.projects || []).length,
-    },
-    {
-      section: "watchlistProjectSources",
-      disclosure: "private",
-      includedRecordCount: 0,
-      totalRecordCount: publicSectionRecordCount(canonical.watchlistProjectSources),
     },
     {
       section: "rejectedPersonAliases",

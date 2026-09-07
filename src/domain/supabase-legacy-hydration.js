@@ -11,7 +11,7 @@
  * and Node-testable - no Supabase client, no DOM.
  *
  * Deliberately does not populate `state.watchedOther`, `state.projects`,
- * `state.entityNotes`, `state.localRanks`, `state.watchlistProjectSources`,
+ * `state.entityNotes`, `state.localRanks`,
  * `state.declinedOfficialWatchlistAdds`, `state.franchiseLinks`,
  * `state.rejectedPersonAliases`, or `state.opinionRebuildSession` - each
  * either has no Supabase table yet or belongs to a collection-page cutover

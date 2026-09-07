@@ -3160,11 +3160,18 @@
     "Showing 80 newest edits. Export includes all {count} matching edits.": {
       sv: "Visar 80 senaste ändringarna. Exporten inkluderar alla {count} matchande ändringar.",
     },
+    "Signing in and fetching your Sheet...": {
+      sv: "Loggar in och hämtar ditt Sheet...",
+    },
     Time: { sv: "Tid" },
     "Waiting for Google sign-in.": { sv: "Väntar på Google-inloggning." },
+    "Write the previewed Google Sheets changes to Supabase for real?": {
+      sv: "Skriv de förhandsgranskade Google Sheets-ändringarna till Supabase på riktigt?",
+    },
     "{open} open · {applied} applied · {total} total.": {
       sv: "{open} öppna · {applied} tillämpade · {total} totalt.",
     },
+    "{stage}: {done}/{total}...": { sv: "{stage}: {done}/{total}..." },
     // Year ranking and annual awards
     "Set up a year": { sv: "Sätt upp ett år" },
     "Year not found": { sv: "Året hittades inte" },

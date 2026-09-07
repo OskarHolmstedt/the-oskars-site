@@ -476,7 +476,14 @@
               { numeric: true },
             ) || window.compareEnglishTitles(left.filmTitle, right.filmTitle),
       );
-    let officialOscarRecord = window.officialPersonOscarRecord(person);
+    let officialPersonRecords = window.officialPersonRecords(person);
+    let officialTotals = officialPersonRecords.reduce(
+      (totals, record) => ({
+        wins: totals.wins + record.wins,
+        nominations: totals.nominations + record.nominations,
+      }),
+      { wins: 0, nominations: 0 },
+    );
 
     function personalCreditForOfficial(officialCredit) {
       if (!officialCredit.filmId) return null;
@@ -490,8 +497,8 @@
       );
     }
 
-    function renderOfficialOscarRows() {
-      return [...officialOscarRecord.credits]
+    function renderOfficialRows(record) {
+      return [...record.credits]
         .sort(
           (left, right) =>
             chronologyFactor *
@@ -528,8 +535,11 @@
         .join("");
     }
 
-    function renderOfficialOscarSection() {
-      if (!officialOscarRecord.nominations) return "";
+    function renderOfficialSection(record, index) {
+      let sourceName = String(
+        record.source?.name || record.source?.id || record.sourceId,
+      );
+      let headingId = `person-official-results-${index + 1}`;
       let table = window.renderLeaderboardTable({
         headers: [
           ui("Result"),
@@ -539,11 +549,11 @@
           ui("Credit"),
           "Oskars",
         ].map(personPageEscape),
-        rows: renderOfficialOscarRows(),
+        rows: renderOfficialRows(record),
         classes: "person-official-table",
         wrapClasses: "person-official-table-wrap",
       });
-      return `<section class="person-official-awards" aria-labelledby="person-real-oscars"><div class="person-official-heading"><h2 id="person-real-oscars">${personPageEscape(ui("Real Oscars"))}</h2><span>${personPageEscape(ui("Matched from imported Academy Awards results."))}</span></div>${window.renderDetailStats({ itemsHtml: `<span><b>${officialOscarRecord.wins}</b> ${personPageEscape(ui(officialOscarRecord.wins === 1 ? "Win" : "Wins"))}</span><span><b>${officialOscarRecord.nominations}</b> ${personPageEscape(ui(officialOscarRecord.nominations === 1 ? "Nomination" : "Nominations"))}</span>` })}${table}</section>`;
+      return `<section class="person-official-awards" aria-labelledby="${headingId}"><div class="person-official-heading"><h2 id="${headingId}">${personPageEscape(sourceName)}</h2><span>${personPageEscape(ui("Official results"))}</span></div>${window.renderDetailStats({ itemsHtml: `<span><b>${record.wins}</b> ${personPageEscape(ui(record.wins === 1 ? "Win" : "Wins"))}</span><span><b>${record.nominations}</b> ${personPageEscape(ui(record.nominations === 1 ? "Nomination" : "Nominations"))}</span>` })}${table}</section>`;
     }
 
     function renderPersonAwardRows(periodAwards) {
@@ -782,7 +792,7 @@
       metadataRow(ui("Wins"), stats.wins || 0, "#person-awards"),
       metadataRow(ui("Nominations"), stats.nominations || 0, "#person-awards"),
     ].join("");
-    let personStatsHtml = `<div class="detail-stat-grid"><div class="detail-stat-head"><b></b><span>${personPageEscape(ui("All-time"))}</span><span>${personPageEscape(ui("Century"))}</span><span>${personPageEscape(ui("Decade"))}</span><span>${personPageEscape(ui("Year"))}</span></div><div class="detail-stat-row"><b>${personPageEscape(ui("Score"))}</b><span><b>${awardScores.allTime}</b></span><span><b>${awardScores.century}</b></span><span><b>${awardScores.decade}</b></span><span><b>${awardScores.year}</b></span></div></div><div class="detail-stat-summary"><span><b>${person.filmIds.length}</b> ${personPageEscape(ui("Films"))}</span>${otherWatched.length ? `<span><b>${otherWatched.length}</b> ${personPageEscape(ui("Other watched"))}</span>` : ""}<span><b>${stats.wins || 0}</b> ${personPageEscape(ui("Wins"))}</span><span><b>${stats.nominations || 0}</b> ${personPageEscape(ui("Nominations"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape: personPageEscape, ui })}</div>${officialOscarRecord.nominations ? `<div class="detail-stat-summary person-official-summary"><span><b>${personPageEscape(ui("Real Oscars"))}</b></span><span><b>${officialOscarRecord.wins}</b> ${personPageEscape(ui(officialOscarRecord.wins === 1 ? "Win" : "Wins"))}</span><span><b>${officialOscarRecord.nominations}</b> ${personPageEscape(ui(officialOscarRecord.nominations === 1 ? "Nomination" : "Nominations"))}</span></div>` : ""}`;
+    let personStatsHtml = `<div class="detail-stat-grid"><div class="detail-stat-head"><b></b><span>${personPageEscape(ui("All-time"))}</span><span>${personPageEscape(ui("Century"))}</span><span>${personPageEscape(ui("Decade"))}</span><span>${personPageEscape(ui("Year"))}</span></div><div class="detail-stat-row"><b>${personPageEscape(ui("Score"))}</b><span><b>${awardScores.allTime}</b></span><span><b>${awardScores.century}</b></span><span><b>${awardScores.decade}</b></span><span><b>${awardScores.year}</b></span></div></div><div class="detail-stat-summary"><span><b>${person.filmIds.length}</b> ${personPageEscape(ui("Films"))}</span>${otherWatched.length ? `<span><b>${otherWatched.length}</b> ${personPageEscape(ui("Other watched"))}</span>` : ""}<span><b>${stats.wins || 0}</b> ${personPageEscape(ui("Wins"))}</span><span><b>${stats.nominations || 0}</b> ${personPageEscape(ui("Nominations"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape: personPageEscape, ui })}</div>${officialTotals.nominations ? `<div class="detail-stat-summary person-official-summary"><span><b>${personPageEscape(ui("Official results"))}</b></span><span><b>${officialTotals.wins}</b> ${personPageEscape(ui(officialTotals.wins === 1 ? "Win" : "Wins"))}</span><span><b>${officialTotals.nominations}</b> ${personPageEscape(ui(officialTotals.nominations === 1 ? "Nomination" : "Nominations"))}</span></div>` : ""}`;
     let reverseLabel =
       filmographySort === "director-rank"
         ? chronologyOrder === "asc"
@@ -885,7 +895,7 @@
   <fieldset class="person-awards-view-controls"><legend>${personPageEscape(ui("Display"))}</legend><label><input type="radio" name="personAwardsView" value="periods" ${personAwardsView === "periods" ? "checked" : ""}> ${personPageEscape(ui("Period tables"))}</label><label><input type="radio" name="personAwardsView" value="progression" ${personAwardsView === "progression" ? "checked" : ""}> ${personPageEscape(ui("Progression table"))}</label></fieldset>
   <div data-person-awards="periods" ${personAwardsView === "periods" ? "" : "hidden"}><div class="film-award-period-grid person-award-period-grid">${renderPersonAwardGroups() || `<div class="detail-empty">${personPageEscape(ui("No nominations"))}</div>`}</div></div>
   <div data-person-awards="progression" ${personAwardsView === "progression" ? "" : "hidden"}>${renderPersonProgression()}</div>
-  ${renderOfficialOscarSection()}</div>
+  ${officialPersonRecords.map(renderOfficialSection).join("")}</div>
   ${isDirector ? `<div data-collection-page-view="awards" ${collectionPageView === "awards" ? "" : "hidden"}>${window.renderCollectionAwardsView(collectionAwardModel, { escape: personPageEscape, ui })}</div>` : ""}`;
     window.enhanceCollapsibles?.(container);
 

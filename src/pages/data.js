@@ -5,6 +5,7 @@
   let escape = window.pageEscape;
   let pendingLetterboxd = null;
   let pendingBackup = null;
+  let pendingGoogleSheetsSource = null;
   let legacyIntakeId = window.pageQueryParam?.("intake") || "";
   if (legacyIntakeId) {
     window.location.replace(window.intakePageUrl(legacyIntakeId));
@@ -309,6 +310,39 @@
     renderHealth();
   }
 
+  function formatGoogleSheetsReports(reports) {
+    return reports
+      .map((report) => {
+        let lines = [
+          `${report.name}: ${report.totalRows} row(s) - resolved ${report.resolved} ` +
+            `(tmdb ${report.viaTmdb}, title+year ${report.viaTitleYear}, ` +
+            `fuzzy ${report.viaFuzzy}, title-only ${report.viaTitleOnly}, ` +
+            `period history ${report.viaPeriodHistory}, ` +
+            `category history ${report.viaCategoryHistory}), ` +
+            `would-create ${report.wouldCreateFilms}, created ${report.createdFilms}, ` +
+            `ambiguous ${report.ambiguous.length}, skipped ${report.skipped.length}`,
+        ];
+        for (let [key, value] of Object.entries(report.notes))
+          lines.push(`  ${key}: ${value}`);
+        if (report.ambiguous.length)
+          lines.push(
+            `  ambiguous (sample): ${report.ambiguous
+              .slice(0, 10)
+              .map((entry) => `"${entry.title}" (${entry.year || "?"})`)
+              .join("; ")}`,
+          );
+        if (report.skipped.length)
+          lines.push(
+            `  skipped (sample): ${report.skipped
+              .slice(0, 10)
+              .map((entry) => entry.reason)
+              .join("; ")}`,
+          );
+        return lines.join("\n");
+      })
+      .join("\n\n");
+  }
+
   async function setPublication(published) {
     let current = await window.loadSupabaseProfile();
     let slug = published
@@ -428,6 +462,79 @@
         }
       });
 
+    if (window.googleSheetsSupabaseImportConfigured?.()) {
+      let section = document.getElementById("googleSheetsImport");
+      section.hidden = false;
+      let status = document.getElementById("googleSheetsStatus");
+      let progress = document.getElementById("googleSheetsProgress");
+      let applyBtn = document.getElementById("googleSheetsApplyBtn");
+      function onProgress(stage, done, total) {
+        progress.hidden = false;
+        progress.max = total || 1;
+        progress.value = done;
+        status.textContent = ui("{stage}: {done}/{total}...", {
+          stage,
+          done,
+          total,
+        });
+      }
+      document
+        .getElementById("googleSheetsPreviewBtn")
+        .addEventListener("click", async (event) => {
+          let button = event.currentTarget;
+          button.disabled = true;
+          applyBtn.disabled = true;
+          pendingGoogleSheetsSource = null;
+          try {
+            status.textContent = ui("Signing in and fetching your Sheet...");
+            let source = await window.fetchGoogleSheetsSupabaseSource();
+            let { reports } = await window.runGoogleSheetsSupabaseImport(
+              source,
+              { confirm: false, onProgress },
+            );
+            pendingGoogleSheetsSource = source;
+            progress.hidden = true;
+            status.textContent = formatGoogleSheetsReports(reports);
+            applyBtn.disabled = false;
+          } catch (error) {
+            progress.hidden = true;
+            status.textContent = error.message || String(error);
+          } finally {
+            button.disabled = false;
+          }
+        });
+      applyBtn.addEventListener("click", async (event) => {
+        if (!pendingGoogleSheetsSource) return;
+        if (
+          !confirm(
+            ui(
+              "Write the previewed Google Sheets changes to Supabase for real?",
+            ),
+          )
+        )
+          return;
+        let button = event.currentTarget;
+        let previewBtn = document.getElementById("googleSheetsPreviewBtn");
+        button.disabled = true;
+        previewBtn.disabled = true;
+        try {
+          let { reports } = await window.runGoogleSheetsSupabaseImport(
+            pendingGoogleSheetsSource,
+            { confirm: true, onProgress },
+          );
+          await refreshSource();
+          progress.hidden = true;
+          status.textContent = formatGoogleSheetsReports(reports);
+          pendingGoogleSheetsSource = null;
+        } catch (error) {
+          progress.hidden = true;
+          status.textContent = error.message || String(error);
+        } finally {
+          previewBtn.disabled = false;
+        }
+      });
+    }
+
     let profile = await window.loadSupabaseProfile();
     document.getElementById("profileStatus").textContent = profile?.public_slug
       ? ui("Published as {slug}.", { slug: profile.public_slug })
@@ -442,6 +549,15 @@
       .addEventListener("click", () =>
         setPublication(false).catch((error) => window.alert(error.message)),
       );
+
+    let communitySnapshotView = document.getElementById(
+      "publicProfilePublicationView",
+    );
+    window.renderPublicProfilePublication(communitySnapshotView);
+    communitySnapshotView.addEventListener(
+      "click",
+      window.handlePublicProfilePublicationAction,
+    );
 
     document
       .getElementById("clearOpinionsBtn")

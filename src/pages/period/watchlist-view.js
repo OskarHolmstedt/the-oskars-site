@@ -414,17 +414,15 @@ window.registerWatchlistFilterProjectSource = function (
   href,
 ) {
   let ui = window.uiText || ((text) => text);
-    state.watchlistProjectSources ||= {};
-    let sourceId = watchlistFilterSourceId(filters);
-    state.watchlistProjectSources[sourceId] = {
-      name: `Watchlist: ${filters.key} · ${watchlistFilterLabel(filters, filtered.length, ui)}`,
-      label: watchlistFilterLabel(filters, filtered.length, ui),
-      href,
-      itemIds: filtered.map(
-        (entry) => entry.item.id || window.watchlistItemId(entry.item),
-      ),
-    };
-    return sourceId;
+  let sourceId = watchlistFilterSourceId(filters);
+  return window.registerTransientProjectSource("watchlist-filter", sourceId, {
+    name: `Watchlist: ${filters.key} · ${watchlistFilterLabel(filters, filtered.length, ui)}`,
+    label: watchlistFilterLabel(filters, filtered.length, ui),
+    href,
+    itemIds: filtered.map(
+      (entry) => entry.item.id || window.watchlistItemId(entry.item),
+    ),
+  });
 };
 
 function watchlistTierEditor(item, escape, ui) {
@@ -569,7 +567,7 @@ window.watchlistFilterControls = function (filters, options = {}) {
 };
 
   // A disposable queue: recomputed from the current filtered entries every
-  // render, never saved to state.projects/watchlistProjectSources. Reuses
+  // render, never registered as a project source or saved. Reuses
   // the same pick/reason operation as Discover's watchlist picker (issue
   // #161) instead of a separate mechanism.
 /**

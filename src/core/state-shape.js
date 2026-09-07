@@ -267,7 +267,7 @@
  */
 
 /**
- * One official Academy Awards nomination matched to an existing person.
+ * One official-results nomination matched to an existing person.
  * @typedef {Object} OfficialPersonCredit
  * @property {string} nominationId
  * @property {string} periodKey
@@ -284,8 +284,9 @@
  */
 
 /**
- * Derived real Oscar record for one existing person.
- * @typedef {Object} OfficialPersonOscarRecord
+ * Derived official-results record for one existing person and source.
+ * @typedef {Object} OfficialPersonRecord
+ * @property {string} sourceId
  * @property {OfficialResultsSource|null} source
  * @property {string} personId
  * @property {OfficialPersonCredit[]} credits
@@ -293,6 +294,8 @@
  * @property {number} nominations
  * @property {string[]} periodKeys
  */
+
+/** @typedef {OfficialPersonRecord} OfficialPersonOscarRecord */
 
 /**
  * Stable entity reference carried by a shared search entry.
@@ -735,7 +738,6 @@
  * @property {Object} watched Non-archive watched before/after records.
  * @property {Object[]} archiveFilms Changed archive source records.
  * @property {Object[]} projects Changed project records.
- * @property {Object[]} sources Changed watchlist project source records.
  * @property {Object} workflow Created intake workflow snapshot.
  * @property {Object} draftMetadata Draft marker before/after records.
  * @property {string[]} actions Previewed transition descriptions.
@@ -1097,8 +1099,6 @@
  *   published public profile (issue #253) - also slugified into its URL.
  *   Device-local, not canonical: publishing is a single-device, git-based
  *   action, so there is nothing to gain from syncing this across devices.
- * @property {Record<string, Object>} watchlistProjectSources Stored
- *   watchlist-filter project sources keyed by project id.
  * @property {{people: Object, periods: Object, franchises: Object, tags: Object, categories: Object, projects: Object}} entityNotes
  *   Free-text notes keyed by entity id, per entity kind.
  * @property {{franchises: Record<string, string[]>, people: Record<string, string[]>, tags: Record<string, string[]>}} localRanks
@@ -1130,7 +1130,8 @@
  *   owner or local draft; never true otherwise.
  * @property {{slug: string, ownerName: string, revision: string, publishedAt: string}|null} publicProfileMeta
  *   Identity metadata for the currently hydrated public profile (issue
- *   #253): the manifest-resolved slug/owner/revision/publish time. Set
+ *   #253/#452): the live Supabase owner identity or immutable Community
+ *   snapshot's manifest-resolved slug/owner/revision/publish time. Set
  *   alongside `isPublicProfileView`; always null otherwise.
  * @property {ImportFoundation|null} importFoundation One-time local Sheets foundation source/configuration record.
  * @property {Object[]} sourceConflicts Cross-source rating/tier conflicts.
@@ -1195,7 +1196,6 @@ window.createEmptyState = function () {
     projects: [],
     activeProjectId: "",
     publicProfileDisplayName: "",
-    watchlistProjectSources: {},
     entityNotes: {
       people: {},
       periods: {},
@@ -1291,7 +1291,6 @@ window.getSerializableState = function () {
     editLog: window.state.editLog || [],
     projects: window.state.projects || [],
     activeProjectId: window.state.activeProjectId || "",
-    watchlistProjectSources: window.state.watchlistProjectSources || {},
     entityNotes: window.state.entityNotes,
     localRanks: window.state.localRanks,
     rejectedPersonAliases: window.state.rejectedPersonAliases,

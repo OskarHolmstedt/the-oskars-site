@@ -52,6 +52,35 @@
 The ZIP never leaves this browser.</pre>
         </section>
 
+        <section class="data-panel" id="googleSheetsImport" hidden>
+          <span class="eyebrow">Live from your Sheet</span>
+          <h2>Google Sheets</h2>
+          <p>
+            Fetch your private Google Sheet, preview what would change in
+            Supabase, then apply it. Only visible in a browser with a configured
+            spreadsheet.
+          </p>
+          <div class="data-actions">
+            <button id="googleSheetsPreviewBtn" type="button">
+              Preview import
+            </button>
+            <button id="googleSheetsApplyBtn" type="button" disabled>
+              Apply reviewed import
+            </button>
+          </div>
+          <progress
+            id="googleSheetsProgress"
+            value="0"
+            max="1"
+            hidden
+          ></progress>
+          <pre
+            id="googleSheetsStatus"
+            class="data-panel-status"
+            role="status"
+          ></pre>
+        </section>
+
         <div class="data-panel-stack">
           <section class="data-panel" id="backupRestore">
             <h2>Portable backup &amp; restore</h2>
@@ -86,8 +115,8 @@ The ZIP never leaves this browser.</pre>
             ></pre>
           </section>
 
-          <section class="data-panel" id="publicProfilePublicationView">
-            <h2>Public profile</h2>
+          <section class="data-panel" id="supabasePublicProfilePublicationView">
+            <h2>Live public profile</h2>
             <p>
               Publication is represented by your Supabase profile slug. The
               Profile page controls the display name used to derive it.
@@ -103,6 +132,11 @@ The ZIP never leaves this browser.</pre>
               </button>
             </div>
             <p id="profileStatus" class="data-panel-status" role="status"></p>
+          </section>
+
+          <section class="data-panel" id="publicProfilePublicationView">
+            <h2>Publish a Community snapshot</h2>
+            <p class="data-panel-status">Preparing snapshot tools…</p>
           </section>
 
           <section class="data-panel data-danger-zone">

@@ -411,6 +411,7 @@
     "src/imports/bracket-sheet.js",
     "src/imports/franchise-sheet.js",
     "src/imports/director-sheet.js",
+    "src/imports/directors-franchises-sheet.js",
     "src/imports/importer.js",
     "src/ui/country.js",
     "src/ui/film-rating.js",
@@ -696,6 +697,7 @@
     // mode, not a baked mode itself) can block owner-only pages regardless
     // of deployment mode. Its later entry in `dependencies` is removed.
     await loadScript("src/core/public-profile.js");
+    await loadScript("src/core/public-profile-supabase.js");
     let runtimeModeResult = window.resolveRuntimeMode(
       window.OSKARS_RUNTIME_MODE,
     );
@@ -849,6 +851,15 @@
       for (let dependency of pageDependencies) await loadScript(dependency);
       if (["film", "period", "data"].includes(entry))
         await loadScript("src/core/supabase-legacy-writes.js");
+      if (entry === "data") {
+        // Owner-only live Google Sheets → Supabase import (issue #469) -
+        // only ever functional when the owner's own gitignored
+        // config.local.js configures it, but loaded unconditionally here
+        // since data.js decides visibility, matching this file's own
+        // "load then let the page decide" pattern elsewhere.
+        await loadScript("src/data/google-sheets.js");
+        await loadScript("src/data/google-sheets-supabase-import.js");
+      }
     }
     let pageLoadsOwnData =
       ["home", "data", "community"].includes(entry) ||

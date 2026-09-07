@@ -23,12 +23,20 @@ window.splitRecipientNames = function (value) {
     " $1",
   );
   return protectedSuffixes
-    .split(/\s*(?:,|;|\/|\s+&\s+|\s+and\s+)\s*/i)
+    .split(/\s*(?:,|;|\||\/|\s+&\s+|\s+and\s+)\s*/i)
     .map(window.stripPersonDisambiguator)
     .filter(Boolean);
 };
 
-/** Returns normalized, deduplicated award recipients. @param {AwardRecord|null} award Award. @returns {AwardRecipient[]} Recipients. */
+/** Resolves a recipient name or id through the current person-alias map. @param {*} value Recipient name or id. @returns {string} Canonical person id. */
+window.resolveAwardRecipientPersonId = function (value) {
+  let variantId = window.normalizePersonName(value);
+  if (!variantId) return "";
+  let canonicalName = window.state?.peopleAliases?.[variantId] || value;
+  return window.normalizePersonName(canonicalName);
+};
+
+/** Returns normalized, deduplicated award recipients. @param {AwardRecord|CollectionAwardNomination|OfficialNomination|null} award Award. @returns {AwardRecipient[]} Recipients. */
 window.awardRecipients = function (award) {
   if (!award) return [];
   let records = Array.isArray(award.recipients)
@@ -51,6 +59,28 @@ window.awardRecipients = function (award) {
         record.personId &&
         !seen.has(record.personId) &&
         seen.add(record.personId),
+    );
+};
+
+/** Resolves and deduplicates an award's recipients through the current person-alias map without mutating the award. @param {AwardRecord|CollectionAwardNomination|OfficialNomination|null} award Award. @returns {AwardRecipient[]} Canonical recipients. */
+window.resolveAwardRecipients = function (award) {
+  let seen = new Set();
+  return window
+    .awardRecipients(award)
+    .map((recipient) => {
+      let variantId = window.normalizePersonName(recipient.personId);
+      let canonicalName =
+        window.state?.peopleAliases?.[variantId] || recipient.name;
+      return {
+        name: canonicalName,
+        personId: window.resolveAwardRecipientPersonId(recipient.personId),
+      };
+    })
+    .filter(
+      (recipient) =>
+        recipient.personId &&
+        !seen.has(recipient.personId) &&
+        seen.add(recipient.personId),
     );
 };
 
@@ -102,7 +132,7 @@ window.normalizeAwardRecipients = function (award) {
 /** Builds an order-independent recipient identity key. @param {AwardRecord} award Award. @returns {string} Recipient key. */
 window.awardRecipientKey = function (award) {
   return window
-    .awardRecipients(award)
+    .resolveAwardRecipients(award)
     .map((record) => record.personId)
     .sort()
     .join("\n");

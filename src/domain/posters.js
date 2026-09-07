@@ -165,7 +165,15 @@ window.setFilmTmdbMetadata = function (filmId, metadata, options = {}) {
   // promote a long-standing, deliberately-placed watchedOther entry, or
   // demote a film out of a ranking someone already built. The unranked
   // check is a redundant second guard for the same reason.
-  let isFirstResolution = !film.tmdbId;
+  //
+  // `!film.tmdbId` is only a proxy for "never resolved before" - it breaks
+  // for a caller (addFilmRecordToWatched, issue #373) that already knows
+  // the film's tmdbId at creation time and stores it on the film before
+  // this function ever runs, for reasons unrelated to classification (exact-
+  // match dedup, precise-by-id TMDB lookups). `assumeFirstResolution` lets
+  // that caller assert the true fact directly instead of relying on the
+  // proxy.
+  let isFirstResolution = options.assumeFirstResolution || !film.tmdbId;
   let isUnranked =
     !film.rank && !film.allTimeRank && !(film.awards || []).length;
   let beforeLog = options.log && {
@@ -267,6 +275,7 @@ window.loadFilmMetadata = async function (filmId, options = {}) {
     log: options.log !== false,
     overwrite: options.overwrite,
     overwritePoster: options.overwritePoster,
+    assumeFirstResolution: options.assumeFirstResolution,
   });
   window.save();
   return metadata;

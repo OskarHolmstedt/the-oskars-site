@@ -36,14 +36,16 @@ const PUBLIC_PROFILE_ERROR_MESSAGES = {
  * @returns {Promise<boolean>} Whether the profile was hydrated.
  */
 async function ensurePublicProfileData(slug) {
-  let result = await window.loadPublicProfile?.(slug);
+  // Supabase is the one live profile source (issue #452). Immutable static
+  // revisions remain a separate Community comparison contract.
+  let result = await window.loadSupabasePublicProfile?.(slug);
   if (!result) return false;
   if (result.ok) {
     let canReturnToOwnArchive = window.runtimeModeCapabilities?.(
       window.getRuntimeMode?.(),
     )?.canPersistPrivateState;
     window.showStorageStatus?.(
-      `Viewing ${result.meta.ownerName}'s public profile · revision ${result.meta.revision}`,
+      `Viewing ${result.meta.ownerName}'s public profile · live data`,
       "viewer",
       [
         {
@@ -66,9 +68,9 @@ async function ensurePublicProfileData(slug) {
 }
 
 /**
- * Loads and hydrates window.state from Supabase (issue #438) - the owner's
- * own data, or someone else's published public profile (unaffected;
- * already backend-independent). entry-loader.js has already resolved the
+ * Loads and hydrates window.state from Supabase (issues #438/#452) - the
+ * owner's own data or someone else's published live profile. entry-loader.js
+ * has already resolved the
  * Supabase account gate by the time this runs, so no account-access
  * recheck is needed here.
  * @returns {Promise<OskarsState>} The ready global application state.

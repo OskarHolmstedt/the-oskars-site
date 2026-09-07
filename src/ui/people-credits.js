@@ -8,11 +8,13 @@
  */
 window.pageLinkedRecipients = function (award, options = {}) {
   let profession = window.PERSON_AWARD_PROFESSIONS[award.category];
-  let recipients = [...window.awardRecipients(award)].sort((left, right) => {
-    let leftName = state.peopleAliases?.[left.personId] || left.name;
-    let rightName = state.peopleAliases?.[right.personId] || right.name;
-    return window.comparePersonNamesBySurname(leftName, rightName);
-  });
+  let recipients = [...window.resolveAwardRecipients(award)].sort(
+    (left, right) => {
+      let leftName = state.peopleAliases?.[left.personId] || left.name;
+      let rightName = state.peopleAliases?.[right.personId] || right.name;
+      return window.comparePersonNamesBySurname(leftName, rightName);
+    },
+  );
   if (!profession) return window.pageEscape(window.awardRecipientText(award));
   let links = recipients.map((recipient) => {
     let canonicalName =

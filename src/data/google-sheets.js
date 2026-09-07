@@ -1033,6 +1033,17 @@
    */
   window.mergeImportedGoogleState = mergeImportedGoogleState;
 
+  // Exposed for src/data/google-sheets-supabase-import.js (issue #469) -
+  // that file reuses this OAuth/fetch plumbing directly rather than
+  // duplicating it, but writes to Supabase instead of merging into
+  // window.state the way window.importFromGoogleSheets below does. No
+  // behavior change to any of these functions themselves.
+  window.loadGoogleIdentity = loadGoogleIdentity;
+  window.requestGoogleAccessToken = requestGoogleAccessToken;
+  window.fetchGoogleSheetValues = fetchSheetValues;
+  window.rowsToDelimited = rowsToDelimited;
+  window.rowsToPlainDelimited = rowsToPlainDelimited;
+
   /**
    * Authenticates and builds a session-only proposal from every configured range.
    * @param {Object} [options] Import mode controls.
