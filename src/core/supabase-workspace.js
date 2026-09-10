@@ -1748,7 +1748,22 @@ window.loadSupabaseLegacyHydrationSource = async function () {
         "id, name, source_label, source_type, source_id, created_at, projects!inner(status, pinned, updated_at), collection_items(film_id, position)",
       )
       .order("position", { foreignTable: "collection_items" }),
-    client.from("profiles").select("display_name").maybeSingle(),
+    // Explicitly scoped by id, not left to RLS alone: "profiles: read own"
+    // used to be the only applicable SELECT policy, but "profiles: anyone
+    // can look up a slug's owner" (issue #452, for public-profile share
+    // links) now also allows reading any row with a non-null public_slug.
+    // An unfiltered select here would return BOTH this user's own row AND
+    // every published profile's row once any account (e.g. the owner's)
+    // has published one, and .maybeSingle() throws PGRST116 ("multiple
+    // rows returned") the moment more than one row is visible - found
+    // live: broke every page's shared bootstrap for a second real account
+    // as soon as the owner's profile was public, since both rows always
+    // satisfy RLS at once.
+    client
+      .from("profiles")
+      .select("display_name")
+      .eq("id", authState.user.id)
+      .maybeSingle(),
   ]);
   for (let result of [
     rankingsResult,

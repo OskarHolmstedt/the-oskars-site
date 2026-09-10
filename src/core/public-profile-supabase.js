@@ -374,10 +374,11 @@
    * @returns {Promise<{ok: boolean, meta?: Object, error?: string, detail?: string}>}
    */
   window.loadSupabasePublicProfile = async function (slug) {
-    let ready = await window.ensureSupabaseClient?.();
-    if (!ready) return { ok: false, error: "offline" };
+    let ready;
     let source;
     try {
+      ready = await window.ensureSupabasePublicClient?.();
+      if (!ready) return { ok: false, error: "offline" };
       source = await window.fetchSupabasePublicProfileSource(
         ready.client,
         slug,

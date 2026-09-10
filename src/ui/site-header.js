@@ -516,6 +516,7 @@
   async function refreshHeaderAuthStatus(header, escape) {
     let status = header.querySelector("[data-auth-status]");
     if (!status) return;
+    if (window.renderPublicProfileExit?.(status)) return;
     let auth = await window.resolveSupabaseAuthState?.();
     if (auth?.status !== "signed-in" || !auth.user?.id) {
       status.innerHTML = `<div class="auth-status-sign-in" data-supabase-sign-in></div>`;

@@ -69,6 +69,49 @@ window.stopViewingPublicProfile = function () {
   window.location.href = `${base}index.html`;
 };
 
+/**
+ * Renders the public-profile exit control independently of account and profile loading.
+ * @param {Element} container Header account-status container.
+ * @returns {boolean} Whether the active public profile owns the header control.
+ */
+window.renderPublicProfileExit = function (container) {
+  if (!container || !window.resolveActiveProfileSlug()) return false;
+  container.innerHTML =
+    '<button class="public-profile-exit" type="button" data-public-profile-exit>Exit public mode</button>';
+  container
+    .querySelector("[data-public-profile-exit]")
+    ?.addEventListener("click", () => window.stopViewingPublicProfile());
+  return true;
+};
+
+/**
+ * Shows public-profile attribution or a recoverable load failure independently of private persistence.
+ * @param {string} message Public status message.
+ * @param {string} status Status kind, including error for load failures.
+ * @param {{label: string, run: Function}[]} [actions] Available status actions.
+ */
+window.showPublicProfileStatus = function (message, status, actions = []) {
+  if (!document?.body || !document?.createElement) return;
+  let banner = document.getElementById("publicProfileStatus");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "publicProfileStatus";
+    banner.className = "public-profile-status";
+    let header = document.querySelector(".app-header");
+    if (header) header.after(banner);
+    else document.body.prepend(banner);
+  }
+  banner.setAttribute("role", status === "error" ? "alert" : "status");
+  banner.textContent = message;
+  actions.forEach((action) => {
+    let button = document.createElement("button");
+    button.type = "button";
+    button.textContent = action.label;
+    button.addEventListener("click", action.run);
+    banner.appendChild(button);
+  });
+};
+
 function validateProfileManifestShape(manifest, slug) {
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest))
     return "manifest is not a JSON object";

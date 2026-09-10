@@ -227,6 +227,23 @@ textarea {
   min-width: 0;
   white-space: nowrap;
 }
+.public-profile-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.public-profile-exit {
+  max-width: 90px;
+  white-space: normal;
+  line-height: 1.2;
+  padding: 6px 10px;
+}
 .auth-status-account {
   display: flex;
   align-items: stretch;

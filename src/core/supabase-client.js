@@ -1,6 +1,7 @@
 /**
  * @file Owns Supabase Authentication's Google sign-in flow and the shared
- * Supabase client used by the static application.
+ * authenticated Supabase client used by the static application, plus an
+ * isolated anonymous client for published-profile reads.
  *
  * Google Identity Services supplies an ID token, which Supabase exchanges
  * for a session with signInWithIdToken(). A fresh nonce is used for each
@@ -11,6 +12,7 @@
 window.OSKARS_SUPABASE_SDK_VERSION = "2.112.4";
 let supabaseModulePromise = null;
 let supabaseClientInstance = null;
+let supabasePublicClientInstance = null;
 let googleIdentityScriptPromise = null;
 let currentRawGoogleNonce = null;
 let deliberateSignOutAt = 0;
@@ -46,9 +48,8 @@ function loadSupabaseModule() {
 
 /**
  * Returns the shared Supabase client instance, initializing it if
- * needed. A single client per page is sufficient because Supabase's client
- * already manages its session
- * storage/refresh internally, so there's no reason for more than one.
+ * needed. Account operations share this instance so session storage and
+ * token refresh have one owner; published profiles use a separate anonymous client.
  * @returns {Promise<{module: Object, client: Object}|null>} Null when unconfigured.
  */
 window.ensureSupabaseClient = async function () {
@@ -72,6 +73,30 @@ window.ensureSupabaseClient = async function () {
     });
   }
   return { module, client: supabaseClientInstance };
+};
+
+/**
+ * Returns an anonymous client for published profiles without reading or changing the account session.
+ * @returns {Promise<{module: Object, client: Object}|null>} Null when unconfigured.
+ */
+window.ensureSupabasePublicClient = async function () {
+  if (!window.oskarsSupabaseConfigured()) return null;
+  let module = await loadSupabaseModule();
+  if (!supabasePublicClientInstance) {
+    supabasePublicClientInstance = module.createClient(
+      window.OSKARS_SUPABASE_CONFIG.url,
+      window.OSKARS_SUPABASE_CONFIG.anonKey,
+      {
+        auth: {
+          storageKey: "oskars-public-profile-auth",
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
+      },
+    );
+  }
+  return { module, client: supabasePublicClientInstance };
 };
 
 let lastResolvedSupabaseUser = null;

@@ -252,7 +252,9 @@
     };
     window.renderStaticHeaderAuth = async function () {
       let status = header.querySelector("[data-auth-status]");
-      if (!status || !window.resolveSupabaseAuthState) return;
+      if (!status) return;
+      if (window.renderPublicProfileExit?.(status)) return;
+      if (!window.resolveSupabaseAuthState) return;
       let auth = await window.resolveSupabaseAuthState();
       if (auth?.status !== "signed-in" || !auth.user?.id) {
         status.innerHTML =
@@ -744,6 +746,7 @@
     // mode, not a baked mode itself) can block owner-only pages regardless
     // of deployment mode. Its later entry in `dependencies` is removed.
     await loadScript("src/core/public-profile.js");
+    await window.renderStaticHeaderAuth?.();
     await loadScript("src/core/public-profile-supabase.js");
     let runtimeModeResult = window.resolveRuntimeMode(
       window.OSKARS_RUNTIME_MODE,

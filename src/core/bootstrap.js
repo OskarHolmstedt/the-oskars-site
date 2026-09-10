@@ -22,6 +22,7 @@ const PUBLIC_PROFILE_ERROR_MESSAGES = {
   "not-found": "Profile not found",
   invalid: "This profile's data could not be loaded",
   unavailable: "This profile is temporarily unavailable",
+  offline: "This profile is temporarily unavailable",
 };
 
 /**
@@ -38,13 +39,15 @@ const PUBLIC_PROFILE_ERROR_MESSAGES = {
 async function ensurePublicProfileData(slug) {
   // Supabase is the one live profile source (issue #452). Immutable static
   // revisions remain a separate Community comparison contract.
-  let result = await window.loadSupabasePublicProfile?.(slug);
-  if (!result) return false;
+  let result;
+  try {
+    result = await window.loadSupabasePublicProfile?.(slug);
+  } catch (err) {
+    result = { ok: false, error: "unavailable" };
+  }
+  result ||= { ok: false, error: "unavailable" };
   if (result.ok) {
-    let canReturnToOwnArchive = window.runtimeModeCapabilities?.(
-      window.getRuntimeMode?.(),
-    )?.canPersistPrivateState;
-    window.showStorageStatus?.(
+    window.showPublicProfileStatus?.(
       `Viewing ${result.meta.ownerName}'s public profile · live data`,
       "viewer",
       [
@@ -52,18 +55,16 @@ async function ensurePublicProfileData(slug) {
           label: "Copy profile link",
           run: () => window.copyViewLink?.(publicProfileShareUrl(slug)),
         },
-        {
-          label: canReturnToOwnArchive
-            ? "Return to my local archive"
-            : "Stop viewing",
-          run: () => window.stopViewingPublicProfile?.(),
-        },
       ],
     );
     return true;
   }
-  let message = PUBLIC_PROFILE_ERROR_MESSAGES[result.error];
-  if (message) window.showStorageStatus?.(message, "error");
+  let message =
+    PUBLIC_PROFILE_ERROR_MESSAGES[result.error] ||
+    PUBLIC_PROFILE_ERROR_MESSAGES.unavailable;
+  window.showPublicProfileStatus?.(message, "error", [
+    { label: "Retry", run: () => window.location.reload() },
+  ]);
   return false;
 }
 
