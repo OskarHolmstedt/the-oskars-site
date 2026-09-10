@@ -63,18 +63,19 @@ window.downloadPublicProfileConfig = function (slug, ownerName, optIn) {
   );
 };
 
-/** Renders the Community-snapshot publish/preview/revoke panel. */
+/** Renders the owner-only Community-snapshot preparation panel. */
 window.renderPublicProfilePublication = function (container) {
   if (!container) return;
   let canPublish = window.oskarsCapabilities?.().canPublish;
   if (!canPublish) {
-    container.innerHTML = `<h2>Publish a Community snapshot</h2><p class="data-panel-status">Publishing a Community snapshot requires the owner deployment.</p>`;
+    container.hidden = true;
     return;
   }
+  container.hidden = false;
   let ownerName = (window.state.publicProfileDisplayName || "").trim();
   let slug = window.publicProfileSlugify?.(ownerName) || "";
   if (!ownerName) {
-    container.innerHTML = `<h2>Publish a Community snapshot</h2><p class="data-panel-status">Set a public profile name on the <a href="profile.html">Profile page</a> first — it becomes both the display name and the snapshot URL slug.</p>`;
+    container.innerHTML = `<h3>Community snapshot</h3><p>Prepare a fixed archive revision for Community comparisons. This downloads deployment configuration; it does not change public access.</p><p class="data-panel-status">Set a public profile name on the <a href="profile.html">Profile page</a> first — it becomes both the display name and the snapshot URL slug.</p>`;
     return;
   }
   let previewHtml = "";
@@ -97,13 +98,13 @@ window.renderPublicProfilePublication = function (container) {
     </div>`;
   }
   let downloadDisabled = preparedPublicProfilePreview && !preparedPublicProfilePreview.valid;
-  container.innerHTML = `<h2>Publish a Community snapshot</h2>
-    <p>Create an immutable archive revision for Community comparisons. Your live public profile is published separately above; reviewing and downloading here never publishes anything.</p>
-    <p>Publishing as <strong>${publicProfileEscape(ownerName)}</strong>. Change the name on the <a href="profile.html">Profile page</a>.</p>
+  container.innerHTML = `<h3>Community snapshot</h3>
+    <p>Prepare a fixed archive revision for Community comparisons. Reviewing or downloading here does not change public access; the separate deployment workflow does that.</p>
+    <p>Preparing for <strong>${publicProfileEscape(ownerName)}</strong>. Change the name on the <a href="profile.html">Profile page</a>.</p>
     <label><input type="checkbox" data-public-profile-opt-in="localRanks" ${preparedPublicProfileOptIn.includes("localRanks") ? "checked" : ""}> Include local ranks (opt-in)</label>
     <div class="data-actions">
-      <button type="button" data-public-profile-preview>Review snapshot</button>
-      <button type="button" data-public-profile-download ${downloadDisabled ? "disabled" : ""}>Download publishing file</button>
+      <button type="button" data-public-profile-preview>Preview snapshot</button>
+      <button type="button" data-public-profile-download ${downloadDisabled ? "disabled" : ""}>Download deployment file</button>
       <button type="button" data-public-profile-revoke>Prepare to remove snapshot</button>
     </div>
     <details class="technical-details"><summary>Technical details</summary><p>The snapshot URL slug is <code>${publicProfileEscape(slug)}</code>. The downloaded candidate replaces <code>data/public-profile-config.json</code>. Review and commit that diff, push it, then run the <code>publish-profiles</code> GitHub Action with the input <code>deploy</code>.</p></details>

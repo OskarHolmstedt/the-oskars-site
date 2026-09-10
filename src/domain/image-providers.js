@@ -108,6 +108,17 @@ window.tmdbMovieSearchTitleVariants = function (title) {
   let variants = [raw];
   if (/\s&\s/.test(raw)) variants.push(raw.replace(/\s&\s/g, " and "));
   if (/\sand\s/i.test(raw)) variants.push(raw.replace(/\sand\s/gi, " & "));
+  // A trailing parenthetical translation stored alongside a foreign
+  // title ("Neecha Nagar (Lowly City)") isn't part of TMDB's own title at
+  // all and makes the whole query match nothing - found live, the bare
+  // title alone finds it instantly.
+  if (/\s*\([^)]*\)\s*$/.test(raw))
+    variants.push(raw.replace(/\s*\([^)]*\)\s*$/, "").trim());
+  // A heavily comma-punctuated title can make TMDB's own search return
+  // zero results even though the exact same title (minus one comma)
+  // finds the film immediately - found live with "Jeanne Dielman, 23,
+  // quai du Commerce, 1080 Bruxelles" style titles.
+  if (raw.includes(",")) variants.push(raw.replace(/,/g, ""));
   let seen = new Set();
   return variants.filter((variant) => {
     let key = window.normalizeTitle?.(variant) || String(variant).toLowerCase();
@@ -322,7 +333,16 @@ window.lookupTmdbMovieDetails = async function (tmdbId, fetchFn) {
   let reference = window.parseTmdbReference(tmdbId);
   let params = new URLSearchParams({
     language: "en-US",
-    append_to_response: "credits,alternative_titles,translations",
+    // release_dates (movie-only; silently ignored on a TV/season/episode
+    // path, same as any other unsupported append_to_response value) lets
+    // callers derive every regional release year via
+    // window.tmdbReleaseYearOptions (src/domain/tmdb-link-check.js),
+    // needed so a confirmed-correct TMDB match never overwrites an
+    // already-valid local year with just the single "primary" one -
+    // TMDB often lists several equally real release years/runtimes
+    // across regions, and the local value matching any one of them is
+    // not a mistake to correct.
+    append_to_response: "credits,alternative_titles,translations,release_dates",
   });
   return window.requestPosterJson(
     fetchFn,
@@ -331,6 +351,75 @@ window.lookupTmdbMovieDetails = async function (tmdbId, fetchFn) {
     "TMDB",
     2,
   );
+};
+
+/**
+ * Resolves country and total-runtime metadata for a TV reference (whole
+ * series, one season, or one episode), reusing lookupTmdbMovieDetails
+ * (which already dispatches a "TV:<id>[/S<season>[E<episode>]]" reference
+ * to the right endpoint) rather than a parallel fetch implementation. A TV
+ * show's own details carry `production_countries` in the identical shape
+ * a movie's do - reused as-is. Runtime has no single value the way a
+ * movie's does, so it's derived per granularity instead: an episode
+ * reference uses that episode's own `runtime` directly (TMDB gives one
+ * real number); a season or whole-series reference sums every real
+ * episode's runtime across the seasons in scope (a season reference sums
+ * just its own episodes; a whole-series reference sums every season,
+ * skipping a "Specials" season 0) - the actual total time spent watching
+ * the whole thing, matching how runtime_minutes is used elsewhere (a film
+ * detail's own runtime, and an aggregate "total minutes watched" stat in
+ * src/domain/stats.js) - not a single representative episode's length,
+ * which would badly understate a multi-episode entry's real watch time.
+ * @param {{mediaType: "tv", id: string, season: number|null, episode: number|null}} reference
+ * @param {Function} fetchFn
+ * @returns {Promise<{country: string|null, primaryCountry: string|null, runtimeMinutes: number|null}>}
+ */
+window.lookupTmdbTvMetadataFields = async function (reference, fetchFn) {
+  let show = await window.lookupTmdbMovieDetails(`TV:${reference.id}`, fetchFn);
+  let countries = (show?.production_countries || [])
+    .map((country) => String(country.name || "").trim())
+    .filter(Boolean);
+  let country = countries.join(", ") || null;
+  let primaryCountry = countries[0] || null;
+
+  async function seasonEpisodeRuntimes(seasonNumber) {
+    let season = await window.lookupTmdbMovieDetails(
+      `TV:${reference.id}/S${seasonNumber}`,
+      fetchFn,
+    );
+    return (season?.episodes || []).map(
+      (episode) => Number(episode.runtime) || 0,
+    );
+  }
+
+  let runtimeMinutes = null;
+  if (reference.episode !== null) {
+    let episode = await window.lookupTmdbMovieDetails(
+      `TV:${reference.id}/S${reference.season}E${reference.episode}`,
+      fetchFn,
+    );
+    runtimeMinutes =
+      Number(episode?.runtime) > 0 ? Number(episode.runtime) : null;
+  } else if (reference.season !== null) {
+    let total = (await seasonEpisodeRuntimes(reference.season)).reduce(
+      (sum, minutes) => sum + minutes,
+      0,
+    );
+    runtimeMinutes = total > 0 ? total : null;
+  } else {
+    let realSeasons = (show?.seasons || []).filter(
+      (season) => Number(season.season_number) >= 1,
+    );
+    let allRuntimes = await Promise.all(
+      realSeasons.map((season) =>
+        seasonEpisodeRuntimes(season.season_number),
+      ),
+    );
+    let total = allRuntimes.flat().reduce((sum, minutes) => sum + minutes, 0);
+    runtimeMinutes = total > 0 ? total : null;
+  }
+
+  return { country, primaryCountry, runtimeMinutes };
 };
 
 /** Finds a TMDB portrait for a person. @param {PersonRecord} person Person. @param {Function} fetchFn Fetch implementation. @returns {Promise<PosterRecord|null>} Portrait. */

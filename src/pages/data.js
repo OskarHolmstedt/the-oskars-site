@@ -1,4 +1,4 @@
-/** @file Controls Supabase-native import, backup, health, publication, and opinion maintenance. */
+/** @file Controls account import, backup, summary, publication, and opinion maintenance. */
 
 (function () {
   let ui = window.uiText || ((text) => text);
@@ -41,6 +41,15 @@
     return `${prefix}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
   }
 
+  function archiveIsEmpty(value) {
+    return ![
+      value.watched,
+      value.watchlist,
+      value.rankings,
+      value.personalAwards,
+    ].some((records) => records?.length);
+  }
+
   async function backupValue() {
     let { client } = await readyClient();
     let [awardReviews, entityNotes] = await Promise.all([
@@ -81,29 +90,42 @@
     let missingPosters = (value.watched || []).filter(
       (row) => !row.films?.poster_url,
     ).length;
+    let empty = archiveIsEmpty(value);
+    let letterboxdPanel = document.getElementById("letterboxdImport");
+    letterboxdPanel?.classList.toggle("data-panel--recommended", empty);
+    let importEyebrow = document.getElementById("letterboxdImportEyebrow");
+    if (importEyebrow)
+      importEyebrow.textContent = ui(
+        empty ? "Recommended first step" : "Import from another service",
+      );
     document.getElementById("dataHealthView").innerHTML =
-      `<h2>${escape(ui("Supabase health"))}</h2>
+      `<div class="data-health-heading">
+        <div><span class="eyebrow">${escape(ui("Your archive"))}</span><h2>${escape(ui("Data summary"))}</h2></div>
+        <p>${
+          empty
+            ? `${escape(ui("Your archive is empty."))} <a href="#letterboxdImport">${escape(ui("Start with a Letterboxd import."))}</a>`
+            : `${escape(ui("Your archive is ready."))} <a href="#backupRestore">${escape(ui("Download a backup before a large restore or irreversible change."))}</a>`
+        }</p>
+      </div>
       <div class="data-health-summary">
         <div><b>${value.watched?.length || 0}</b><span>${escape(ui("Watched"))}</span></div>
         <div><b>${value.watchlist?.length || 0}</b><span>${escape(ui("Watchlist"))}</span></div>
         <div><b>${value.rankings?.length || 0}</b><span>${escape(ui("Ranking scopes"))}</span></div>
         <div><b>${nominations}</b><span>${escape(ui("Award placements"))}</span></div>
       </div>
-      <p>${escape(
+      <p class="data-health-note">${escape(
         missingPosters
-          ? ui(
-              "{count} watched film(s) have no shared-catalog poster. Catalog corrections remain a service-role maintenance task.",
-              { count: missingPosters },
-            )
+          ? ui("{count} watched film(s) are missing poster artwork.", {
+              count: missingPosters,
+            })
           : ui("Every watched film has a shared-catalog poster."),
-      )}</p>
-      <p>${escape(ui("Browser sync conflicts, local edit history, metadata batches, and blind-rebuild baselines are not part of the Supabase data model and are no longer shown here."))}</p>`;
+      )}</p>`;
     finishRenderTimer?.(`${value.watched?.length || 0} watched film(s)`);
   }
 
   async function readyClient() {
     let ready = await window.ensureSupabaseClient();
-    if (!ready) throw new Error(ui("Supabase is not configured."));
+    if (!ready) throw new Error(ui("Account storage is not configured."));
     let auth = await window.resolveSupabaseAuthState();
     if (auth.status !== "signed-in") throw new Error(ui("Sign in first."));
     return { client: ready.client, user: auth.user };
@@ -160,7 +182,7 @@
 
   async function restoreBackup(value, mode) {
     if (value?.format !== "the-oskars-supabase-backup" || value.version !== 1)
-      throw new Error(ui("This is not a supported Supabase backup."));
+      throw new Error(ui("This is not a supported backup."));
     let { client, user } = await readyClient();
     let data = value.data || {};
     if (mode === "replace") await clearPersonalArchive(client);
@@ -300,7 +322,10 @@
     let refreshed = await window.loadSupabaseLegacyHydrationSource();
     window.OSKARS_SUPABASE_HYDRATION_SOURCE = refreshed;
     window.applySharedFilmArchive?.(
-      window.buildSharedFilmArchiveFromSupabase(refreshed.catalogFilms),
+      window.buildSharedFilmArchiveFromSupabase(
+        refreshed.catalogFilms,
+        refreshed.franchises,
+      ),
     );
     Object.assign(
       window.state,
@@ -356,9 +381,18 @@
       .update({ public_slug: slug })
       .eq("id", current.id);
     if (error) throw error;
-    document.getElementById("profileStatus").textContent = slug
-      ? ui("Published as {slug}.", { slug })
-      : ui("Not published.");
+    renderPublicationState({ ...current, public_slug: slug });
+  }
+
+  function renderPublicationState(profile) {
+    let slug = profile?.public_slug || "";
+    let publishButton = document.getElementById("publishProfileBtn");
+    let unpublishButton = document.getElementById("unpublishProfileBtn");
+    publishButton.hidden = Boolean(slug);
+    unpublishButton.hidden = !slug;
+    document.getElementById("profileStatus").innerHTML = slug
+      ? `${escape(ui("Public now."))} <a href="index.html?profile=${encodeURIComponent(slug)}">${escape(ui("View public profile"))}</a>`
+      : escape(ui("Private now. Only you can open this profile."));
   }
 
   async function initialize() {
@@ -372,7 +406,7 @@
         try {
           downloadJson(
             await backupValue(),
-            stampedFilename("the-oskars-supabase-backup"),
+            stampedFilename("the-oskars-backup"),
           );
           status.textContent = ui("Backup downloaded.");
         } catch (error) {
@@ -415,7 +449,7 @@
             document.getElementById("restoreModeSelect").value,
           );
           await refreshSource();
-          status.textContent = ui("Backup restored to Supabase.");
+          status.textContent = ui("Backup restored to your account.");
         } catch (error) {
           status.textContent = error.message || String(error);
         } finally {
@@ -456,7 +490,7 @@
           if (!result?.ok)
             throw new Error(result?.reason || ui("Import failed."));
           await refreshSource();
-          status.textContent = ui("Letterboxd import saved to Supabase.");
+          status.textContent = ui("Letterboxd import saved to your account.");
         } catch (error) {
           status.textContent = error.message || String(error);
         }
@@ -507,9 +541,7 @@
         if (!pendingGoogleSheetsSource) return;
         if (
           !confirm(
-            ui(
-              "Write the previewed Google Sheets changes to Supabase for real?",
-            ),
+            ui("Save the previewed Google Sheets changes to your account?"),
           )
         )
           return;
@@ -536,9 +568,7 @@
     }
 
     let profile = await window.loadSupabaseProfile();
-    document.getElementById("profileStatus").textContent = profile?.public_slug
-      ? ui("Published as {slug}.", { slug: profile.public_slug })
-      : ui("Not published.");
+    renderPublicationState(profile);
     document
       .getElementById("publishProfileBtn")
       .addEventListener("click", () =>
@@ -565,7 +595,7 @@
         if (
           !confirm(
             ui(
-              "Permanently erase your Supabase opinions? A backup downloads first.",
+              "Permanently erase your ratings, rankings, and other opinions? A backup downloads first.",
             ),
           )
         )

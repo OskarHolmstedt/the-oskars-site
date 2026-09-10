@@ -1,20 +1,13 @@
-/** @file Controls the home dashboard, archive search, saved views, top films, and project shortcuts. */
+/** @file Controls the daily Home dashboard, archive summary, and Top films preview. */
 
 (function () {
   let homeEscape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
-  // entry-loader.js's early Supabase account-gate render replaces <main>'s
-  // entire innerHTML before this script ever runs (issue #430's finding,
-  // proven again in #437/#438) - render the static search shell fresh
-  // here, matching every other single-container Supabase-backed page,
-  // rather than relying on any pre-existing static markup in index.html.
+  // The account gate can replace the page container before this controller
+  // runs. Home owns only its content; global search now lives in the shared
+  // header and must not be duplicated here.
   document.getElementById("homePage").innerHTML =
-    `<section class="home-search-band">
-      <label for="globalSearch">Search</label>
-      <input id="globalSearch" type="search" autocomplete="off" placeholder="Films, people, roles, songs, categories, periods">
-    </section>
-    <section id="searchResults" class="home-search-results" hidden></section>
-    <div id="homeContent"><p class="home-loading">Loading database…</p></div>`;
+    '<div id="homeContent"><p class="home-loading">Loading archive…</p></div>';
   let homeTopSortValues = new Set([
     "allTimeRank",
     "rating",
@@ -31,15 +24,104 @@
     : "yearScore";
   let homePreviousTopSort = "";
   let homeTopCache = { key: "", entries: [] };
+  let homeTopExpanded = false;
+  let homeIntakeState = { status: "loading", workflows: [] };
+  let homeDashboardContext = null;
 
-  function buildSearchIndex() {
-    return window.buildSearchEntries({
-      labels: {
-        tier: ui("Tier"),
-        watched: ui("Watched"),
-        watchlist: "Watchlist",
-      },
-    });
+  function homeProjectPicks() {
+    return [...Object.values(window.OSKARS_PROJECT_SOURCE_INDEX_BY_ID || {})]
+      .filter((project) => !["archived", "complete"].includes(project.status))
+      .sort(
+        (left, right) =>
+          Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) ||
+          String(right.updatedAt || right.createdAt || "").localeCompare(
+            String(left.updatedAt || left.createdAt || ""),
+          ),
+      )
+      .map((project) => ({
+        project,
+        next: window.projectProgress(project).next,
+      }))
+      .filter((entry) => entry.next);
+  }
+
+  function homeFilmHref(film) {
+    let id = film?.supabaseFilmId || film?.id;
+    return id ? window.filmPageUrl(id) : "";
+  }
+
+  function homeFilmMedia(film) {
+    return film
+      ? `<div class="home-daily-card-media">${window.renderFilmPoster(film, "hub")}</div>`
+      : "";
+  }
+
+  function homeFilmMeta(film) {
+    return `${homeEscape(film?.year || "")}${film?.director ? ` · ${homeEscape(film.director)}` : ""}`;
+  }
+
+  function homePrimaryActionHtml(context) {
+    let { films, projects, publicProfile } = context;
+    let openIntake = homeIntakeState.workflows.find(
+      (workflow) => !workflow.completed_at,
+    );
+    if (!publicProfile && openIntake) {
+      let film = openIntake.watched?.films || {};
+      return `<article class="home-daily-card home-daily-card--primary" id="homeNextAction" data-home-action="intake">
+        ${homeFilmMedia(film)}
+        <div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Continue your Oskars"))}</span><h2>${homeEscape(film.title || ui("Unfinished Intake"))}</h2><p>${homeEscape(ui("Your rating, ranking, or ceremony decisions are waiting."))}</p><a class="button-link" href="intake.html?intake=${homeEscape(encodeURIComponent(openIntake.id))}">${homeEscape(ui("Resume Intake"))}</a></div>
+      </article>`;
+    }
+    if (!publicProfile && projects.length) {
+      let { project, next } = projects[0];
+      let film = next.film;
+      return `<article class="home-daily-card home-daily-card--primary" id="homeNextAction" data-home-action="project">
+        ${homeFilmMedia(film)}
+        <div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Continue a project"))}</span><h2>${homeEscape(project.name)}</h2><p>${homeEscape(ui("Up next: {title}", { title: window.localizedFilmTitle?.(film) || film.title }))}</p><a class="button-link" href="${homeEscape(next.href || window.projectPageUrl(project.id))}">${homeEscape(ui("Open next film"))}</a></div>
+      </article>`;
+    }
+    if (publicProfile) {
+      return `<article class="home-daily-card home-daily-card--primary home-daily-card--text" id="homeNextAction" data-home-action="public"><div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Published archive"))}</span><h2>${homeEscape(ui("Explore this film world"))}</h2><p>${homeEscape(ui("Browse its years, decades, and all-time collection."))}</p><a class="button-link" href="periods.html">${homeEscape(ui("Explore periods"))}</a></div></article>`;
+    }
+    if (!films.length) {
+      return `<article class="home-daily-card home-daily-card--primary home-daily-card--text" id="homeNextAction" data-home-action="import"><div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Start your archive"))}</span><h2>${homeEscape(ui("Bring in your films"))}</h2><p>${homeEscape(ui("Import an existing diary or add your latest watch."))}</p><div class="home-daily-actions"><a class="button-link" href="data.html">${homeEscape(ui("Import films"))}</a><a href="intake.html">${homeEscape(ui("Add a watched film"))}</a></div></div></article>`;
+    }
+    let intakeStatus =
+      homeIntakeState.status === "loading"
+        ? `<small>${homeEscape(ui("Checking for unfinished Intake…"))}</small>`
+        : homeIntakeState.status === "error"
+          ? `<small>${homeEscape(ui("Could not check unfinished Intake. Intake is still available."))}</small>`
+          : `<small>${homeEscape(ui("No unfinished Intake or project."))}</small>`;
+    return `<article class="home-daily-card home-daily-card--primary home-daily-card--text" id="homeNextAction" data-home-action="caught-up" data-home-intake-status="${homeEscape(homeIntakeState.status)}"><div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("All caught up"))}</span><h2>${homeEscape(ui("Add your latest watch"))}</h2><p>${homeEscape(ui("Start with rating, then place the film in your rankings and ceremonies."))}</p><a class="button-link" href="intake.html">${homeEscape(ui("Open Intake"))}</a>${intakeStatus}</div></article>`;
+  }
+
+  function homeMemoryHtml(memory, filmCount) {
+    if (!memory)
+      return `<article class="home-daily-card home-daily-card--empty"><div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Archive memory"))}</span><h2>${homeEscape(ui("No memories yet"))}</h2><p>${homeEscape(ui("Watched films will bring a different memory back each day."))}</p></div></article>`;
+    let film = memory.film;
+    let href = homeFilmHref(film);
+    let reason = memory.anniversary
+      ? ui("Watched on this day in {year}.", { year: memory.date.slice(0, 4) })
+      : ui("Today's stable pick from {count} watched films.", {
+          count: filmCount,
+        });
+    return `<article class="home-daily-card">${homeFilmMedia(film)}<div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Archive memory"))}</span><h2>${href ? `<a href="${homeEscape(href)}">${homeEscape(window.localizedFilmTitle?.(film) || film.title)}</a>` : homeEscape(film.title)}</h2><p class="home-daily-film-meta">${homeFilmMeta(film)}</p><p>${homeEscape(reason)}</p>${film.rating ? `<strong class="rating">${homeEscape(film.rating)}</strong>` : ""}</div></article>`;
+  }
+
+  function homeWatchlistHtml(pick, count) {
+    if (!pick)
+      return `<article class="home-daily-card home-daily-card--empty"><div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("From your watchlist"))}</span><h2>${homeEscape(ui("Nothing waiting"))}</h2><p>${homeEscape(ui("Add films to your watchlist and one will appear here each day."))}</p><a href="discover.html">${homeEscape(ui("Discover films"))}</a></div></article>`;
+    let film = window.watchlistFilmLike?.(pick.item) || pick.item;
+    let href = pick.item.supabaseFilmId
+      ? window.filmPageUrl(pick.item.supabaseFilmId)
+      : homeFilmHref(film);
+    return `<article class="home-daily-card">${homeFilmMedia(film)}<div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("From your watchlist"))}</span><h2>${href ? `<a href="${homeEscape(href)}">${homeEscape(window.localizedFilmTitle?.(film) || film.title)}</a>` : homeEscape(film.title)}</h2><p class="home-daily-film-meta">${homeFilmMeta(film)}</p><p>${homeEscape(window.watchQueueReasonText(pick.reason))} ${homeEscape(ui("This pick stays the same today."))}</p>${window.renderWatchlistTierBadge(pick.item.tier, { escape: homeEscape })}<small>${homeEscape(ui("Chosen from {count} watchlist films", { count }))}</small></div></article>`;
+  }
+
+  function updateHomePrimaryAction() {
+    let target = document.getElementById("homeNextAction");
+    if (target && homeDashboardContext)
+      target.outerHTML = homePrimaryActionHtml(homeDashboardContext);
   }
 
   function renderHome() {
@@ -57,30 +139,15 @@
         if (/^\d{4}$/.test(String(award.year || ""))) annualAwardCount += 1;
       }),
     );
-    // "Active project" (window.activeProject()/state.activeProjectId) is
-    // retired, not fixed (issue #459) - it had no real UI to set it even
-    // before the Supabase cutover (its only setter, setActiveProject(),
-    // was already confirmed dead code and deleted in #458) and no
-    // Supabase-backed equivalent concept exists; `pinned` is the one real,
-    // persisted "highlight this project" signal a project actually has.
-    let recentProjectLinks = [
-      ...Object.values(window.OSKARS_PROJECT_SOURCE_INDEX_BY_ID || {}),
-    ]
-      .filter((project) => !["archived", "complete"].includes(project.status))
-      .sort((left, right) =>
-        String(right.updatedAt || right.createdAt || "").localeCompare(
-          String(left.updatedAt || left.createdAt || ""),
-        ),
-      )
-      .map((project) => ({
-        project,
-        next: window.projectProgress(project).next,
-      }))
-      .filter((entry) => entry.next)
-      .slice(0, 3);
-    let recentProjectsHtml = recentProjectLinks.length
-      ? `<section class="home-recent-projects"><span class="eyebrow">${homeEscape(ui("Recent project picks"))}</span><div class="home-recent-project-links">${recentProjectLinks.map((entry) => `<a href="${homeEscape(entry.next.href)}">${homeEscape(entry.project.name)}: ${homeEscape(window.localizedFilmTitle?.(entry.next.film) || entry.next.film.title)}</a>`).join("")}</div></section>`
-      : "";
+    let doneDaily = window.startOskarsPerformance?.("home:dailyDashboard");
+    let projects = homeProjectPicks();
+    let publicProfile = Boolean(
+      state.isPublicProfileView || window.resolveActiveProfileSlug?.(),
+    );
+    let memory = window.homeArchiveMemory(films);
+    let watchlistPick = window.homeWatchlistPick(state.watchlist || []);
+    homeDashboardContext = { films, projects, publicProfile };
+    doneDaily?.();
     let sortLabels = {
       allTimeRank: ui("all-time rank"),
       rating: ui("rating"),
@@ -172,6 +239,30 @@
       .slice(0, 25);
     let sortLabel = sortLabels[homeTopSort] || sortLabels.yearScore;
 
+    function topMetricHtml(entry) {
+      if (homeTopSort === "allTimeRank") {
+        let rank = Number(entry.film.allTimeRank);
+        return rank > 0 ? `#${homeEscape(rank)}` : "—";
+      }
+      if (homeTopSort === "rating") return homeEscape(entry.film.rating || "—");
+      if (homeTopSort === "wins") return homeEscape(entry.allStats.wins);
+      if (homeTopSort === "nominations")
+        return homeEscape(entry.allStats.nominations);
+      let stats = entry[`${homeTopSort}Stats`] || {};
+      return `${homeEscape(stats.awardScore || 0)}<small>${homeEscape(window.formatNormalizedAwardScore(stats.normalizedAwardScore))}</small>`;
+    }
+
+    let doneTopPresentation = window.startOskarsPerformance?.(
+      "home:topPresentation",
+    );
+    let topPreview = topFilms
+      .slice(0, 5)
+      .map((entry, index) => {
+        let film = entry.film;
+        return `<article class="home-top-preview-card">${window.renderFilmPoster(film, "hub")}<div><span class="leaderboard-position">#${index + 1}</span><h3><a href="${homeEscape(filmPageUrl(film.id))}">${homeEscape(window.localizedFilmTitle?.(film) || film.title)}</a></h3><p>${homeFilmMeta(film)}</p><strong class="home-top-preview-metric">${topMetricHtml(entry)}</strong></div></article>`;
+      })
+      .join("");
+
     let topRows = topFilms
       .map(
         (entry, index) => `<tr>
@@ -188,37 +279,47 @@
   </tr>`,
       )
       .join("");
-
-    document.getElementById("homeContent").innerHTML = `
-    <section class="home-summary"><span><b>${films.length}</b> ${homeEscape(ui("Films"))}</span><span><b>${people.length}</b> ${homeEscape(ui("People"))}</span><span><b>${years.length}</b> ${homeEscape(ui("Years"))}</span><span><b>${annualAwardCount}</b> ${homeEscape(ui("Annual nominations"))}</span></section>
-    ${recentProjectsHtml}
-    <section class="home-top-films"><h2>${homeEscape(ui("Top films"))} <span>${homeEscape(ui("sorted by"))} ${homeEscape(sortLabel)}</span></h2><div class="leaderboard-wrap"><table class="leaderboard home-top-table"><thead><tr><th>#</th><th>${homeEscape(ui("Film"))}</th><th>${sortButton("allTimeRank", ui("All-time"))}</th><th>${sortButton("rating", ui("Rating"))}</th><th>${sortButton("yearScore", ui("Year score"))} <small>0–1</small></th><th>${sortButton("decadeScore", ui("Decade score"))} <small>0–1</small></th><th>${sortButton("centuryScore", ui("Century score"))} <small>0–1</small></th><th>${sortButton("allTimeScore", ui("All-time score"))} <small>0–1</small></th><th>${sortButton("wins", ui("Wins"))}</th><th>${sortButton("nominations", ui("Noms"))}</th></tr></thead><tbody>${topRows}</tbody></table></div></section>`;
-    window.enhanceCollapsibles?.(document.getElementById("homeContent"));
-    doneRender?.();
-  }
-
-  function renderSearch(entries, query) {
-    let finishQueryTimer = window.startOskarsPerformance?.("home:searchQuery");
-    let results = document.getElementById("searchResults");
-    let matches = window.searchMatches(entries, query, { limit: 40 });
-    if (!matches.length) {
-      results.hidden = true;
-      results.innerHTML = "";
-      finishQueryTimer?.("0 result(s)");
-      return;
-    }
-    let rows = matches
-      .map(
-        (entry) =>
-          `<tr><td>${homeEscape(entry.type)}</td><td><a class="table-film-link" href="${homeEscape(entry.href)}"><strong>${homeEscape(entry.name)}</strong></a></td><td>${homeEscape(entry.meta)}</td></tr>`,
-      )
-      .join("");
-    results.hidden = false;
-    results.innerHTML = window.renderLeaderboardTable({
-      headers: [ui("Type"), ui("Name"), ui("Context")].map(homeEscape),
-      rows,
+    let topTable = window.renderLeaderboardTable({
+      classes: "home-top-table",
+      headers: [
+        "#",
+        homeEscape(ui("Film")),
+        sortButton("allTimeRank", ui("All-time")),
+        sortButton("rating", ui("Rating")),
+        `${sortButton("yearScore", ui("Year score"))} <small>0–1</small>`,
+        `${sortButton("decadeScore", ui("Decade score"))} <small>0–1</small>`,
+        `${sortButton("centuryScore", ui("Century score"))} <small>0–1</small>`,
+        `${sortButton("allTimeScore", ui("All-time score"))} <small>0–1</small>`,
+        sortButton("wins", ui("Wins")),
+        sortButton("nominations", ui("Noms")),
+      ],
+      rows: topRows,
     });
-    finishQueryTimer?.(`${matches.length} result(s)`);
+    doneTopPresentation?.();
+
+    let doneDom = window.startOskarsPerformance?.("home:dom");
+    document.getElementById("homeContent").innerHTML = `
+    <section class="home-today" aria-labelledby="homeTodayHeading">
+      <header class="home-today-header"><span class="eyebrow">${homeEscape(ui("Today"))}</span><h1 id="homeTodayHeading">${homeEscape(ui("What will you explore?"))}</h1><p>${homeEscape(ui("One next step, one memory, and one film waiting for you."))}</p></header>
+      <section class="home-summary" aria-label="${homeEscape(ui("Archive summary"))}"><span><b>${films.length}</b> ${homeEscape(ui("Films"))}</span><span><b>${people.length}</b> ${homeEscape(ui("People"))}</span><span><b>${years.length}</b> ${homeEscape(ui("Years"))}</span><span><b>${annualAwardCount}</b> ${homeEscape(ui("Annual nominations"))}</span></section>
+      <div class="home-daily-grid">${homePrimaryActionHtml(homeDashboardContext)}${homeMemoryHtml(memory, films.length)}${homeWatchlistHtml(watchlistPick, (state.watchlist || []).length)}</div>
+    </section>
+    <section class="home-top-films" id="top-films"><header class="home-top-films-header"><div><span class="eyebrow">${homeEscape(ui("Your rankings"))}</span><h2>${homeEscape(ui("Top films"))}</h2></div><span>${homeEscape(ui("Sorted by {sort}", { sort: sortLabel }))}</span></header><div class="home-top-preview">${topPreview}</div><details class="home-top-details"${homeTopExpanded ? " open" : ""}><summary>${homeEscape(ui("Explore the full Top 25 score table"))}</summary><div data-home-top-table>${homeTopExpanded ? topTable : ""}</div></details></section>`;
+    window.enhanceCollapsibles?.(document.getElementById("homeContent"));
+    let topDetails = document.querySelector(".home-top-details");
+    topDetails?.addEventListener("toggle", (event) => {
+      homeTopExpanded = event.currentTarget.open;
+      if (!homeTopExpanded) return;
+      let tableHost = event.currentTarget.querySelector(
+        "[data-home-top-table]",
+      );
+      if (tableHost && !tableHost.firstElementChild)
+        tableHost.innerHTML = topTable;
+      window.enhanceHorizontalScroll?.(event.currentTarget);
+    });
+    if (homeTopExpanded) window.enhanceHorizontalScroll?.(topDetails);
+    doneDom?.();
+    doneRender?.();
   }
 
   window.renderHomeDashboard = renderHome;
@@ -228,7 +329,6 @@
     .then(() => {
       if (window.oskarsAccountAccessBlocked?.()) return;
       renderHome();
-      let entries = null;
       document
         .getElementById("homeContent")
         .addEventListener("click", (event) => {
@@ -245,19 +345,25 @@
           }
           renderHome();
         });
-      document
-        .getElementById("globalSearch")
-        .addEventListener("input", (event) => {
-          entries ||= buildSearchIndex();
-          renderSearch(entries, event.target.value);
-        });
-      window.addEventListener?.("oskars:localechange", () => {
-        entries = null;
-        renderHome();
-        let searchInput = document.getElementById("globalSearch");
-        if (searchInput?.value)
-          renderSearch(buildSearchIndex(), searchInput.value);
-      });
+      window.addEventListener?.("oskars:localechange", renderHome);
+      // A public-profile Home is entirely read-only. In particular, it must
+      // never query the signed-in viewer's private Intake workflows.
+      if (
+        !homeDashboardContext.publicProfile &&
+        window.loadSupabaseIntakeWorkflows
+      ) {
+        window
+          .loadSupabaseIntakeWorkflows()
+          .then((workflows) => {
+            homeIntakeState = { status: "ready", workflows: workflows || [] };
+            updateHomePrimaryAction();
+          })
+          .catch((error) => {
+            console.warn("Could not check unfinished Intake", error);
+            homeIntakeState = { status: "error", workflows: [] };
+            updateHomePrimaryAction();
+          });
+      }
     })
     .catch((err) => {
       console.error("Failed to initialize Oskars", err);

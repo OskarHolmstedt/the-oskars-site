@@ -111,7 +111,12 @@ window.periodWatchlistEntries = function (filters) {
               filters.shuffleSeed,
             ) || left.index - right.index
           : filters.order === "rank"
-            ? window.compareWatchlistItems(left.item, right.item) ||
+            ? window.compareWatchlistItemsBy(
+                left.item,
+                right.item,
+                "order",
+                filters.direction,
+              ) ||
               left.index - right.index
             : window.compareFilmAxisRecords(
                 { item: left.item },
@@ -313,22 +318,20 @@ function watchlistTierFilterEntries(filters) {
  * @param {Object} [options] Rendering options.
  * @param {(value:*) => string} [options.escape] HTML escaper.
  * @param {Function} [options.ui] Localized-text function.
+ * @param {boolean} [options.open] Whether the form starts expanded.
  * @returns {string}
  */
 window.renderAddWatchlistForm = function (options = {}) {
   let escape = options.escape || window.pageEscape;
   let ui = options.ui || window.uiText || ((text) => text);
-    let tierOptions = [
-      `<option value="">${escape(ui("Unset"))}</option>`,
-    ]
-      .concat(
-        window.WATCHLIST_TIERS.map(
-          (tier) =>
-            `<option value="${escape(tier)}">${escape(tier)}</option>`,
-        ),
-      )
-      .join("");
-    return `<fieldset class="period-filter-controls"><legend>${escape(ui("Add film"))}</legend><form data-add-watchlist-form><label>${escape(ui("Title"))} <input type="text" name="title" required></label><label>${escape(ui("Year"))} <input type="number" name="year" min="1888" max="2100"></label><label>${escape(ui("Director"))} <input type="text" name="director"></label><label>${escape(ui("Interest"))} <select name="tier">${tierOptions}</select></label>${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Add to watchlist"), escape, attributes: { type: "submit" } })}</form></fieldset>`;
+  let tierOptions = [`<option value="">${escape(ui("Unset"))}</option>`]
+    .concat(
+      window.WATCHLIST_TIERS.map(
+        (tier) => `<option value="${escape(tier)}">${escape(tier)}</option>`,
+      ),
+    )
+    .join("");
+  return `<details class="period-secondary-controls"${options.open ? " open" : ""}><summary>${escape(ui("Add film"))}</summary><form class="period-filter-controls" data-add-watchlist-form><label>${escape(ui("Title"))} <input type="text" name="title" required></label><label>${escape(ui("Year"))} <input type="number" name="year" min="1888" max="2100"></label><label>${escape(ui("Director"))} <input type="text" name="director"></label><label>${escape(ui("Interest"))} <select name="tier">${tierOptions}</select></label>${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Add to watchlist"), escape, attributes: { type: "submit" } })}</form></details>`;
 };
 
 /**

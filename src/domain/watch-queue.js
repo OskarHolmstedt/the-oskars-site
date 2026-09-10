@@ -111,9 +111,11 @@
     let sorted = [...candidates].sort(window.compareWatchlistItems);
     for (let item of sorted) {
       let reason =
-        directorReason(item) ||
-        franchiseReason(item) ||
-        tagReason(item, options.tag);
+        options.relationshipReasons === false
+          ? null
+          : directorReason(item) ||
+            franchiseReason(item) ||
+            tagReason(item, options.tag);
       if (reason) return { item, reason };
     }
     let topTier = window.watchlistTierRank(sorted[0].tier);
@@ -158,6 +160,8 @@
    * @param {Object} [options]
    * @param {number} [options.count=1] Number of items to pick.
    * @param {string} [options.tag] Preferred tag; boosts a matching item.
+   * @param {boolean} [options.relationshipReasons=true] Whether to inspect
+   *   director, franchise, and tag completion signals before tier fallback.
    * @param {string} [options.seed] Deterministic tiebreak seed; a fresh one
    *   is generated per call otherwise, so repeated picks vary.
    * @returns {WatchQueuePick[]} Picks in chosen order; shorter than `count`
@@ -203,7 +207,8 @@
     let sharedTag = (anchorItem.tags || []).find((tag) =>
       (candidate.tags || []).includes(tag),
     );
-    if (sharedTag) return { type: "similarity-tag", params: { tag: sharedTag } };
+    if (sharedTag)
+      return { type: "similarity-tag", params: { tag: sharedTag } };
     let anchorDecade = window.getDecadeKey?.(anchorItem.year);
     if (anchorDecade && anchorDecade === window.getDecadeKey?.(candidate.year))
       return { type: "historical-context", params: { decade: anchorDecade } };
@@ -245,7 +250,8 @@
     let sorted = [...remaining].sort(window.compareWatchlistItems);
     let partner =
       sorted.find(
-        (candidate) => pairingSignal(anchor.item, candidate).type !== "unrelated",
+        (candidate) =>
+          pairingSignal(anchor.item, candidate).type !== "unrelated",
       ) || sorted[0];
     return { anchor, partner, pairing: pairingSignal(anchor.item, partner) };
   };

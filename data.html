@@ -11,87 +11,106 @@
     <main class="data-workspace">
       <div class="data-workspace-heading">
         <div>
-          <span class="eyebrow">Supabase workspace</span>
+          <span class="eyebrow">Account data</span>
           <h1>Data</h1>
           <p>
-            Import, back up, restore, inspect, and maintain the data stored in
-            your signed-in Supabase account. Files are parsed in this browser.
+            Import, back up, restore, and inspect the archive saved to your
+            account. Files stay in this browser; only reviewed changes are
+            saved to your account.
           </p>
         </div>
       </div>
 
-      <div class="data-workspace-grid">
-        <section
-          class="data-panel data-panel--recommended"
-          id="letterboxdImport"
-        >
-          <span class="eyebrow">Bring an existing collection</span>
-          <h2>Letterboxd export</h2>
-          <p>
-            Preview the original Letterboxd ZIP, then write watched films,
-            ratings, diary facts, tags, and watchlist changes to Supabase.
-            Rankings and award ballots are never imported.
-          </p>
-          <div class="data-actions">
-            <label class="button-link"
-              >Preview Letterboxd ZIP<input
-                id="letterboxdZipInput"
-                type="file"
-                accept="application/zip,.zip"
-                hidden
-            /></label>
-            <button id="letterboxdImportApplyBtn" type="button" disabled>
-              Apply reviewed import
-            </button>
+      <section
+        id="dataHealthView"
+        class="data-panel data-health-panel"
+      ></section>
+
+      <div class="data-tool-groups">
+        <section class="data-tool-group" aria-labelledby="dataImportHeading">
+          <div class="data-tool-group-heading">
+            <span class="eyebrow">Bring data in</span>
+            <h2 id="dataImportHeading">Import</h2>
+            <p>Review incoming records before anything is saved.</p>
           </div>
-          <pre
-            id="letterboxdImportStatus"
-            class="data-panel-status"
-            role="status"
-          >
+          <div class="data-panel-grid">
+            <section class="data-panel" id="letterboxdImport">
+              <span class="eyebrow" id="letterboxdImportEyebrow"
+                >Import from another service</span
+              >
+              <h3>Letterboxd export</h3>
+              <p>
+                Preview the original Letterboxd ZIP, then save watched films,
+                ratings, diary facts, tags, and watchlist changes to your
+                account. Rankings and award ballots are never imported.
+              </p>
+              <div class="data-actions">
+                <label class="button-link"
+                  >Preview Letterboxd ZIP<input
+                    id="letterboxdZipInput"
+                    type="file"
+                    accept="application/zip,.zip"
+                    hidden
+                /></label>
+                <button id="letterboxdImportApplyBtn" type="button" disabled>
+                  Apply reviewed import
+                </button>
+              </div>
+              <pre
+                id="letterboxdImportStatus"
+                class="data-panel-status"
+                role="status"
+              >
 The ZIP never leaves this browser.</pre>
-        </section>
+            </section>
 
-        <section class="data-panel" id="googleSheetsImport" hidden>
-          <span class="eyebrow">Live from your Sheet</span>
-          <h2>Google Sheets</h2>
-          <p>
-            Fetch your private Google Sheet, preview what would change in
-            Supabase, then apply it. Only visible in a browser with a configured
-            spreadsheet.
-          </p>
-          <div class="data-actions">
-            <button id="googleSheetsPreviewBtn" type="button">
-              Preview import
-            </button>
-            <button id="googleSheetsApplyBtn" type="button" disabled>
-              Apply reviewed import
-            </button>
+            <section class="data-panel" id="googleSheetsImport" hidden>
+              <span class="eyebrow">Configured source</span>
+              <h3>Google Sheets</h3>
+              <p>
+                Fetch your configured private Sheet, preview what would change,
+                then save the reviewed changes to your account.
+              </p>
+              <div class="data-actions">
+                <button id="googleSheetsPreviewBtn" type="button">
+                  Preview import
+                </button>
+                <button id="googleSheetsApplyBtn" type="button" disabled>
+                  Apply reviewed import
+                </button>
+              </div>
+              <progress
+                id="googleSheetsProgress"
+                value="0"
+                max="1"
+                hidden
+              ></progress>
+              <pre
+                id="googleSheetsStatus"
+                class="data-panel-status"
+                role="status"
+              ></pre>
+            </section>
           </div>
-          <progress
-            id="googleSheetsProgress"
-            value="0"
-            max="1"
-            hidden
-          ></progress>
-          <pre
-            id="googleSheetsStatus"
-            class="data-panel-status"
-            role="status"
-          ></pre>
         </section>
 
-        <div class="data-panel-stack">
+        <section class="data-tool-group" aria-labelledby="dataRecoveryHeading">
+          <div class="data-tool-group-heading">
+            <span class="eyebrow">Keep a portable copy</span>
+            <h2 id="dataRecoveryHeading">Backup and restore</h2>
+            <p>Download a recovery file or review one before restoring it.</p>
+          </div>
           <section class="data-panel" id="backupRestore">
-            <h2>Portable backup &amp; restore</h2>
+            <h3>Portable backup</h3>
             <p>
               Export your core archive rows and their joined catalog records as
-              JSON. Merge keeps rows not present in the file; replace removes
-              current watched, watchlist, ranking, award, and tag rows first.
+              JSON. Merge keeps existing rows that are absent from the file;
+              replace clears current watched, watchlist, ranking, award, and tag
+              rows first.
             </p>
             <label class="data-field"
               >Restore mode<select id="restoreModeSelect">
-                <option value="merge" selected>Merge with Supabase</option>
+                <option value="merge" selected>Merge with existing data</option>
                 <option value="replace">Replace personal archive</option>
               </select></label
             >
@@ -114,34 +133,60 @@ The ZIP never leaves this browser.</pre>
               role="status"
             ></pre>
           </section>
+        </section>
 
-          <section class="data-panel" id="supabasePublicProfilePublicationView">
-            <h2>Live public profile</h2>
-            <p>
-              Publication is represented by your Supabase profile slug. The
-              Profile page controls the display name used to derive it.
-            </p>
-            <div class="data-actions">
-              <button id="publishProfileBtn" type="button">Publish</button>
-              <button
-                id="unpublishProfileBtn"
-                type="button"
-                class="button-secondary"
-              >
-                Unpublish
-              </button>
-            </div>
-            <p id="profileStatus" class="data-panel-status" role="status"></p>
-          </section>
+        <section class="data-tool-group" aria-labelledby="dataSharingHeading">
+          <div class="data-tool-group-heading">
+            <span class="eyebrow">Choose what becomes public</span>
+            <h2 id="dataSharingHeading">Sharing</h2>
+            <p>Live access and fixed Community snapshots are separate.</p>
+          </div>
+          <div class="data-panel-grid">
+            <section
+              class="data-panel"
+              id="supabasePublicProfilePublicationView"
+            >
+              <h3>Public profile</h3>
+              <p>
+                Make your current profile available through its public link.
+                This changes public access immediately. Manage the displayed
+                name on the <a href="profile.html">Profile page</a>.
+              </p>
+              <div class="data-actions">
+                <button id="publishProfileBtn" type="button" hidden>
+                  Make public
+                </button>
+                <button
+                  id="unpublishProfileBtn"
+                  type="button"
+                  class="button-secondary"
+                  hidden
+                >
+                  Remove public access
+                </button>
+              </div>
+              <p id="profileStatus" class="data-panel-status" role="status"></p>
+            </section>
 
-          <section class="data-panel" id="publicProfilePublicationView">
-            <h2>Publish a Community snapshot</h2>
-            <p class="data-panel-status">Preparing snapshot tools…</p>
-          </section>
+            <section
+              class="data-panel"
+              id="publicProfilePublicationView"
+              hidden
+            >
+              <h3>Community snapshot</h3>
+              <p class="data-panel-status">Preparing snapshot tools…</p>
+            </section>
+          </div>
+        </section>
 
+        <section class="data-tool-group" aria-labelledby="dataDangerHeading">
+          <div class="data-tool-group-heading">
+            <span class="eyebrow">Irreversible changes</span>
+            <h2 id="dataDangerHeading">Danger zone</h2>
+          </div>
           <section class="data-panel data-danger-zone">
             <div>
-              <h2>Permanently erase opinions</h2>
+              <h3>Permanently erase opinions</h3>
               <p>
                 Clears ratings, reviews, rewatch preferences, interest tiers,
                 rankings, award ballots/reviews, and entity notes. Watched and
@@ -158,13 +203,8 @@ The ZIP never leaves this browser.</pre>
             </div>
             <button id="clearOpinionsBtn" type="button">Erase opinions</button>
           </section>
-        </div>
+        </section>
       </div>
-
-      <section
-        id="dataHealthView"
-        class="data-panel data-health-panel"
-      ></section>
     </main>
     <script src="src/core/entry-loader.js" data-entry="data"></script>
   </body>

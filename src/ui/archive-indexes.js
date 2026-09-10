@@ -102,7 +102,6 @@
   window.renderPeriodIndexMatrix = function (options = {}) {
     let escape = escapeHtml;
     let years = window.periodIndexYears();
-    let populatedYears = new Set(years);
     let decades = window.periodIndexDecades(years);
     let digitHeaders = Array.from(
       { length: 10 },
@@ -124,9 +123,7 @@
         previousCentury = century;
         let yearCells = Array.from({ length: 10 }, (_, digit) => {
           let year = String(start + digit);
-          return populatedYears.has(year)
-            ? `<td><a href="${escape(window.periodPageUrl("year", year))}">${escape(year)}</a></td>`
-            : `<td><span class="period-year-missing" title="${escape(ui("No films for {year}", { year }))}" aria-label="${escape(ui("{year}, no films", { year }))}">${escape(year)}</span></td>`;
+          return `<td><a href="${escape(window.periodPageUrl("year", year))}">${escape(year)}</a></td>`;
         }).join("");
         return `<tr>${allTimeCell}${centuryCell}<th scope="row"><a href="${escape(window.periodPageUrl("decade", decade))}">${escape(decade)}</a></th>${yearCells}</tr>`;
       })

@@ -11,7 +11,10 @@
 // Results are session-only; nothing is persisted.
 let mediaTypeCheckAttempts = new Set();
 
-async function fetchTmdbResource(kind, id, fetchFn) {
+// Exposed (not just a private top-level function) so
+// checkSupabaseFilmTmdbLinks below can reuse the exact same TMDB-probing
+// logic rather than a second, parallel implementation.
+window.fetchTmdbResource = async function fetchTmdbResource(kind, id, fetchFn) {
   let params = new URLSearchParams({ language: "en-US" });
   if (kind === "movie")
     params.set(
@@ -210,14 +213,14 @@ window.checkTmdbMediaTypes = async function (options = {}) {
     while (cursor < candidates.length) {
       let film = candidates[cursor++];
       try {
-        let movie = await fetchTmdbResource(
+        let movie = await window.fetchTmdbResource(
           "movie",
           film.tmdbId,
           fetchFn,
         );
         let tv = movie.exists
           ? null
-          : await fetchTmdbResource(
+          : await window.fetchTmdbResource(
               "tv",
               film.tmdbId,
               fetchFn,
@@ -259,6 +262,116 @@ window.checkTmdbMediaTypes = async function (options = {}) {
   await Promise.all(Array.from({ length: concurrency }, worker));
   result.remaining = films.filter(
     (film) => !mediaTypeCheckAttempts.has(film.id),
+  ).length;
+  return result;
+};
+
+// Separate session-attempt tracking from checkTmdbMediaTypes' own
+// mediaTypeCheckAttempts (above) - that one keys off the legacy
+// window.state.filmsById shape's ids; this one is for the owner
+// data-tools page's raw Supabase film rows. Both are keyed by the same
+// underlying film uuid, but kept as separate sets so neither caller's
+// batching state leaks into the other's.
+let supabaseLinkCheckAttempts = new Set();
+
+/**
+ * Batch-checks stored film tmdb_ids for movie identity and media-type
+ * mismatches (an id that silently resolves as TV, or resolves as an
+ * unrelated movie with a different title/year/runtime) - operates
+ * directly on the raw Supabase film shape data-tools.html already has
+ * loaded, unlike checkTmdbMediaTypes above (built for the legacy
+ * window.state.filmsById shape, and currently unreachable from any page's
+ * UI since #216 stripped data.html's ad-hoc batch tools down to pure
+ * account maintenance). Session-attempt tracking is in-memory only, but a
+ * film's own pass/fail state persists across sessions via tmdb_verified_at
+ * (a caller's job to write - this function only reports, it never
+ * persists anything itself): a film already marked verified is skipped by
+ * default, so a re-run only spends real TMDB requests on films that
+ * haven't been confirmed correct yet, not the whole catalog every time. A
+ * `limit` also bounds how many NEW films get checked per call so the
+ * owner can work through a large catalog in several clicks rather than
+ * one very long-running request. `force` widens that session's queue to
+ * already-verified films too, but the attempt set still advances through
+ * the queue instead of rechecking its first page on every click.
+ * @param {Object[]} films Raw Supabase film rows (id, tmdb_id, title, year, swedish_title, runtime_minutes, tmdb_verified_at).
+ * @param {{fetchFn?: Function, limit?: number, concurrency?: number, force?: boolean, onProgress?: (done:number, total:number, film:Object) => void}} [options]
+ * @returns {Promise<{attempted: number, ok: number, okFilms: Object[], issues: {film: Object, status: string, detail: string}[], failed: number, remaining: number}>}
+ */
+window.checkSupabaseFilmTmdbLinks = async function (films, options = {}) {
+  let fetchFn = options.fetchFn || window.fetch?.bind(window);
+  if (!fetchFn)
+    throw new Error("TMDB link checks require browser network access.");
+  let limit = Math.max(1, Number(options.limit) || 300);
+  // A film already marked verified (tmdb_verified_at set - by a prior
+  // "ok" result here, or the owner explicitly confirming/correcting it in
+  // data-tools.js) is skipped by default: re-probing TMDB for the exact
+  // same already-confirmed id on every single run wastes real requests
+  // for no new information. `force` re-includes them (an explicit
+  // "recheck everything" pass) - the caller is responsible for clearing
+  // tmdb_verified_at on anything that no longer passes. Session attempts
+  // remain excluded in either mode so repeated bounded batches advance.
+  let eligible = (films || []).filter(
+    (film) =>
+      film.tmdb_id &&
+      window.parseTmdbReference(film.tmdb_id).mediaType === "movie" &&
+      (options.force || !film.tmdb_verified_at),
+  );
+  let candidates = eligible
+    .filter((film) => !supabaseLinkCheckAttempts.has(film.id))
+    .slice(0, limit);
+  candidates.forEach((film) => supabaseLinkCheckAttempts.add(film.id));
+
+  let result = {
+    attempted: candidates.length,
+    ok: 0,
+    okFilms: [],
+    issues: [],
+    failed: 0,
+  };
+  let cursor = 0;
+  async function worker() {
+    while (cursor < candidates.length) {
+      let film = candidates[cursor++];
+      try {
+        let movie = await window.fetchTmdbResource(
+          "movie",
+          film.tmdb_id,
+          fetchFn,
+        );
+        let tv = movie.exists
+          ? null
+          : await window.fetchTmdbResource("tv", film.tmdb_id, fetchFn);
+        let verdict = window.classifyTmdbMediaCheck(movie, tv, {
+          title: film.title,
+          swedishTitle: film.swedish_title,
+          year: film.year,
+          runtimeMinutes: film.runtime_minutes,
+        });
+        if (verdict.status === "ok") {
+          result.ok += 1;
+          result.okFilms.push(film);
+        } else {
+          result.issues.push({ film, status: verdict.status, detail: verdict.detail });
+        }
+      } catch (err) {
+        result.failed += 1;
+        // A network hiccup shouldn't consume the film's one attempt.
+        supabaseLinkCheckAttempts.delete(film.id);
+      }
+      options.onProgress?.(
+        result.ok + result.issues.length + result.failed,
+        candidates.length,
+        film,
+      );
+    }
+  }
+  let concurrency = Math.min(
+    candidates.length,
+    Math.max(1, Number(options.concurrency) || 4),
+  );
+  await Promise.all(Array.from({ length: concurrency }, worker));
+  result.remaining = eligible.filter(
+    (film) => !supabaseLinkCheckAttempts.has(film.id),
   ).length;
   return result;
 };

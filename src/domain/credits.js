@@ -116,6 +116,69 @@ window.setAwardRecipients = function (award, value, options = {}) {
   return award;
 };
 
+/** Builds reusable recipient suggestions from shared film credits and the owner's previous nominations. @param {{credits?: Object[], nominations?: Object[]}} source Raw Supabase candidate-credit rows. @returns {Map<string, Object[]>} Suggestions keyed by film and category. */
+window.buildAwardCandidateCreditIndex = function (source = {}) {
+  let index = new Map();
+  let directors = new Map();
+  let add = (filmId, category, option) => {
+    let recipient = String(option.recipient || "").trim();
+    if (!filmId || !category || !recipient) return;
+    let key = `${filmId}\n${category}`;
+    let options = index.get(key) || [];
+    let identity = `${recipient.toLocaleLowerCase("en")}\n${String(option.detail || "").toLocaleLowerCase("en")}`;
+    if (!options.some((candidate) => candidate.identity === identity))
+      options.push({ ...option, recipient, identity });
+    index.set(key, options);
+  };
+
+  (source.credits || []).forEach((credit) => {
+    if (String(credit.role || "").toLowerCase() !== "director") return;
+    let name = String(credit.people?.name || "").trim();
+    if (!credit.film_id || !name) return;
+    let entries = directors.get(credit.film_id) || [];
+    if (!entries.some((entry) => entry.name.toLowerCase() === name.toLowerCase()))
+      entries.push({ name, order: Number(credit.billing_order) || 0 });
+    directors.set(credit.film_id, entries);
+  });
+  directors.forEach((entries, filmId) => {
+    entries.sort((left, right) => left.order - right.order || left.name.localeCompare(right.name, "en"));
+    add(filmId, "Best Director", {
+      recipient: entries.map((entry) => entry.name).join(", "),
+      detail: "",
+      source: "shared-director",
+    });
+  });
+
+  (source.nominations || []).forEach((nomination) => {
+    let recipients = (nomination.personal_nomination_recipients || [])
+      .map((row) => String(row.recipient_name || "").trim())
+      .filter(Boolean);
+    if (!recipients.length) return;
+    add(nomination.film_id, nomination.category, {
+      recipient: recipients.join(", "),
+      detail: String(nomination.detail || "").trim(),
+      source: "personal-nomination",
+    });
+  });
+  return index;
+};
+
+/** Returns known recipient choices for one film/category, preferring canonical shared directors for Best Director. @param {Map<string, Object[]>} index Candidate-credit index. @param {string} filmId Film UUID. @param {string} category Award category. @returns {Object[]} Recipient/detail choices. */
+window.awardCandidateCreditOptions = function (index, filmId, category) {
+  let options = index?.get(`${filmId}\n${category}`) || [];
+  if (category === "Best Director") {
+    let shared = options.filter((option) => option.source === "shared-director");
+    if (shared.length) options = shared;
+  }
+  return options
+    .map(({ recipient, detail, source }) => ({ recipient, detail, source }))
+    .sort(
+      (left, right) =>
+        left.recipient.localeCompare(right.recipient, "en") ||
+        left.detail.localeCompare(right.detail, "en"),
+    );
+};
+
 /** Normalizes an award's legacy or structured recipients in place. @param {AwardRecord|null} award Award. @returns {AwardRecord|null} Normalized award. */
 window.normalizeAwardRecipients = function (award) {
   if (!award) return award;

@@ -39,11 +39,16 @@
   /**
    * Reshapes the shared Supabase film catalog into the discovery archive
    * contract used by period Shared view, global search, and preview pages.
-   * @param {Object[]} films Raw shared `films` rows with credit joins.
+   * @param {Object[]} films Raw shared `films` rows with credit and membership joins.
+   * @param {Object[]} [franchiseRows] Full shared franchise catalog.
    * @returns {Record<string, Object>} TMDB-id-keyed shared film records.
    */
-  window.buildSharedFilmArchiveFromSupabase = function (films) {
+  window.buildSharedFilmArchiveFromSupabase = function (
+    films,
+    franchiseRows = [],
+  ) {
     let archive = {};
+    let franchiseChains = buildFranchiseChains(franchiseRows);
     (films || []).forEach((film) => {
       let tmdbId = String(film.tmdb_id || "");
       if (!tmdbId) return;
@@ -85,6 +90,11 @@
         adaptationSource: film.adaptation_source || "",
         letterboxdUrl: film.letterboxd_url || "",
         people,
+        franchises: (film.film_franchises || [])
+          .map((membership) =>
+            reshapeFranchiseMembership(membership, franchiseChains),
+          )
+          .filter(Boolean),
       };
     });
     return archive;

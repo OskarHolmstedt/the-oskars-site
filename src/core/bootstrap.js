@@ -91,10 +91,27 @@ window.ensureOskarsData = async function () {
     doneEnsure?.();
     return window.state;
   }
-  let source = await window.loadSupabaseLegacyHydrationSource();
+  // Cross-navigation cache (issue: performance investigation) - this is a
+  // multi-page app, so every navigation would otherwise re-fetch and
+  // re-join the entire watched/watchlist/rankings/awards/film-and-
+  // franchise-catalog dataset from scratch on every single page visit.
+  // resolveSupabaseAuthState() is memoized per page load, so this doesn't
+  // add a second network round trip -
+  // loadSupabaseLegacyHydrationSource() below calls it again internally
+  // and gets the same already-resolved promise.
+  let authState = await window.resolveSupabaseAuthState?.();
+  let hydrationUserId = authState?.user?.id;
+  let source =
+    window.readCachedSupabaseHydrationSource?.(hydrationUserId) ||
+    (await window.loadSupabaseLegacyHydrationSource());
+  if (hydrationUserId)
+    window.writeCachedSupabaseHydrationSource?.(hydrationUserId, source);
   window.OSKARS_SUPABASE_HYDRATION_SOURCE = source;
   window.applySharedFilmArchive?.(
-    window.buildSharedFilmArchiveFromSupabase(source.catalogFilms),
+    window.buildSharedFilmArchiveFromSupabase(
+      source.catalogFilms,
+      source.franchises,
+    ),
   );
   Object.assign(
     window.state,

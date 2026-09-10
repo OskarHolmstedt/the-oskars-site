@@ -89,50 +89,65 @@
       {
         sv: "Nya medlemskap kan läggas till. Befintliga medlemskap i den delade katalogen kan inte tas bort eller rättas här.",
       },
-    "Supabase health": { sv: "Supabase-hälsa" },
+    "Your archive": { sv: "Ditt arkiv" },
+    "Data summary": { sv: "Datasammanfattning" },
+    "Your archive is empty.": { sv: "Ditt arkiv är tomt." },
+    "Start with a Letterboxd import.": {
+      sv: "Börja med en Letterboxd-import.",
+    },
+    "Your archive is ready.": { sv: "Ditt arkiv är redo." },
+    "Download a backup before a large restore or irreversible change.": {
+      sv: "Hämta en säkerhetskopia före en stor återställning eller oåterkallelig ändring.",
+    },
+    "Recommended first step": { sv: "Rekommenderat första steg" },
+    "Import from another service": { sv: "Importera från en annan tjänst" },
     "Ranking scopes": { sv: "Rankingomfattningar" },
     "Award placements": { sv: "Prisutnämningar" },
-    "{count} watched film(s) have no shared-catalog poster. Catalog corrections remain a service-role maintenance task.":
-      {
-        sv: "{count} sedda filmer saknar affisch i den delade katalogen. Katalogrättelser förblir en underhållsuppgift med servicebehörighet.",
-      },
+    "{count} watched film(s) are missing poster artwork.": {
+      sv: "{count} sedda filmer saknar affischbild.",
+    },
     "Every watched film has a shared-catalog poster.": {
       sv: "Varje sedd film har en affisch i den delade katalogen.",
     },
-    "Browser sync conflicts, local edit history, metadata batches, and blind-rebuild baselines are not part of the Supabase data model and are no longer shown here.":
-      {
-        sv: "Webbläsarsynkkonflikter, lokal redigeringshistorik, metadatajobb och blindåteruppbyggnad ingår inte i Supabase-datamodellen och visas inte längre här.",
-      },
-    "Supabase is not configured.": { sv: "Supabase är inte konfigurerat." },
+    "Account storage is not configured.": {
+      sv: "Kontolagringen är inte konfigurerad.",
+    },
     "Sign in first.": { sv: "Logga in först." },
-    "This is not a supported Supabase backup.": {
-      sv: "Det här är inte en Supabase-säkerhetskopia som stöds.",
+    "This is not a supported backup.": {
+      sv: "Det här är inte en säkerhetskopia som stöds.",
     },
     "Set a display name on the Profile page first.": {
       sv: "Ange först ett visningsnamn på kontosidan.",
     },
-    "Published as {slug}.": { sv: "Publicerad som {slug}." },
-    "Not published.": { sv: "Inte publicerad." },
+    "Public now.": { sv: "Offentlig nu." },
+    "View public profile": { sv: "Visa offentlig profil" },
+    "Private now. Only you can open this profile.": {
+      sv: "Privat nu. Bara du kan öppna den här profilen.",
+    },
     "Unsupported backup format.": { sv: "Säkerhetskopians format stöds inte." },
     "Backup from {date}: {watched} watched, {watchlist} watchlist, {rankings} ranking scope(s).":
       {
         sv: "Säkerhetskopia från {date}: {watched} sedda, {watchlist} i watchlist, {rankings} rankingomfattningar.",
       },
     "unknown date": { sv: "okänt datum" },
-    "Backup restored to Supabase.": {
-      sv: "Säkerhetskopian återställdes till Supabase.",
+    "Backup restored to your account.": {
+      sv: "Säkerhetskopian återställdes till ditt konto.",
     },
     "Backup downloaded.": { sv: "Säkerhetskopian hämtades." },
     "Could not load the new watchlist row.": {
       sv: "Det gick inte att läsa in den nya watchlist-raden.",
     },
     "Import failed.": { sv: "Importen misslyckades." },
-    "Letterboxd import saved to Supabase.": {
-      sv: "Letterboxd-importen sparades i Supabase.",
+    "Letterboxd import saved to your account.": {
+      sv: "Letterboxd-importen sparades i ditt konto.",
     },
-    "Permanently erase your Supabase opinions? A backup downloads first.": {
-      sv: "Radera dina åsikter permanent från Supabase? En säkerhetskopia hämtas först.",
+    "Save the previewed Google Sheets changes to your account?": {
+      sv: "Spara de förhandsgranskade Google Sheets-ändringarna i ditt konto?",
     },
+    "Permanently erase your ratings, rankings, and other opinions? A backup downloads first.":
+      {
+        sv: "Radera dina betyg, rankningar och andra åsikter permanent? En säkerhetskopia hämtas först.",
+      },
     "Opinions erased. Watch history and catalog facts remain.": {
       sv: "Åsikterna raderades. Visningshistorik och katalogfakta finns kvar.",
     },
@@ -393,6 +408,36 @@
     },
     "All people": { sv: "Alla personer" },
     "Browse directors": { sv: "Bläddra bland regissörer" },
+    "Personal guide": { sv: "Personlig guide" },
+    "From your archive": { sv: "Från ditt arkiv" },
+    "Three transparent ways back into the people behind your films.": {
+      sv: "Tre tydliga vägar tillbaka till personerna bakom dina filmer.",
+    },
+    "Most watched": { sv: "Mest sedd" },
+    "Highest rated": { sv: "Högst betyg" },
+    "On your watchlist": { sv: "På din watchlist" },
+    "{count} watched films in your archive": {
+      sv: "{count} sedda filmer i ditt arkiv",
+    },
+    "{rating} average from {count} rated films": {
+      sv: "{rating} i snitt från {count} betygsatta filmer",
+    },
+    "{count} films waiting on your watchlist": {
+      sv: "{count} filmer väntar på din watchlist",
+    },
+    "Complete directory": { sv: "Hela katalogen" },
+    "Search every credited contributor, or use Directors for auteur progress and projects.":
+      {
+        sv: "Sök bland alla krediterade personer, eller använd Regissörer för auteurframsteg och projekt.",
+      },
+    "films on your watchlist": { sv: "filmer på din watchlist" },
+    "Known from {count} unseen film credits": {
+      sv: "Känd från {count} osedda filmkrediteringar",
+    },
+    "Known from 1 unseen film credit": {
+      sv: "Känd från 1 osedd filmkreditering",
+    },
+    "No personal history yet": { sv: "Ingen personlig historik ännu" },
     "Standard deviation": { sv: "Standardavvikelse" },
     "standard deviation": { sv: "standardavvikelse" },
     "Rated coverage": { sv: "Betygstäckning" },
@@ -959,6 +1004,8 @@
       sv: "Flytta genom att dra eller välja en exakt placering; ta bort med ×.",
     },
     Edit: { sv: "Redigera" },
+    "Edit period": { sv: "Redigera period" },
+    "Edit watchlist": { sv: "Redigera se-lista" },
     "Edit {title}": { sv: "Redigera {title}" },
     "Edit bracket": { sv: "Redigera prisklass" },
     "Edit interest": { sv: "Redigera intresse" },
@@ -1564,7 +1611,6 @@
     "No franchises match these filters.": {
       sv: "Inga franchises matchar dessa filter.",
     },
-    "No films for {year}": { sv: "Inga filmer för {year}" },
     "No filtered films need that interest change.": {
       sv: "Inga filtrerade filmer behöver den intresseändringen.",
     },
@@ -1713,10 +1759,9 @@
     },
     "Delete collection": { sv: "Ta bort samling" },
     "Delete this collection?": { sv: "Ta bort den här samlingen?" },
-    "This permanently removes the collection. Films stay in your collection.":
-      {
-        sv: "Detta tar bort samlingen permanent. Filmerna finns kvar i din samling.",
-      },
+    "This permanently removes the collection. Films stay in your collection.": {
+      sv: "Detta tar bort samlingen permanent. Filmerna finns kvar i din samling.",
+    },
     "Drag to set this collection's queue order.": {
       sv: "Dra för att ställa in samlingens könordning.",
     },
@@ -2377,6 +2422,74 @@
     "TMDB ID match": { sv: "TMDB-ID matchar" },
     "TMDB IDs": { sv: "TMDB-ID:n" },
     "Top films": { sv: "Toppfilmer" },
+    Today: { sv: "Idag" },
+    "What will you explore?": { sv: "Vad vill du utforska?" },
+    "One next step, one memory, and one film waiting for you.": {
+      sv: "Ett nästa steg, ett minne och en film som väntar på dig.",
+    },
+    "Archive summary": { sv: "Arkivöversikt" },
+    "Continue your Oskars": { sv: "Fortsätt med dina Oskars" },
+    "Unfinished Intake": { sv: "Oavslutad Intake" },
+    "Your rating, ranking, or ceremony decisions are waiting.": {
+      sv: "Ditt betyg, din rankning eller dina ceremonibeslut väntar.",
+    },
+    "Resume Intake": { sv: "Fortsätt Intake" },
+    "Continue a project": { sv: "Fortsätt ett projekt" },
+    "Up next: {title}": { sv: "Nästa: {title}" },
+    "Open next film": { sv: "Öppna nästa film" },
+    "Published archive": { sv: "Publicerat arkiv" },
+    "Explore this film world": { sv: "Utforska den här filmvärlden" },
+    "Browse its years, decades, and all-time collection.": {
+      sv: "Bläddra bland dess år, årtionden och all-time-samling.",
+    },
+    "Explore periods": { sv: "Utforska perioder" },
+    "Start your archive": { sv: "Starta ditt arkiv" },
+    "Bring in your films": { sv: "Ta in dina filmer" },
+    "Import an existing diary or add your latest watch.": {
+      sv: "Importera en befintlig dagbok eller lägg till din senaste tittning.",
+    },
+    "Import films": { sv: "Importera filmer" },
+    "Add a watched film": { sv: "Lägg till en sedd film" },
+    "All caught up": { sv: "Allt är klart" },
+    "Add your latest watch": { sv: "Lägg till din senaste tittning" },
+    "Start with rating, then place the film in your rankings and ceremonies.": {
+      sv: "Börja med betyg och placera sedan filmen i dina rankningar och ceremonier.",
+    },
+    "Open Intake": { sv: "Öppna Intake" },
+    "Checking for unfinished Intake…": {
+      sv: "Letar efter en oavslutad Intake…",
+    },
+    "Could not check unfinished Intake. Intake is still available.": {
+      sv: "Kunde inte kontrollera oavslutad Intake. Intake är fortfarande tillgänglig.",
+    },
+    "No unfinished Intake or project.": {
+      sv: "Ingen oavslutad Intake eller något öppet projekt.",
+    },
+    "Archive memory": { sv: "Arkivminne" },
+    "No memories yet": { sv: "Inga minnen än" },
+    "Watched films will bring a different memory back each day.": {
+      sv: "Sedda filmer kommer att väcka ett nytt minne varje dag.",
+    },
+    "Watched on this day in {year}.": {
+      sv: "Sedd den här dagen {year}.",
+    },
+    "Today's stable pick from {count} watched films.": {
+      sv: "Dagens fasta val bland {count} sedda filmer.",
+    },
+    "From your watchlist": { sv: "Från din watchlist" },
+    "Nothing waiting": { sv: "Inget väntar" },
+    "Add films to your watchlist and one will appear here each day.": {
+      sv: "Lägg till filmer i din watchlist så visas en här varje dag.",
+    },
+    "Discover films": { sv: "Upptäck filmer" },
+    "This pick stays the same today.": {
+      sv: "Det här valet ligger kvar hela dagen.",
+    },
+    "Your rankings": { sv: "Dina rankningar" },
+    "Sorted by {sort}": { sv: "Sorterat efter {sort}" },
+    "Explore the full Top 25 score table": {
+      sv: "Utforska hela poängtabellen med topp 25",
+    },
     "Top categories": { sv: "Toppkategorier" },
     "Top 250": { sv: "Topp 250" },
     "Top 250 all-time film": { sv: "Topp 250 all-time-film" },
@@ -2452,7 +2565,6 @@
         sv: "{posters} poster- och {portraits} porträttimportförsök har misslyckats.",
       },
     "{count} item(s) in queue.": { sv: "{count} poster i kön." },
-    "{year}, no films": { sv: "{year}, inga filmer" },
     "all-time rank": { sv: "all-time-rankning" },
     "all-time score": { sv: "all-time-poäng" },
     "all watchlist": { sv: "hela watchlisten" },

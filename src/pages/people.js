@@ -66,6 +66,10 @@
   let view = initialViewState.view;
   let page = initialViewState.page;
   const PAGE_SIZE = 100;
+  let watchedOtherSource = null;
+  let watchedOtherById = new Map();
+  let watchlistSource = null;
+  let watchlistById = new Map();
 
   function initials(name) {
     return String(name || "")
@@ -109,7 +113,8 @@
   function renderRow(person) {
     let scores = person.awardScores || {};
     let ratings = personRatingStatistics(person);
-    return `<tr><td class="film-table-cell">${window.renderPersonPortrait(person, "thumb")}<span><a class="table-film-link" href="${escape(window.personPageUrl(person.id))}"><strong>${escape(person.name)}</strong></a><span class="leaderboard-meta">${escape(person.professions.join(" · "))}</span></span></td><td>${escape(person.filmIds.length)}</td><td>${escape(window.formatAverageRating(ratings.mean))}</td><td>${escape(ratings.ratedCount)}</td><td>${escape(person.stats?.wins || 0)}</td><td>${escape(person.stats?.nominations || 0)}</td><td>${escape(scores.year || 0)}</td></tr>`;
+    let valueOrDash = (value) => (Number(value) > 0 ? escape(value) : "—");
+    return `<tr><td class="film-table-cell">${window.renderPersonPortrait(person, "thumb")}<span><a class="table-film-link" href="${escape(window.personPageUrl(person.id))}"><strong>${escape(person.name)}</strong></a><span class="leaderboard-meta">${escape(person.professions.join(" · "))}</span></span></td><td>${valueOrDash(personWatchedCount(person))}</td><td>${ratings.ratedCount ? escape(window.formatAverageRating(ratings.mean)) : "—"}</td><td>${valueOrDash(ratings.ratedCount)}</td><td>${valueOrDash(person.stats?.wins)}</td><td>${valueOrDash(person.stats?.nominations)}</td><td>${valueOrDash(scores.year)}</td></tr>`;
   }
 
   function orderToggleLabel() {
@@ -120,7 +125,7 @@
     if (sort === "wins") return person.stats?.wins || 0;
     if (sort === "nominations") return person.stats?.nominations || 0;
     if (sort === "score") return person.awardScores?.year || 0;
-    if (sort === "films") return person.filmIds.length;
+    if (sort === "films") return personWatchedCount(person);
     return 0;
   }
 
@@ -133,6 +138,175 @@
           .filter(Boolean),
       )
     );
+  }
+
+  function personWatchedFilms(person) {
+    if (watchedOtherSource !== state.watchedOther) {
+      watchedOtherSource = state.watchedOther;
+      watchedOtherById = new Map(
+        (state.watchedOther || []).map((film) => [film.id, film]),
+      );
+    }
+    let byId = new Map();
+    (person.filmIds || []).forEach((filmId) => {
+      let film = state.filmsById?.[filmId];
+      if (film) byId.set(film.id, film);
+    });
+    (person.watchedOtherIds || []).forEach((filmId) => {
+      let film = watchedOtherById.get(filmId);
+      if (film) byId.set(film.id, film);
+    });
+    return [...byId.values()];
+  }
+
+  function personWatchedCount(person) {
+    return (
+      (person.filmIds || []).length + (person.watchedOtherIds || []).length
+    );
+  }
+
+  function personWatchlistFilms(person) {
+    if (watchlistSource !== state.watchlist) {
+      watchlistSource = state.watchlist;
+      watchlistById = new Map(
+        (state.watchlist || []).map((film) => [
+          film.id || window.watchlistItemId?.(film),
+          film,
+        ]),
+      );
+    }
+    return (person.watchlistIds || [])
+      .map((filmId) => watchlistById.get(filmId))
+      .filter(Boolean);
+  }
+
+  function discoveryRecords(allPeople) {
+    let selected = new Set();
+    let records = [];
+    let choose = (label, reason, candidate) => {
+      if (!candidate) return;
+      selected.add(candidate.person.id);
+      records.push({ ...candidate, label, reason: reason(candidate) });
+    };
+    let candidates = allPeople.map((person) => ({
+      person,
+      watchedCount: personWatchedCount(person),
+      watchlistCount: (person.watchlistIds || []).length,
+      ratings: personRatingStatistics(person),
+    }));
+    let bestCandidate = (qualifies, compare) =>
+      candidates.reduce(
+        (best, entry) =>
+          selected.has(entry.person.id) || !qualifies(entry)
+            ? best
+            : !best || compare(entry, best) < 0
+              ? entry
+              : best,
+        null,
+      );
+    choose(
+      ui("Most watched"),
+      (entry) =>
+        ui("{count} watched films in your archive", {
+          count: entry.watchedCount,
+        }),
+      bestCandidate(
+        (entry) => entry.watchedCount >= 2,
+        (left, right) =>
+          right.watchedCount - left.watchedCount ||
+          left.person.name.localeCompare(right.person.name),
+      ),
+    );
+    choose(
+      ui("Highest rated"),
+      (entry) => {
+        return ui("{rating} average from {count} rated films", {
+          rating: window.formatAverageRating(entry.ratings.mean),
+          count: entry.ratings.ratedCount,
+        });
+      },
+      bestCandidate(
+        (entry) => entry.ratings.ratedCount >= 3,
+        (left, right) =>
+          right.ratings.mean - left.ratings.mean ||
+          right.ratings.ratedCount - left.ratings.ratedCount ||
+          left.person.name.localeCompare(right.person.name),
+      ),
+    );
+    choose(
+      ui("On your watchlist"),
+      (entry) =>
+        ui("{count} films waiting on your watchlist", {
+          count: entry.watchlistCount,
+        }),
+      bestCandidate(
+        (entry) => entry.watchlistCount > 0,
+        (left, right) =>
+          right.watchlistCount - left.watchlistCount ||
+          right.watchedCount - left.watchedCount ||
+          left.person.name.localeCompare(right.person.name),
+      ),
+    );
+    return records;
+  }
+
+  function renderDiscovery(allPeople) {
+    if (
+      query ||
+      profession !== "all" ||
+      sort !== "name" ||
+      order !== "asc" ||
+      shuffleActive ||
+      page !== 1 ||
+      view !== "grid"
+    )
+      return "";
+    let records = discoveryRecords(allPeople);
+    if (!records.length) return "";
+    let cards = records
+      .map(({ person, label, reason }) => {
+        let portrait = window.renderPersonPortrait(person, "hub");
+        let representativeFilms = window
+          .rankByAllTimeRank(personWatchedFilms(person))
+          .slice(0, 3);
+        if (!representativeFilms.length)
+          representativeFilms = personWatchlistFilms(person).slice(0, 3);
+        let deck = representativeFilms.length
+          ? window.renderPosterDeck(representativeFilms, {
+              classes: "people-discovery-poster-deck",
+              limit: 3,
+            })
+          : "";
+        return `<a class="people-discovery-card" href="${escape(window.personPageUrl(person.id))}"><div class="people-discovery-visual">${portrait || `<div class="person-portrait-placeholder" aria-hidden="true">${escape(initials(person.name))}</div>`}${deck}</div><div><p class="people-discovery-label">${escape(label)}</p><h3>${escape(person.name)}</h3><p>${escape(reason)}</p><span>${escape(person.professions.join(" · "))}</span></div></a>`;
+      })
+      .join("");
+    return `<section class="people-discovery" aria-labelledby="peopleDiscoveryHeading"><div class="people-section-heading"><div><p class="people-section-kicker">${escape(ui("Personal guide"))}</p><h2 id="peopleDiscoveryHeading">${escape(ui("From your archive"))}</h2></div><p>${escape(ui("Three transparent ways back into the people behind your films."))}</p></div><div class="people-discovery-grid">${cards}</div></section>`;
+  }
+
+  function renderPersonStats(person) {
+    let ratings = personRatingStatistics(person);
+    let watchedCount = personWatchedCount(person);
+    let nominations = Number(person.stats?.nominations) || 0;
+    let wins = Number(person.stats?.wins) || 0;
+    let score = Number(person.awardScores?.year) || 0;
+    let items = [];
+    if (watchedCount)
+      items.push(`<span class="people-hub-main-stat"><b>${watchedCount}</b> ${escape(ui("films watched"))}</span>`);
+    if (ratings.ratedCount)
+      items.push(`<span class="people-hub-main-stat"><b>${escape(window.formatAverageRating(ratings.mean))}</b> ${escape(ui("average rating"))}<small>${escape(ratings.ratedCount)} ${escape(ui("rated"))}</small></span>`);
+    if (wins)
+      items.push(`<span class="people-hub-award-stat"><b>${wins}</b> ${escape(ui("wins"))}</span>`);
+    if (nominations)
+      items.push(`<span class="people-hub-award-stat"><b>${nominations}</b> ${escape(ui("nominations"))}</span>`);
+    if (score)
+      items.push(`<span class="people-hub-award-stat" title="${escape(ui("Annual award score"))}"><b>${score}</b> ${escape(ui("score"))}</span>`);
+    if (!items.length && person.watchlistIds?.length)
+      items.push(`<span class="people-hub-main-stat"><b>${person.watchlistIds.length}</b> ${escape(ui("films on your watchlist"))}</span>`);
+    if (!items.length && person.catalogIds?.length)
+      items.push(`<span class="people-hub-sparse-stat">${escape(ui(person.catalogIds.length === 1 ? "Known from 1 unseen film credit" : "Known from {count} unseen film credits", { count: person.catalogIds.length }))}</span>`);
+    if (!items.length)
+      items.push(`<span class="people-hub-sparse-stat">${escape(ui("No personal history yet"))}</span>`);
+    return `<div class="people-hub-stats">${items.join("")}</div>`;
   }
 
   function people() {
@@ -177,6 +351,9 @@
   /** Renders the current filtered, sorted, paginated people-directory view. */
   window.renderPeopleHub = function () {
     let finishRenderTimer = window.startOskarsPerformance?.("people:render");
+    let allPeople = Object.values(
+      window.ensurePeopleIndex?.() || state.peopleById || {},
+    );
     let filtered = people();
     let pagination = window.paginationState(filtered.length, page, PAGE_SIZE);
     page = pagination.page;
@@ -184,9 +361,7 @@
     let cards = visible
       .map((person) => {
         let portrait = window.renderPersonPortrait(person, "hub");
-        let scores = person.awardScores || {};
-        let ratings = personRatingStatistics(person);
-        return `<article class="people-hub-card">${portrait || `<div class="person-portrait-placeholder" aria-hidden="true">${escape(initials(person.name))}</div>`}<div><h2><a href="${escape(window.personPageUrl(person.id))}">${escape(person.name)}</a></h2><p>${escape(person.professions.join(" · "))}</p><div class="people-hub-stats"><span><b>${person.filmIds.length}</b> ${escape(ui("films watched"))}</span><span><b>${escape(window.formatAverageRating(ratings.mean))}</b> ${escape(ui("average rating"))}<small>${escape(ratings.ratedCount)} ${escape(ui("rated"))}</small></span><span><b>${person.stats?.wins || 0}</b> ${escape(ui("wins"))}</span><span><b>${person.stats?.nominations || 0}</b> ${escape(ui("nominations"))}</span><span title="${escape(ui("Annual award score"))}"><b>${scores.year || 0}</b> ${escape(ui("score"))}</span></div></div></article>`;
+        return `<article class="people-hub-card">${portrait || `<div class="person-portrait-placeholder" aria-hidden="true">${escape(initials(person.name))}</div>`}<div><h2><a href="${escape(window.personPageUrl(person.id))}">${escape(person.name)}</a></h2><p>${escape(person.professions.join(" · "))}</p>${renderPersonStats(person)}</div></article>`;
       })
       .join("");
     let rows = visible.map(renderRow).join("");
@@ -224,6 +399,8 @@
     document.title = `${ui("People")} · The Oskars`;
     container.innerHTML = `${window.renderDetailHeader({ mainHtml: `<h1>${escape(ui("People"))}</h1><p>${escape(ui("Recipients, filmmakers, performers, and other credited contributors."))}</p>`, actionsHtml: `<a class="button-link" href="directors.html">${escape(ui("Browse directors"))}</a>` })}
     ${window.renderDetailStats({ itemsHtml: `<span><b>${filtered.length}</b> ${escape(ui("People"))}</span>` })}
+    ${renderDiscovery(allPeople)}
+    <div class="people-directory-heading"><div><p class="people-section-kicker">${escape(ui("Complete directory"))}</p><h2>${escape(ui("All people"))}</h2></div><p>${escape(ui("Search every credited contributor, or use Directors for auteur progress and projects."))}</p></div>
     <div class="people-hub-controls"><label>${escape(ui("Search"))}<input type="search" data-people-query value="${escape(query)}" placeholder="${escape(ui("Name or alias"))}"></label><label>${escape(ui("Profession"))}<select data-people-profession><option value="all">${escape(ui("All professions"))}</option>${professionOptions}</select></label>${sortControl}<div class="detail-toolbar-controls">${window.renderChronologyControl({ iconOnly: true, escape, title: orderToggleLabel() })}${window.renderShuffleControl({ escape, label: ui("Shuffle") })}${window.renderFilmViewToggle({ view, listUrl: viewUrl("list"), gridUrl: viewUrl("grid"), escape, classes: "people-hub-view-toggle", ariaLabel: ui("People display") })}${window.renderCopyViewLinkButton({ escape })}</div></div>
     ${window.renderPaginationControls({ total: filtered.length, page, pageSize: PAGE_SIZE, dataAttribute: "data-people-page", itemLabel: ui("people"), ariaLabel: ui("People pages") })}
     ${

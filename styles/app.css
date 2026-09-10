@@ -864,15 +864,13 @@ textarea {
   border-color: var(--accent);
   color: var(--accent-dark);
 }
-.data-workspace-grid {
+.data-tool-groups {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 28px;
 }
-.data-panel-stack {
+.data-panel-grid {
   display: grid;
-  align-content: start;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 16px;
 }
 .data-panel {
@@ -890,7 +888,8 @@ textarea {
   display: block;
   margin-bottom: 6px;
 }
-.data-panel h2 {
+.data-panel h2,
+.data-panel h3 {
   margin: 0 0 12px;
   font-size: 20px;
 }
@@ -906,6 +905,10 @@ textarea {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.4;
+}
+pre.data-panel-status {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 .action-feedback {
   display: flex;
@@ -1102,7 +1105,44 @@ textarea {
   white-space: normal;
 }
 .data-health-panel {
-  margin-top: 16px;
+  margin-bottom: 28px;
+}
+.data-health-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+.data-health-heading h2 {
+  margin: 3px 0 0;
+}
+.data-health-heading p,
+.data-health-note {
+  margin: 0;
+  color: var(--muted);
+}
+.data-health-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 18px 0 14px;
+}
+.data-health-summary > div {
+  display: grid;
+  gap: 2px;
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--surface-soft);
+}
+.data-health-summary b {
+  color: var(--ink);
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.data-health-summary span {
+  color: var(--muted);
+  font-size: 12px;
 }
 /* table-layout: auto kept redistributing leftover width onto short
    fixed-vocabulary columns (Queue/Category/Severity) instead of the
@@ -1195,7 +1235,8 @@ textarea {
   border-color: rgba(161, 38, 34, 0.35);
   background: rgba(161, 38, 34, 0.045);
 }
-.data-danger-zone h2 {
+.data-danger-zone h2,
+.data-danger-zone h3 {
   margin: 0 0 4px;
   color: #8f2926;
   font-size: 18px;
@@ -1695,71 +1736,109 @@ textarea {
   max-width: var(--content-width);
   margin: 0 auto;
 }
-.home-search-band {
-  display: grid;
-  grid-template-columns: auto minmax(220px, 720px);
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-.home-search-band label {
-  font-weight: bold;
-}
-.home-search-band input {
-  width: 100%;
-  padding: 11px 13px;
-  border: 1px solid #bdb4a7;
-  border-radius: 6px;
-  background: var(--surface);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
-  font: inherit;
-}
-.home-search-results {
-  margin-bottom: 28px;
-}
 .home-loading {
   color: #666;
+}
+.home-today {
+  padding: 20px 0 8px;
+}
+.home-today-header {
+  max-width: 720px;
+}
+.home-today-header h1 {
+  margin: 4px 0 8px;
+  font-size: clamp(32px, 4vw, 54px);
+  line-height: 1;
+}
+.home-today-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
 }
 .home-summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 28px;
-  padding: 14px 0 20px;
-  border-bottom: 1px solid var(--line);
+  gap: 8px 22px;
+  padding: 18px 0;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .home-summary b {
   color: #222;
 }
-.home-active-project {
+.home-daily-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.home-daily-card {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  min-height: 220px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.home-daily-card--primary {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow);
+}
+.home-daily-card--text {
+  grid-template-columns: 1fr;
+}
+.home-daily-card-media,
+.home-daily-card-media .film-poster {
+  width: 104px;
+  height: 100%;
+  min-height: 220px;
+}
+.home-daily-card-body {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 0;
-  border-bottom: 1px solid var(--line);
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 18px;
 }
-.home-active-project h2 {
-  margin: 2px 0 4px;
-  font-size: 20px;
+.home-daily-card h2 {
+  margin: 5px 0 3px;
+  font-size: 19px;
+  line-height: 1.15;
 }
-.home-active-project p {
-  margin: 0;
+.home-daily-card h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+.home-daily-card h2 a:hover {
+  text-decoration: underline;
+}
+.home-daily-card p {
+  margin: 5px 0 12px;
   color: var(--muted);
   font-size: 13px;
+  line-height: 1.45;
 }
-.home-recent-projects {
+.home-daily-card .button-link {
+  margin-top: auto;
+}
+.home-daily-card small {
   display: block;
-  padding: 18px 0;
-  border-bottom: 1px solid var(--line);
+  margin-top: 10px;
+  color: var(--muted);
 }
-.home-recent-project-links {
+.home-daily-card .watchlist-tier-badge {
+  margin-top: auto;
+}
+.home-daily-film-meta {
+  margin: 0 !important;
+}
+.home-daily-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px 14px;
-  margin-top: 7px;
-  font-size: 13px;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
 }
 .copy-view-link {
   white-space: nowrap;
@@ -2041,16 +2120,20 @@ textarea {
   gap: 12px;
   padding: 18px 0;
 }
-.home-top-films h2 {
-  margin: 0 0 10px;
-  font-size: 16px;
+.home-top-films-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
 }
-.home-top-films h2 span {
-  margin-left: 8px;
+.home-top-films-header h2 {
+  margin: 3px 0 0;
+  font-size: 26px;
+}
+.home-top-films-header > span {
   color: var(--muted);
-  font-family: Inter, ui-sans-serif, sans-serif;
   font-size: 12px;
-  font-weight: normal;
 }
 .browse-link-list {
   display: flex;
@@ -2066,7 +2149,76 @@ textarea {
   text-decoration: underline;
 }
 .home-top-films {
-  padding: 24px 0;
+  padding: 28px 0;
+}
+.home-top-preview {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+.home-top-preview-card {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.home-top-preview-card > .film-poster {
+  width: 58px;
+  height: 87px;
+}
+.home-top-preview-card > div {
+  position: relative;
+  min-width: 0;
+  padding: 10px 8px;
+}
+.home-top-preview-card .leaderboard-position {
+  font-size: 10px;
+}
+.home-top-preview-card h3 {
+  margin: 3px 0 2px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+}
+.home-top-preview-card h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+.home-top-preview-card p {
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-top-preview-metric {
+  display: block;
+  margin-top: 7px;
+  font-size: 13px;
+}
+.home-top-preview-metric small {
+  margin-left: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: normal;
+}
+.home-top-details {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.home-top-details > summary {
+  padding: 13px 0;
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 700;
+}
+.home-top-details[open] > summary {
+  border-bottom: 1px solid var(--line);
 }
 .home-top-table th:nth-child(2),
 .home-top-table td:nth-child(2) {
@@ -2611,8 +2763,7 @@ textarea {
   margin: 0;
   border-spacing: 3px;
 }
-.period-year-grid-wrap--compact .period-year-grid tbody a,
-.period-year-grid-wrap--compact .period-year-missing {
+.period-year-grid-wrap--compact .period-year-grid tbody a {
   padding: 4px 3px;
   font-size: 10px;
 }
@@ -2734,8 +2885,7 @@ textarea {
 .period-year-grid tbody th {
   text-align: left;
 }
-.period-year-grid tbody a,
-.period-year-missing {
+.period-year-grid tbody a {
   display: block;
   padding: 6px 5px;
   border: 1px solid rgba(120, 103, 83, 0.12);
@@ -2767,10 +2917,17 @@ textarea {
 .period-century-gap {
   background: transparent;
 }
-.period-year-missing {
-  border-style: dashed;
-  background: rgba(216, 208, 195, 0.18);
-  color: #aaa39a;
+
+@media (max-width: 1050px) {
+  .home-daily-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .home-daily-card--primary {
+    grid-column: 1 / -1;
+  }
+  .home-top-preview {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 600px) {
@@ -2778,9 +2935,6 @@ textarea {
     grid-template-columns: 1fr;
     max-height: calc(100vh - 90px);
     overflow: auto;
-  }
-  .home-search-band {
-    grid-template-columns: 1fr;
   }
   .browse-index-grid,
   .category-index-grid {
@@ -2828,6 +2982,7 @@ textarea {
     flex-direction: column;
   }
   .data-workspace-heading,
+  .data-health-heading,
   .data-maintenance-panel,
   .data-danger-zone,
   .opinion-rebuild-heading {
@@ -2835,9 +2990,6 @@ textarea {
     flex-direction: column;
   }
   .opinion-rebuild-progress {
-    grid-template-columns: 1fr;
-  }
-  .data-workspace-grid {
     grid-template-columns: 1fr;
   }
   .intake-ranking-heading,
@@ -6169,6 +6321,111 @@ dialog h2 {
   }
 }
 /* People hub controls and cards. */
+.people-discovery {
+  margin: 24px 0 30px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+  border-radius: 8px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--gold) 10%, var(--surface)),
+    var(--surface)
+  );
+}
+.people-section-heading,
+.people-directory-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+.people-section-heading h2,
+.people-directory-heading h2 {
+  margin: 1px 0 0;
+}
+.people-section-heading > p,
+.people-directory-heading > p {
+  max-width: 460px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+.people-section-kicker,
+.people-discovery-label {
+  margin: 0;
+  color: var(--accent-dark);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.people-discovery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.people-discovery-card {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(120, 103, 83, 0.14);
+  border-radius: 7px;
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--shadow);
+  transition: border-color 150ms ease, transform 150ms ease;
+}
+.people-discovery-card:hover,
+.people-discovery-card:focus-visible {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.people-discovery-visual {
+  position: relative;
+  min-height: 108px;
+}
+.people-discovery-visual .person-portrait--hub,
+.people-discovery-visual .person-portrait-placeholder {
+  position: relative;
+  z-index: 2;
+  width: 62px;
+  height: 94px;
+  margin: 0;
+  box-shadow: 0 5px 14px rgba(24, 18, 16, 0.18);
+}
+.poster-deck.people-discovery-poster-deck {
+  --deck-width: 58px;
+  --deck-shift: 7px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 76px;
+  height: 102px;
+  margin: 0;
+}
+.people-discovery-card h3 {
+  margin: 5px 0 7px;
+  color: var(--accent-dark);
+  font-size: 17px;
+}
+.people-discovery-card p:not(.people-discovery-label) {
+  margin: 0 0 7px;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.people-discovery-card span {
+  color: var(--muted);
+  font-size: 10px;
+}
+.people-directory-heading {
+  margin: 0 0 14px;
+}
 .people-hub-controls {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr auto;
@@ -6244,13 +6501,38 @@ dialog h2 {
 .people-hub-stats b {
   color: var(--ink);
 }
+.people-hub-sparse-stat {
+  color: var(--muted);
+  font-style: italic;
+}
 @media (max-width: 700px) {
+  .people-discovery {
+    padding: 14px;
+  }
+  .people-section-heading,
+  .people-directory-heading {
+    display: block;
+  }
+  .people-section-heading > p,
+  .people-directory-heading > p {
+    margin-top: 5px;
+    text-align: left;
+  }
+  .people-discovery-grid {
+    grid-template-columns: 1fr;
+  }
+  .people-discovery-card {
+    grid-template-columns: 108px minmax(0, 1fr);
+  }
   .people-hub-controls {
     grid-template-columns: 1fr;
     align-items: stretch;
   }
   .people-hub-grid {
     grid-template-columns: 1fr;
+  }
+  .people-hub-award-stat {
+    display: none;
   }
 }
 /* Film editing, category history, period views, and pagination. */
@@ -6264,6 +6546,14 @@ dialog h2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px 20px;
+}
+.film-edit-group {
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.film-edit-group:last-child {
+  border-bottom: none;
 }
 .film-edit-grid.ranks {
   grid-template-columns: repeat(4, minmax(100px, 1fr));
@@ -7037,6 +7327,46 @@ dialog h2 {
   align-items: center;
   gap: 6px;
 }
+.period-secondary-controls {
+  margin: 0 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+}
+.period-secondary-controls > summary {
+  padding: 10px 12px;
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.period-secondary-controls[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+.period-secondary-controls > .period-filter-controls {
+  margin: 0;
+  padding: 12px;
+  border: 0;
+}
+.period-secondary-controls > .period-filter-controls > legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.period-maintenance-controls > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px;
+}
+.period-maintenance-controls .period-edit-controls {
+  margin: 0;
+}
 /* Matches .franchises-controls' bordered, aligned toolbar treatment
    (issue #202) - scoped to this page's container rather than restyling
    the shared .detail-toolbar class itself, since person.html and
@@ -7658,9 +7988,34 @@ dialog h2 {
     height: 44px;
     padding: 9px;
   }
-  .home-active-project {
+  .home-today {
+    padding-top: 8px;
+  }
+  .home-today-header h1 {
+    font-size: 34px;
+  }
+  .home-summary {
+    gap: 6px 16px;
+    padding: 14px 0;
+    font-size: 13px;
+  }
+  .home-daily-grid {
+    grid-template-columns: 1fr;
+  }
+  .home-daily-card {
+    min-height: 190px;
+  }
+  .home-daily-card-media,
+  .home-daily-card-media .film-poster {
+    min-height: 190px;
+  }
+  .home-top-films-header {
     align-items: flex-start;
     flex-direction: column;
+    gap: 4px;
+  }
+  .home-top-preview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .film-detail-header.has-poster,
   .film-detail-header.has-person-portrait {
@@ -9033,9 +9388,7 @@ dialog h2 {
   }
 }
 
-/* Set up a year (src/pages/setup-year.js) - reuses .board/.card/.film-grid
-   for the bracket section and .ranking-consistency-* for the ranking
-   section; these rules only cover the page-specific layout around them. */
+/* Dedicated year ranking and annual-ballot workspaces. */
 .setup-year-cta > div,
 .setup-year-cta {
   display: flex;
@@ -9096,8 +9449,8 @@ dialog h2 {
 }
 .setup-ballot-nav {
   display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
   margin: 14px 0 20px;
 }
 .setup-ballot-nav-item {
@@ -9108,25 +9461,27 @@ dialog h2 {
   color: inherit;
   display: grid;
   font: inherit;
-  gap: 5px;
+  gap: 6px;
   justify-items: center;
-  padding: 9px 5px;
+  min-width: 0;
+  padding: 8px 5px 7px;
+  position: relative;
 }
-.setup-ballot-nav-item > span {
+.setup-ballot-progress-ring {
   align-items: center;
   background: conic-gradient(var(--accent) var(--ballot-progress), var(--line) 0);
   border-radius: 50%;
   display: flex;
-  height: 32px;
+  height: 30px;
   justify-content: center;
   position: relative;
-  width: 32px;
+  width: 30px;
 }
-.setup-ballot-nav-item > span::before { background: var(--surface); border-radius: 50%; content: ""; inset: 4px; position: absolute; }
-.setup-ballot-nav-item > span { isolation: isolate; }
-.setup-ballot-nav-item > span::before { z-index: -1; }
-.setup-ballot-nav-item > b { font-size: 10px; line-height: 1.15; }
-.setup-ballot-nav-item.is-complete { color: var(--accent-dark); }
+.setup-ballot-progress-ring::before { background: var(--surface); border-radius: 50%; content: ""; inset: 4px; position: absolute; }
+.setup-ballot-progress-ring > b { font-size: 11px; font-variant-numeric: tabular-nums; line-height: 1; position: relative; }
+.setup-ballot-nav-label { display: -webkit-box; font-size: 10px; font-weight: 700; line-height: 1.15; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.setup-ballot-nav-item.is-complete::after { align-items: center; background: var(--accent); border: 2px solid var(--surface); border-radius: 50%; color: white; content: "✓"; display: flex; font-size: 8px; font-weight: 800; height: 14px; justify-content: center; left: calc(50% + 6px); position: absolute; top: 5px; width: 14px; }
+.setup-ballot-nav-item.is-active { background: var(--surface-soft); }
 .setup-ballot-nav-item.is-next { border-color: var(--gold); box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 25%, transparent); }
 .setup-ballot-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .setup-ballot-next { background: color-mix(in srgb, var(--gold) 12%, var(--surface)); border-radius: 8px; margin: 14px 0 0; padding: 12px; }
@@ -9151,9 +9506,26 @@ dialog h2 {
 .setup-year-board {
   margin-top: 10px;
 }
+.setup-year-board .board-content { margin-top: 0; }
+.setup-year-board .board-nominees { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(112px, 136px)); }
 .setup-year-nominee {
-  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  box-shadow: var(--shadow);
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
 }
+.setup-year-nominee-poster,
+.setup-year-pool-poster { align-items: center; aspect-ratio: 2 / 3; background: var(--surface-soft); color: var(--muted); display: flex; font-size: 28px; font-weight: 800; justify-content: center; overflow: hidden; }
+.setup-year-nominee-poster img,
+.setup-year-pool-poster img { height: 100%; object-fit: cover; width: 100%; }
+.setup-year-nominee-rank { align-items: center; background: rgba(255, 253, 249, 0.94); border: 1px solid rgba(120, 103, 83, 0.28); border-radius: 999px; box-shadow: 0 1px 4px rgba(51, 42, 34, 0.16); display: flex; font-size: 15px; font-weight: 800; height: 30px; justify-content: center; left: 7px; line-height: 1; position: absolute; top: 7px; width: 30px; }
+.setup-year-nominee-rank.is-numeric { color: var(--accent-dark); font-size: 13px; }
+.setup-year-nominee-copy { display: grid; gap: 4px; padding: 7px 8px 8px; }
+.setup-year-nominee-title { display: -webkit-box; font-size: 12px; font-weight: 700; line-height: 1.25; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.setup-year-nominee.is-editing { grid-column: span 2; }
 .setup-year-nominee.drop-target {
   outline: 2px dashed var(--accent, #4a7c59);
   outline-offset: 2px;
@@ -9172,15 +9544,27 @@ dialog h2 {
   letter-spacing: 0.03em;
 }
 .setup-year-pool-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 104px));
+  justify-content: start;
   margin-top: 0;
 }
 .setup-year-pool-card {
-  position: relative;
-  cursor: pointer;
   border: 1px solid var(--line);
   border-radius: 6px;
+  box-shadow: none;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
   transition: border-color 0.15s ease;
 }
+.setup-year-pool-title { display: -webkit-box; font-size: 10px; font-weight: 650; line-height: 1.2; min-height: 2.4em; overflow: hidden; padding: 5px 6px 6px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.setup-year-pool-credit { color: var(--accent-dark); display: -webkit-box; font-size: 9px; line-height: 1.2; min-height: 2.4em; overflow: hidden; padding: 0 6px 6px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.setup-year-pool-card .card-remove-button,
+.setup-year-nominee .card-remove-button { height: 24px; right: 5px; top: 5px; width: 24px; }
 .setup-year-pool-card:hover,
 .setup-year-pool-card:focus-visible {
   border-color: var(--accent, #4a7c59);
@@ -9215,8 +9599,14 @@ dialog h2 {
   background: var(--surface);
   font: inherit;
 }
+.setup-year-credit-suggestions { flex-basis: 100%; }
+.setup-year-credit-suggestions > span { color: var(--muted); display: block; font-size: 11px; margin-bottom: 4px; }
+.setup-year-credit-suggestions > div { display: flex; flex-wrap: wrap; gap: 5px; }
+.setup-year-credit-suggestions button { align-items: flex-start; background: var(--surface-soft); border: 1px solid var(--line); border-radius: 5px; color: inherit; display: flex; flex-direction: column; font: inherit; gap: 1px; padding: 5px 7px; text-align: left; }
+.setup-year-credit-suggestions button:hover,
+.setup-year-credit-suggestions button:focus-visible { border-color: var(--accent); }
+.setup-year-credit-suggestions small { color: var(--muted); font-size: 9px; }
 .setup-year-nominee .setup-year-credit-form {
-  flex: 1 1 auto;
   margin-top: 0;
 }
 .setup-year-credit-edit {
@@ -9227,10 +9617,25 @@ dialog h2 {
   font: inherit;
   text-align: left;
   cursor: pointer;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.2;
 }
 .setup-year-credit-edit:hover,
 .setup-year-credit-edit:focus-visible {
   text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .setup-ballot-nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .setup-year-board .board-nominees { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .setup-year-nominee.is-editing { grid-column: 1 / -1; }
+  .setup-year-pool-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+
+@media (max-width: 420px) {
+  .setup-year-board .board-nominees { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .setup-year-pool-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 .decade-merge-dialog {

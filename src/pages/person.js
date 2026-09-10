@@ -1054,7 +1054,10 @@
       // (issue #453, generalized in #467) reads OSKARS_SHARED_FILM_ARCHIVE,
       // built from this call.
       window.applySharedFilmArchive?.(
-        window.buildSharedFilmArchiveFromSupabase(source.catalogFilms),
+        window.buildSharedFilmArchiveFromSupabase(
+          source.catalogFilms,
+          source.franchises,
+        ),
       );
       window.rebuildAggregates();
       await window.hydrateOfficialResultsFromSupabase();

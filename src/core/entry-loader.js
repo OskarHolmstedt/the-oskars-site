@@ -41,6 +41,7 @@
     "project",
     "collections",
     "collection",
+    "data-tools",
   ]);
   if (!pageEntries.has(entry))
     throw new Error(`Unknown application entry: ${entry}`);
@@ -339,6 +340,7 @@
       : []),
     "src/domain/projects.js",
     "src/domain/watch-queue.js",
+    ...(entry === "home" ? ["src/domain/home-dashboard.js"] : []),
     "src/domain/local-rank.js",
     "src/domain/merge-order.js",
     "src/domain/watched-films.js",
@@ -351,6 +353,7 @@
       "tags",
       "franchises",
       "directors",
+      "people",
       "projects",
       "periods",
       "categories",
@@ -392,7 +395,6 @@
     ...(["data", "intake", "awards-year"].includes(entry)
       ? ["src/domain/films.js"]
       : []),
-    ...(entry === "data" ? ["src/domain/opinion-rebuild.js"] : []),
     "src/domain/stats.js",
     ...(entry === "community" ? ["src/domain/community.js"] : []),
     ...(entry === "compare" ? ["src/domain/compare-targets.js"] : []),
@@ -402,7 +404,6 @@
     "src/domain/people/aliases.js",
     "src/domain/people/subjects.js",
     "src/core/aggregates.js",
-    ...(entry === "data" ? ["src/domain/data-health.js"] : []),
     "src/imports/ranked-list.js",
     "src/imports/diary.js",
     "src/imports/watchlists.js",
@@ -434,13 +435,7 @@
     "src/ui/posters.js",
     "src/ui/backdrop.js",
     ...(entry === "data"
-      ? [
-          "src/data/health-view.js",
-          "src/data/import-report.js",
-          "src/data/import-summary.js",
-          "src/data/import-consistency.js",
-          "src/data/metadata-batch.js",
-        ]
+      ? ["src/data/import-report.js", "src/data/import-summary.js"]
       : entry === "profile"
         ? ["src/data/import-report.js", "src/data/import-summary.js"]
         : []),
@@ -527,6 +522,7 @@
     ],
     "awards-year": [
       "src/core/state.js",
+      "src/domain/awards.js",
       "src/domain/people/index.js",
       "src/domain/credits.js",
       "src/ui/award-credit.js",
@@ -544,6 +540,18 @@
       "src/domain/people/index.js",
       "src/ui/film-rating.js",
       "src/ui/detail-scaffold.js",
+      "src/ui/scroll-affordance.js",
+    ],
+    "data-tools": [
+      "src/core/state.js",
+      "src/domain/posters.js",
+      "src/domain/image-providers.js",
+      "src/domain/film-matching.js",
+      "src/domain/credits.js",
+      "src/domain/people/index.js",
+      "src/domain/poster-selection.js",
+      "src/domain/supabase-metadata-batch.js",
+      "src/domain/tmdb-link-check.js",
       "src/ui/scroll-affordance.js",
     ],
   };
@@ -621,6 +629,12 @@
     // collections/collection_items.
     "collection",
     "collections",
+    // Local-only owner tools (missing-metadata fetch, duplicate film/
+    // person detection and merge) - gated a second time, inside its own
+    // controller, on window.OSKARS_LOCAL_CONFIG?.ownerDataTools, so it's
+    // inert on the deployed site even though it's registered the same as
+    // any other owner-only entry here.
+    "data-tools",
   ]);
 
   // Entries with dedicated Supabase data loading and persistence. Every
@@ -635,6 +649,7 @@
     "awards-year",
     "build",
     "intake",
+    "data-tools",
   ]);
 
   // Entries that reuse the established window.state-derived view model while
@@ -689,6 +704,38 @@
     supabaseHydratedEntries.has(entry) ||
     supabaseFullDependencyEntries.has(entry);
 
+  let pageDependencies = supabaseHydratedEntries.has(entry)
+    ? dependencies.filter(
+        (dependency) =>
+          !["src/core/persistence.js", "src/core/migrations.js"].includes(
+            dependency,
+          ),
+      )
+    : supabaseBackedEntries.has(entry)
+      ? supabaseEntryDependencies[entry] || []
+      : dependencies;
+
+  // Performance: the loops below load headerDependencies and this entry's
+  // main dependency list one script at a time, `await`ing each one fully
+  // (download + parse + execute) before even requesting the next - a
+  // serial network waterfall found to dominate page-load time (a
+  // performance investigation into the app feeling slow after the
+  // Supabase migration). A `<link rel=preload>` hint per script lets the
+  // browser fetch all of them concurrently from this point on, while
+  // execution below stays in the exact same serial order as before (a
+  // real ordering dependency exists between at least two of these files -
+  // see headerDependencies' own comment on bundled-official-results.js -
+  // so scripts are still executed one at a time via loadScript(), just no
+  // longer wait on each other's *download* first). Unsupported browsers
+  // simply ignore the hint with no behavior change.
+  [...new Set([...headerDependencies, ...pageDependencies])].forEach((path) => {
+    let link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "script";
+    link.href = path;
+    document.head.appendChild(link);
+  });
+
   (async function () {
     await loadScript("src/core/runtime-mode.js");
     await loadScript("runtime-mode.config.js", true);
@@ -742,6 +789,7 @@
     await loadScript("supabase.config.js", true);
     await loadScript("src/core/supabase-client.js");
     await loadScript("src/core/supabase-workspace.js");
+    await loadScript("src/core/supabase-hydration-cache.js");
     await loadScript("src/core/supabase-account-gate.js");
     await window.renderStaticHeaderAuth?.();
     // Per-entry Supabase domain logic - the same
@@ -837,17 +885,8 @@
       await loadScript(dependency);
     window.renderSiteHeader?.();
     if (supabaseBackedEntries.has(entry)) {
-      for (let dependency of supabaseEntryDependencies[entry])
-        await loadScript(dependency);
+      for (let dependency of pageDependencies) await loadScript(dependency);
     } else {
-      let pageDependencies = supabaseHydratedEntries.has(entry)
-        ? dependencies.filter(
-            (dependency) =>
-              !["src/core/persistence.js", "src/core/migrations.js"].includes(
-                dependency,
-              ),
-          )
-        : dependencies;
       for (let dependency of pageDependencies) await loadScript(dependency);
       if (["film", "period", "data"].includes(entry))
         await loadScript("src/core/supabase-legacy-writes.js");

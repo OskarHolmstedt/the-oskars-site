@@ -97,13 +97,34 @@ window.renderPeriodChildNavigation = function (
   if (type === "year") return "";
   let childType =
     type === "decade" ? "year" : type === "century" ? "decade" : "century";
-  let children = populatedPeriodKeys(childType).filter((child) => {
-    if (type === "decade")
-      return window.getDecadeKey(String(child).slice(0, 4)) === key;
-    if (type === "century")
-      return window.getCenturyKey(child.replace(/s$/, "")) === key;
-    return true;
-  });
+  // Every plain year in a decade is linked unconditionally (the archive
+  // spans almost every year already, so gating on "has a matched film" was
+  // just friction) - century->decade and alltime->century links stay
+  // populated-only below. Union in populated periods too, not just the
+  // literal 10-year range, since early ceremonies use a split-year key
+  // (e.g. "1927/28") a plain numeric range can't generate on its own.
+  let children =
+    type === "decade"
+      ? [
+          ...new Set([
+            ...Array.from({ length: 10 }, (_, digit) =>
+              String(Number(key.replace(/s$/, "")) + digit),
+            ),
+            ...populatedPeriodKeys(childType).filter(
+              (child) =>
+                window.getDecadeKey(String(child).slice(0, 4)) === key,
+            ),
+          ]),
+        ].sort(
+          (left, right) =>
+            Number.parseInt(left, 10) - Number.parseInt(right, 10) ||
+            left.localeCompare(right),
+        )
+      : populatedPeriodKeys(childType).filter((child) => {
+          if (type === "century")
+            return window.getCenturyKey(child.replace(/s$/, "")) === key;
+          return true;
+        });
   if (!children.length) return "";
   let links = children
     .map(

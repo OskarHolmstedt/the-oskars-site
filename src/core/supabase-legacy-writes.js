@@ -458,6 +458,7 @@
     window.applySharedFilmArchive?.(
       window.buildSharedFilmArchiveFromSupabase(
         window.OSKARS_SUPABASE_HYDRATION_SOURCE.catalogFilms,
+        window.OSKARS_SUPABASE_HYDRATION_SOURCE.franchises,
       ),
     );
     window.showStorageStatus?.("Saved to Supabase", "saved");

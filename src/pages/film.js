@@ -960,6 +960,10 @@
           `<div><dt>${filmPageEscape(label)}</dt><dd>${href ? `<a href="${filmPageEscape(href)}" target="_blank" rel="noopener">${filmPageEscape(value)}</a>` : filmPageEscape(value)}</dd></div>`,
       )
       .join("");
+    let franchiseHtml = window.renderFranchiseMembershipLinks(
+      preview.franchises,
+      { filmId: preview.id, escape: filmPageEscape },
+    );
     let posterHtml = window.renderFilmPoster(
       { poster: preview.poster, title },
       "detail",
@@ -975,6 +979,7 @@
         ? `<div class="collection-action-buttons">${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Add to watchlist"), escape: filmPageEscape, attributes: { "data-add-shared-preview-watchlist": true } })}${window.renderCollectionActionButton({ kind: "watched", label: ui("Add to watched"), escape: filmPageEscape, attributes: { "data-add-shared-preview-watched": true } })}</div>`
         : "",
     })}
+    ${franchiseHtml ? `<section class="film-franchises"><h2>${filmPageEscape(ui("Franchises"))}</h2><div class="film-franchise-links">${franchiseHtml}</div></section>` : ""}
     <p class="detail-empty">${filmPageEscape(ui("This film is in the catalog but hasn't been added to your own collection yet."))}</p>`;
   }
 

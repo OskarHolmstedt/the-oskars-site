@@ -52,21 +52,28 @@ window.supabaseRankingRatingSortValueFromKey = function (key) {
   let parts = String(key || "").split("|");
   let value = Number(parts[0]) || 0;
   let modifier = parts[1] || "";
-  return window.filmRatingGrade?.({ ratingValue: value, ratingModifier: modifier }) || 0;
+  return (
+    window.filmRatingGrade?.({
+      ratingValue: value,
+      ratingModifier: modifier,
+    }) || 0
+  );
 };
 
 /** Normalizes ranking-review URL scope names. @param {string} type Scope type. @returns {'years'|'decades'|'centuries'|'allTime'} */
 window.normalizeSupabaseRankingReviewScopeType = function (type) {
-  return {
-    year: "years",
-    years: "years",
-    decade: "decades",
-    decades: "decades",
-    century: "centuries",
-    centuries: "centuries",
-    alltime: "allTime",
-    allTime: "allTime",
-  }[type] || "allTime";
+  return (
+    {
+      year: "years",
+      years: "years",
+      decade: "decades",
+      decades: "decades",
+      century: "centuries",
+      centuries: "centuries",
+      alltime: "allTime",
+      allTime: "allTime",
+    }[type] || "allTime"
+  );
 };
 
 function supabaseEntryInScope(scopeType, scopeKey, entry) {
@@ -116,11 +123,18 @@ window.supabaseRankingConsistencyPairs = function (
       !supabaseEntryInScope(scopeType, scopeKey, below)
     )
       continue;
-    let aboveKey = window.supabaseRankingRatingKey(watchedByFilmId.get(above.film_id));
-    let belowKey = window.supabaseRankingRatingKey(watchedByFilmId.get(below.film_id));
+    let aboveKey = window.supabaseRankingRatingKey(
+      watchedByFilmId.get(above.film_id),
+    );
+    let belowKey = window.supabaseRankingRatingKey(
+      watchedByFilmId.get(below.film_id),
+    );
     if (!aboveKey || aboveKey !== belowKey) continue;
     if (!supabasePairCrossesNarrowerScope(scopeType, above, below)) continue;
-    let key = window.supabaseRankingConsistencyPairKey(above.film_id, below.film_id);
+    let key = window.supabaseRankingConsistencyPairKey(
+      above.film_id,
+      below.film_id,
+    );
     if (resolvedKeys?.has(key)) continue;
     if (extraExcludeKeys?.has(key)) continue;
     pairs.push({ key, above, below });

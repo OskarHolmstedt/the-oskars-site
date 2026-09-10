@@ -94,6 +94,15 @@
     return context?.rank || 0;
   }
 
+  function comparePeriodRank(left, right) {
+    let leftRank = periodSortRankForFilm(left);
+    let rightRank = periodSortRankForFilm(right);
+    if (Boolean(leftRank) !== Boolean(rightRank)) return leftRank ? -1 : 1;
+    let result = leftRank - rightRank;
+    if (periodDirection === "desc") result = -result;
+    return result || window.compareEnglishTitles(left.title, right.title);
+  }
+
   function canonicalRankContextHtml(film, escape = periodEscape) {
     let context = canonicalRankContext(film);
     if (!context?.film) return "";
@@ -591,6 +600,16 @@
   let maximumRatingFilter = initialViewState.maximumRatingFilter;
   let minimumRuntimeFilter = initialViewState.minimumRuntimeFilter;
   let maximumRuntimeFilter = initialViewState.maximumRuntimeFilter;
+  let filmFiltersOpen =
+    mediumFilter !== "all" ||
+    screenplayFilter !== "all" ||
+    sourceFilter !== "all" ||
+    countryFilter !== "all" ||
+    exactRatingFilter !== "all" ||
+    minimumRatingFilter > 0 ||
+    maximumRatingFilter > 0 ||
+    minimumRuntimeFilter > 0 ||
+    maximumRuntimeFilter > 0;
   let watchlistTierFilter = initialViewState.watchlistTierFilter;
   let rewatchTierFilter = initialViewState.rewatchTierFilter;
   let watchlistSearch = initialViewState.watchlistSearch;
@@ -1020,6 +1039,10 @@
       .join("");
   }
 
+  function renderFilmFilterControls(sourceOptions, countryOptions) {
+    return `<details class="period-secondary-controls"${filmFiltersOpen ? " open" : ""}><summary>${periodEscape(ui("Film filters"))}</summary><fieldset class="period-filter-controls"><legend>${periodEscape(ui("Film filters"))}</legend><label>${periodEscape(ui("Medium"))} <select data-period-film-filter="medium"><option value="all" ${mediumFilter === "all" ? "selected" : ""}>${periodEscape(ui("All"))}</option><option value="live-action" ${mediumFilter === "live-action" ? "selected" : ""}>${periodEscape(ui("Live action"))}</option><option value="animation" ${mediumFilter === "animation" ? "selected" : ""}>${periodEscape(ui("Animation"))}</option><option value="hybrid" ${mediumFilter === "hybrid" ? "selected" : ""}>${periodEscape(ui("Hybrid"))}</option></select></label><label>${periodEscape(ui("Screenplay"))} <select data-period-film-filter="screenplay"><option value="all" ${screenplayFilter === "all" ? "selected" : ""}>${periodEscape(ui("All"))}</option><option value="original" ${screenplayFilter === "original" ? "selected" : ""}>${periodEscape(ui("Original"))}</option><option value="adapted" ${screenplayFilter === "adapted" ? "selected" : ""}>${periodEscape(ui("Adapted"))}</option></select></label><label>${periodEscape(ui("Adapted from"))} <select data-period-film-filter="adaptationSource"><option value="all">${periodEscape(ui("All sources"))}</option>${sourceOptions}</select></label><label>${periodEscape(ui("Country"))} <select data-period-film-filter="country"><option value="all" ${countryFilter === "all" ? "selected" : ""}>${periodEscape(ui("All countries"))}</option>${countryOptions}</select></label><label>${periodEscape(ui("Exact rating"))} <select data-period-film-filter="exactRating"><option value="all" ${exactRatingFilter === "all" ? "selected" : ""}>${periodEscape(ui("All ratings"))}</option>${exactRatingOptions(exactRatingFilter)}</select></label><label>${periodEscape(ui("Minimum rating"))} <select data-period-film-filter="minimumRating"><option value="0">${periodEscape(ui("No minimum"))}</option>${ratingFilterOptions(minimumRatingFilter, "At least ")}</select></label><label>${periodEscape(ui("Maximum rating"))} <select data-period-film-filter="maximumRating"><option value="0">${periodEscape(ui("No maximum"))}</option>${ratingFilterOptions(maximumRatingFilter, "At most ")}</select></label>${filmRuntimeFilterInputsHtml()}</fieldset></details>`;
+  }
+
   function periodOrderControls() {
     if (viewMode === "awards" || viewMode === "official") return "";
     let axes =
@@ -1175,7 +1198,12 @@
   }
 
   function decadeMergeControls() {
-    if (!periodMergeConfig || !decadeMergeCategories().length) return "";
+    if (
+      (viewMode !== "films" && viewMode !== "awards") ||
+      !periodMergeConfig ||
+      !decadeMergeCategories().length
+    )
+      return "";
     return `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-decade-merge-open>${periodEscape(periodMergeLabel())}</button><span>${periodEscape(periodMergeOpenHint())}</span></div>`;
   }
 
@@ -1337,10 +1365,18 @@
         viewMode === "rewatch" ||
         viewMode === "other" ||
         viewMode === "shared") &&
-      periodOrder !== "rank"
+      (periodOrder !== "rank" || viewMode === "films")
     ) {
       films = [...films].sort((left, right) =>
-        periodCompareValues(left, right, periodOrder, periodDirection, false),
+        periodOrder === "rank"
+          ? comparePeriodRank(left, right)
+          : periodCompareValues(
+              left,
+              right,
+              periodOrder,
+              periodDirection,
+              false,
+            ),
       );
     }
     let officialNominations = officialResultsBySource.flatMap(
@@ -1490,6 +1526,7 @@
     let setupYearCtaHtml =
       type === "year" &&
       allFilms.length &&
+      (viewMode === "films" || viewMode === "awards") &&
       (!hasNominees || unresolvedYearTies.length)
         ? `<section class="detail-note setup-year-cta"><p>${periodEscape(ui("{year} isn't fully built yet.", { year: key }))}</p><a class="button-link" href="${periodEscape(window.yearRankingPageUrl(key))}">${periodEscape(ui("Rank {year}", { year: key }))}</a><a class="button-link" href="${periodEscape(window.yearAwardsPageUrl(key))}">${periodEscape(ui("Build {year} awards", { year: key }))}</a></section>`
         : "";
@@ -1504,9 +1541,10 @@
         : viewMode === "shared"
           ? `<span><b>${films.length}</b> ${periodEscape(ui("Unseen films"))}</span><span>${periodEscape(ui("Not watched or watchlisted"))}</span>`
           : `<span><b>${viewMode === "watchlist" ? watchlistEntries.length : films.length}</b> ${periodEscape(viewMode === "watchlist" ? "Watchlist" : viewMode === "rewatch" ? ui("Rewatchlist") : viewMode === "other" ? ui("Other watched") : ui("Films"))}</span>${viewMode === "other" ? "" : `<span><b>${awards.length}</b> ${periodEscape(ui("Nominations"))}</span>`}${viewMode === "awards" ? officialAgreementSummaryHtml : ""}${viewMode === "films" ? window.renderRatingStatisticsItems(periodRatingStatistics, { escape: periodEscape, ui }) : viewMode === "other" ? window.renderRatingStatisticsItems(otherRatingStatistics, { escape: periodEscape, ui }) : ""}`;
-    let ceremonyActionHtml = hasNominees
-      ? `<a class="button-link" href="presentation.html?scope=period&amp;id=${periodEscape(encodeURIComponent(`${type}:${key}`))}&amp;section=ceremony">${periodEscape(ui("Run ceremony"))}</a>`
-      : "";
+    let ceremonyActionHtml =
+      hasNominees && (viewMode === "awards" || viewMode === "official")
+        ? `<a class="button-link" href="presentation.html?scope=period&amp;id=${periodEscape(encodeURIComponent(`${type}:${key}`))}&amp;section=ceremony">${periodEscape(ui("Run ceremony"))}</a>`
+        : "";
     let collectionToolbarHtml = [
       "films",
       "other",
@@ -1521,13 +1559,11 @@
     ${setupYearCtaHtml}
     ${window.renderEntityNote("periods", `${type}:${key}`, ui("Period note"))}
     ${window.renderDetailStats({ itemsHtml: periodSummaryItemsHtml })}
-    ${viewMode === "official" || viewMode === "rewatch" || viewMode === "other" || viewMode === "shared" ? "" : renderPeriodHighlights()}
-    ${viewMode === "official" || viewMode === "rewatch" || viewMode === "other" || viewMode === "shared" ? "" : renderRatingHistogram()}
-    <fieldset class="period-view-controls"><legend>${periodEscape(ui("View"))}</legend><label><input type="radio" name="periodViewMode" value="awards" ${viewMode === "awards" ? "checked" : ""} ${hasNominees ? "" : "disabled"}> ${periodEscape(ui("Award bracket"))}</label><label><input type="radio" name="periodViewMode" value="films" ${viewMode === "films" ? "checked" : ""}> ${periodEscape(ui("Films"))}</label><label><input type="radio" name="periodViewMode" value="other" ${viewMode === "other" ? "checked" : ""}> ${periodEscape(ui("Other watched"))}</label><label><input type="radio" name="periodViewMode" value="rewatch" ${viewMode === "rewatch" ? "checked" : ""}> ${periodEscape(ui("Rewatchlist"))}</label><label><input type="radio" name="periodViewMode" value="watchlist" ${viewMode === "watchlist" ? "checked" : ""}> Watchlist</label>${canEdit ? `<label><input type="radio" name="periodViewMode" value="shared" ${viewMode === "shared" ? "checked" : ""}> ${periodEscape(ui("Unseen"))}</label>` : ""}${type === "year" ? `<label><input type="radio" name="periodViewMode" value="official" ${viewMode === "official" ? "checked" : ""} ${hasOfficialResults ? "" : "disabled"}> ${periodEscape(ui("Official results"))}</label>` : ""}</fieldset>
-    ${periodEditControls()}
-    ${decadeMergeControls()}
-    ${rankingEditControls()}
-    ${watchlistEditControls()}
+    ${viewMode === "films" || viewMode === "awards" ? renderPeriodHighlights() : ""}
+    ${viewMode === "films" ? renderRatingHistogram() : ""}
+    <fieldset class="period-view-controls"><legend>${periodEscape(ui("View"))}</legend><label><input type="radio" name="periodViewMode" value="films" ${viewMode === "films" ? "checked" : ""}> ${periodEscape(ui("Watched"))}</label><label><input type="radio" name="periodViewMode" value="watchlist" ${viewMode === "watchlist" ? "checked" : ""}> Watchlist</label>${canEdit ? `<label><input type="radio" name="periodViewMode" value="shared" ${viewMode === "shared" ? "checked" : ""}> ${periodEscape(ui("Unseen"))}</label>` : ""}<label><input type="radio" name="periodViewMode" value="rewatch" ${viewMode === "rewatch" ? "checked" : ""}> ${periodEscape(ui("Rewatchlist"))}</label><label><input type="radio" name="periodViewMode" value="other" ${viewMode === "other" ? "checked" : ""}> ${periodEscape(ui("Other watched"))}</label><label><input type="radio" name="periodViewMode" value="awards" ${viewMode === "awards" ? "checked" : ""} ${hasNominees ? "" : "disabled"}> ${periodEscape(ui("Award bracket"))}</label>${type === "year" ? `<label><input type="radio" name="periodViewMode" value="official" ${viewMode === "official" ? "checked" : ""} ${hasOfficialResults ? "" : "disabled"}> ${periodEscape(ui("Official results"))}</label>` : ""}</fieldset>
+    ${viewMode === "films" && (decadeMergeControls() || rankingEditControls()) ? `<details class="period-secondary-controls period-maintenance-controls"${rankingEditMode ? " open" : ""}><summary>${periodEscape(ui("Edit period"))}</summary><div>${decadeMergeControls()}${rankingEditControls()}</div></details>` : `${periodEditControls()}${decadeMergeControls()}${rankingEditControls()}`}
+    ${viewMode === "watchlist" && (state.watchlist || []).length && watchlistEditControls() ? `<details class="period-secondary-controls period-maintenance-controls"${tierEditMode || watchlistOrderEditMode ? " open" : ""}><summary>${periodEscape(ui("Edit watchlist"))}</summary><div>${watchlistEditControls()}</div></details>` : viewMode === "watchlist" ? "" : watchlistEditControls()}
     ${collectionToolbarHtml}
     ${
       viewMode === "official"
@@ -1558,10 +1594,10 @@
             : viewMode === "other"
               ? `${pagination}${pageTotal ? (layout === "grid" ? `<div class="film-grid period-film-grid">${otherCards}</div>` : renderOtherWatchedList(visibleFilmPage)) : `<p class="detail-empty">${periodEscape(ui("No other watched entries in this period."))}</p>`}${pagination}`
               : viewMode === "films"
-                ? `<fieldset class="period-filter-controls"><legend>${periodEscape(ui("Film filters"))}</legend><label>${periodEscape(ui("Medium"))} <select data-period-film-filter="medium"><option value="all" ${mediumFilter === "all" ? "selected" : ""}>${periodEscape(ui("All"))}</option><option value="live-action" ${mediumFilter === "live-action" ? "selected" : ""}>${periodEscape(ui("Live action"))}</option><option value="animation" ${mediumFilter === "animation" ? "selected" : ""}>${periodEscape(ui("Animation"))}</option><option value="hybrid" ${mediumFilter === "hybrid" ? "selected" : ""}>${periodEscape(ui("Hybrid"))}</option></select></label><label>${periodEscape(ui("Screenplay"))} <select data-period-film-filter="screenplay"><option value="all" ${screenplayFilter === "all" ? "selected" : ""}>${periodEscape(ui("All"))}</option><option value="original" ${screenplayFilter === "original" ? "selected" : ""}>${periodEscape(ui("Original"))}</option><option value="adapted" ${screenplayFilter === "adapted" ? "selected" : ""}>${periodEscape(ui("Adapted"))}</option></select></label><label>${periodEscape(ui("Adapted from"))} <select data-period-film-filter="adaptationSource"><option value="all">${periodEscape(ui("All sources"))}</option>${sourceOptions}</select></label><label>${periodEscape(ui("Country"))} <select data-period-film-filter="country"><option value="all" ${countryFilter === "all" ? "selected" : ""}>${periodEscape(ui("All countries"))}</option>${countryOptions}</select></label><label>${periodEscape(ui("Exact rating"))} <select data-period-film-filter="exactRating"><option value="all" ${exactRatingFilter === "all" ? "selected" : ""}>${periodEscape(ui("All ratings"))}</option>${exactRatingOptions(exactRatingFilter)}</select></label><label>${periodEscape(ui("Minimum rating"))} <select data-period-film-filter="minimumRating"><option value="0">${periodEscape(ui("No minimum"))}</option>${ratingFilterOptions(minimumRatingFilter, "At least ")}</select></label><label>${periodEscape(ui("Maximum rating"))} <select data-period-film-filter="maximumRating"><option value="0">${periodEscape(ui("No maximum"))}</option>${ratingFilterOptions(maximumRatingFilter, "At most ")}</select></label>${filmRuntimeFilterInputsHtml()}</fieldset>
+                ? `${renderFilmFilterControls(sourceOptions, countryOptions)}
       ${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid">${filmCards}</div>` : renderPeriodFilmList(visibleFilmPage)}${pagination}${unrankedPeriodSectionHtml()}`
                 : viewMode === "watchlist"
-                  ? `${window.renderAddWatchlistForm({ escape: periodEscape, ui })}${window.watchlistSubPeriodControls(watchlistFilters, { escape: periodEscape, ui })}${window.renderWatchlistTierFilter(watchlistFilters, { escape: periodEscape, ui })}${window.watchlistFilterControls(watchlistFilters, { filteredCount: watchlistEntries.length, projectSourceId: watchlistFilterProjectSourceId, bulkTierValue: bulkTierControl?.value(), queueVisible: watchlistQueueVisible, escape: periodEscape, ui })}${watchlistQueueVisible ? window.renderWatchlistQueue(watchlistEntries, { escape: periodEscape, ui }) : ""}${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid watchlist-grid">${watchlistCards || `<p>${periodEscape(ui("No watchlist films in this period."))}</p>`}</div>` : `<div class="leaderboard-wrap watchlist-list"><table class="leaderboard"><thead><tr><th>${periodEscape(ui("Interest"))}</th><th>${periodEscape(ui("Film"))}</th><th>${periodEscape(ui("Director"))}</th><th>${periodEscape(ui("Tier"))}</th></tr></thead><tbody>${visibleWatchlistPage.map((entry, visibleIndex) => window.renderWatchlistRow(entry, visibleIndex, { tierEditMode, watchlistOrderEditMode, escape: periodEscape })).join("") || `<tr><td colspan="4">${periodEscape(ui("No watchlist films in this period."))}</td></tr>`}</tbody></table></div>`}${pagination}`
+                  ? `${window.renderAddWatchlistForm({ escape: periodEscape, ui, open: !(state.watchlist || []).length })}${window.watchlistSubPeriodControls(watchlistFilters, { escape: periodEscape, ui })}${window.renderWatchlistTierFilter(watchlistFilters, { escape: periodEscape, ui })}${window.watchlistFilterControls(watchlistFilters, { filteredCount: watchlistEntries.length, projectSourceId: watchlistFilterProjectSourceId, bulkTierValue: bulkTierControl?.value(), queueVisible: watchlistQueueVisible, escape: periodEscape, ui })}${watchlistQueueVisible ? window.renderWatchlistQueue(watchlistEntries, { escape: periodEscape, ui }) : ""}${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid watchlist-grid">${watchlistCards || `<p>${periodEscape(ui("No watchlist films in this period."))}</p>`}</div>` : `<div class="leaderboard-wrap watchlist-list"><table class="leaderboard"><thead><tr><th>${periodEscape(ui("Interest"))}</th><th>${periodEscape(ui("Film"))}</th><th>${periodEscape(ui("Director"))}</th><th>${periodEscape(ui("Tier"))}</th></tr></thead><tbody>${visibleWatchlistPage.map((entry, visibleIndex) => window.renderWatchlistRow(entry, visibleIndex, { tierEditMode, watchlistOrderEditMode, escape: periodEscape })).join("") || `<tr><td colspan="4">${periodEscape(ui("No watchlist films in this period."))}</td></tr>`}</tbody></table></div>`}${pagination}`
                   : `<div class="period-award-view">${categorySections}</div>`
     }
     ${decadeMergeDialog()}`;
@@ -1656,6 +1692,7 @@
       "[data-period-film-min-runtime]",
     );
     if (filmMinRuntimeInput) {
+      filmFiltersOpen = true;
       minimumRuntimeFilter = window.parseFilmFilterValue(
         "minimumRuntime",
         Number(filmMinRuntimeInput.value) || 0,
@@ -1675,6 +1712,7 @@
       "[data-period-film-max-runtime]",
     );
     if (filmMaxRuntimeInput) {
+      filmFiltersOpen = true;
       maximumRuntimeFilter = window.parseFilmFilterValue(
         "maximumRuntime",
         Number(filmMaxRuntimeInput.value) || 0,
@@ -1735,6 +1773,7 @@
     }
     let filterInput = event.target.closest("[data-period-film-filter]");
     if (filterInput) {
+      filmFiltersOpen = true;
       if (filterInput.dataset.periodFilmFilter === "medium")
         mediumFilter = filterInput.value;
       else if (filterInput.dataset.periodFilmFilter === "screenplay")

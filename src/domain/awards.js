@@ -26,6 +26,61 @@ window.bracketPictureCapacity = function (periodType) {
   return window.bracketCapacities(periodType).picture;
 };
 
+/**
+ * Returns annual-ballot progress with one nomination removed, later placements
+ * shifted up, and its category reopened.
+ * @param {Object} progress Annual award-review progress.
+ * @param {string} category Category name.
+ * @param {string} filmId Film UUID.
+ * @param {number} placement Placement to remove.
+ * @returns {Object} Updated progress, or the original object when no nomination matched.
+ */
+window.withoutAnnualBallotNomination = function (
+  progress,
+  category,
+  filmId,
+  placement,
+) {
+  let numericPlacement = Number(placement);
+  let removed = false;
+  let categories = (progress?.categories || []).map((entry) => {
+    if (entry.category !== category) return entry;
+    let target = entry.nominations.find(
+      (nomination) =>
+        nomination.film_id === filmId &&
+        Number(nomination.placement) === numericPlacement,
+    );
+    if (!target) return entry;
+    removed = true;
+    return {
+      ...entry,
+      nominations: entry.nominations
+        .filter((nomination) => nomination !== target)
+        .map((nomination) =>
+          Number(nomination.placement) > numericPlacement
+            ? { ...nomination, placement: Number(nomination.placement) - 1 }
+            : nomination,
+        ),
+      review: null,
+      reviewed: false,
+    };
+  });
+  if (!removed) return progress;
+  return {
+    ...progress,
+    categories,
+    reviewed: categories.filter((entry) => entry.reviewed).length,
+    complete:
+      categories.length > 0 && categories.every((entry) => entry.reviewed),
+    nextCategory: categories.find((entry) => !entry.reviewed)?.category || "",
+    winners: categories
+      .map((entry) =>
+        entry.nominations.find((nomination) => Number(nomination.placement) === 1),
+      )
+      .filter(Boolean),
+  };
+};
+
 function normalizeMetadataValue(value) {
   return String(value || "")
     .normalize("NFKC")
