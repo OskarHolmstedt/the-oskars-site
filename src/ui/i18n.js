@@ -141,6 +141,10 @@
     "Letterboxd import saved to your account.": {
       sv: "Letterboxd-importen sparades i ditt konto.",
     },
+    "Saving to your account… this can take a while for a large import. Don't close this tab.":
+      {
+        sv: "Sparar till ditt konto… det kan ta ett tag för en stor import. Stäng inte den här fliken.",
+      },
     "Save the previewed Google Sheets changes to your account?": {
       sv: "Spara de förhandsgranskade Google Sheets-ändringarna i ditt konto?",
     },

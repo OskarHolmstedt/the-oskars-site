@@ -458,14 +458,23 @@
         let button = event.currentTarget;
         let status = document.getElementById("letterboxdImportStatus");
         button.disabled = true;
+        // Saving reconciles the whole archive against Supabase one changed
+        // film at a time (src/core/supabase-legacy-writes.js), so a large
+        // import can take a real while with no other visible progress -
+        // without this, "still working" and "did nothing" look identical.
+        status.textContent = ui(
+          "Saving to your account… this can take a while for a large import. Don't close this tab.",
+        );
         try {
           let result = await window.applyImportProposal(pendingLetterboxd);
           if (!result?.ok)
-            throw new Error(result?.reason || ui("Import failed."));
+            throw new Error(result?.errors?.join(" ") || ui("Import failed."));
           await refreshSource();
           status.textContent = ui("Letterboxd import saved to your account.");
         } catch (error) {
           status.textContent = error.message || String(error);
+        } finally {
+          button.disabled = false;
         }
       });
 
