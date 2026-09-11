@@ -1,17 +1,16 @@
 /**
- * @file Owns public-profile tab routing and immutable Community snapshot
- * fetch helpers (issue #253). A profile URL works as a per-tab override on
- * top of whatever the deployment's baked runtime mode is — a `local`-mode
- * deployment that normally supports its own editable archive becomes read-only for
- * the duration of an active profile view, exactly like a `viewer`-mode
- * deployment, via the enforcement points in persistence.js/entry-loader.js/
- * bootstrap.js that consult `resolveActiveProfileSlug()`/
- * `state.isPublicProfileView`. Direct profile views hydrate from Supabase in
- * public-profile-supabase.js; the static helpers here support pinned Community
- * comparisons and backward-compatible immutable revision retrieval.
+ * @file Owns public-profile tab routing (issue #253). A profile URL works
+ * as a per-tab override on top of whatever the deployment's baked runtime
+ * mode is — a `local`-mode deployment that normally supports its own
+ * editable archive becomes read-only for the duration of an active profile
+ * view, exactly like a `viewer`-mode deployment, via the enforcement points
+ * in persistence.js/entry-loader.js/bootstrap.js that consult
+ * `resolveActiveProfileSlug()`/`state.isPublicProfileView`. Direct profile
+ * views, and Community's live comparison/ceremony views, both hydrate/fetch
+ * from Supabase in public-profile-supabase.js (issue #483) — this file no
+ * longer owns any static-revision fetch path.
  */
 
-window.OSKARS_PROFILE_MANIFEST_SCHEMA_VERSION = 1;
 window.OSKARS_PROFILE_SLUG_QUERY_PARAM = "profile";
 window.OSKARS_PROFILE_ACTIVE_SLUG_KEY = "oskars-active-profile";
 
@@ -110,123 +109,4 @@ window.showPublicProfileStatus = function (message, status, actions = []) {
     button.addEventListener("click", action.run);
     banner.appendChild(button);
   });
-};
-
-function validateProfileManifestShape(manifest, slug) {
-  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest))
-    return "manifest is not a JSON object";
-  if (
-    manifest.profileManifestSchemaVersion !==
-    window.OSKARS_PROFILE_MANIFEST_SCHEMA_VERSION
-  )
-    return `manifest.profileManifestSchemaVersion must be ${window.OSKARS_PROFILE_MANIFEST_SCHEMA_VERSION}`;
-  if (typeof manifest.slug !== "string" || manifest.slug !== slug)
-    return "manifest.slug does not match the requested profile";
-  if (typeof manifest.activeRevision !== "string" || !manifest.activeRevision)
-    return "manifest.activeRevision is missing";
-  if (typeof manifest.ownerName !== "string" || !manifest.ownerName)
-    return "manifest.ownerName is missing";
-  return "";
-}
-
-/**
- * Fetches and validates a public profile's small active-revision manifest.
- * @param {string} slug Profile slug.
- * @returns {Promise<{ok: boolean, manifest?: Object, error?: string, detail?: string}>}
- */
-window.fetchPublicProfileManifest = async function (slug) {
-  let path = `./profiles/${encodeURIComponent(slug)}/manifest.json`;
-  let response;
-  try {
-    let doneFetch = window.startOskarsPerformance?.(
-      `profile:fetchManifest ${slug}`,
-    );
-    response = await fetch(path, { cache: "no-store" });
-    doneFetch?.();
-  } catch (err) {
-    return {
-      ok: false,
-      error: "unavailable",
-      detail: String(err?.message || err),
-    };
-  }
-  if (!response.ok)
-    return { ok: false, error: "not-found", detail: `HTTP ${response.status}` };
-  let manifest;
-  try {
-    manifest = await response.json();
-  } catch (err) {
-    return { ok: false, error: "invalid", detail: String(err?.message || err) };
-  }
-  let shapeError = validateProfileManifestShape(manifest, slug);
-  if (shapeError) return { ok: false, error: "invalid", detail: shapeError };
-  return { ok: true, manifest };
-};
-
-/**
- * Fetches one immutable public-profile revision document. Structural/schema
- * validation (`assertPublicData`) happens in `hydratePublicProfileState()`,
- * not here — this only reports fetch/parse failure.
- * @param {string} slug Profile slug.
- * @param {string} revisionId Revision id from the profile's manifest.
- * @returns {Promise<{ok: boolean, data?: Object, error?: string, detail?: string}>}
- */
-window.fetchPublicProfileRevision = async function (slug, revisionId) {
-  let path = `./profiles/${encodeURIComponent(slug)}/${encodeURIComponent(revisionId)}.json`;
-  let response;
-  try {
-    let doneFetch = window.startOskarsPerformance?.(
-      `profile:fetchRevision ${slug}`,
-    );
-    response = await fetch(path, { cache: "no-store" });
-    doneFetch?.();
-  } catch (err) {
-    return {
-      ok: false,
-      error: "unavailable",
-      detail: String(err?.message || err),
-    };
-  }
-  if (!response.ok)
-    return {
-      ok: false,
-      error: "unavailable",
-      detail: `HTTP ${response.status}`,
-    };
-  try {
-    return { ok: true, data: await response.json() };
-  } catch (err) {
-    return { ok: false, error: "invalid", detail: String(err?.message || err) };
-  }
-};
-
-/**
- * Loads a public profile end to end: fetches its manifest, fetches the
- * manifest's active revision, validates it, and hydrates it into browsable
- * state. Every failure path is a recoverable, reported error rather than a
- * thrown exception or a silently empty archive — readers either get one
- * complete valid revision or a clear reason they didn't (issue #253).
- * @param {string} slug Profile slug to load.
- * @returns {Promise<{ok: boolean, meta?: Object, error?: string, detail?: string}>}
- */
-window.loadPublicProfile = async function (slug) {
-  if (typeof fetch !== "function") return { ok: false, error: "offline" };
-  let manifestResult = await window.fetchPublicProfileManifest(slug);
-  if (!manifestResult.ok) return manifestResult;
-  let revisionResult = await window.fetchPublicProfileRevision(
-    slug,
-    manifestResult.manifest.activeRevision,
-  );
-  if (!revisionResult.ok) return revisionResult;
-  try {
-    window.hydratePublicProfileState(revisionResult.data, {
-      slug,
-      ownerName: manifestResult.manifest.ownerName,
-      revision: manifestResult.manifest.activeRevision,
-      publishedAt: manifestResult.manifest.publishedAt,
-    });
-  } catch (err) {
-    return { ok: false, error: "invalid", detail: String(err?.message || err) };
-  }
-  return { ok: true, meta: window.state.publicProfileMeta };
 };

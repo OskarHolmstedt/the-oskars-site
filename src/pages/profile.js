@@ -74,6 +74,26 @@
     </section>`;
   }
 
+  function publicProfilePublishHtml() {
+    let slug = profile?.public_slug || "";
+    let name = (profile?.display_name || "").trim();
+    return `<section id="publicProfilePublishPanel" class="data-panel">
+      <h2>Public access</h2>
+      <p>Make your archive available through its public link, or keep it private. This changes access immediately.</p>
+      <div class="data-actions">
+        <button id="publishProfileBtn" type="button" ${slug ? "hidden" : ""} ${name ? "" : "disabled"}>Make public</button>
+        <button id="unpublishProfileBtn" type="button" class="button-secondary" ${slug ? "" : "hidden"}>Remove public access</button>
+      </div>
+      <p id="profileStatus" class="data-panel-status" role="status">${
+        slug
+          ? `Public now. <a href="index.html?profile=${encodeURIComponent(slug)}">View public profile</a>`
+          : name
+            ? "Private now. Only you can open this profile."
+            : "Set a name above first — it becomes your public link."
+      }</p>
+    </section>`;
+  }
+
   function deleteProfileHtml(profileRecord) {
     return `<section id="profileDeletePanel" class="data-panel profile-danger-panel">
       <h2>Delete profile</h2>
@@ -100,9 +120,24 @@
       <div class="data-panel-stack">
         ${authSectionHtml(user)}
         ${publicProfileNameHtml(user)}
+        ${publicProfilePublishHtml()}
         ${deleteProfileHtml(profile)}
       </div>`;
     wireEvents(user);
+  }
+
+  async function setPublication(published) {
+    let slug = published
+      ? window.publicProfileSlugify?.(profile?.display_name)
+      : null;
+    if (published && !slug) throw new Error("Set a display name above first.");
+    let { client } = await window.ensureSupabaseClient();
+    let { error } = await client
+      .from("profiles")
+      .update({ public_slug: slug })
+      .eq("id", profile.id);
+    if (error) throw error;
+    profile = { ...profile, public_slug: slug };
   }
 
   function wireEvents(user) {
@@ -178,6 +213,26 @@
         } catch (error) {
           button.disabled = false;
           if (status) status.textContent = error.message || String(error);
+        }
+      });
+    document
+      .getElementById("publishProfileBtn")
+      ?.addEventListener("click", async () => {
+        try {
+          await setPublication(true);
+          render(user);
+        } catch (error) {
+          window.alert(error.message || String(error));
+        }
+      });
+    document
+      .getElementById("unpublishProfileBtn")
+      ?.addEventListener("click", async () => {
+        try {
+          await setPublication(false);
+          render(user);
+        } catch (error) {
+          window.alert(error.message || String(error));
         }
       });
   }

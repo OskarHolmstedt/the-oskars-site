@@ -1,11 +1,16 @@
 /**
  * @file Builds and hydrates a public-profile projection straight from
- * Supabase (issue #452's live reader), while `public-profile.js` retains
- * immutable static revisions for Community comparisons. Reuses the same
- * validated `buildPublicProjection()`/`hydratePublicProfileState()`
- * contract unchanged, so every existing page renders identically
- * regardless of which source produced the projection - only how the
- * `years`/`watchedFilms` input is assembled differs here.
+ * Supabase (issue #452's live reader). `fetchSupabasePublicProfileProjection()`
+ * is the shared, non-mutating core: direct `?profile=<slug>` viewing
+ * (`loadSupabasePublicProfile()`) hydrates its result into `window.state`,
+ * while Community's live comparison and joint-ceremony views (issue #483)
+ * call it once per selected profile and keep each result independent, since
+ * comparing archives must never let one profile's data stomp another's
+ * shared global state. Reuses the same validated
+ * `buildPublicProjection()`/`hydratePublicProfileState()` contract
+ * unchanged, so every existing page renders identically regardless of which
+ * source produced the projection - only how the `years`/`watchedFilms`
+ * input is assembled differs here.
  *
  * officialResults is not queried from Supabase at all: it is shared,
  * non-personal data every deployment already ships bundled
@@ -366,14 +371,17 @@
   };
 
   /**
-   * Loads one published profile straight from Supabase and hydrates it
-   * into browsable state. Immutable Community revisions use the separate
-   * static-JSON helpers in public-profile.js.
-   * Same result contract: `{ok:true, meta}` or `{ok:false, error, detail}`.
+   * Builds one published profile's validated public projection straight
+   * from Supabase, without touching `window.state` - the shared fetch/build
+   * core behind both `loadSupabasePublicProfile()` (direct `?profile=`
+   * viewing, which hydrates the result into browsable state) and Community's
+   * live comparison/ceremony views (issue #483's Supabase directory
+   * counterpart), which fetch several profiles at once and must not have
+   * one profile's hydration stomp another's.
    * @param {string} slug Profile slug to load.
-   * @returns {Promise<{ok: boolean, meta?: Object, error?: string, detail?: string}>}
+   * @returns {Promise<{ok: boolean, ownerName?: string, data?: Object, error?: string, detail?: string}>}
    */
-  window.loadSupabasePublicProfile = async function (slug) {
+  window.fetchSupabasePublicProfileProjection = async function (slug) {
     let ready;
     let source;
     try {
@@ -420,9 +428,35 @@
       {},
     );
     try {
-      window.hydratePublicProfileState(projection, {
+      window.assertPublicData(projection);
+    } catch (err) {
+      return {
+        ok: false,
+        error: "invalid",
+        detail: String(err?.message || err),
+      };
+    }
+    return {
+      ok: true,
+      ownerName: source.profile.display_name || slug,
+      data: projection,
+    };
+  };
+
+  /**
+   * Loads one published profile straight from Supabase and hydrates it
+   * into browsable state. Same result contract: `{ok:true, meta}` or
+   * `{ok:false, error, detail}`.
+   * @param {string} slug Profile slug to load.
+   * @returns {Promise<{ok: boolean, meta?: Object, error?: string, detail?: string}>}
+   */
+  window.loadSupabasePublicProfile = async function (slug) {
+    let result = await window.fetchSupabasePublicProfileProjection(slug);
+    if (!result.ok) return result;
+    try {
+      window.hydratePublicProfileState(result.data, {
         slug,
-        ownerName: source.profile.display_name || slug,
+        ownerName: result.ownerName,
         revision: "",
         publishedAt: "",
       });

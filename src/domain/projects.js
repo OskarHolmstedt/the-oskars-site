@@ -48,7 +48,10 @@ window.projectSourceHref = function (project) {
   if (project?.sourceType === "tag")
     return window.tagPageUrl(project.sourceLabel || project.sourceId);
   if (project?.sourceType === "watchlist-filter")
-    return project.sourceHref || `${window.periodPageUrl("alltime", "alltime")}&view=watchlist`;
+    return (
+      project.sourceHref ||
+      `${window.periodPageUrl("alltime", "alltime")}&view=watchlist`
+    );
   if (project?.sourceType === "watch-goal")
     return project.sourceHref || "completion.html#completion-watch-goals";
   if (project?.sourceType === "official-results")
@@ -207,7 +210,9 @@ window.projectSourceRecord = function (sourceType, sourceId) {
     return {
       name: filter.name || "Watchlist filter project",
       sourceLabel: filter.label || "Watchlist filter",
-      sourceHref: filter.href || `${window.periodPageUrl("alltime", "alltime")}&view=watchlist`,
+      sourceHref:
+        filter.href ||
+        `${window.periodPageUrl("alltime", "alltime")}&view=watchlist`,
       filmRefs,
     };
   }
@@ -253,9 +258,7 @@ window.startProjectFromSourceAndOpen = async function (sourceType, sourceId) {
   let source = window.projectSourceRecord(sourceType, sourceId);
   if (!source) return null;
   let filmIds = [
-    ...new Set(
-      (source.filmRefs || []).map(projectRefFilmId).filter(Boolean),
-    ),
+    ...new Set((source.filmRefs || []).map(projectRefFilmId).filter(Boolean)),
   ];
   if (!filmIds.length) {
     alert(ui("None of these films are in the catalog yet."));
@@ -284,11 +287,13 @@ window.startProjectFromSourceAndOpen = async function (sourceType, sourceId) {
 // viewer has neither - matching the same accepted-gap pattern an
 // unresolvable official-results nominee ref already has.
 function projectSourceIndexRef(filmId) {
-  if (state.filmsById?.[filmId]) return window.projectFilmRef("archive", filmId);
+  if (state.filmsById?.[filmId])
+    return window.projectFilmRef("archive", filmId);
   let watchlistItem = (state.watchlist || []).find(
     (entry) => entry.supabaseFilmId === filmId,
   );
-  if (watchlistItem) return window.projectFilmRef("watchlist", watchlistItem.id);
+  if (watchlistItem)
+    return window.projectFilmRef("watchlist", watchlistItem.id);
   return null;
 }
 
@@ -368,6 +373,13 @@ window.renderSourceProjectAction = function (
   let ui = window.uiText || ((text) => text);
   let project = window.projectForSource(sourceType, sourceId);
   if (!project) {
+    // A public-profile visitor or viewer-mode deployment never has a
+    // matching project (projects are private, never part of the public
+    // profile projection - src/core/public-profile-supabase.js) - every
+    // call always lands here, so without this check every source-backed
+    // page (Completion, Tags, Compare) showed a mutation control with no
+    // account behind it to save the click (found live on Completion).
+    if (!(window.oskarsCapabilities?.().canEdit ?? true)) return "";
     return `<button type="button" class="${escape(options.buttonClass || "")}" data-start-project-source="${escape(sourceType)}" data-project-source-id="${escape(sourceId)}">${escape(ui(options.startLabel || "Start project"))}</button>`;
   }
   let actionClasses = `source-project-action${options.compact ? " source-project-action--compact" : ""}`;
@@ -679,8 +691,7 @@ window.projectPosterDeckFilms = function (progress, limit = 5) {
   ]
     .filter((record) => {
       let key =
-        record.film?.id ||
-        `${record.ref?.type || ""}:${record.ref?.id || ""}`;
+        record.film?.id || `${record.ref?.type || ""}:${record.ref?.id || ""}`;
       if (!record.film || seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -841,34 +852,36 @@ window.completionHubData = function (options = {}) {
 
   let projects = [];
   let completeProjects = 0;
-  Object.values(window.OSKARS_PROJECT_SOURCE_INDEX_BY_ID || {}).forEach((project) => {
-    if (project.status === "archived") return;
-    let progress = window.projectProgress(project);
-    if (!progress.total) return;
-    if (!progress.watchlistCount) {
-      completeProjects += 1;
-      return;
-    }
-    let nextRecord = progress.next;
-    projects.push({
-      type: "project",
-      id: project.id,
-      name: project.name,
-      href: window.projectPageUrl?.(project.id) || "",
-      watchedCount: progress.watchedCount,
-      watchlistCount: progress.watchlistCount,
-      total: progress.total,
-      percent: progress.percent,
-      next: nextRecord
-        ? {
-            title: nextRecord.film?.title || nextRecord.item?.title || "",
-            year: nextRecord.film?.year || nextRecord.item?.year || "",
-            tier: nextRecord.item?.tier || "",
-            href: nextRecord.href || "",
-          }
-        : null,
-    });
-  });
+  Object.values(window.OSKARS_PROJECT_SOURCE_INDEX_BY_ID || {}).forEach(
+    (project) => {
+      if (project.status === "archived") return;
+      let progress = window.projectProgress(project);
+      if (!progress.total) return;
+      if (!progress.watchlistCount) {
+        completeProjects += 1;
+        return;
+      }
+      let nextRecord = progress.next;
+      projects.push({
+        type: "project",
+        id: project.id,
+        name: project.name,
+        href: window.projectPageUrl?.(project.id) || "",
+        watchedCount: progress.watchedCount,
+        watchlistCount: progress.watchlistCount,
+        total: progress.total,
+        percent: progress.percent,
+        next: nextRecord
+          ? {
+              title: nextRecord.film?.title || nextRecord.item?.title || "",
+              year: nextRecord.film?.year || nextRecord.item?.year || "",
+              tier: nextRecord.item?.tier || "",
+              href: nextRecord.href || "",
+            }
+          : null,
+      });
+    },
+  );
 
   return {
     directors: directors.sort(completionRankOrder),

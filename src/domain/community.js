@@ -1,9 +1,91 @@
 /**
- * @file Defines the public Community directory contract and the pure,
+ * @file Loads the live public Community directory and defines its snapshot contract and
  * read-only aggregation used by multi-profile comparisons and joint ceremonies.
  */
 
 window.OSKARS_COMMUNITY_INDEX_SCHEMA_VERSION = 1;
+
+/**
+ * Lists published profiles with live public counts and a small poster preview without hydrating an archive.
+ * @returns {Promise<{profiles: Object[]}>} Published directory cards.
+ */
+window.fetchSupabaseCommunityDirectory = async function () {
+  let ready = await window.ensureSupabasePublicClient?.();
+  if (!ready) throw new Error("The public profile service is unavailable.");
+  let client = ready.client;
+  async function pages(build) {
+    let rows = [];
+    while (true) {
+      let result = await build(rows.length, rows.length + 999);
+      if (result.error) throw result.error;
+      let page = result.data || [];
+      rows.push(...page);
+      if (page.length < 1000) return rows;
+    }
+  }
+  let published = await pages((from, to) =>
+    client
+      .from("profiles")
+      .select("public_slug, display_name")
+      .not("public_slug", "is", null)
+      .order("public_slug")
+      .range(from, to),
+  );
+  let profiles = [];
+  for (let offset = 0; offset < published.length; offset += 4) {
+    let batch = await Promise.all(
+      published.slice(offset, offset + 4).map(async (profile) => {
+        let slug = profile.public_slug;
+        let [films, rated, winners, posters] = await Promise.all([
+          client
+            .from("public_watched_films")
+            .select("film_id", { count: "exact", head: true })
+            .eq("public_slug", slug),
+          client
+            .from("public_watched_films")
+            .select("film_id", { count: "exact", head: true })
+            .eq("public_slug", slug)
+            .gte("rating", 0.5)
+            .lte("rating", 5),
+          pages((from, to) =>
+            client
+              .from("public_personal_awards")
+              .select("nomination_id")
+              .eq("public_slug", slug)
+              .eq("placement", 1)
+              .order("nomination_id")
+              .range(from, to),
+          ),
+          client
+            .from("public_watched_films")
+            .select("poster_url")
+            .eq("public_slug", slug)
+            .not("poster_url", "is", null)
+            .order("rating", { ascending: false, nullsFirst: false })
+            .order("film_id")
+            .range(0, 3),
+        ]);
+        for (let result of [films, rated, posters]) {
+          if (result.error) throw result.error;
+        }
+        if (films.count == null || rated.count == null)
+          throw new Error("Public profile counts are unavailable.");
+        return {
+          slug,
+          ownerName: profile.display_name || slug,
+          summary: {
+            filmCount: films.count,
+            ratedCount: rated.count,
+            winnerCount: new Set(winners.map((row) => row.nomination_id)).size,
+          },
+          posters: (posters.data || []).map((row) => row.poster_url),
+        };
+      }),
+    );
+    profiles.push(...batch);
+  }
+  return { profiles };
+};
 
 function communityText(value) {
   return String(value || "").trim();
@@ -94,8 +176,7 @@ window.validateCommunityIndex = function (source) {
     errors.push(
       `communityIndexSchemaVersion must be ${window.OSKARS_COMMUNITY_INDEX_SCHEMA_VERSION}`,
     );
-  if (!Array.isArray(source.profiles))
-    errors.push("profiles must be an array");
+  if (!Array.isArray(source.profiles)) errors.push("profiles must be an array");
   let slugs = new Set();
   (source.profiles || []).forEach((profile, index) => {
     let path = `profiles[${index}]`;
@@ -151,37 +232,16 @@ window.buildCommunityProfileSummary = function (publicData) {
     ratedCount: films.filter(communityRatingValue).length,
     nominationCount: nominations,
     winnerCount: winners,
-    yearCount: new Set(films.map((film) => communityText(film.year)).filter(Boolean))
-      .size,
+    yearCount: new Set(
+      films.map((film) => communityText(film.year)).filter(Boolean),
+    ).size,
     posters,
   };
 };
 
 /**
- * Parses a shareable pinned profile token (`slug@revision`).
- * @param {string} token Token.
- * @returns {{slug: string, revision: string}|null} Parsed token.
- */
-window.parseCommunityProfileToken = function (token) {
-  let separator = communityText(token).indexOf("@");
-  if (separator < 1) return null;
-  let slug = communityText(token).slice(0, separator);
-  let revision = communityText(token).slice(separator + 1);
-  return slug && revision ? { slug, revision } : null;
-};
-
-/**
- * Builds a stable token for a selected directory entry.
- * @param {Object} profile Directory profile.
- * @returns {string} Pinned token.
- */
-window.communityProfileToken = function (profile) {
-  return `${communityText(profile?.slug)}@${communityText(profile?.activeRevision)}`;
-};
-
-/**
- * Compares selected immutable public-profile revisions.
- * @param {Array<{slug: string, ownerName: string, revision: string, data: Object}>} profiles Selected profiles.
+ * Compares selected live public-profile projections.
+ * @param {Array<{slug: string, ownerName: string, data: Object}>} profiles Selected profiles.
  * @returns {Object} Comparison model.
  */
 window.buildCommunityComparison = function (profiles) {
@@ -207,7 +267,8 @@ window.buildCommunityComparison = function (profiles) {
       }))
       .filter((entry) => entry.value);
     let values = ratings.map((entry) => entry.value);
-    let spread = values.length >= 2 ? Math.max(...values) - Math.min(...values) : null;
+    let spread =
+      values.length >= 2 ? Math.max(...values) - Math.min(...values) : null;
     let film = entries[0].film;
     rows.push({
       key,
@@ -224,9 +285,8 @@ window.buildCommunityComparison = function (profiles) {
   return {
     profiles: prepared,
     unionFilmCount: everyKey.size,
-    sharedByAllCount: rows.filter(
-      (row) => row.archiveCount === prepared.length,
-    ).length,
+    sharedByAllCount: rows.filter((row) => row.archiveCount === prepared.length)
+      .length,
     overlapRows: rows.sort(
       (left, right) =>
         right.archiveCount - left.archiveCount ||
@@ -271,7 +331,7 @@ function communityAnnualBallots(profile) {
 /**
  * Builds equal-weight consensus results for the newest annual ceremony in
  * which at least two selected profiles published ballots.
- * @param {Array<{slug: string, ownerName: string, revision: string, data: Object}>} profiles Selected profiles.
+ * @param {Array<{slug: string, ownerName: string, data: Object}>} profiles Selected profiles.
  * @returns {{year: string, categories: Object[], participatingProfiles: number, reason?: string}} Ceremony model.
  */
 window.buildCommunityCeremony = function (profiles) {
@@ -287,7 +347,9 @@ window.buildCommunityCeremony = function (profiles) {
     .filter(
       (year) =>
         prepared.filter((profile) =>
-          [...profile.ballots.keys()].some((key) => key.startsWith(`${year}\n`)),
+          [...profile.ballots.keys()].some((key) =>
+            key.startsWith(`${year}\n`),
+          ),
         ).length >= 2,
     )
     .sort((left, right) => Number(right) - Number(left));
@@ -297,7 +359,8 @@ window.buildCommunityCeremony = function (profiles) {
       year: "",
       categories: [],
       participatingProfiles: 0,
-      reason: "No annual ceremony has published ballots from at least two selected archives.",
+      reason:
+        "No annual ceremony has published ballots from at least two selected archives.",
     };
   let categoryNames = new Set();
   prepared.forEach((profile) =>
@@ -351,7 +414,9 @@ window.buildCommunityCeremony = function (profiles) {
       return { category, participatingProfiles: participating.length, ranking };
     })
     .filter(Boolean)
-    .sort((left, right) => communityTitleCompare(left.category, right.category));
+    .sort((left, right) =>
+      communityTitleCompare(left.category, right.category),
+    );
   return {
     year,
     categories,

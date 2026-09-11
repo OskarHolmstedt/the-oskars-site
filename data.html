@@ -15,8 +15,8 @@
           <h1>Data</h1>
           <p>
             Import, back up, restore, and inspect the archive saved to your
-            account. Files stay in this browser; only reviewed changes are
-            saved to your account.
+            account. Files stay in this browser; only reviewed changes are saved
+            to your account.
           </p>
         </div>
       </div>
@@ -135,39 +135,21 @@ The ZIP never leaves this browser.</pre>
           </section>
         </section>
 
-        <section class="data-tool-group" aria-labelledby="dataSharingHeading">
+        <section
+          class="data-tool-group"
+          id="dataSharingGroup"
+          aria-labelledby="dataSharingHeading"
+        >
           <div class="data-tool-group-heading">
-            <span class="eyebrow">Choose what becomes public</span>
+            <span class="eyebrow">Owner deployment tooling</span>
             <h2 id="dataSharingHeading">Sharing</h2>
-            <p>Live access and fixed Community snapshots are separate.</p>
+            <p>
+              Prepare a fixed archive snapshot for Community comparisons.
+              Public/private access itself is managed on the
+              <a href="profile.html">Profile page</a>.
+            </p>
           </div>
           <div class="data-panel-grid">
-            <section
-              class="data-panel"
-              id="supabasePublicProfilePublicationView"
-            >
-              <h3>Public profile</h3>
-              <p>
-                Make your current profile available through its public link.
-                This changes public access immediately. Manage the displayed
-                name on the <a href="profile.html">Profile page</a>.
-              </p>
-              <div class="data-actions">
-                <button id="publishProfileBtn" type="button" hidden>
-                  Make public
-                </button>
-                <button
-                  id="unpublishProfileBtn"
-                  type="button"
-                  class="button-secondary"
-                  hidden
-                >
-                  Remove public access
-                </button>
-              </div>
-              <p id="profileStatus" class="data-panel-status" role="status"></p>
-            </section>
-
             <section
               class="data-panel"
               id="publicProfilePublicationView"

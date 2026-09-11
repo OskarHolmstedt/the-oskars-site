@@ -368,33 +368,6 @@
       .join("\n\n");
   }
 
-  async function setPublication(published) {
-    let current = await window.loadSupabaseProfile();
-    let slug = published
-      ? window.publicProfileSlugify(current?.display_name)
-      : null;
-    if (published && !slug)
-      throw new Error(ui("Set a display name on the Profile page first."));
-    let { client } = await readyClient();
-    let { error } = await client
-      .from("profiles")
-      .update({ public_slug: slug })
-      .eq("id", current.id);
-    if (error) throw error;
-    renderPublicationState({ ...current, public_slug: slug });
-  }
-
-  function renderPublicationState(profile) {
-    let slug = profile?.public_slug || "";
-    let publishButton = document.getElementById("publishProfileBtn");
-    let unpublishButton = document.getElementById("unpublishProfileBtn");
-    publishButton.hidden = Boolean(slug);
-    unpublishButton.hidden = !slug;
-    document.getElementById("profileStatus").innerHTML = slug
-      ? `${escape(ui("Public now."))} <a href="index.html?profile=${encodeURIComponent(slug)}">${escape(ui("View public profile"))}</a>`
-      : escape(ui("Private now. Only you can open this profile."));
-  }
-
   async function initialize() {
     await window.ensureOskarsData();
     renderHealth();
@@ -567,19 +540,8 @@
       });
     }
 
-    let profile = await window.loadSupabaseProfile();
-    renderPublicationState(profile);
-    document
-      .getElementById("publishProfileBtn")
-      .addEventListener("click", () =>
-        setPublication(true).catch((error) => window.alert(error.message)),
-      );
-    document
-      .getElementById("unpublishProfileBtn")
-      .addEventListener("click", () =>
-        setPublication(false).catch((error) => window.alert(error.message)),
-      );
-
+    document.getElementById("dataSharingGroup").hidden =
+      !window.oskarsCapabilities?.().canPublish;
     let communitySnapshotView = document.getElementById(
       "publicProfilePublicationView",
     );
