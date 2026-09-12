@@ -43,6 +43,11 @@
   let progress = null; // supabaseAnnualAwardReviewProgress(year) result
   let watchedByFilmId = new Map();
   let candidateCreditIndex = new Map();
+  let tmdbCreditCache = new Map(); // "filmId\ncategory" -> {role, people}|null
+  let tmdbCreditFetching = new Set();
+  let tmdbCastCache = new Map(); // filmId -> cast[]
+  let tmdbCastFetching = new Set();
+  let castExpanded = false; // whether the open form's cast list shows more than the first page
 
   // ---- Bracket state (session-only) ----
   let expandedCategory;
@@ -79,14 +84,137 @@
     );
   }
 
-  function creditFieldsHtml(category, recipient, detail, suggestions = []) {
+  function tmdbCreditCacheKey(filmId, category) {
+    return `${filmId}\n${category}`;
+  }
+
+  // Merges the shared-catalog/personal-nomination suggestions above with a
+  // point-of-nomination TMDB crew lookup (issue: "not have to write in the
+  // cinematographer manually for a film that no one else has nominated
+  // them for") - only consulted once no known local credit already
+  // answers the question, and only ever for a film/category pair whose
+  // form is actually open (ensureTmdbCreditFetched below), never
+  // prefetched for every pool candidate.
+  function combinedCreditSuggestions(filmId, category) {
+    let known = candidateCreditOptions(filmId, category);
+    if (known.length) return known;
+    let cached = tmdbCreditCache.get(tmdbCreditCacheKey(filmId, category));
+    if (!cached?.people?.length) return [];
+    return [
+      {
+        recipient: cached.people.map((person) => person.name).join(", "),
+        detail: "",
+        source: "tmdb-crew",
+      },
+    ];
+  }
+
+  // Fire-and-forget: fetches this one film's TMDB crew for this category
+  // if (and only if) nothing local already answers it, caching either the
+  // result or the fact that TMDB had nothing either - re-renders once
+  // resolved so an open nomination form picks up the suggestion.
+  async function ensureTmdbCreditFetched(film, category) {
+    if (!film?.id || !window.awardCategoryCreditJob?.(category)) return;
+    let key = tmdbCreditCacheKey(film.id, category);
+    if (tmdbCreditCache.has(key) || tmdbCreditFetching.has(key)) return;
+    if (candidateCreditOptions(film.id, category).length) return;
+    tmdbCreditFetching.add(key);
+    let result = await window.fetchTmdbCategoryCredit?.(film, category);
+    tmdbCreditFetching.delete(key);
+    tmdbCreditCache.set(key, result || null);
+    if (result) render();
+  }
+
+  // After a nomination is saved, persists any TMDB-fetched crew whose name
+  // the confirmed recipient text actually includes (a user who overrides
+  // the suggestion with a different name shouldn't have the TMDB name
+  // written to the shared catalog anyway) - so the next person to
+  // nominate this film for this category never needs a TMDB round trip.
+  function persistMatchedTmdbCredit(filmId, category, recipient) {
+    let cached = tmdbCreditCache.get(tmdbCreditCacheKey(filmId, category));
+    if (!cached?.people?.length) return;
+    let recipientNames = new Set(
+      (window.splitRecipientNames?.(recipient) || []).map((name) =>
+        name.trim().toLowerCase(),
+      ),
+    );
+    if (!recipientNames.size) return;
+    let matched = cached.people.filter((person) =>
+      recipientNames.has(person.name.trim().toLowerCase()),
+    );
+    if (!matched.length) return;
+    window
+      .persistSupabaseFilmCredits?.(filmId, cached.role, matched)
+      .catch(() => {});
+  }
+
+  function isActingCategory(category) {
+    return (
+      window.creditSubjectType?.(
+        category,
+        window.PERSON_AWARD_PROFESSIONS?.[category],
+      ) === "role"
+    );
+  }
+
+  // Fire-and-forget: fetches this film's full TMDB cast once an acting
+  // category's nomination form is open - the acting equivalent of
+  // ensureTmdbCreditFetched, but there's no single "known credit" to
+  // check first (a billing-sorted list to pick from, not an auto-fill,
+  // per the user's own framing: "whole cast is problematic" for a single
+  // suggestion, "but it would be nice to see a list of cast").
+  async function ensureTmdbCastFetched(film, category) {
+    if (!film?.id || !isActingCategory(category)) return;
+    if (tmdbCastCache.has(film.id) || tmdbCastFetching.has(film.id)) return;
+    tmdbCastFetching.add(film.id);
+    let cast = await window.fetchTmdbFilmCast?.(film);
+    tmdbCastFetching.delete(film.id);
+    tmdbCastCache.set(film.id, cast || []);
+    if (cast?.length) render();
+  }
+
+  let CAST_PAGE_SIZE = 8;
+
+  // Renders a billing-sorted, expandable cast list for the open acting-
+  // category form - reuses the same data-setup-award-credit-suggestion
+  // click handler the crew/personal-nomination suggestion buttons above
+  // already use (fills recipient + Role from the clicked entry), so no
+  // new click wiring is needed for picking a cast member.
+  function castListHtml(filmId, category) {
+    if (!isActingCategory(category)) return "";
+    let cast = tmdbCastCache.get(filmId);
+    if (!cast?.length) return "";
+    let visibleCount = castExpanded ? cast.length : Math.min(CAST_PAGE_SIZE, cast.length);
+    let remaining = cast.length - visibleCount;
+    let items = cast
+      .slice(0, visibleCount)
+      .map(
+        (person) =>
+          `<button type="button" class="setup-year-cast-member" data-setup-award-credit-suggestion data-recipient="${escape(person.name)}" data-detail="${escape(person.character || "")}">${person.profilePath ? `<img src="https://image.tmdb.org/t/p/w185${escape(person.profilePath)}" alt="">` : `<span aria-hidden="true">${escape(person.name.charAt(0))}</span>`}<span><b>${escape(person.name)}</b>${person.character ? `<small>as ${escape(person.character)}</small>` : ""}</span></button>`,
+      )
+      .join("");
+    let showMore =
+      remaining > 0
+        ? `<button type="button" class="sort-order-button" data-setup-award-cast-more>Show ${escape(remaining)} more</button>`
+        : "";
+    return `<div class="setup-year-cast-list"><span>Cast, by billing</span><div class="setup-year-cast-grid">${items}</div>${showMore}</div>`;
+  }
+
+  function creditFieldsHtml(category, recipient, detail, suggestions = [], filmId) {
     let detailField =
       window.creditDetailFieldHtml?.(category, detail, { escape }) || "";
+    // A single suggestion (the common case: one director, one composer,
+    // one cinematographer) prefills the field directly rather than
+    // requiring a click - matches renderPendingNomineeForm's existing
+    // single-suggestion prefill, now also honored here for the edit form.
+    if (!recipient && suggestions.length === 1) recipient = suggestions[0].recipient;
+    let fromTmdb = suggestions.some((suggestion) => suggestion.source === "tmdb-crew");
     let suggestionsHtml =
       suggestions.length > 1
-        ? `<div class="setup-year-credit-suggestions"><span>Known credits</span><div>${suggestions.map((suggestion) => `<button type="button" data-setup-award-credit-suggestion data-recipient="${escape(suggestion.recipient)}" data-detail="${escape(suggestion.detail || "")}"><b>${escape(suggestion.recipient)}</b>${suggestion.detail ? `<small>${escape(suggestion.detail)}</small>` : ""}</button>`).join("")}</div></div>`
+        ? `<div class="setup-year-credit-suggestions"><span>${fromTmdb ? "From TMDB" : "Known credits"}</span><div>${suggestions.map((suggestion) => `<button type="button" data-setup-award-credit-suggestion data-recipient="${escape(suggestion.recipient)}" data-detail="${escape(suggestion.detail || "")}"><b>${escape(suggestion.recipient)}</b>${suggestion.detail ? `<small>${escape(suggestion.detail)}</small>` : ""}</button>`).join("")}</div></div>`
         : "";
-    return `${suggestionsHtml}<label>Recipient(s)<input name="recipient" value="${escape(recipient || "")}"></label>${detailField}`;
+    let castHtml = filmId ? castListHtml(filmId, category) : "";
+    return `${suggestionsHtml}${castHtml}<label>Recipient(s)<input name="recipient" value="${escape(recipient || "")}"></label>${detailField}`;
   }
 
   function nominationRecipientText(nomination) {
@@ -126,14 +254,18 @@
     let removeButton = `<button type="button" class="card-remove-button" aria-label="Remove ${escape(film.title || "film")}" title="Remove" data-setup-award-remove data-setup-award-category="${escape(category)}" data-setup-award-film-id="${escape(film.id)}" data-setup-award-placement="${escape(nomination.placement)}">×</button>`;
     let isEditing = editingNominee?.nominationId === nomination.id;
     if (isEditing) {
+      let editSuggestions = combinedCreditSuggestions(
+        nomination.film_id,
+        category,
+      );
       return `<article class="setup-year-nominee is-editing" data-setup-award-target="${escape(nomination.placement)}">
         ${poster}
         ${rankBadge}
         ${removeButton}
         <div class="setup-year-nominee-copy">
           ${filmTitle}
-          <form class="setup-year-credit-form" data-setup-award-credit-form data-setup-award-mode="edit" data-setup-award-nomination-id="${escape(nomination.id)}">
-            ${creditFieldsHtml(category, nominationRecipientText(nomination), nomination.detail || "")}
+          <form class="setup-year-credit-form" data-setup-award-credit-form data-setup-award-mode="edit" data-setup-award-nomination-id="${escape(nomination.id)}" data-setup-award-category="${escape(category)}" data-setup-award-film-id="${escape(nomination.film_id)}">
+            ${creditFieldsHtml(category, nominationRecipientText(nomination), nomination.detail || "", editSuggestions, nomination.film_id)}
             <button type="submit">Save</button>
             <button type="button" data-setup-award-credit-cancel>Cancel</button>
           </form>
@@ -144,7 +276,7 @@
     let creditControl =
       category === "Best Picture"
         ? ""
-        : `<button type="button" class="setup-year-credit-edit" data-setup-award-credit-edit data-setup-award-nomination-id="${escape(nomination.id)}">${credit || "Add credit"}</button>`;
+        : `<button type="button" class="setup-year-credit-edit" data-setup-award-credit-edit data-setup-award-nomination-id="${escape(nomination.id)}" data-setup-award-category="${escape(category)}" data-setup-award-film-id="${escape(nomination.film_id)}">${credit || "Add credit"}</button>`;
     return `<article class="setup-year-nominee" draggable="true" data-setup-award-film="${escape(nomination.film_id)}" data-setup-award-target="${escape(nomination.placement)}">
       ${poster}
       ${rankBadge}
@@ -239,11 +371,11 @@
   function renderPendingNomineeForm(films) {
     let { category, filmId, placement } = pendingNominee;
     let film = films.find((candidate) => candidate.id === filmId);
-    let suggestions = candidateCreditOptions(filmId, category);
+    let suggestions = combinedCreditSuggestions(filmId, category);
     let defaultCredit = suggestions.length === 1 ? suggestions[0] : null;
     return `<form class="setup-year-credit-form" data-setup-award-credit-form data-setup-award-mode="add" data-setup-award-category="${escape(category)}" data-setup-award-film-id="${escape(filmId)}" data-setup-award-placement="${escape(placement)}">
       <p>Nominate ${escape(film?.title || filmId)} for ${escape(window.localizedCategoryName?.(category) || category)}</p>
-      ${creditFieldsHtml(category, defaultCredit?.recipient || "", defaultCredit?.detail || "", suggestions)}
+      ${creditFieldsHtml(category, defaultCredit?.recipient || "", defaultCredit?.detail || "", suggestions, filmId)}
       <button type="submit">Add</button>
       <button type="button" data-setup-award-credit-cancel>Cancel</button>
     </form>`;
@@ -256,7 +388,11 @@
     }
     pendingNominee = { category, filmId, placement };
     editingNominee = null;
+    castExpanded = false;
     render();
+    let film = yearWatchedFilms().find((candidate) => candidate.id === filmId);
+    ensureTmdbCreditFetched(film, category);
+    ensureTmdbCastFetched(film, category);
   }
 
   async function refreshProgress() {
@@ -280,6 +416,7 @@
       );
       await window.reopenSupabaseAwardReview(year, category);
       pendingNominee = null;
+      if (recipient) persistMatchedTmdbCredit(filmId, category, recipient);
       await refreshProgress();
       render();
     } catch (error) {
@@ -287,7 +424,7 @@
     }
   }
 
-  async function saveNomineeCredit(nominationId, recipient, detail) {
+  async function saveNomineeCredit(nominationId, category, filmId, recipient, detail) {
     try {
       let recipients = recipient
         ? window.splitRecipientNames?.(recipient) || [recipient]
@@ -296,6 +433,7 @@
       if (detail !== undefined)
         await window.updateSupabaseNominationDetail(nominationId, detail);
       editingNominee = null;
+      if (recipient) persistMatchedTmdbCredit(filmId, category, recipient);
       await refreshProgress();
       render();
     } catch (error) {
@@ -482,13 +620,27 @@
         nominationId: creditEditTarget.dataset.setupAwardNominationId,
       };
       pendingNominee = null;
+      castExpanded = false;
       render();
+      let category = creditEditTarget.dataset.setupAwardCategory;
+      let film = yearWatchedFilms().find(
+        (candidate) => candidate.id === creditEditTarget.dataset.setupAwardFilmId,
+      );
+      ensureTmdbCreditFetched(film, category);
+      ensureTmdbCastFetched(film, category);
       return;
     }
 
     if (event.target.closest("[data-setup-award-credit-cancel]")) {
       pendingNominee = null;
       editingNominee = null;
+      castExpanded = false;
+      render();
+      return;
+    }
+
+    if (event.target.closest("[data-setup-award-cast-more]")) {
+      castExpanded = true;
       render();
       return;
     }
@@ -527,7 +679,13 @@
     let detailInput = form.querySelector('[name="detail"]');
     let detail = detailInput ? detailInput.value : undefined;
     if (form.dataset.setupAwardMode === "edit") {
-      saveNomineeCredit(form.dataset.setupAwardNominationId, recipient, detail);
+      saveNomineeCredit(
+        form.dataset.setupAwardNominationId,
+        form.dataset.setupAwardCategory,
+        form.dataset.setupAwardFilmId,
+        recipient,
+        detail,
+      );
     } else {
       addNominee(
         form.dataset.setupAwardCategory,

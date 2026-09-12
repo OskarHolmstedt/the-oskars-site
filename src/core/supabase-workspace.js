@@ -722,9 +722,10 @@ window.loadSupabasePersonalNominations = async function (
 };
 
 /**
- * Loads shared director credits and the owner's prior nomination credits for
- * a bounded set of ballot-candidate films. Two batched PostgREST requests,
- * never one request per film/card.
+ * Loads shared crew credits (every role backing a category in
+ * window.AWARD_CATEGORY_CREDIT_JOBS, not just director) and the owner's
+ * prior nomination credits for a bounded set of ballot-candidate films.
+ * Two batched PostgREST requests, never one request per film/card.
  * @param {string[]} filmIds Film UUIDs.
  * @returns {Promise<{credits: Object[], nominations: Object[]}>}
  */
@@ -735,12 +736,20 @@ window.loadSupabaseAwardCandidateCredits = async function (filmIds) {
   if (!ready) throw new Error("Supabase not configured.");
   let authState = await window.resolveSupabaseAuthState();
   if (authState.status !== "signed-in") return { credits: [], nominations: [] };
+  let roles = [
+    ...new Set(
+      Object.values(window.AWARD_CATEGORY_CREDIT_JOBS || {}).map(
+        (mapping) => mapping.role,
+      ),
+    ),
+  ];
+  if (!roles.length) roles = ["director"];
   let [creditsResult, nominationsResult] = await Promise.all([
     ready.client
       .from("credits")
       .select("film_id, role, billing_order, people(name)")
       .in("film_id", ids)
-      .eq("role", "director")
+      .in("role", roles)
       .order("billing_order"),
     ready.client
       .from("personal_nominations")
@@ -755,6 +764,50 @@ window.loadSupabaseAwardCandidateCredits = async function (filmIds) {
     credits: creditsResult.data || [],
     nominations: nominationsResult.data || [],
   };
+};
+
+/**
+ * Persists TMDB-sourced crew for one film/role into the shared credits
+ * catalog, mirroring the Google Sheets importer's own
+ * find-or-create-person-then-insert-credit pattern
+ * (src/data/google-sheets-supabase-import.js) so a nomination confirmed
+ * with a TMDB-suggested recipient benefits every future viewer, not just
+ * this session. `credits` has no update grant for `authenticated` (a
+ * shared, append-only catalog fact) - a plain insert tolerating the
+ * primary key's unique violation is "create if missing", the same
+ * intentional shape the importer already uses.
+ * @param {string} filmId Film UUID.
+ * @param {string} role credits.role value (see window.AWARD_CATEGORY_CREDIT_JOBS).
+ * @param {{tmdbId: number, name: string, profilePath?: string|null}[]} people TMDB crew to persist.
+ * @returns {Promise<void>}
+ */
+window.persistSupabaseFilmCredits = async function (filmId, role, people) {
+  if (!filmId || !role || !people?.length) return;
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) return;
+  let authState = await window.resolveSupabaseAuthState();
+  if (authState.status !== "signed-in") return;
+  for (let [index, person] of people.entries()) {
+    if (!person?.tmdbId || !person?.name) continue;
+    let { data: personId, error: personError } = await ready.client.rpc(
+      "find_or_create_person",
+      {
+        p_tmdb_id: person.tmdbId,
+        p_name: person.name,
+        p_portrait_url: person.profilePath
+          ? `https://image.tmdb.org/t/p/w300${person.profilePath}`
+          : null,
+      },
+    );
+    if (personError || !personId) continue;
+    let { error: creditError } = await ready.client.from("credits").insert({
+      film_id: filmId,
+      person_id: personId,
+      role,
+      billing_order: index,
+    });
+    if (creditError && creditError.code !== "23505") throw creditError;
+  }
 };
 
 /**

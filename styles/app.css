@@ -9948,6 +9948,66 @@ dialog h2 {
   color: var(--muted);
   font-size: 9px;
 }
+.setup-year-cast-list {
+  flex-basis: 100%;
+}
+.setup-year-cast-list > span {
+  color: var(--muted);
+  display: block;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+.setup-year-cast-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.setup-year-cast-member {
+  align-items: center;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: inherit;
+  display: flex;
+  gap: 6px;
+  font: inherit;
+  padding: 4px 8px 4px 4px;
+  text-align: left;
+}
+.setup-year-cast-member:hover,
+.setup-year-cast-member:focus-visible {
+  border-color: var(--accent);
+}
+.setup-year-cast-member img,
+.setup-year-cast-member span[aria-hidden] {
+  border-radius: 4px;
+  flex-shrink: 0;
+  height: 36px;
+  object-fit: cover;
+  width: 26px;
+}
+.setup-year-cast-member span[aria-hidden] {
+  align-items: center;
+  background: var(--surface);
+  display: flex;
+  justify-content: center;
+  font-weight: 600;
+}
+.setup-year-cast-member b {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+}
+.setup-year-cast-member small {
+  color: var(--muted);
+  display: block;
+  font-size: 10px;
+}
+.setup-year-cast-list [data-setup-award-cast-more] {
+  margin-top: 6px;
+}
 .setup-year-nominee .setup-year-credit-form {
   margin-top: 0;
 }

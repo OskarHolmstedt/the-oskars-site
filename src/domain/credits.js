@@ -116,10 +116,19 @@ window.setAwardRecipients = function (award, value, options = {}) {
   return award;
 };
 
-/** Builds reusable recipient suggestions from shared film credits and the owner's previous nominations. @param {{credits?: Object[], nominations?: Object[]}} source Raw Supabase candidate-credit rows. @returns {Map<string, Object[]>} Suggestions keyed by film and category. */
+/** Builds reusable recipient suggestions from shared film credits and the owner's previous nominations. Covers every category in window.AWARD_CATEGORY_CREDIT_JOBS (not just Best Director) - a role's shared credit rows apply to whichever category(ies) share that role, e.g. one "screenwriter" credit row backs both Best Original Screenplay and Best Adapted Screenplay. @param {{credits?: Object[], nominations?: Object[]}} source Raw Supabase candidate-credit rows. @returns {Map<string, Object[]>} Suggestions keyed by film and category. */
 window.buildAwardCandidateCreditIndex = function (source = {}) {
   let index = new Map();
-  let directors = new Map();
+  let byRole = new Map(); // "filmId\nrole" -> [{name, order}]
+  let categoriesByRole = new Map();
+  Object.entries(window.AWARD_CATEGORY_CREDIT_JOBS || {}).forEach(
+    ([category, mapping]) => {
+      let categories = categoriesByRole.get(mapping.role) || [];
+      categories.push(category);
+      categoriesByRole.set(mapping.role, categories);
+    },
+  );
+
   let add = (filmId, category, option) => {
     let recipient = String(option.recipient || "").trim();
     if (!filmId || !category || !recipient) return;
@@ -132,20 +141,24 @@ window.buildAwardCandidateCreditIndex = function (source = {}) {
   };
 
   (source.credits || []).forEach((credit) => {
-    if (String(credit.role || "").toLowerCase() !== "director") return;
+    let role = String(credit.role || "").toLowerCase();
     let name = String(credit.people?.name || "").trim();
-    if (!credit.film_id || !name) return;
-    let entries = directors.get(credit.film_id) || [];
+    if (!credit.film_id || !name || !categoriesByRole.has(role)) return;
+    let key = `${credit.film_id}\n${role}`;
+    let entries = byRole.get(key) || [];
     if (!entries.some((entry) => entry.name.toLowerCase() === name.toLowerCase()))
       entries.push({ name, order: Number(credit.billing_order) || 0 });
-    directors.set(credit.film_id, entries);
+    byRole.set(key, entries);
   });
-  directors.forEach((entries, filmId) => {
+  byRole.forEach((entries, key) => {
+    let [filmId, role] = key.split("\n");
     entries.sort((left, right) => left.order - right.order || left.name.localeCompare(right.name, "en"));
-    add(filmId, "Best Director", {
-      recipient: entries.map((entry) => entry.name).join(", "),
-      detail: "",
-      source: "shared-director",
+    (categoriesByRole.get(role) || []).forEach((category) => {
+      add(filmId, category, {
+        recipient: entries.map((entry) => entry.name).join(", "),
+        detail: "",
+        source: "shared-credit",
+      });
     });
   });
 
@@ -163,13 +176,11 @@ window.buildAwardCandidateCreditIndex = function (source = {}) {
   return index;
 };
 
-/** Returns known recipient choices for one film/category, preferring canonical shared directors for Best Director. @param {Map<string, Object[]>} index Candidate-credit index. @param {string} filmId Film UUID. @param {string} category Award category. @returns {Object[]} Recipient/detail choices. */
+/** Returns known recipient choices for one film/category, preferring canonical shared credits over a merely-similar past personal nomination. @param {Map<string, Object[]>} index Candidate-credit index. @param {string} filmId Film UUID. @param {string} category Award category. @returns {Object[]} Recipient/detail choices. */
 window.awardCandidateCreditOptions = function (index, filmId, category) {
   let options = index?.get(`${filmId}\n${category}`) || [];
-  if (category === "Best Director") {
-    let shared = options.filter((option) => option.source === "shared-director");
-    if (shared.length) options = shared;
-  }
+  let shared = options.filter((option) => option.source === "shared-credit");
+  if (shared.length) options = shared;
   return options
     .map(({ recipient, detail, source }) => ({ recipient, detail, source }))
     .sort(
