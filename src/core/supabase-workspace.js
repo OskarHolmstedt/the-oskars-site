@@ -734,8 +734,7 @@ window.loadSupabaseAwardCandidateCredits = async function (filmIds) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
   let authState = await window.resolveSupabaseAuthState();
-  if (authState.status !== "signed-in")
-    return { credits: [], nominations: [] };
+  if (authState.status !== "signed-in") return { credits: [], nominations: [] };
   let [creditsResult, nominationsResult] = await Promise.all([
     ready.client
       .from("credits")
@@ -1438,24 +1437,45 @@ window.loadSupabaseAwardReviews = async function () {
  */
 window.supabaseAnnualAwardReviewProgress = async function (year) {
   let categoryNames = window.getOrderedCategories?.() || [];
-  let personalAwardId = null;
-  let categories = [];
-  for (let category of categoryNames) {
-    let [loaded, review] = await Promise.all([
-      window.loadSupabasePersonalNominations(String(year), category, "years"),
-      window.loadSupabaseAwardReview(year, category),
-    ]);
-    personalAwardId = loaded.personalAwardId;
-    let winner =
-      loaded.nominations.find((entry) => Number(entry.placement) === 1) || null;
-    categories.push({
-      category,
-      nominations: loaded.nominations,
-      review,
-      reviewed: Boolean(review),
-      winner,
-    });
-  }
+  // Resolves (or creates) this year's personal_awards row exactly once,
+  // before fanning the ~18 categories' own reads out in parallel below -
+  // found live as the dominant cause of a slow page load (each category
+  // previously awaited its own pair of requests in turn, a fully serial
+  // network waterfall). getOrCreateSupabasePersonalAwardId() is a plain
+  // select-then-insert, not atomic like find_or_create_film(); calling it
+  // from 18 concurrent first-ever requests for the same (scope, scope_type)
+  // would have every insert but the winner fail on the row's own unique
+  // constraint. Once the row already exists, every later resolution -
+  // including each category's own internal call to it below - is a plain,
+  // race-safe SELECT.
+  let ready = await window.ensureSupabaseClient();
+  let authState = ready ? await window.resolveSupabaseAuthState() : null;
+  let personalAwardId =
+    ready && authState?.status === "signed-in"
+      ? await getOrCreateSupabasePersonalAwardId(
+          ready.client,
+          String(year),
+          "years",
+        )
+      : null;
+  let categories = await Promise.all(
+    categoryNames.map(async (category) => {
+      let [loaded, review] = await Promise.all([
+        window.loadSupabasePersonalNominations(String(year), category, "years"),
+        window.loadSupabaseAwardReview(year, category),
+      ]);
+      let winner =
+        loaded.nominations.find((entry) => Number(entry.placement) === 1) ||
+        null;
+      return {
+        category,
+        nominations: loaded.nominations,
+        review,
+        reviewed: Boolean(review),
+        winner,
+      };
+    }),
+  );
   return {
     personalAwardId,
     total: categories.length,
@@ -1525,6 +1545,37 @@ window.deleteSupabasePersonalNomination = async function (
     p_personal_award_id: personalAwardId,
     p_category: category,
     p_placement: placement,
+    p_film_id: filmId,
+  });
+  if (error) throw error;
+};
+
+/**
+ * Moves an already-placed personal nomination to a different placement in
+ * the same category, atomically shifting every nomination between the old
+ * and new spot, via the move_personal_nomination RPC - see its migration
+ * for the exact shift contract. For reordering an existing nominee;
+ * insertSupabasePersonalNomination() above is for adding one from the pool.
+ * @param {string} personalAwardId
+ * @param {string} category
+ * @param {number} fromPlacement
+ * @param {number} toPlacement
+ * @param {string} filmId
+ */
+window.moveSupabasePersonalNomination = async function (
+  personalAwardId,
+  category,
+  fromPlacement,
+  toPlacement,
+  filmId,
+) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { error } = await ready.client.rpc("move_personal_nomination", {
+    p_personal_award_id: personalAwardId,
+    p_category: category,
+    p_from_placement: fromPlacement,
+    p_to_placement: toPlacement,
     p_film_id: filmId,
   });
   if (error) throw error;
@@ -2988,7 +3039,10 @@ window.loadDismissedDuplicatePairs = async function () {
   return fetchAllSupabaseRows((withCount) =>
     ready.client
       .from("dismissed_duplicate_pairs")
-      .select("entity_type, id_a, id_b", withCount ? { count: "exact" } : undefined),
+      .select(
+        "entity_type, id_a, id_b",
+        withCount ? { count: "exact" } : undefined,
+      ),
   );
 };
 
