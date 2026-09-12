@@ -39,10 +39,22 @@
 
   function renderCard(row) {
     let film = row.films;
-    return `<form class="rate-watched-card card" data-rate-watched-row="${escape(row.id)}">
+    // Reuses the same sized, aspect-ratio-constrained poster component every
+    // browse grid already uses (film-poster--card) instead of a bare <img>
+    // with no width/height at all - that rendered each poster at its full
+    // natural resolution (found live: two loaded posters at 500x750px
+    // overlapping the whole grid) rather than fit to the card.
+    let poster = film.poster_url
+      ? window.renderFilmPoster(
+          { title: film.title, poster: { url: film.poster_url } },
+          "card",
+        )
+      : "";
+    return `<form class="rate-watched-card film-card" data-rate-watched-row="${escape(row.id)}">
+      ${poster}
       <div class="rate-watched-identity">
-        ${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" class="rate-watched-poster-thumb">` : ""}
-        <div><h3>${escape(film.title)}</h3><p>${escape(filmMeta(film))}</p></div>
+        <h3>${escape(film.title)}</h3>
+        <p>${escape(filmMeta(film))}</p>
       </div>
       <label>Rating${window.renderRatingInput({ name: "rating", id: `rate-${row.id}`, required: true })}</label>
       <button type="submit">Save rating</button>
@@ -58,7 +70,9 @@
     );
     let openYears = [...grouped.keys()].sort((left, right) => left - right);
     let requested = Number(window.pageQueryParam("year"));
-    let year = allYears.includes(requested) ? requested : openYears[0] || allYears[0];
+    let year = allYears.includes(requested)
+      ? requested
+      : openYears[0] || allYears[0];
     let queue = grouped.get(year) || [];
     let unratedCount = [...grouped.values()].reduce(
       (sum, rows) => sum + rows.length,

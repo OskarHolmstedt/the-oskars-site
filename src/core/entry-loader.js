@@ -480,7 +480,9 @@
     "rate-watched": [
       "src/core/state.js",
       "src/domain/tags.js",
+      "src/domain/posters.js",
       "src/ui/film-rating.js",
+      "src/ui/posters.js",
       "src/ui/detail-scaffold.js",
       "src/ui/search.js",
       "src/ui/scroll-affordance.js",
