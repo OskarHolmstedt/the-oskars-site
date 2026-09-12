@@ -40,6 +40,7 @@
     "projects",
     "project",
     "collections",
+    "custom-collections",
     "collection",
     "data-tools",
   ]);
@@ -104,18 +105,13 @@
     )
       return "collections";
     if (entry === "watchlist-merge") return "films";
-    // collection/collections (issue #449) join the "projects" active-nav
-    // section, not the pre-existing "collections" one above (which is a
-    // separate, unrelated umbrella for Directors/Franchises/Tags) -
-    // conflating the two names in the nav would be exactly the kind of
-    // domain/navigation mismatch this issue's own epic warns against.
     if (
-      entry === "project" ||
-      entry === "projects" ||
-      entry === "collection" ||
-      entry === "collections"
+      entry === "collections" ||
+      entry === "custom-collections" ||
+      entry === "collection"
     )
-      return "projects";
+      return "collections";
+    if (entry === "project" || entry === "projects") return "projects";
     if (entry === "community") return "community";
     if (entry === "home") return "home";
     return "";
@@ -138,6 +134,8 @@
       home: locale === "sv" ? "Hem" : "Home",
       periods: locale === "sv" ? "Perioder" : "Periods",
       categories: locale === "sv" ? "Kategorier" : "Categories",
+      customCollections:
+        locale === "sv" ? "Egna samlingar" : "Custom Collections",
       collections: locale === "sv" ? "Samlingar" : "Collections",
       films: locale === "sv" ? "Filmer" : "Films",
       projects: locale === "sv" ? "Projekt" : "Projects",
@@ -170,7 +168,7 @@
       ["home", text.home, "index.html"],
       ["periods", text.periods, "periods.html"],
       ["categories", text.categories, "categories.html"],
-      ["collections", text.collections, "franchises.html"],
+      ["collections", text.collections, "collections.html"],
       ["films", text.films, "period.html?type=alltime&view=films"],
       ["projects", text.projects, "projects.html"],
     ];
@@ -204,7 +202,7 @@
       <details class="site-menu">
         <summary aria-label="${text.menuAria}" title="${text.menuTitle}"><span></span><span></span><span></span></summary>
         <div class="site-menu-panel">
-          <section><h2>${text.elsewhere}</h2><div class="site-menu-links"><a href="community.html">${text.community}</a><a href="discover.html">${text.discover}</a><a href="compare.html">${text.compare}</a><a href="presentation.html">${text.showcase}</a><a href="completion.html">${text.completion}</a><a href="stats.html">${text.statistics}</a><a href="people.html">${text.people}</a><a href="build.html">${text.build}</a><a href="intake.html">${text.intake}</a><a href="rate-watched.html">${text.rateWatched}</a><a href="data.html">${text.data}</a></div></section>
+          <section><h2>${text.elsewhere}</h2><div class="site-menu-links"><a href="custom-collections.html">${text.customCollections}</a><a href="community.html">${text.community}</a><a href="discover.html">${text.discover}</a><a href="compare.html">${text.compare}</a><a href="presentation.html">${text.showcase}</a><a href="completion.html">${text.completion}</a><a href="stats.html">${text.statistics}</a><a href="people.html">${text.people}</a><a href="build.html">${text.build}</a><a href="intake.html">${text.intake}</a><a href="rate-watched.html">${text.rateWatched}</a><a href="data.html">${text.data}</a></div></section>
         </div>
       </details>
     </div>`;
@@ -630,7 +628,7 @@
     // strictly owner-only as projects, no public-read policy exists for
     // collections/collection_items.
     "collection",
-    "collections",
+    "custom-collections",
     // Local-only owner tools (missing-metadata fetch, duplicate film/
     // person detection and merge) - gated a second time, inside its own
     // controller, on window.OSKARS_LOCAL_CONFIG?.ownerDataTools, so it's
@@ -694,7 +692,7 @@
     "project",
     "projects",
     "collection",
-    "collections",
+    "custom-collections",
   ]);
   // Every one of these entries' own page controller (or a file it loads,
   // e.g. src/pages/film.js's/period.js's error-rollback window.hydrateState()
@@ -835,7 +833,7 @@
     // queue reorder (moveSupabaseCollectionItem) - not
     // supabase-local-rank.js (no local rank axis here) or the bulk-tier
     // module (no watchlist tiers on a project's/collection's own films).
-    // projects.html/collections.html (the hub/create-dialog pages) need
+    // projects.html/custom-collections.html (the list/create-dialog pages) need
     // neither - they only ever call createSupabaseProject/
     // listSupabaseProjects or createSupabaseCollection/
     // listSupabaseCollections, all plain supabase-workspace.js functions.
@@ -904,7 +902,7 @@
       }
     }
     let pageLoadsOwnData =
-      ["home", "data", "community"].includes(entry) ||
+      ["home", "data", "community", "collections"].includes(entry) ||
       supabaseBackedEntries.has(entry) ||
       supabaseFullDependencyEntries.has(entry);
     // "home" calls ensureOskarsData() itself (src/pages/home.js), so it's

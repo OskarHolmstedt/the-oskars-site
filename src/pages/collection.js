@@ -155,11 +155,12 @@
   function render() {
     if (!collection) {
       document.title = `${ui("Collection not found")} · The Oskars`;
-      container.innerHTML = `<div class="detail-empty"><h1>${escape(ui("Collection not found"))}</h1><a href="collections.html">${escape(ui("Browse collections"))}</a></div>`;
+      container.innerHTML = `<div class="detail-empty"><h1>${escape(ui("Collection not found"))}</h1><a href="custom-collections.html">${escape(ui("Browse collections"))}</a></div>`;
       return;
     }
     document.title = `${collection.name} · The Oskars`;
-    let finishRenderTimer = window.startOskarsPerformance?.("collection:render");
+    let finishRenderTimer =
+      window.startOskarsPerformance?.("collection:render");
     let watched = items.filter((record) => record.status === "watched");
     let queue = items
       .filter((record) => record.status !== "watched")
@@ -198,7 +199,7 @@
         ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-collection-queue-edit-toggle${busy ? " disabled" : ""}>${escape(ui(queueEditMode ? "Finish order" : "Reorder"))}</button>${queueEditMode ? `<span>${escape(ui("Drag to set this collection's queue order."))}</span>` : ""}</div>`
         : "";
 
-    container.innerHTML = `${window.renderBreadcrumbs([{ label: ui("Collections"), href: "collections.html" }, { label: collection.name }], { escape })}${window.renderDetailHeader(
+    container.innerHTML = `${window.renderBreadcrumbs([{ label: ui("Collections"), href: "custom-collections.html" }, { label: collection.name }], { escape })}${window.renderDetailHeader(
       {
         mainHtml: `<h1>${escape(collection.name)}</h1><p>${collection.source_label ? escape(collection.source_label) : escape(ui("Custom collection"))}</p>`,
         actionsHtml: `<button type="button" class="sort-order-button" data-promote-collection${busy ? " disabled" : ""}>${escape(ui("Promote to project"))}</button>`,
@@ -293,7 +294,7 @@
       ?.addEventListener("click", async () => {
         try {
           await window.deleteSupabaseCollection(collection.id);
-          window.location.href = "collections.html";
+          window.location.href = "custom-collections.html";
         } catch (err) {
           alert(err.message || String(err));
         }

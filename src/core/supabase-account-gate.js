@@ -19,7 +19,7 @@
  * empty, never by asking first. An ineligible signed-in user passes this
  * gate and then simply sees no films to rate.
  *
- * The signed-out landing content below (home welcome + six per-destination
+ * The signed-out landing content below (home welcome + seven per-destination
  * teasers, issues #340/#346) was carried over from the pre-Supabase
  * src/core/account-access.js, deleted alongside the rest of the dead
  * Firebase subsystem (epic #428 Phase 3, commit c44d485) once this file
@@ -145,11 +145,11 @@ function signedOutHomeContent() {
 function isSignedOutHome(access, host) {
   return Boolean(
     access?.status === "signed-out" &&
-      host?.classList?.contains?.("home-shell"),
+    host?.classList?.contains?.("home-shell"),
   );
 }
 
-// Signed-out previews for the six primary-destination pages besides Home: a
+// Signed-out previews for the seven primary-destination pages besides Home: a
 // scaled-down version of home's hero (no features strip) per page.
 const SIGNED_OUT_TEASERS = {
   periods: {
@@ -163,6 +163,12 @@ const SIGNED_OUT_TEASERS = {
     heading: "Every award category, its full history.",
     description:
       "Browse every category that shapes your personal Oskars and jump straight into any year's nominees, winners, and how your picks compare to the official record.",
+  },
+  collections: {
+    eyebrow: "Every way to group your films",
+    heading: "Directors, franchises, tags, and your own lists.",
+    description:
+      "Browse by director or franchise, explore your own tags, or build custom named collections of any films you choose.",
   },
   franchises: {
     eyebrow: "Series, sagas, and sequels",
@@ -223,8 +229,9 @@ function signedOutTeaserContent(teaser) {
  * than a placeholder - the gate is only "done" once a real sign-in through
  * it actually works.
  *
- * A signed-out visit to the home page or one of six per-destination
- * teasers (Periods/Categories/Franchises/Watchlist/Watched/Projects) gets
+ * A signed-out visit to the home page or one of seven per-destination
+ * teasers (Periods/Categories/Collections/Franchises/Watchlist/Watched/
+ * Projects) gets
  * the rich landing content instead of the plain message below, and keeps
  * the shared header visible in a decluttered "landing" mode
  * (data-account-landing) rather than the header-hidden treatment every

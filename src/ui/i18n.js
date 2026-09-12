@@ -1755,6 +1755,21 @@
     "Collection note": { sv: "Samlingsanteckning" },
     "Collection display": { sv: "Samlingsvisning" },
     "Create collection": { sv: "Skapa samling" },
+    "Custom Collections": { sv: "Egna samlingar" },
+    "Explore films by director.": { sv: "Utforska filmer efter regissör." },
+    "Browse film series and shared universes.": {
+      sv: "Bläddra bland filmserier och gemensamma universum.",
+    },
+    "Explore films grouped by tag.": {
+      sv: "Utforska filmer grupperade efter tagg.",
+    },
+    "Create and browse your own named film lists.": {
+      sv: "Skapa och bläddra bland dina egna filmlistor.",
+    },
+    "Explore films by director, franchise, tag, or your own custom collections.":
+      {
+        sv: "Utforska filmer efter regissör, filmserie, tagg eller dina egna samlingar.",
+      },
     "Custom collection": { sv: "Egen samling" },
     "No collections yet.": { sv: "Inga samlingar ännu." },
     "Could not load collections": { sv: "Kunde inte ladda samlingar" },

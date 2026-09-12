@@ -1,68 +1,54 @@
-/**
- * @file Controls the Supabase-backed projects hub (issue #439): lists the
- * signed-in user's own projects and offers a Create dialog. Core v1
- * scope only - a project is a generic named film collection ("created in
- * any which way": search and add any film, regardless of watched/
- * watchlist status), not tied to a live-refreshable source the way the
- * previous model's per-source-type derivation was. The create flow
- * reflects that directly: one film search box feeding one generic
- * createSupabaseProject(name, filmIds) call, rather than a source-type
- * picker per collection kind.
- */
+/** @file Lists and creates the signed-in user’s custom film collections. */
 (function () {
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
-  let container = document.getElementById("projectsPage");
+  let container = document.getElementById("collectionsPage");
 
-  let projects = [];
+  let collections = [];
   let pickedFilms = [];
 
-  function projectCard(project) {
-    let statusLabel =
-      project.status === "complete"
-        ? ui("Complete")
-        : project.status === "archived"
-          ? ui("Archived")
-          : ui("Active");
-    return `<a class="film-card project-card" href="${escape(window.projectPageUrl(project.id))}">
-      <div class="project-card-title">${project.pinned ? '<span aria-hidden="true">📌</span> ' : ""}${escape(project.name)}</div>
-      <div class="leaderboard-meta">${project.source_label ? escape(project.source_label) : escape(ui("Custom project"))}</div>
-      <div class="leaderboard-meta"><span class="project-status-badge">${escape(statusLabel)}</span> · <b>${escape(project.itemCount)}</b> ${escape(ui(project.itemCount === 1 ? "film" : "films"))}</div>
+  function collectionCard(collection) {
+    return `<a class="film-card project-card" href="${escape(window.collectionPageUrl(collection.id))}">
+      <div class="project-card-title">${escape(collection.name)}</div>
+      <div class="leaderboard-meta">${collection.source_label ? escape(collection.source_label) : escape(ui("Custom collection"))}</div>
+      <div class="leaderboard-meta"><b>${escape(collection.itemCount)}</b> ${escape(ui(collection.itemCount === 1 ? "film" : "films"))}</div>
     </a>`;
   }
 
   function createDialogHtml() {
-    return `<dialog id="createProjectDialog">
-      <form id="createProjectForm" method="dialog">
-        <h2>${escape(ui("Create project"))}</h2>
-        <label class="wide">${escape(ui("Project name"))}
+    return `<dialog id="createCollectionDialog">
+      <form id="createCollectionForm" method="dialog">
+        <h2>${escape(ui("Create collection"))}</h2>
+        <label class="wide">${escape(ui("Collection name"))}
           <input name="name" required maxlength="120" autocomplete="off">
         </label>
         <label class="wide">${escape(ui("Add film"))}
           <input name="filmSearch" autocomplete="off" placeholder="${escape(ui("Start typing…"))}">
         </label>
-        <ul class="project-manage-list" data-create-project-picked></ul>
-        <p class="data-panel-status" data-create-project-status></p>
-        <div class="dialog-actions"><button type="button" data-create-project-cancel>${escape(ui("Cancel"))}</button><button type="submit">${escape(ui("Create project"))}</button></div>
+        <ul class="project-manage-list" data-create-collection-picked></ul>
+        <p class="data-panel-status" data-create-collection-status></p>
+        <div class="dialog-actions"><button type="button" data-create-collection-cancel>${escape(ui("Cancel"))}</button><button type="submit">${escape(ui("Create collection"))}</button></div>
       </form>
     </dialog>`;
   }
 
   function render() {
-    let finishRenderTimer = window.startOskarsPerformance?.("projects:render");
-    document.title = `${ui("Projects")} · The Oskars`;
-    let cards = projects.map(projectCard).join("");
+    let finishRenderTimer = window.startOskarsPerformance?.(
+      "custom-collections:render",
+    );
+    document.title = `${ui("Custom Collections")} · The Oskars`;
+    let cards = collections.map(collectionCard).join("");
     container.innerHTML = `${window.renderDetailHeader({
-      mainHtml: `<h1>${escape(ui("Projects"))}</h1><p>${escape(ui("Focused watch queues built from any films you pick."))} <a href="custom-collections.html">${escape(ui("Browse your collections"))}</a></p>`,
-      actionsHtml: `<button type="button" class="button-link" data-create-project>${escape(ui("Create project"))}</button>`,
+      mainHtml: `<h1>${escape(ui("Custom Collections"))}</h1><p>${escape(ui("Named film lists you've saved but haven't turned into a project yet."))} <a href="projects.html">${escape(ui("Browse your projects"))}</a></p>`,
+      actionsHtml: `<button type="button" class="button-link" data-create-collection>${escape(ui("Create collection"))}</button>`,
     })}
-    <div class="film-grid project-film-grid">${cards || `<p class="detail-empty">${escape(ui("No projects yet."))}</p>`}</div>
+    <div class="film-grid project-film-grid">${cards || `<p class="detail-empty">${escape(ui("No collections yet."))}</p>`}</div>
     ${createDialogHtml()}`;
 
-    let createDialog = container.querySelector("#createProjectDialog");
-    let createForm = container.querySelector("#createProjectForm");
-    let statusEl = container.querySelector("[data-create-project-status]");
-    let pickedList = container.querySelector("[data-create-project-picked]");
+    let createDialog = container.querySelector("#createCollectionDialog");
+    let createForm = container.querySelector("#createCollectionForm");
+    let statusEl = container.querySelector("[data-create-collection-status]");
+    let pickedList = container.querySelector("[data-create-collection-picked]");
     let searchInput = createForm.querySelector('[name="filmSearch"]');
 
     function renderPicked() {
@@ -76,7 +62,7 @@
     renderPicked();
 
     container
-      .querySelector("[data-create-project]")
+      .querySelector("[data-create-collection]")
       ?.addEventListener("click", () => {
         pickedFilms = [];
         createForm.reset();
@@ -85,7 +71,7 @@
         createDialog?.showModal();
       });
     container
-      .querySelector("[data-create-project-cancel]")
+      .querySelector("[data-create-collection-cancel]")
       ?.addEventListener("click", () => createDialog?.close());
 
     let searchTimer = null;
@@ -136,16 +122,16 @@
       if (!name) return;
       statusEl.textContent = ui("Creating…");
       try {
-        let created = await window.createSupabaseProject(
+        let created = await window.createSupabaseCollection(
           name,
           pickedFilms.map((film) => film.id),
         );
-        window.location.href = window.projectPageUrl(created.id);
+        window.location.href = window.collectionPageUrl(created.id);
       } catch (err) {
         statusEl.textContent = err.message || String(err);
       }
     });
-    finishRenderTimer?.(`${projects.length} projects`);
+    finishRenderTimer?.(`${collections.length} collections`);
   }
 
   async function boot() {
@@ -155,10 +141,10 @@
       return;
     }
     try {
-      projects = await window.listSupabaseProjects();
+      collections = await window.listSupabaseCollections();
       render();
     } catch (error) {
-      container.innerHTML = `<section class="detail-empty"><h2>${escape(ui("Could not load projects"))}</h2><p>${escape(error.message || String(error))}</p></section>`;
+      container.innerHTML = `<section class="detail-empty"><h2>${escape(ui("Could not load collections"))}</h2><p>${escape(error.message || String(error))}</p></section>`;
     }
   }
 

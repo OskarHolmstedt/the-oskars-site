@@ -95,10 +95,7 @@
     if (enabled) document.documentElement.dataset.posterBackdrop = "on";
     else delete document.documentElement.dataset.posterBackdrop;
     try {
-      localStorage.setItem(
-        "oskars-poster-backdrop",
-        enabled ? "on" : "off",
-      );
+      localStorage.setItem("oskars-poster-backdrop", enabled ? "on" : "off");
     } catch (err) {}
     window.refreshOskarsBackdrop?.();
   };
@@ -152,17 +149,13 @@
       path === "tag.html"
     )
       return "collections";
-    // collections.html/collection.html (issue #449) join "projects" here
-    // too, not the "collections" branch above (a separate, unrelated
-    // umbrella for Directors/Franchises/Tags) - see entry-loader.js's own
-    // currentSection() for the same reasoning.
     if (
-      path === "projects.html" ||
-      path === "project.html" ||
       path === "collections.html" ||
+      path === "custom-collections.html" ||
       path === "collection.html"
     )
-      return "projects";
+      return "collections";
+    if (path === "projects.html" || path === "project.html") return "projects";
     if (path === "compare.html") return "compare";
     if (path === "community.html") return "community";
     if (path === "data.html") return "data";
@@ -209,17 +202,9 @@
         headerText("nav.watchlist", "Watchlist"),
       ],
       ...(canEdit
-        ? [
-            [
-              "period.html?type=alltime&view=shared",
-              literalText("Unseen"),
-            ],
-          ]
+        ? [["period.html?type=alltime&view=shared", literalText("Unseen")]]
         : []),
-      [
-        "period.html?type=alltime&view=other",
-        literalText("Other watched"),
-      ],
+      ["period.html?type=alltime&view=other", literalText("Other watched")],
     ];
     return `<div class="films-preview-links">${rows.map(([href, label]) => `<a class="films-preview-link" href="${escape(href)}">${escape(label)}</a>`).join("")}</div>`;
   }
@@ -229,6 +214,7 @@
       ["directors.html", headerText("menu.directors", "Directors")],
       ["franchises.html", headerText("nav.franchises", "Franchises")],
       ["tags.html", headerText("menu.tags", "Tags")],
+      ["custom-collections.html", literalText("Custom Collections")],
     ];
     return `<div class="collections-preview-links">${rows.map(([href, label]) => `<a class="collections-preview-link" href="${escape(href)}">${escape(label)}</a>`).join("")}</div>`;
   }
@@ -265,7 +251,7 @@
       [
         "collections",
         headerText("nav.collections", "Collections"),
-        "franchises.html",
+        "collections.html",
       ],
       [
         "films",
@@ -295,11 +281,13 @@
     // of baked mode, matching entry-loader.js's owner-page gate.
     let allowOwnerPages =
       (window.runtimeModeCapabilities?.(window.getRuntimeMode?.())
-        ?.allowOwnerPages ?? true) && !window.resolveActiveProfileSlug?.();
+        ?.allowOwnerPages ??
+        true) &&
+      !window.resolveActiveProfileSlug?.();
     let ownerLinks = allowOwnerPages
       ? `<a href="build.html">${escape(headerText("nav.build", "Build your Oskars"))}</a><a href="intake.html">${escape(headerText("nav.intake", "Intake"))}</a><a href="rate-watched.html">${escape(headerText("nav.rateWatched", "Rate watched"))}</a><a href="data.html">${escape(headerText("nav.data", "Data"))}</a><a href="profile.html">${escape(headerText("nav.profile", "Profile"))}</a>`
       : "";
-    return `<section><h2>${escape(headerText("menu.elsewhere", "Elsewhere"))}</h2><div class="site-menu-links"><a href="community.html">${escape(headerText("menu.community", "Community"))}</a><a href="discover.html">${escape(headerText("menu.discover", "Discover"))}</a><a href="compare.html">${escape(headerText("nav.compare", "Compare"))}</a><a href="presentation.html">${escape(headerText("menu.showcase", "Showcase"))}</a><a href="completion.html">${escape(headerText("menu.completion", "Completion"))}</a><a href="stats.html">${escape(headerText("menu.statistics", "Statistics"))}</a><a href="people.html">${escape(headerText("menu.people", "People"))}</a>${ownerLinks}</div></section>`;
+    return `<section><h2>${escape(headerText("menu.elsewhere", "Elsewhere"))}</h2><div class="site-menu-links"><a href="custom-collections.html">${escape(literalText("Custom Collections"))}</a><a href="community.html">${escape(headerText("menu.community", "Community"))}</a><a href="discover.html">${escape(headerText("menu.discover", "Discover"))}</a><a href="compare.html">${escape(headerText("nav.compare", "Compare"))}</a><a href="presentation.html">${escape(headerText("menu.showcase", "Showcase"))}</a><a href="completion.html">${escape(headerText("menu.completion", "Completion"))}</a><a href="stats.html">${escape(headerText("menu.statistics", "Statistics"))}</a><a href="people.html">${escape(headerText("menu.people", "People"))}</a>${ownerLinks}</div></section>`;
   }
 
   function updateLanguageToggle(button) {
@@ -380,9 +368,7 @@
     header
       .querySelector("[data-poster-backdrop-toggle]")
       ?.addEventListener("click", (event) => {
-        let next = !(
-          document.documentElement.dataset.posterBackdrop === "on"
-        );
+        let next = !(document.documentElement.dataset.posterBackdrop === "on");
         window.applyOskarsPosterBackdrop(next);
         event.currentTarget.setAttribute(
           "aria-pressed",
@@ -416,7 +402,9 @@
           signOut.title = String(error?.message || error);
         }
       });
-    window.onSupabaseAuthChange?.(() => refreshHeaderAuthStatus(header, escape));
+    window.onSupabaseAuthChange?.(() =>
+      refreshHeaderAuthStatus(header, escape),
+    );
     let searchForm = header.querySelector("[data-site-search]");
     let searchInput = header.querySelector("[data-site-search-input]");
     let searchResults = header.querySelector("[data-site-search-results]");
@@ -446,8 +434,7 @@
       }
     }
     function getSearchEntries() {
-      let sharedArchiveVersion =
-        window.OSKARS_SHARED_FILM_ARCHIVE_VERSION || 0;
+      let sharedArchiveVersion = window.OSKARS_SHARED_FILM_ARCHIVE_VERSION || 0;
       if (
         !header._siteSearchEntries ||
         header._siteSearchSharedArchiveVersion !== sharedArchiveVersion
