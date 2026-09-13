@@ -479,6 +479,7 @@
   let supabaseEntryDependencies = {
     "rate-watched": [
       "src/core/state.js",
+      "src/core/urls.js",
       "src/domain/tags.js",
       "src/domain/posters.js",
       "src/ui/film-rating.js",
@@ -804,8 +805,14 @@
     // existing `dependencies` array already uses throughout, just
     // evaluated in this branch instead since it needs to exist before
     // ensureOskarsData()'s skip check below, not interleaved with it.
-    if (entry === "rate-watched")
+    if (entry === "rate-watched") {
       await loadScript("src/domain/supabase-watched-ratings.js");
+      // supabaseIntakeRatingGrade() sorts the Rated section by exact
+      // grade (rating + minus/plus) - "intake" in the name is a misnomer
+      // for this reuse, the function itself is just a pure grade
+      // calculator over a {rating, rating_modifier}-shaped row.
+      await loadScript("src/domain/supabase-watched-intake.js");
+    }
     if (entry === "watchlist-merge")
       await loadScript("src/domain/supabase-watchlist-merge.js");
     if (entry === "local-rank-merge")

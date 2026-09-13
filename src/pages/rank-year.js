@@ -1,31 +1,7 @@
 /**
- * @file Resolves one year's same-rating ranking shelves, cut over to
- * Supabase for real (issue #432), continuing #420/#421/#422/#429/#430's
- * pattern: gate check -> loadSupabaseWorkspace() +
- * loadSupabaseRanking("alltime", "allTime") -> render -> each action
- * calls its supabase-workspace.js function directly.
- *
- * Filters the single all-time ranking down to one year, same as #429's
- * ranking-review.js (see its header for why year/decade/century rankings
- * are filtered views of one order, not independently-stored per-scope
- * lists). Drag-and-drop reordering within a bucket uses
- * moveSupabaseRankingEntryToPosition() - genuine arbitrary repositioning
- * via fractionalPositionBetween(), unlike #429's swap-only
- * moveSupabaseRankingEntry(). Reordering is bucket-relative (computed
- * from the bucket's own current neighbor positions), matching the
- * previous moveRankedFilmWithinRating()'s behavior exactly: that
- * function also only ever spliced within one rating bucket's own local
- * array, then rebuilt the entire all-time order from bucket-grouped data
- * (guaranteeing bucket contiguity by construction). Supabase's
- * independent per-row position column doesn't auto-guarantee that same
- * contiguity if a film's rating changes after its position was set, but
- * bucket-relative reordering is still correct for what this tool
- * actually promises: keeping one bucket's own relative order right.
- *
- * "Keep this order" reuses resolveSupabaseYearRankingBucket() (marks
- * every film in the bucket confirmed and records every adjacent pair as
- * reviewed via #429's ranking_pair_reviews), so ranking-review.html
- * won't re-ask about a pair already settled here.
+ * @file Renders one year's exact-rating ranking shelves from the shared all-time
+ * order, initializing missing rated watched films as unconfirmed entries.
+ * Owns shelf reordering, confirmation, and broader ranking handoffs.
  */
 
 (function () {
@@ -47,7 +23,9 @@
   function ratingBuckets() {
     let buckets = new Map();
     yearEntries().forEach((entry) => {
-      let key = window.supabaseRankingRatingKey(watchedByFilmId.get(entry.film_id));
+      let key = window.supabaseRankingRatingKey(
+        watchedByFilmId.get(entry.film_id),
+      );
       if (!key) return;
       if (!buckets.has(key)) buckets.set(key, []);
       buckets.get(key).push(entry);
@@ -76,15 +54,20 @@
         </div>
       </div>`;
     }
-    let reviewed = bucketEntries.every((entry) => entry.rank_confirmed !== false);
+    let reviewed = bucketEntries.every(
+      (entry) => entry.rank_confirmed !== false,
+    );
     let isExpanded = expandedRatingBucket === key;
     let header = `<div class="setup-year-category-header">
       <span class="setup-year-rank-bucket-label">${escape(label)} <small>(${escape(bucketEntries.length)})</small></span>
       <span class="setup-ranking-state ${reviewed ? "is-reviewed" : "is-mechanical"}">${escape(reviewed ? "Reviewed" : "Mechanical order")}</span>
       <button type="button" class="sort-order-button" data-setup-rank-bucket-toggle="${escape(key)}">${escape(isExpanded ? "Collapse" : "Reorder")}</button>
     </div>`;
-    if (!isExpanded) return `<div class="setup-year-category-row">${header}</div>`;
-    let cards = bucketEntries.map((entry, index) => renderRankCard(entry, index)).join("");
+    if (!isExpanded)
+      return `<div class="setup-year-category-row">${header}</div>`;
+    let cards = bucketEntries
+      .map((entry, index) => renderRankCard(entry, index))
+      .join("");
     return `<div class="setup-year-category-row is-expanded">
       ${header}
       <div class="film-grid setup-year-pool-grid">${cards}</div>
@@ -103,10 +86,15 @@
         window.supabaseRankingRatingSortValueFromKey(left),
     );
     if (expandedRatingBucket === undefined) {
-      expandedRatingBucket = orderedKeys.find((key) => buckets.get(key).length > 1) || null;
+      expandedRatingBucket =
+        orderedKeys.find((key) => buckets.get(key).length > 1) || null;
     }
-    let sections = orderedKeys.map((key) => renderRatingBucket(key, buckets.get(key))).join("");
-    let multiFilmGroups = orderedKeys.map((key) => buckets.get(key)).filter((group) => group.length > 1);
+    let sections = orderedKeys
+      .map((key) => renderRatingBucket(key, buckets.get(key)))
+      .join("");
+    let multiFilmGroups = orderedKeys
+      .map((key) => buckets.get(key))
+      .filter((group) => group.length > 1);
     let heatComplete = multiFilmGroups.every((group) =>
       group.every((entry) => entry.rank_confirmed !== false),
     );
@@ -141,7 +129,11 @@
     try {
       let key = confirm.dataset.setupRankConfirm;
       let bucketEntries = ratingBuckets().get(key) || [];
-      await window.resolveSupabaseYearRankingBucket(rankingId, year, bucketEntries);
+      await window.resolveSupabaseYearRankingBucket(
+        rankingId,
+        year,
+        bucketEntries,
+      );
       let loaded = await window.loadSupabaseRanking("alltime", "allTime");
       allEntries = loaded.entries;
       render();
@@ -162,7 +154,9 @@
     card.classList.add("dragging");
   });
   container.addEventListener("dragend", (event) => {
-    event.target.closest("[data-setup-rank-film-id]")?.classList.remove("dragging");
+    event.target
+      .closest("[data-setup-rank-film-id]")
+      ?.classList.remove("dragging");
     dragPayload = null;
   });
   container.addEventListener("dragover", (event) => {
@@ -172,7 +166,9 @@
     target.classList.add("drop-target");
   });
   container.addEventListener("dragleave", (event) => {
-    event.target.closest("[data-setup-rank-film-id]")?.classList.remove("drop-target");
+    event.target
+      .closest("[data-setup-rank-film-id]")
+      ?.classList.remove("drop-target");
   });
   // The entry immediately before/after one film in the full all-time
   // order (not the bucket-local order) - the true boundary to fall back
@@ -193,7 +189,11 @@
 
   container.addEventListener("drop", async (event) => {
     let target = event.target.closest("[data-setup-rank-film-id]");
-    if (!dragPayload || !target || target.dataset.setupRankFilmId === dragPayload.filmId)
+    if (
+      !dragPayload ||
+      !target ||
+      target.dataset.setupRankFilmId === dragPayload.filmId
+    )
       return;
     event.preventDefault();
     target.classList.remove("drop-target");
@@ -210,7 +210,10 @@
       : overallNeighborFilmId(bucketEntries[0].film_id, -1);
     let afterFilmId = afterEntry
       ? afterEntry.film_id
-      : overallNeighborFilmId(bucketEntries[bucketEntries.length - 1].film_id, 1);
+      : overallNeighborFilmId(
+          bucketEntries[bucketEntries.length - 1].film_id,
+          1,
+        );
     try {
       await window.moveSupabaseRankingEntryToPosition(
         rankingId,
@@ -241,8 +244,20 @@
     try {
       await window.loadSupabaseWorkspace();
       let workspace = window.getSupabaseWorkspace();
-      watchedByFilmId = new Map((workspace?.watched || []).map((row) => [row.film_id, row]));
+      watchedByFilmId = new Map(
+        (workspace?.watched || []).map((row) => [row.film_id, row]),
+      );
       let loaded = await window.loadSupabaseRanking("alltime", "allTime");
+      if (
+        await window.seedSupabaseYearRanking(
+          loaded.rankingId,
+          loaded.entries,
+          workspace?.watched || [],
+          year,
+        )
+      ) {
+        loaded = await window.loadSupabaseRanking("alltime", "allTime");
+      }
       rankingId = loaded.rankingId;
       allEntries = loaded.entries;
       render();

@@ -89,6 +89,7 @@ window.OSKARS_HYDRATION_CACHE_INVALIDATING_MUTATIONS = [
   "removeFromSupabaseWatched",
   "moveSupabaseWatchlistToWatched",
   "addToSupabaseRanking",
+  "seedSupabaseYearRanking",
   "placeSupabaseIntakeRankingFilm",
   "moveSupabaseRankingEntry",
   "removeFromSupabaseRanking",

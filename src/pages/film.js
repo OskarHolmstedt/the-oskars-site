@@ -298,11 +298,11 @@
       classes: posterHtml ? "has-poster" : "",
       leadingHtml: posterHtml,
       mainClasses: "detail-header-main film-detail-main",
-      mainHtml: `<div class="film-title-row"><h1>${filmPageEscape(displayTitle)}</h1>${window.renderWatchlistTierBadge(watchlistItem.tier, { escape: filmPageEscape })}</div>
+      mainHtml: `<div class="film-title-row"><h1>${filmPageEscape(displayTitle)}</h1>${window.renderWatchlistTierBadge(watchlistItem.tier, { escape: filmPageEscape, modifier: watchlistItem.tierModifier })}</div>
         ${localizedTitleMeta}
         ${directorHtml ? `<p>${filmPageEscape(ui("by"))} ${directorHtml}</p>` : ""}
         ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}
-        ${canEdit ? `<label class="data-field">${filmPageEscape(ui("Interest tier"))}<select name="tier" data-tier-select${watchlistBusy ? " disabled" : ""}>${tierOptions(watchlistItem.tier)}</select></label>` : ""}`,
+        ${canEdit ? `<label class="data-field">${filmPageEscape(ui("Interest tier"))}<span class="tier-select-row"><select name="tier" data-tier-select${watchlistBusy ? " disabled" : ""}>${tierOptions(watchlistItem.tier)}</select>${window.renderTierModifierToggle("tierModifier", watchlistItem.tierModifier, { escape: filmPageEscape, ui })}</span></label>` : ""}`,
       actionsHtml: canEdit
         ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Mark as watched"), escape: filmPageEscape, attributes: { "data-mark-watchlist-watched": true, disabled: watchlistBusy } })}${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Remove from watchlist"), escape: filmPageEscape, active: true, attributes: { "data-remove-watchlist-film": true, disabled: watchlistBusy } })}`
         : "",
@@ -310,6 +310,7 @@
     ${renderWatchlistTagEditor()}
     ${renderWatchlistFranchiseEditor()}
     ${archiveMatchHtml}`;
+    window.enhanceTierModifierToggles?.(container);
   }
 
   async function reloadWatchlistItem() {
@@ -885,7 +886,7 @@
       <label class="wide">${filmPageEscape(ui("Tags"))} <input name="tags" value="${filmPageEscape(window.formatFilmTags(film.tags))}" placeholder="${filmPageEscape(ui("Noir, courtroom drama, rewatch"))}"><span class="field-help">${filmPageEscape(ui("Separate tags with commas."))}</span></label>
       <label class="wide">${filmPageEscape(ui("Review / comment"))} <textarea name="review" rows="5" maxlength="1000">${filmPageEscape(film.review || "")}</textarea><span class="field-help">${filmPageEscape(ui("A short personal note about the film."))}</span></label>
       <label><input type="checkbox" name="wantToRewatch" ${film.wantToRewatch ? "checked" : ""}> ${filmPageEscape(ui("Rewatchlist"))}</label>
-      <label>${filmPageEscape(ui("Rewatch tier"))} <select name="rewatchTier">${rewatchTierOptions(film.rewatchTier)}</select></label>
+      <label>${filmPageEscape(ui("Rewatch tier"))} <span class="tier-select-row"><select name="rewatchTier">${rewatchTierOptions(film.rewatchTier)}</select>${window.renderTierModifierToggle("rewatchTierModifier", film.rewatchTierModifier, { escape: filmPageEscape, ui })}</span></label>
     </div></section>
     <section class="film-edit-section"><h2>${filmPageEscape(ui("Award credits"))}</h2><p class="edit-help">${filmPageEscape(ui("Period, placement, and category define the bracket entry and remain structural. Recipients and details can be edited here."))}</p>
       <div class="leaderboard-wrap"><table class="leaderboard film-edit-awards"><thead><tr><th>${filmPageEscape(ui("Period"))}</th><th>${filmPageEscape(ui("Place"))}</th><th>${filmPageEscape(ui("Category"))}</th><th>${filmPageEscape(ui("Recipients"))}</th><th>${filmPageEscape(ui("Detail"))}</th></tr></thead><tbody>${renderEditAwardRows(awards)}</tbody></table></div>
@@ -893,6 +894,7 @@
     <div class="film-edit-actions"><button type="submit">${filmPageEscape(ui("Save changes"))}</button><button type="button" data-cancel-film-edit>${filmPageEscape(ui("Cancel"))}</button></div>
   </form>`;
     window.enhanceRatingInputs?.(container);
+    window.enhanceTierModifierToggles?.(container);
   }
 
   // An Unseen (catalog-only) film has no personal record at all - it's
@@ -1197,13 +1199,26 @@
 
   container.addEventListener("change", async (event) => {
     let tierSelect = event.target.closest("[data-tier-select]");
-    if (tierSelect) {
+    let tierModifierToggle = event.target.closest(
+      '[data-tier-modifier-input] input[name="tierModifier"]',
+    );
+    if (tierSelect || tierModifierToggle) {
+      // Both controls write the tier+modifier pair together - whichever
+      // one didn't fire this change still has its just-picked value
+      // sitting live in the DOM (a detached node after render() below
+      // keeps its .value in memory, same trick the tier-only write
+      // already relied on here).
+      let selectEl = tierSelect || container.querySelector("[data-tier-select]");
+      let modifierEl =
+        tierModifierToggle ||
+        container.querySelector('[data-tier-modifier-input] input[name="tierModifier"]');
       watchlistBusy = true;
       render(false);
       try {
         await window.setSupabaseWatchlistTier(
           watchlistItem.id,
-          tierSelect.value,
+          selectEl?.value || "",
+          modifierEl?.value || "",
         );
         await reloadWatchlistItem();
       } catch (err) {

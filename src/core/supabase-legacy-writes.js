@@ -43,6 +43,7 @@
       review: film.review || null,
       want_to_rewatch: Boolean(film.wantToRewatch),
       rewatch_tier: film.rewatchTier || null,
+      rewatch_tier_modifier: film.rewatchTierModifier || null,
       music_score: film.musicScore || null,
       music_rating: film.musicRating || null,
       music_rating_value: film.musicRatingValue ?? null,
@@ -59,6 +60,7 @@
       review: row.review || null,
       want_to_rewatch: Boolean(row.want_to_rewatch),
       rewatch_tier: row.rewatch_tier || null,
+      rewatch_tier_modifier: row.rewatch_tier_modifier || null,
       music_score: row.music_score || null,
       music_rating: row.music_rating || null,
       music_rating_value: row.music_rating_value ?? null,
@@ -394,6 +396,7 @@
       let payload = {
         film_id: filmId,
         tier: item.tier || null,
+        tier_modifier: item.tierModifier || null,
         position: positionFor(index),
         reason: item.reason || null,
         updated_at: new Date().toISOString(),
@@ -403,6 +406,7 @@
         let before = {
           film_id: original.film_id,
           tier: original.tier || null,
+          tier_modifier: original.tier_modifier || null,
           position: original.position,
           reason: original.reason || null,
         };

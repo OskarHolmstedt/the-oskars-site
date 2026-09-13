@@ -115,7 +115,7 @@
     let href = pick.item.supabaseFilmId
       ? window.filmPageUrl(pick.item.supabaseFilmId)
       : homeFilmHref(film);
-    return `<article class="home-daily-card">${homeFilmMedia(film)}<div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("From your watchlist"))}</span><h2>${href ? `<a href="${homeEscape(href)}">${homeEscape(window.localizedFilmTitle?.(film) || film.title)}</a>` : homeEscape(film.title)}</h2><p class="home-daily-film-meta">${homeFilmMeta(film)}</p><p>${homeEscape(window.watchQueueReasonText(pick.reason))} ${homeEscape(ui("This pick stays the same today."))}</p>${window.renderWatchlistTierBadge(pick.item.tier, { escape: homeEscape })}<small>${homeEscape(ui("Chosen from {count} watchlist films", { count }))}</small></div></article>`;
+    return `<article class="home-daily-card">${homeFilmMedia(film)}<div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("From your watchlist"))}</span><h2>${href ? `<a href="${homeEscape(href)}">${homeEscape(window.localizedFilmTitle?.(film) || film.title)}</a>` : homeEscape(film.title)}</h2><p class="home-daily-film-meta">${homeFilmMeta(film)}</p><p>${homeEscape(window.watchQueueReasonText(pick.reason))} ${homeEscape(ui("This pick stays the same today."))}</p>${window.renderWatchlistTierBadge(pick.item.tier, { escape: homeEscape, modifier: pick.item.tierModifier })}<small>${homeEscape(ui("Chosen from {count} watchlist films", { count }))}</small></div></article>`;
   }
 
   function updateHomePrimaryAction() {

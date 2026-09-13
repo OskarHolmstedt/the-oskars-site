@@ -57,9 +57,39 @@
         <h3>${escape(film.title)}</h3>
         <p>${escape(filmMeta(film))}</p>
       </div>
-      <label>Rating${window.renderRatingInput({ name: "rating", id: `rate-${row.id}`, required: true })}</label>
-      <button type="submit">Save rating</button>
+      <div class="rate-watched-rating-row">
+        ${window.renderRatingInput({ name: "rating", id: `rate-${row.id}`, required: true, compact: true })}
+        <button type="submit" class="rate-watched-save" aria-label="Save rating" title="Save rating">✓</button>
+      </div>
     </form>`;
+  }
+
+  // Exact 1-30 grade (rating expanded by its minus/plus refinement) - the
+  // same scale supabaseIntakeRatingGrade() already sorts Intake's rating
+  // shelves by, reused here so the Rated section orders identically.
+  function ratedGrade(row) {
+    return window.supabaseIntakeRatingGrade?.(row) || 0;
+  }
+
+  function renderRatedEntry(row) {
+    let film = row.films;
+    let href = window.filmPageUrl?.(row.film_id) || "#";
+    let poster = film.poster_url
+      ? window.renderFilmPoster(
+          { title: film.title, poster: { url: film.poster_url } },
+          "thumb",
+        )
+      : "";
+    let stars =
+      window.renderFilmRating?.({
+        ratingValue: row.rating,
+        ratingModifier: row.rating_modifier,
+      }) || "";
+    return `<li class="rate-watched-rated-item" data-grade="${ratedGrade(row)}">
+      <a href="${escape(href)}" class="rate-watched-rated-poster">${poster}</a>
+      <a href="${escape(href)}" class="rate-watched-rated-title">${escape(film.title)}</a>
+      <span class="rate-watched-rated-stars">${stars}</span>
+    </li>`;
   }
 
   function render() {
@@ -80,6 +110,11 @@
       0,
     );
     let ratedCount = all.length - unratedCount;
+    // Best first, so a still-unrated film can be placed by eye against
+    // the ones already rated this year.
+    let ratedForYear = all
+      .filter((row) => row.films.year === year && row.rating)
+      .sort((left, right) => ratedGrade(right) - ratedGrade(left));
 
     let header = window.renderDetailHeader({
       mainHtml:
@@ -98,28 +133,63 @@
           `<option value="${escape(value)}"${value === year ? " selected" : ""}>${escape(value)} · ${(grouped.get(value) || []).length}</option>`,
       )
       .join("");
+    let yearIndex = allYears.indexOf(year);
+    let prevYear = yearIndex > 0 ? allYears[yearIndex - 1] : null;
+    let nextYear =
+      yearIndex >= 0 && yearIndex < allYears.length - 1
+        ? allYears[yearIndex + 1]
+        : null;
+    let yearArrow = (targetYear, glyph, label) =>
+      targetYear
+        ? `<a class="rate-watched-year-arrow" href="${escape(pageUrl(targetYear))}" aria-label="${escape(label)} (${escape(targetYear)})">${glyph}</a>`
+        : `<span class="rate-watched-year-arrow is-disabled" aria-hidden="true">${glyph}</span>`;
 
-    let body = queue.length
+    let unratedBody = queue.length
       ? `<section><h2>${escape(year)} · ${escape(queue.length)} unrated</h2><div class="rate-watched-grid">${queue.map(renderCard).join("")}</div></section>`
       : `<section class="detail-empty"><h2>${escape(year)} is fully rated</h2></section>`;
+    let ratedBody = ratedForYear.length
+      ? `<section class="rate-watched-rated-section"><h2>${escape(year)} · Rated</h2><ol class="rate-watched-rated-list">${ratedForYear.map(renderRatedEntry).join("")}</ol></section>`
+      : "";
 
     container.innerHTML = `${header}
       <section class="rate-watched-progress card"><div><b>${escape(ratedCount)}</b> / ${escape(all.length)} rated</div><progress value="${escape(ratedCount)}" max="${escape(all.length || 1)}"></progress></section>
-      <label>Release year<select data-rate-watched-year>${yearOptions}</select></label>
-      ${body}`;
+      <div class="rate-watched-year-nav">
+        ${yearArrow(prevYear, "‹", "Previous year")}
+        <label>Release year<select data-rate-watched-year>${yearOptions}</select></label>
+        ${yearArrow(nextYear, "›", "Next year")}
+      </div>
+      ${unratedBody}
+      ${ratedBody}`;
     window.enhanceRatingInputs?.(container);
     activeYear = year;
     finish?.(`${unratedCount} unrated, ${year}, ${queue.length} shown`);
+  }
+
+  // Inserts one freshly-rated film into the already-rendered Rated list
+  // at its correctly sorted position, without touching anything else in
+  // the DOM - a poster-reload-and-scroll-jump was found live from a full
+  // render() on every single rating (see removeRatedCard below); the
+  // Rated section deserves the same treatment now that it exists too.
+  function insertRatedEntry(ratedList, row) {
+    let grade = ratedGrade(row);
+    let template = document.createElement("template");
+    template.innerHTML = renderRatedEntry(row).trim();
+    let node = template.content.firstElementChild;
+    let before = Array.from(ratedList.children).find(
+      (item) => Number(item.dataset.grade) < grade,
+    );
+    if (before) ratedList.insertBefore(node, before);
+    else ratedList.appendChild(node);
   }
 
   // Removes just the one card that was rated, in place, instead of
   // calling render() (which rebuilds the whole grid from scratch - found
   // live to reload every remaining poster and jump scroll position back
   // to the top on every single rating). Falls back to a full render()
-  // once the current year's queue actually empties, since that's a real
-  // layout change (the "year fully rated" empty state) render() already
-  // knows how to draw.
-  function removeRatedCard(form) {
+  // once the current year's queue actually empties, or the Rated section
+  // doesn't exist in the DOM yet (its first entry is a real layout
+  // change render() already knows how to draw).
+  function removeRatedCard(form, updatedRow) {
     let all = window.watchedFilmsForSupabaseRating();
     let grouped = window.unratedSupabaseWatchedFilmsByYear();
     let unratedCount = [...grouped.values()].reduce(
@@ -128,8 +198,9 @@
     );
     let ratedCount = all.length - unratedCount;
     let queue = grouped.get(activeYear) || [];
+    let ratedList = container.querySelector(".rate-watched-rated-list");
 
-    if (!queue.length) {
+    if (!queue.length || !ratedList) {
       render();
       return;
     }
@@ -150,6 +221,8 @@
       `[data-rate-watched-year] option[value="${activeYear}"]`,
     );
     if (yearOption) yearOption.textContent = `${activeYear} · ${queue.length}`;
+
+    if (updatedRow) insertRatedEntry(ratedList, updatedRow);
   }
 
   function renderHeaderAuthStatus(user) {
@@ -183,12 +256,12 @@
       let values = new FormData(form);
       let parsed = window.parseFilmRating(values.get("rating"));
       if (!parsed.value) throw new Error("Choose a rating before saving.");
-      await window.setSupabaseWatchedRating(
+      let updated = await window.setSupabaseWatchedRating(
         form.dataset.rateWatchedRow,
         parsed.value,
         parsed.modifier,
       );
-      removeRatedCard(form);
+      removeRatedCard(form, updated);
     } catch (error) {
       button.disabled = false;
       alert(error.message || String(error));

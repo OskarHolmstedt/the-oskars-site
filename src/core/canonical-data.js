@@ -72,6 +72,7 @@ const CANONICAL_FILM_FIELDS = new Set([
   "ratingValue",
   "review",
   "rewatchTier",
+  "rewatchTierModifier",
   "runtimeMinutes",
   "screenplayType",
   "suppressAllTimeRank",
@@ -105,6 +106,7 @@ const CANONICAL_WATCHLIST_FIELDS = new Set([
   "swedishTitle",
   "tags",
   "tier",
+  "tierModifier",
   "title",
   "tmdbId",
   "year",
@@ -176,6 +178,7 @@ const CANONICAL_OPINION_REBUILD_FILM_FIELDS = new Set([
   "review",
   "wantToRewatch",
   "rewatchTier",
+  "rewatchTierModifier",
   "musicScore",
   "musicRating",
   "musicRatingValue",
@@ -183,6 +186,7 @@ const CANONICAL_OPINION_REBUILD_FILM_FIELDS = new Set([
 ]);
 const CANONICAL_OPINION_REBUILD_WATCHLIST_FIELDS = new Set([
   "tier",
+  "tierModifier",
   "order",
   "franchiseRanks",
 ]);
@@ -191,6 +195,7 @@ const CANONICAL_OPINION_REBUILD_WATCHED_FIELDS = new Set([
   "ratingValue",
   "wantToRewatch",
   "rewatchTier",
+  "rewatchTierModifier",
   "franchiseRanks",
 ]);
 
@@ -1454,6 +1459,7 @@ const CANONICAL_PRIVATE_FILM_FIELDS = new Set([
   "platform",
   "review",
   "rewatchTier",
+  "rewatchTierModifier",
   "views",
   "wantToRewatch",
 ]);

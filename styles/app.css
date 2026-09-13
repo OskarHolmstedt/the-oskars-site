@@ -6628,6 +6628,24 @@ dialog h2 {
   display: grid;
   gap: 6px;
 }
+.rating-input--compact {
+  display: block;
+}
+/* Standard sr-only clip pattern - stays in the DOM, focusable, and
+   readable by assistive tech (the star/mod buttons are pointer-only,
+   tabindex="-1"), just not visible in a dense card grid with no room
+   to show it. */
+.rating-input--compact .rating-input-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .rating-input-controls {
   display: flex;
   align-items: center;
@@ -6685,6 +6703,20 @@ dialog h2 {
   color: var(--accent-dark);
   background: color-mix(in srgb, var(--accent) 14%, var(--surface));
 }
+.tier-select-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.tier-select-row .tier-modifier-toggle {
+  margin: 0;
+}
+.watchlist-tier-editor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .rate-watched-progress {
   display: grid;
   grid-template-columns: auto minmax(180px, 1fr) auto;
@@ -6714,6 +6746,27 @@ dialog h2 {
 .rate-watched-year-nav select {
   padding: 7px 10px;
 }
+.rate-watched-year-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 18px;
+  line-height: 1;
+  color: inherit;
+  text-decoration: none;
+}
+a.rate-watched-year-arrow:hover {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+.rate-watched-year-arrow.is-disabled {
+  opacity: 0.3;
+}
 .rate-watched-grid {
   display: grid;
   /* Fixed track width (not auto-fit's stretch-to-fill-1fr) so a card's
@@ -6721,23 +6774,122 @@ dialog h2 {
      live: rating one film out of a row reflowed every remaining card in
      that row to a new width. auto-fill leaves the trailing gap empty
      instead of stretching into it. */
-  grid-template-columns: repeat(auto-fill, 240px);
+  grid-template-columns: repeat(auto-fill, 172px);
   justify-content: start;
-  gap: 14px;
+  gap: 22px 18px;
 }
 .rate-watched-card {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   align-content: start;
-  width: 240px;
+  width: 172px;
+  padding: 7px;
 }
-.rate-watched-identity h3,
-.rate-watched-identity p {
+.rate-watched-identity h3 {
   margin: 0;
+  font-size: 13px;
+  line-height: 1.25;
 }
-.rate-watched-card label {
+.rate-watched-identity p {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.rate-watched-rating-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.rate-watched-rating-row .rating-input {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.rate-watched-rating-row .rating-input-controls {
+  gap: 4px;
+}
+/* The shared widget's stars/mods are sized for a full-width edit form
+   (film.html/intake.html) - shrunk here to actually fit a 172px card
+   alongside the checkmark save button (found live: at the shared
+   default size the whole control cluster overflowed the card and the
+   save button rendered on top of the next card's stars). */
+.rate-watched-rating-row .rating-input-star {
+  width: 16px;
+  height: 16px;
+  font-size: 14px;
+  line-height: 16px;
+}
+.rate-watched-rating-row .rating-input-mods {
+  gap: 2px;
+}
+.rate-watched-rating-row .rating-input-mod {
+  min-width: 16px;
+  width: 16px;
+  padding: 1px 0;
+  font-size: 10px;
+}
+.rate-watched-save {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.rate-watched-save:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+.rate-watched-save:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.rate-watched-rated-section {
+  margin-top: 8px;
+}
+.rate-watched-rated-list {
   display: grid;
-  gap: 6px;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rate-watched-rated-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px;
+  border-radius: 6px;
+}
+.rate-watched-rated-item:hover {
+  background: var(--surface-soft);
+}
+.rate-watched-rated-poster {
+  flex: 0 0 auto;
+  display: flex;
+}
+.rate-watched-rated-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+  text-decoration: none;
+}
+.rate-watched-rated-title:hover {
+  text-decoration: underline;
+}
+.rate-watched-rated-stars {
+  flex: 0 0 auto;
+  color: var(--accent-dark);
+  font-size: 13px;
+  white-space: nowrap;
 }
 @media (max-width: 620px) {
   .rate-watched-progress {

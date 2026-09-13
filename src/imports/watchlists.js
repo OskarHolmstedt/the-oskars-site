@@ -68,6 +68,49 @@ window.watchlistTierRank = function (value) {
 };
 
 /**
+ * Normalizes a tier's fine-grained refinement to "minus"/"plus"/"" only -
+ * default unmodified (""), same minus/null/plus shape as the rating
+ * modifier (src/ui/film-rating.js), minus its "dot" mistake: there was
+ * never a third "exact" value here to remove in the first place.
+ * @param {*} value Candidate modifier.
+ * @returns {'minus'|'plus'|''}
+ */
+window.normalizeTierModifierValue = function (value) {
+  return value === "minus" || value === "plus" ? value : "";
+};
+
+/**
+ * Renders a tier with its minus/plus refinement suffix (e.g. "A−", "A",
+ * "A＋"), or "" for an unset tier. Shared by every tier badge/label.
+ * @param {*} tier Candidate tier.
+ * @param {*} modifier Candidate modifier.
+ * @returns {string}
+ */
+window.renderTierWithModifier = function (tier, modifier) {
+  let normalized = window.normalizeWatchlistTier(tier);
+  if (!normalized) return "";
+  let mod = window.normalizeTierModifierValue(modifier);
+  return `${normalized}${mod === "minus" ? "−" : mod === "plus" ? "＋" : ""}`;
+};
+
+/**
+ * Returns a tier's fine-grained sort grade: tier rank expanded threefold
+ * with a minus/unmodified/plus offset, placing an unset tier last of
+ * all. Additive - existing watchlistTierRank() callers are untouched;
+ * this is for call sites that want the modifier to actually break ties.
+ * @param {*} tier Candidate tier.
+ * @param {*} modifier Candidate modifier.
+ * @returns {number}
+ */
+window.watchlistTierGrade = function (tier, modifier) {
+  let rank = window.watchlistTierRank(tier);
+  if (rank >= window.WATCHLIST_TIERS.length) return rank * 3;
+  let mod = window.normalizeTierModifierValue(modifier);
+  let offset = mod === "minus" ? 0 : mod === "plus" ? 2 : 1;
+  return rank * 3 + offset;
+};
+
+/**
  * Returns every selectable watchlist/rewatch tier-filter value: the ranked
  * tiers plus the blank `""` "unset" tier. Shared by period.js's Rewatchlist
  * tier filter and period/watchlist-view.js's Watchlist tier filter, which
@@ -136,6 +179,7 @@ window.normalizeWatchlistItem = function (item) {
     tmdbId,
     swedishTitle,
     tier: window.normalizeWatchlistTier(item?.tier || item?.rank),
+    tierModifier: window.normalizeTierModifierValue(item?.tierModifier),
     director: String(item?.director || "").trim(),
     tags: window.parseFilmTags?.(item?.tags) || [],
     franchises: window.normalizeFranchiseMemberships?.(item?.franchises) || [],
@@ -542,6 +586,7 @@ window.setWatchlistMetadata = function (id, values, options = {}) {
   function watchlistMetadataLogFields() {
     return {
       tier: item.tier,
+      tierModifier: item.tierModifier,
       director: item.director,
       tags: item.tags,
       franchises: item.franchises,
@@ -559,6 +604,8 @@ window.setWatchlistMetadata = function (id, values, options = {}) {
   let beforeLog = watchlistMetadataLogFields();
   if (Object.prototype.hasOwnProperty.call(values, "tier"))
     item.tier = window.normalizeWatchlistTier(values.tier);
+  if (Object.prototype.hasOwnProperty.call(values, "tierModifier"))
+    item.tierModifier = window.normalizeTierModifierValue(values.tierModifier);
   if (Object.prototype.hasOwnProperty.call(values, "director"))
     item.director = String(values.director || "").trim();
   if (Object.prototype.hasOwnProperty.call(values, "tags"))
@@ -607,6 +654,7 @@ window.setWatchlistMetadata = function (id, values, options = {}) {
     let afterLog = watchlistMetadataLogFields();
     let changes = window.editLogChanges(beforeLog, afterLog, [
       "tier",
+      { key: "tierModifier", label: "interest tier refinement" },
       "director",
       "tags",
       "franchises",

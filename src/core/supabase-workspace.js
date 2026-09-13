@@ -51,7 +51,7 @@
 const WATCHED_SELECT =
   "id, film_id, rating, rating_modifier, date_watched, review, platform, views, updated_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type)";
 const WATCHLIST_SELECT =
-  "id, film_id, tier, position, reason, updated_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, medium, type)";
+  "id, film_id, tier, tier_modifier, position, reason, updated_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, medium, type)";
 
 let workspaceState = null;
 let workspaceLoadPromise = null;
@@ -279,7 +279,7 @@ window.setSupabaseIntakeWatchedFacts = async function (watched, values) {
  * wired in for real, not a one-off special case.
  * @param {string} watchedId The watched row's id (from a cached entry).
  * @param {number} rating New rating value.
- * @param {'minus'|'dot'|'plus'|''} modifier New rating modifier, or an empty string to clear it.
+ * @param {'minus'|'plus'|''} modifier New rating modifier, or an empty string to clear it.
  * @returns {Promise<Object>} The updated, cache-shaped watched row.
  * @throws {Error} With `.code === 'OSKARS_STALE_WRITE'` when the row
  *   changed elsewhere since it was last loaded - the caller's cue to
@@ -343,6 +343,7 @@ window.addToSupabaseWatchlist = async function (filmId, options = {}) {
     .insert({
       film_id: filmId,
       tier: options.tier || null,
+      tier_modifier: options.tierModifier || null,
       reason: options.reason || null,
       position: Date.now().toString(36),
     })
@@ -528,6 +529,69 @@ window.loadSupabaseRanking = async function (scope, scopeType) {
       .order("film_id"),
   );
   return { rankingId, entries };
+};
+
+/**
+ * Seeds missing rated watched films for a year into exact-rating shelves without changing existing entries.
+ * @param {string} rankingId All-time ranking id.
+ * @param {Object[]} entries Existing ordered ranking entries.
+ * @param {Object[]} watched Watched rows joined with films.
+ * @param {string} year Selected year.
+ * @returns {Promise<boolean>} Whether missing entries were submitted.
+ */
+window.seedSupabaseYearRanking = async function (
+  rankingId,
+  entries,
+  watched,
+  year,
+) {
+  let byId = new Map(watched.map((row) => [row.film_id, row]));
+  let rankedIds = new Set(entries.map((entry) => entry.film_id));
+  let ratingValue = (row) =>
+    window.supabaseRankingRatingSortValueFromKey(
+      window.supabaseRankingRatingKey(row),
+    );
+  let missing = watched
+    .filter(
+      (row) =>
+        String(row.films?.year) === String(year) &&
+        window.supabaseRankingRatingKey(row) &&
+        !rankedIds.has(row.film_id),
+    )
+    .sort(
+      (a, b) =>
+        ratingValue(b) - ratingValue(a) || a.film_id.localeCompare(b.film_id),
+    );
+  if (!missing.length) return false;
+  let ordered = entries.slice();
+  let additions = [];
+  for (let row of missing) {
+    if (rankedIds.has(row.film_id)) continue;
+    let index = ordered.findIndex(
+      (entry) => ratingValue(byId.get(entry.film_id)) < ratingValue(row),
+    );
+    if (index < 0) index = ordered.length;
+    let entry = {
+      ranking_id: rankingId,
+      film_id: row.film_id,
+      position: window.fractionalPositionBetween(
+        ordered[index - 1]?.position || null,
+        ordered[index]?.position || null,
+      ),
+      rank_confirmed: false,
+    };
+    ordered.splice(index, 0, entry);
+    additions.push(entry);
+    rankedIds.add(row.film_id);
+  }
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { error } = await ready.client.from("ranking_entries").upsert(additions, {
+    onConflict: "ranking_id,film_id",
+    ignoreDuplicates: true,
+  });
+  if (error) throw error;
+  return true;
 };
 
 /**
@@ -1781,7 +1845,7 @@ window.loadSupabaseLegacyHydrationSource = async function () {
       client
         .from("watched")
         .select(
-          `id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, music_score, music_rating, music_rating_value, views, platform, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+          `id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
           withCount ? { count: "exact" } : undefined,
         )
         .order("id"),
@@ -1790,7 +1854,7 @@ window.loadSupabaseLegacyHydrationSource = async function () {
       client
         .from("watchlist")
         .select(
-          `id, film_id, tier, position, reason, added_at, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+          `id, film_id, tier, tier_modifier, position, reason, added_at, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
           withCount ? { count: "exact" } : undefined,
         )
         .order("position")
@@ -1965,7 +2029,7 @@ window.loadSupabaseWatchlistItemDetail = async function (watchlistId) {
   let { data, error } = await ready.client
     .from("watchlist")
     .select(
-      `id, film_id, tier, position, reason, added_at, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+      `id, film_id, tier, tier_modifier, position, reason, added_at, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
     )
     .eq("id", watchlistId)
     .maybeSingle();
@@ -2014,16 +2078,22 @@ window.createSupabaseWatchlistWatchedIntake = async function (
 };
 
 /**
- * Updates a watchlist item's interest tier straight through to Supabase.
+ * Updates a watchlist item's interest tier (and its optional minus/plus
+ * refinement, default null/unmodified) straight through to Supabase.
  * @param {string} watchlistId
  * @param {string} tier
+ * @param {'minus'|'plus'|''} [modifier]
  */
-window.setSupabaseWatchlistTier = async function (watchlistId, tier) {
+window.setSupabaseWatchlistTier = async function (watchlistId, tier, modifier) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
   let { error } = await ready.client
     .from("watchlist")
-    .update({ tier: tier || null, updated_at: new Date().toISOString() })
+    .update({
+      tier: tier || null,
+      tier_modifier: modifier || null,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", watchlistId);
   if (error) throw error;
 };
@@ -2256,7 +2326,10 @@ window.moveSupabaseLocalRankFilm = async function (
 /**
  * Bulk-assigns an interest tier to a set of watchlist items in one
  * request (issue #439) - the Supabase equivalent of the previous
- * setWatchlistTierForItems().
+ * setWatchlistTierForItems(). Always resets each item's minus/plus
+ * refinement to null - a stale refinement from whatever tier an item
+ * was in before a bulk reassignment would be actively misleading, and
+ * there's no single sensible modifier to apply across a whole batch.
  * @param {string[]} watchlistIds
  * @param {string} tier
  */
@@ -2267,7 +2340,11 @@ window.setSupabaseWatchlistTierForItems = async function (watchlistIds, tier) {
   if (!ids.length) return;
   let { error } = await ready.client
     .from("watchlist")
-    .update({ tier: tier || null, updated_at: new Date().toISOString() })
+    .update({
+      tier: tier || null,
+      tier_modifier: null,
+      updated_at: new Date().toISOString(),
+    })
     .in("id", ids);
   if (error) throw error;
 };
@@ -2346,13 +2423,13 @@ window.loadSupabaseTagCollection = async function (tagName) {
     client
       .from("watched")
       .select(
-        `id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, music_score, music_rating, music_rating_value, views, platform, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+        `id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
       )
       .in("film_id", filmIds),
     client
       .from("watchlist")
       .select(
-        `id, film_id, tier, position, reason, added_at, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+        `id, film_id, tier, tier_modifier, position, reason, added_at, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
       )
       .in("film_id", filmIds)
       .order("position"),
@@ -2539,14 +2616,14 @@ window.loadSupabaseProject = async function (projectId) {
       ? client
           .from("watched")
           .select(
-            "id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, music_score, music_rating, music_rating_value, views, platform, updated_at",
+            "id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at",
           )
           .in("film_id", filmIds)
       : Promise.resolve({ data: [] }),
     filmIds.length
       ? client
           .from("watchlist")
-          .select("id, film_id, tier, position, reason, added_at, updated_at")
+          .select("id, film_id, tier, tier_modifier, position, reason, added_at, updated_at")
           .in("film_id", filmIds)
       : Promise.resolve({ data: [] }),
     window.loadSupabaseFranchiseCatalog(),
@@ -2709,14 +2786,14 @@ window.loadSupabaseCollection = async function (collectionId) {
       ? client
           .from("watched")
           .select(
-            "id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, music_score, music_rating, music_rating_value, views, platform, updated_at",
+            "id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at",
           )
           .in("film_id", filmIds)
       : Promise.resolve({ data: [] }),
     filmIds.length
       ? client
           .from("watchlist")
-          .select("id, film_id, tier, position, reason, added_at, updated_at")
+          .select("id, film_id, tier, tier_modifier, position, reason, added_at, updated_at")
           .in("film_id", filmIds)
       : Promise.resolve({ data: [] }),
     window.loadSupabaseFranchiseCatalog(),

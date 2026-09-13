@@ -440,7 +440,12 @@ function watchlistTierEditor(item, escape, ui) {
         ),
       )
       .join("");
-    return `<label class="watchlist-tier-editor">${escape(ui("Interest"))} <select data-period-watchlist-tier-editor="${escape(item.id || window.watchlistItemId(item))}">${options}</select></label>`;
+    let id = escape(item.id || window.watchlistItemId(item));
+    // The modifier toggle identifies its row by looking up the sibling
+    // select's own id-carrying attribute at click time (handled in
+    // wirePeriodWatchlistControls below), rather than duplicating the id
+    // onto the toggle too.
+    return `<label class="watchlist-tier-editor">${escape(ui("Interest"))} <select data-period-watchlist-tier-editor="${id}">${options}</select>${window.renderTierModifierToggle?.("tierModifier", item.tierModifier, { escape, ui }) || ""}</label>`;
   }
 
 /**
@@ -498,6 +503,7 @@ window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
         ? watchlistTierEditor(item, escape, ui)
         : window.renderWatchlistTierBadge(item.tier, {
             escape: escape,
+            modifier: item.tierModifier,
           }),
     });
 };
@@ -596,7 +602,7 @@ window.renderWatchlistQueue = function (entries, options = {}) {
       .map((pick, index) => {
         let item = pick.item;
         let title = window.localizedFilmTitle?.(item) || item.title;
-        return `<li><span class="watchlist-queue-position">${index + 1}</span><div><a href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(title)}</a>${window.renderWatchlistTierBadge(item.tier, { escape })}<p class="discovery-reason">${escape(window.watchQueueReasonText(pick.reason))}</p></div></li>`;
+        return `<li><span class="watchlist-queue-position">${index + 1}</span><div><a href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(title)}</a>${window.renderWatchlistTierBadge(item.tier, { escape, modifier: item.tierModifier })}<p class="discovery-reason">${escape(window.watchQueueReasonText(pick.reason))}</p></div></li>`;
       })
       .join("");
     return `<div class="watchlist-queue-panel"><p>${escape(ui("A disposable queue recomputed from the current filters every time - nothing here is saved."))}</p><ol class="watchlist-queue-list">${rows}</ol></div>`;
@@ -687,10 +693,22 @@ window.wirePeriodWatchlistControls = function (container, handlers) {
     let tierEditorInput = event.target.closest(
       "[data-period-watchlist-tier-editor]",
     );
-    if (tierEditorInput) {
+    let tierModifierInput = event.target.closest(
+      '.watchlist-tier-editor input[name="tierModifier"]',
+    );
+    if (tierEditorInput || tierModifierInput) {
+      // Both controls write the tier+modifier pair together - look up
+      // whichever sibling didn't fire this change from their shared
+      // <label class="watchlist-tier-editor"> wrapper.
+      let label = (tierEditorInput || tierModifierInput).closest(
+        ".watchlist-tier-editor",
+      );
+      let select = label?.querySelector("[data-period-watchlist-tier-editor]");
+      let modifierInput = label?.querySelector('input[name="tierModifier"]');
       handlers.setItemTier(
-        tierEditorInput.dataset.periodWatchlistTierEditor,
-        tierEditorInput.value,
+        select?.dataset.periodWatchlistTierEditor,
+        select?.value || "",
+        modifierInput?.value || "",
       );
       return;
     }

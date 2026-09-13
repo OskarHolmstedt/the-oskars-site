@@ -62,6 +62,7 @@ window.filmMetadataFormValues = function (film) {
     review: film.review || "",
     wantToRewatch: Boolean(film.wantToRewatch),
     rewatchTier: film.rewatchTier || "",
+    rewatchTierModifier: film.rewatchTierModifier || "",
     allTimeRank: film.allTimeRank || "",
     centuryRank: film.centuryRank || "",
     decadeRank: film.decadeRank || "",
@@ -94,6 +95,7 @@ let FILM_UNDO_FIELD_LABELS = {
   franchises: "franchises",
   wantToRewatch: "rewatchlist",
   rewatchTier: "rewatch tier",
+  rewatchTierModifier: "rewatch tier refinement",
 };
 
 function filmUndoSnapshot(source) {
@@ -131,6 +133,7 @@ window.updateFilmMetadata = function (id, values, options = {}) {
     review: film.review,
     wantToRewatch: Boolean(film.wantToRewatch),
     rewatchTier: film.rewatchTier || "",
+    rewatchTierModifier: film.rewatchTierModifier || "",
     allTimeRank: film.allTimeRank,
     centuryRank: film.centuryRank,
     decadeRank: film.decadeRank,
@@ -197,6 +200,9 @@ window.updateFilmMetadata = function (id, values, options = {}) {
     source.rewatchTier = source.wantToRewatch
       ? window.normalizeWatchlistTier(values.rewatchTier)
       : "";
+    source.rewatchTierModifier = source.rewatchTier
+      ? window.normalizeTierModifierValue(values.rewatchTierModifier)
+      : "";
     source.liveAction =
       source.medium === "animation"
         ? "Animation"
@@ -259,6 +265,7 @@ window.updateFilmMetadata = function (id, values, options = {}) {
       review: updatedFilm.review,
       wantToRewatch: Boolean(updatedFilm.wantToRewatch),
       rewatchTier: updatedFilm.rewatchTier || "",
+      rewatchTierModifier: updatedFilm.rewatchTierModifier || "",
       allTimeRank: updatedFilm.allTimeRank,
       centuryRank: updatedFilm.centuryRank,
       decadeRank: updatedFilm.decadeRank,
@@ -281,6 +288,7 @@ window.updateFilmMetadata = function (id, values, options = {}) {
       "review",
       { key: "wantToRewatch", label: "rewatchlist" },
       { key: "rewatchTier", label: "rewatch tier" },
+      { key: "rewatchTierModifier", label: "rewatch tier refinement" },
       { key: "allTimeRank", label: "all-time rank" },
       { key: "centuryRank", label: "century rank" },
       { key: "decadeRank", label: "decade rank" },

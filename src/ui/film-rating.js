@@ -1,13 +1,24 @@
 /** @file Star-rating parsing, rendering, and the keyboard/pointer-editable rating input widget. */
 
-/** Parses stored or rendered film rating fields. @param {*} value Rating value or film-like record. @returns {Object} Numeric value and modifier. */
+/**
+ * Parses stored or rendered film rating fields. There is no "dot"
+ * modifier - it was always redundant with no modifier at all
+ * (filmRatingGrade() gives both the same middle grade), so a rating is
+ * either "minus", "plus", or unmodified (""). A stray trailing
+ * "•"/"·"/"." in older rendered text (or a lingering
+ * `ratingModifier: "dot"` on an object predating this) is read back as
+ * no modifier rather than rejected, so nothing that already exists
+ * breaks.
+ * @param {*} value Rating value or film-like record.
+ * @returns {Object} Numeric value and modifier.
+ */
 window.parseFilmRating = function (value) {
   if (value && typeof value === "object") {
     let storedValue = Number(value.ratingValue);
     if (storedValue >= 0.5 && storedValue <= 5) {
       return {
         value: storedValue,
-        modifier: ["plus", "dot", "minus"].includes(value.ratingModifier)
+        modifier: ["plus", "minus"].includes(value.ratingModifier)
           ? value.ratingModifier
           : "",
       };
@@ -31,11 +42,9 @@ window.parseFilmRating = function (value) {
   }
   let modifier = /[+＋]\s*$/.test(normalizedText)
     ? "plus"
-    : /[•·.]\s*$/.test(rawText)
-      ? "dot"
-      : /[-–—]\s*$/.test(rawText)
-        ? "minus"
-        : "";
+    : /[-–—]\s*$/.test(rawText)
+      ? "minus"
+      : "";
   return {
     value: rating >= 0.5 && rating <= 5 ? rating : 0,
     modifier,
@@ -51,18 +60,17 @@ window.renderFilmRating = function (value) {
   let modifier =
     parsed.modifier === "plus"
       ? "＋"
-      : parsed.modifier === "dot"
-        ? "•"
-        : parsed.modifier === "minus"
-          ? "—"
-          : "";
+      : parsed.modifier === "minus"
+        ? "—"
+        : "";
   return `${"★".repeat(fullStars)}${halfStar}${modifier}`;
 };
 
 /**
  * Renders a star-rating input: a plain, fully keyboard-editable text field
  * (accepting literal star glyphs or typed shorthand like "4.5-") paired with
- * a clickable/sweepable star bar and a minus/dot/plus modifier toggle. Call
+ * a clickable/sweepable star bar and a minus/plus modifier toggle (no
+ * "dot" - a rating with neither pressed already means exactly that). Call
  * window.enhanceRatingInputs() on the containing element after inserting
  * this markup to wire up the pointer controls.
  * @param {Object} [options] Field controls.
@@ -70,6 +78,12 @@ window.renderFilmRating = function (value) {
  * @param {string} [options.value] Initial rating text.
  * @param {string} [options.id] Explicit element id (auto-generated otherwise).
  * @param {boolean} [options.required] Whether the text input is required.
+ * @param {boolean} [options.compact] Visually hides the text field (a
+ *   dense card grid has no room for it and the star bar/mod toggle
+ *   already cover every value it could set) while keeping it in the DOM,
+ *   focusable, and readable by assistive tech - the star buttons
+ *   themselves are pointer-only (tabindex="-1"), so this remains the
+ *   only keyboard/screen-reader path to set a rating.
  * @returns {string} Rating input widget markup.
  */
 window.renderRatingInput = function (options = {}) {
@@ -85,7 +99,6 @@ window.renderRatingInput = function (options = {}) {
     .join("");
   let modifiers = [
     ["minus", "−", ui("Rate slightly lower")],
-    ["dot", "•", ui("Rate exactly")],
     ["plus", "＋", ui("Rate slightly higher")],
   ]
     .map(
@@ -93,7 +106,7 @@ window.renderRatingInput = function (options = {}) {
         `<button type="button" class="rating-input-mod" data-rating-mod="${mod}" tabindex="-1" aria-hidden="true" aria-label="${escape(label)}">${glyph}</button>`,
     )
     .join("");
-  return `<div class="rating-input" data-rating-input>
+  return `<div class="rating-input${options.compact ? " rating-input--compact" : ""}" data-rating-input>
     <input type="text" name="${escape(name)}" id="${escape(id)}" class="rating-input-text" value="${escape(options.value || "")}" placeholder="★★★★ / 4.5-" autocomplete="off"${options.required ? " required" : ""}>
     <div class="rating-input-controls">
       <div class="rating-input-stars" role="presentation">${stars}</div>
@@ -228,7 +241,7 @@ window.filmRatingFromGrade = function (grade) {
   let index = numericGrade - 1;
   return {
     ratingValue: (Math.floor(index / 3) + 1) / 2,
-    ratingModifier: ["minus", "dot", "plus"][index % 3],
+    ratingModifier: ["minus", "", "plus"][index % 3],
   };
 };
 

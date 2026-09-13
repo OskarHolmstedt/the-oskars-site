@@ -76,7 +76,7 @@ window.renderPeriodFilmGrid = function (options) {
           directorTitle: director,
           directorPrefix: "by ",
           escape,
-          bodyHtml: `${showRewatchTier ? window.renderWatchlistTierBadge(film.rewatchTier, { escape }) : ""}${renderFilmStats(getFilmStats(film, key))}${canonicalContext}${awardCards}`,
+          bodyHtml: `${showRewatchTier ? window.renderWatchlistTierBadge(film.rewatchTier, { escape, modifier: film.rewatchTierModifier }) : ""}${renderFilmStats(getFilmStats(film, key))}${canonicalContext}${awardCards}`,
         });
       })
       .join("") || "<p>No films</p>"

@@ -31,16 +31,84 @@ window.renderFilmAllTimeRank = function (film, options = {}) {
 };
 
 /**
- * Renders the standard watchlist interest tier badge.
+ * Renders the standard watchlist interest tier badge, with its optional
+ * minus/plus refinement suffix (options.modifier - default unmodified).
  * @param {string} tier Raw tier value.
  * @param {Object} [options] Escaping options.
+ * @param {'minus'|'plus'|''} [options.modifier] Fine-grained tier refinement.
  * @returns {string} Badge HTML, or "" for an unset or unknown tier.
  */
 window.renderWatchlistTierBadge = function (tier, options = {}) {
   let escape = options.escape || window.pageEscape;
   let normalized = window.normalizeWatchlistTier?.(tier) || "";
   if (!normalized) return "";
-  return `<span class="watchlist-tier tier-${escape(normalized.toLowerCase())}">${escape(normalized)}</span>`;
+  let label = window.renderTierWithModifier?.(tier, options.modifier) || normalized;
+  return `<span class="watchlist-tier tier-${escape(normalized.toLowerCase())}">${escape(label)}</span>`;
+};
+
+/**
+ * Renders a minus/plus toggle for a tier's fine-grained refinement -
+ * default null/unmodified, matching the rating widget's minus/plus
+ * modifier toggle exactly (reuses its .rating-input-mod/.is-active CSS,
+ * there being no "dot"/third state here either). The current value
+ * lives in a hidden `<input name="{name}">`, so a plain FormData read
+ * of the surrounding form already picks it up with no extra wiring -
+ * call window.enhanceTierModifierToggles() on the containing element
+ * after inserting this markup to make the buttons interactive.
+ * @param {string} name Hidden input name (e.g. "tierModifier", "rewatchTierModifier").
+ * @param {*} modifier Current modifier value.
+ * @param {Object} [options] Rendering options.
+ * @param {Function} [options.escape] HTML-escaping function.
+ * @param {Function} [options.ui] Localized-text function.
+ * @returns {string} Toggle widget HTML.
+ */
+window.renderTierModifierToggle = function (name, modifier, options = {}) {
+  let escape = options.escape || window.pageEscape;
+  let ui = options.ui || window.uiText || ((text) => text);
+  let normalized = window.normalizeTierModifierValue?.(modifier) || "";
+  let buttons = [
+    ["minus", "−", ui("Slightly lower priority")],
+    ["plus", "＋", ui("Slightly higher priority")],
+  ]
+    .map(
+      ([mod, glyph, label]) =>
+        `<button type="button" class="rating-input-mod${normalized === mod ? " is-active" : ""}" data-tier-modifier-toggle="${mod}" aria-pressed="${normalized === mod ? "true" : "false"}" aria-label="${escape(label)}" tabindex="-1">${glyph}</button>`,
+    )
+    .join("");
+  return `<span class="rating-input-mods tier-modifier-toggle" data-tier-modifier-input><input type="hidden" name="${escape(name)}" value="${escape(normalized)}">${buttons}</span>`;
+};
+
+/**
+ * Wires up every tier-modifier toggle within a container so clicking
+ * minus/plus updates the paired hidden input (toggling it off, back to
+ * "", on a second click of the same button) and dispatches a `change`
+ * event on it. Idempotent (safe to call again after a re-render).
+ * @param {Element} container Root element containing rendered toggle widgets.
+ */
+window.enhanceTierModifierToggles = function (container) {
+  (container?.querySelectorAll?.("[data-tier-modifier-input]") || []).forEach(
+    (widget) => {
+      if (widget.dataset.tierModifierReady) return;
+      widget.dataset.tierModifierReady = "1";
+      let input = widget.querySelector("input[type=hidden]");
+      let buttons = Array.from(
+        widget.querySelectorAll("[data-tier-modifier-toggle]"),
+      );
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          let mod = button.dataset.tierModifierToggle;
+          let next = input.value === mod ? "" : mod;
+          input.value = next;
+          buttons.forEach((candidate) => {
+            let active = candidate.dataset.tierModifierToggle === next;
+            candidate.classList.toggle("is-active", active);
+            candidate.setAttribute("aria-pressed", active ? "true" : "false");
+          });
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      });
+    },
+  );
 };
 
 /**
@@ -100,6 +168,9 @@ window.renderRatingTierCell = function (record = {}, options = {}) {
   let content = options.editHtml || "";
   if (!content && record.film) content = escape(record.film.rating || "");
   if (!content && record.item)
-    content = window.renderWatchlistTierBadge(record.item.tier, { escape });
+    content = window.renderWatchlistTierBadge(record.item.tier, {
+      escape,
+      modifier: record.item.tierModifier,
+    });
   return `<td class="rating-tier-cell">${content || "—"}</td>`;
 };

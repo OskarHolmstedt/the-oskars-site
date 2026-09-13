@@ -97,6 +97,7 @@
  * @property {number} [views]
  * @property {boolean} [wantToRewatch] True when the watched film is on the rewatchlist.
  * @property {'S'|'A'|'B'|'C'|'D'|'E'|'F'|''} [rewatchTier] Rewatch priority, reusing the watchlist's interest tiers.
+ * @property {'minus'|'plus'|''} [rewatchTierModifier] Fine-grained refinement within rewatchTier; default unmodified ("").
  * @property {string|number} [musicScore] Ranked-list Score column: a canonical star grade for new imports or a legacy numeric soundtrack rating.
  * @property {number} [musicRatingValue] Optional normalized music-quality star rating.
  * @property {string} [musicRating] Optional star rating text for music quality.
@@ -339,6 +340,7 @@
  * @property {string} [swedishTitle]
  * @property {'S'|'A'|'B'|'C'|'D'|'E'|'F'|''} [tier] Interest tier; tiers are
  *   guard buckets for order edits.
+ * @property {'minus'|'plus'|''} [tierModifier] Fine-grained refinement within tier; default unmodified ("").
  * @property {number} [order] Optional numeric global watchlist order.
  * @property {string} [director]
  * @property {string[]} [directors]
@@ -381,7 +383,7 @@
  * @property {string} [platform]
  * @property {string} [dateWatched]
  * @property {number} [views]
- * @property {'plus'|'dot'|'minus'|''} [ratingModifier]
+ * @property {'plus'|'minus'|''} [ratingModifier]
  */
 
 /**

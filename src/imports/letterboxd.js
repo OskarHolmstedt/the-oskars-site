@@ -103,10 +103,13 @@
     let value = Number(String(row?.rating || "").replace(",", "."));
     if (!Number.isFinite(value) || value < 0.5 || value > 5 || value * 2 % 1)
       return null;
+    // Letterboxd only has plain half-star ratings, no minus/plus concept
+    // of its own - imported as unmodified (no "dot"; that value was
+    // removed as a distinct modifier, always redundant with "").
     return {
-      rating: window.renderFilmRating({ ratingValue: value, ratingModifier: "dot" }),
+      rating: window.renderFilmRating({ ratingValue: value, ratingModifier: "" }),
       ratingValue: value,
-      ratingModifier: "dot",
+      ratingModifier: "",
     };
   }
 

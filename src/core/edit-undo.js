@@ -409,6 +409,7 @@
         "franchises",
         "wantToRewatch",
         "rewatchTier",
+        "rewatchTierModifier",
       ]),
       resolve(target) {
         return (
@@ -438,6 +439,7 @@
       targetKeys: ["watchlistId"],
       fieldKeys: new Set([
         "tier",
+        "tierModifier",
         "director",
         "tags",
         "franchises",

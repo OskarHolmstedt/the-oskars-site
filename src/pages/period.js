@@ -846,6 +846,7 @@
             editHtml: options.showRewatchTier
               ? window.renderWatchlistTierBadge(film.rewatchTier, {
                   escape: periodEscape,
+                  modifier: film.rewatchTierModifier,
                 })
               : "",
           },
@@ -1608,6 +1609,7 @@
     }
     window.enhanceCollapsibles?.(container);
     window.syncWinnerPosterHeights?.(container);
+    window.enhanceTierModifierToggles?.(container);
     finishRenderTimer?.(`${type}:${key} ${viewMode}, ${pageTotal} item(s)`);
   }
 
@@ -2171,8 +2173,8 @@
       updateViewUrl();
       render();
     },
-    setItemTier(id, tier) {
-      window.setWatchlistMetadata(id, { tier }, { save: false });
+    setItemTier(id, tier, tierModifier) {
+      window.setWatchlistMetadata(id, { tier, tierModifier }, { save: false });
       window.save?.({ immediate: true, rebuild: false });
       render();
     },

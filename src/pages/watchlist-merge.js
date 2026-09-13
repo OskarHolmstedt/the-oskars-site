@@ -139,7 +139,7 @@
     return `<article class="film-card watchlist-card watchlist-merge-choice-card" data-watchlist-merge-pick="${side}" tabindex="0" role="button">
       <h3>${escape(film.title || "Unknown film")}</h3>
       <span class="film-year">(${escape(film.year || "—")})</span>
-      ${window.renderWatchlistTierBadge(row.tier, { escape })}
+      ${window.renderWatchlistTierBadge(row.tier, { escape, modifier: row.tier_modifier })}
     </article>`;
   }
 

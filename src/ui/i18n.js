@@ -1168,6 +1168,8 @@
         sv: "Ingen intressetier har minst två watchlist-filmer. Sätt tiers på watchlist-sidan först.",
       },
     "Interest tier": { sv: "Intressetier" },
+    "Slightly lower priority": { sv: "Något lägre prioritet" },
+    "Slightly higher priority": { sv: "Något högre prioritet" },
     "Pick an interest tier and two groups within it - two years, a year and its decade, a decade and the rest of the tier - then decide film by film which one ranks higher. Everything outside the two groups keeps its exact position.":
       {
         sv: "Välj en intressetier och två grupper inom den - två år, ett år och dess årtionde, ett årtionde och resten av tiern - avgör sedan film för film vilken som rankas högre. Allt utanför de två grupperna behåller sin exakta plats.",
@@ -1860,7 +1862,6 @@
     "Rank / Tier": { sv: "Rankning / Tier" },
     Rating: { sv: "Betyg" },
     "Rate slightly lower": { sv: "Betygsätt något lägre" },
-    "Rate exactly": { sv: "Betygsätt exakt" },
     "Rate slightly higher": { sv: "Betygsätt något högre" },
     "Ratings histogram": { sv: "Betygshistogram" },
     "{count} rated films": { sv: "{count} betygsatta filmer" },

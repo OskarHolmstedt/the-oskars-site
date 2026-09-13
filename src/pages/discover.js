@@ -274,7 +274,7 @@
       escape,
       beforeTitleHtml: options.beforeTitleHtml || "",
       titleHtml: `<h2><a href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(title)}</a></h2>`,
-      bodyHtml: `<p>${escape(item.year || "")}${item.director ? ` · ${escape(item.director)}` : ""}</p>${window.renderWatchlistTierBadge(item.tier, { escape })}${options.extraBodyHtml || ""}${tags.length ? `<div class="film-tag-list">${tags.map((tag) => `<a class="film-tag" href="${escape(window.tagPageUrl(tag))}">${escape(tag)}</a>`).join("")}</div>` : ""}`,
+      bodyHtml: `<p>${escape(item.year || "")}${item.director ? ` · ${escape(item.director)}` : ""}</p>${window.renderWatchlistTierBadge(item.tier, { escape, modifier: item.tierModifier })}${options.extraBodyHtml || ""}${tags.length ? `<div class="film-tag-list">${tags.map((tag) => `<a class="film-tag" href="${escape(window.tagPageUrl(tag))}">${escape(tag)}</a>`).join("")}</div>` : ""}`,
     });
   }
   function renderWatchlistPick(pick, count) {
