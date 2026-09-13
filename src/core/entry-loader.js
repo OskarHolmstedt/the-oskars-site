@@ -530,6 +530,7 @@
       "src/domain/posters.js",
       "src/domain/image-providers.js",
       "src/domain/tmdb-credit-jobs.js",
+      "src/ui/country.js",
       "src/ui/award-credit.js",
       "src/ui/detail-scaffold.js",
       "src/ui/scroll-affordance.js",

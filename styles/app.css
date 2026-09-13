@@ -6716,13 +6716,20 @@ dialog h2 {
 }
 .rate-watched-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  /* Fixed track width (not auto-fit's stretch-to-fill-1fr) so a card's
+     size never changes as sibling cards are added or removed - found
+     live: rating one film out of a row reflowed every remaining card in
+     that row to a new width. auto-fill leaves the trailing gap empty
+     instead of stretching into it. */
+  grid-template-columns: repeat(auto-fill, 240px);
+  justify-content: start;
   gap: 14px;
 }
 .rate-watched-card {
   display: grid;
   gap: 10px;
   align-content: start;
+  width: 240px;
 }
 .rate-watched-identity h3,
 .rate-watched-identity p {

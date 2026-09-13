@@ -74,6 +74,30 @@
       .map((row) => row.films);
   }
 
+  function filmPrimaryCountry(film) {
+    return (
+      window.normalizeCountryName?.(film?.primary_country) ||
+      window.countryListValues?.(film?.country)?.[0] ||
+      ""
+    );
+  }
+
+  // Only a *confirmed* mismatch hides a film from a category's pool - a
+  // film with no screenplay_type/medium recorded yet (most of the
+  // archive, since this data has only recently started being imported)
+  // stays eligible rather than disappearing outright, mirroring
+  // validateAward()'s existing "unknown -> warning, not error" posture
+  // (src/domain/awards.js) rather than inventing a stricter rule here.
+  function categoryEligible(film, category) {
+    if (category === "Best Original Screenplay")
+      return film.screenplay_type !== "adapted";
+    if (category === "Best Adapted Screenplay")
+      return film.screenplay_type !== "original";
+    if (category === "Best Animated Picture")
+      return !film.medium || film.medium === "unknown" || film.medium === "animation";
+    return true;
+  }
+
   function candidateCreditOptions(filmId, category) {
     return (
       window.awardCandidateCreditOptions?.(
@@ -314,7 +338,10 @@
       : new Set(nominations.map((n) => n.film_id));
     let excludedIds = excludedFromPoolFor(category);
     let pool = films.filter(
-      (film) => !nominatedIds.has(film.id) && !excludedIds.has(film.id),
+      (film) =>
+        !nominatedIds.has(film.id) &&
+        !excludedIds.has(film.id) &&
+        categoryEligible(film, category),
     );
     let isPending = pendingNominee?.category === category;
     let poolHtml = isPending
@@ -384,6 +411,11 @@
   function beginNominee(category, filmId, placement) {
     if (category === "Best Picture") {
       addNominee(category, filmId, placement, "", "");
+      return;
+    }
+    if (category === "Best International Picture") {
+      let film = yearWatchedFilms().find((candidate) => candidate.id === filmId);
+      addNominee(category, filmId, placement, filmPrimaryCountry(film), "");
       return;
     }
     pendingNominee = { category, filmId, placement };

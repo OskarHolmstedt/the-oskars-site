@@ -26,6 +26,7 @@
 (function () {
   let escape = window.pageEscape;
   let container = document.getElementById("rateWatchedPage");
+  let activeYear = null; // the year render() last drew the queue for
 
   function pageUrl(year) {
     return year
@@ -107,7 +108,48 @@
       <label>Release year<select data-rate-watched-year>${yearOptions}</select></label>
       ${body}`;
     window.enhanceRatingInputs?.(container);
+    activeYear = year;
     finish?.(`${unratedCount} unrated, ${year}, ${queue.length} shown`);
+  }
+
+  // Removes just the one card that was rated, in place, instead of
+  // calling render() (which rebuilds the whole grid from scratch - found
+  // live to reload every remaining poster and jump scroll position back
+  // to the top on every single rating). Falls back to a full render()
+  // once the current year's queue actually empties, since that's a real
+  // layout change (the "year fully rated" empty state) render() already
+  // knows how to draw.
+  function removeRatedCard(form) {
+    let all = window.watchedFilmsForSupabaseRating();
+    let grouped = window.unratedSupabaseWatchedFilmsByYear();
+    let unratedCount = [...grouped.values()].reduce(
+      (sum, rows) => sum + rows.length,
+      0,
+    );
+    let ratedCount = all.length - unratedCount;
+    let queue = grouped.get(activeYear) || [];
+
+    if (!queue.length) {
+      render();
+      return;
+    }
+
+    form.remove();
+
+    let progressSection = container.querySelector(".rate-watched-progress");
+    if (progressSection) {
+      progressSection.querySelector("b").textContent = ratedCount;
+      progressSection.querySelector("progress").value = ratedCount;
+    }
+    let yearHeading = container.querySelector(
+      ".rate-watched-grid",
+    )?.parentElement?.querySelector("h2");
+    if (yearHeading)
+      yearHeading.textContent = `${activeYear} · ${queue.length} unrated`;
+    let yearOption = container.querySelector(
+      `[data-rate-watched-year] option[value="${activeYear}"]`,
+    );
+    if (yearOption) yearOption.textContent = `${activeYear} · ${queue.length}`;
   }
 
   function renderHeaderAuthStatus(user) {
@@ -146,7 +188,7 @@
         parsed.value,
         parsed.modifier,
       );
-      render();
+      removeRatedCard(form);
     } catch (error) {
       button.disabled = false;
       alert(error.message || String(error));

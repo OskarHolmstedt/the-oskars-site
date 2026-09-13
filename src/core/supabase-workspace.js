@@ -49,7 +49,7 @@
  */
 
 const WATCHED_SELECT =
-  "id, film_id, rating, rating_modifier, date_watched, review, platform, views, updated_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, medium, type)";
+  "id, film_id, rating, rating_modifier, date_watched, review, platform, views, updated_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type)";
 const WATCHLIST_SELECT =
   "id, film_id, tier, position, reason, updated_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, medium, type)";
 
