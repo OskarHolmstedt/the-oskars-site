@@ -129,15 +129,14 @@
     if (path === "period.html") {
       let params = new URLSearchParams(window.location?.search || "");
       let view = params.get("view");
-      if (
-        view === "watchlist" ||
-        view === "shared" ||
-        view === "other" ||
-        (params.get("type") === "alltime" && view === "films")
-      )
+      // The all-time Watched view moved to films.html (issue #495) -
+      // period.html?view=films remains a valid, narrower period-scoped
+      // Watched browse, so it isn't retired, but no longer claims Films.
+      if (view === "watchlist" || view === "shared" || view === "other")
         return "films";
       return "periods";
     }
+    if (path === "films.html") return "films";
     if (path === "periods.html") return "periods";
     if (path === "categories.html" || path === "category.html")
       return "categories";
@@ -190,19 +189,19 @@
     // Unseen (issue #453, formerly "Shared archive") reads the viewer's
     // own signed-in account's watched/watchlist data to compute what's
     // missing, meaningless (and hidden the same way period.js's own
-    // view-switcher hides it) for a public-profile visitor.
+    // view-switcher hides it) for a public-profile visitor. "Other watched"
+    // is a community aggregation (other people's watched films at this
+    // period scope) with no equivalent in films.html's own-relationship
+    // status filter, so it still points at period.html (issue #495).
     let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
     let rows = [
+      ["films.html?status=watched", headerText("nav.watched", "Watched")],
       [
-        "period.html?type=alltime&view=films",
-        headerText("nav.watched", "Watched"),
-      ],
-      [
-        "period.html?type=alltime&view=watchlist",
+        "films.html?status=watchlist",
         headerText("nav.watchlist", "Watchlist"),
       ],
       ...(canEdit
-        ? [["period.html?type=alltime&view=shared", literalText("Unseen")]]
+        ? [["films.html?status=unseen", literalText("Unseen")]]
         : []),
       ["period.html?type=alltime&view=other", literalText("Other watched")],
     ];
@@ -256,7 +255,7 @@
       [
         "films",
         headerText("nav.films", "Films"),
-        "period.html?type=alltime&view=films",
+        "films.html",
       ],
       ["projects", headerText("nav.projects", "Projects"), "projects.html"],
     ];
@@ -287,7 +286,7 @@
     let ownerLinks = allowOwnerPages
       ? `<a href="build.html">${escape(headerText("nav.build", "Build your Oskars"))}</a><a href="intake.html">${escape(headerText("nav.intake", "Intake"))}</a><a href="rate-watched.html">${escape(headerText("nav.rateWatched", "Rate watched"))}</a><a href="data.html">${escape(headerText("nav.data", "Data"))}</a><a href="profile.html">${escape(headerText("nav.profile", "Profile"))}</a>`
       : "";
-    return `<section><h2>${escape(headerText("menu.elsewhere", "Elsewhere"))}</h2><div class="site-menu-links"><a href="custom-collections.html">${escape(literalText("Custom Collections"))}</a><a href="community.html">${escape(headerText("menu.community", "Community"))}</a><a href="discover.html">${escape(headerText("menu.discover", "Discover"))}</a><a href="compare.html">${escape(headerText("nav.compare", "Compare"))}</a><a href="presentation.html">${escape(headerText("menu.showcase", "Showcase"))}</a><a href="completion.html">${escape(headerText("menu.completion", "Completion"))}</a><a href="stats.html">${escape(headerText("menu.statistics", "Statistics"))}</a><a href="people.html">${escape(headerText("menu.people", "People"))}</a>${ownerLinks}</div></section>`;
+    return `<section><h2>${escape(headerText("menu.elsewhere", "Elsewhere"))}</h2><div class="site-menu-links"><a href="community.html">${escape(headerText("menu.community", "Community"))}</a><a href="discover.html">${escape(headerText("menu.discover", "Discover"))}</a><a href="compare.html">${escape(headerText("nav.compare", "Compare"))}</a><a href="presentation.html">${escape(headerText("menu.showcase", "Showcase"))}</a><a href="completion.html">${escape(headerText("menu.completion", "Completion"))}</a><a href="stats.html">${escape(headerText("menu.statistics", "Statistics"))}</a><a href="people.html">${escape(headerText("menu.people", "People"))}</a>${ownerLinks}</div></section>`;
   }
 
   function updateLanguageToggle(button) {

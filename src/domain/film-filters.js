@@ -210,6 +210,17 @@
           : tier === window.normalizeWatchlistTier(value);
       },
     },
+    // A film's relationship to the viewer (watched/watchlisted/unseen),
+    // not an intrinsic property of the film itself - only meaningful for
+    // buildFullFilmCatalog()'s merged catalog records (issue #495), which
+    // are the only records that carry catalogStatus at all.
+    status: {
+      validate: (value) =>
+        inactive(value) ||
+        ["watched", "watchlist", "unseen"].includes(value),
+      matches: (record, value) =>
+        inactive(value) || record?.catalogStatus === value,
+    },
   };
 
   /** Returns a shared filter definition by its vocabulary name.

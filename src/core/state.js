@@ -285,6 +285,8 @@ window.addFilmToStore = function (year, film, options = {}) {
       existing.musicRatingValue ?? film.musicRatingValue ?? null;
     existing.runtimeMinutes =
       existing.runtimeMinutes || film.runtimeMinutes || null;
+    if (film.rankConfirmedByScope)
+      existing.rankConfirmedByScope = { ...film.rankConfirmedByScope };
     existing.rankingGroupId =
       existing.rankingGroupId || film.rankingGroupId || "";
     existing.rankingGroupTitle =
@@ -434,4 +436,16 @@ window.sameAward = function (a, b) {
 window.findFilmById = function (id) {
   if (!id) return null;
   return window.state.filmsById?.[id] || null;
+};
+
+/**
+ * Reports confirmation in the requested scope, retaining the shared flag for legacy records.
+ * @param {FilmRecord} film Film record.
+ * @param {'years'|'decades'|'centuries'|'allTime'} scopeType Ranking scope.
+ * @returns {boolean} Whether the rank is deliberately confirmed.
+ */
+window.isFilmRankConfirmed = function (film, scopeType) {
+  if (film?.rankConfirmedByScope)
+    return film.rankConfirmedByScope[scopeType] === true;
+  return film?.rankConfirmed !== false;
 };

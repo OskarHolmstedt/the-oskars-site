@@ -532,11 +532,145 @@ window.loadSupabaseRanking = async function (scope, scopeType) {
 };
 
 /**
- * Seeds missing rated watched films for a year into exact-rating shelves without changing existing entries.
- * @param {string} rankingId All-time ranking id.
+ * Loads existing ranking scopes with fully paged entries, without creating empty rankings.
+ * @returns {Promise<Object[]>} Rankings with ordered film entries.
+ */
+window.loadSupabaseStoredRankings = async function () {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let [rankings, entries] = await Promise.all([
+    fetchAllSupabaseRows((withCount) =>
+      ready.client
+        .from("rankings")
+        .select(
+          "id, scope, scope_type",
+          withCount ? { count: "exact" } : undefined,
+        )
+        .order("id"),
+    ),
+    fetchAllSupabaseRows((withCount) =>
+      ready.client
+        .from("ranking_entries")
+        .select(
+          `ranking_id, ${RANKING_ENTRY_SELECT}`,
+          withCount ? { count: "exact" } : undefined,
+        )
+        .order("ranking_id")
+        .order("position")
+        .order("film_id"),
+    ),
+  ]);
+  let byRanking = new Map();
+  entries.forEach((entry) => {
+    if (!byRanking.has(entry.ranking_id)) byRanking.set(entry.ranking_id, []);
+    byRanking.get(entry.ranking_id).push(entry);
+  });
+  return rankings.map((ranking) => ({
+    ...ranking,
+    ranking_entries: byRanking.get(ranking.id) || [],
+  }));
+};
+
+/**
+ * Prepares the selected period's own ranking, carrying narrower ordering forward provisionally.
+ * @param {string} scope Period key.
+ * @param {'years'|'decades'|'centuries'|'allTime'} scopeType Period type.
+ * @param {Object[]} watched Watched rows joined with films.
+ * @returns {Promise<{rankingId: string, entries: Object[]}>} Selected ranking.
+ */
+window.prepareSupabasePeriodRanking = async function (
+  scope,
+  scopeType,
+  watched,
+) {
+  let loaded = await window.loadSupabaseRanking(scope, scopeType);
+  let eligible = watched.filter((row) =>
+    window.supabaseRankingEntryInScope(scopeType, scope, row),
+  );
+  let existingIds = new Set(loaded.entries.map((entry) => entry.film_id));
+  let missing = eligible.some(
+    (row) =>
+      window.supabaseRankingRatingKey(row) && !existingIds.has(row.film_id),
+  );
+  let sourceEntries = [];
+  if (missing) {
+    let stored = await window.loadSupabaseStoredRankings();
+    let narrower = {
+      years: "allTime",
+      decades: "years",
+      centuries: "decades",
+      allTime: "centuries",
+    }[scopeType];
+    sourceEntries = stored
+      .filter((ranking) => ranking.scope_type === narrower)
+      .sort((a, b) => a.scope.localeCompare(b.scope))
+      .flatMap((ranking) => ranking.ranking_entries);
+  }
+  if (
+    await window.seedSupabaseYearRanking(
+      loaded.rankingId,
+      loaded.entries,
+      eligible,
+      null,
+      sourceEntries,
+    )
+  ) {
+    loaded = await window.loadSupabaseRanking(scope, scopeType);
+  }
+  // A year shelf with one film has no ordering decision to make. Broader
+  // scopes require explicit confirmation even when they contain one film.
+  if (scopeType === "years") {
+    let byId = new Map(eligible.map((row) => [row.film_id, row]));
+    let buckets = new Map();
+    loaded.entries.forEach((entry) => {
+      let key = window.supabaseRankingRatingKey(byId.get(entry.film_id));
+      if (!key) return;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(entry);
+    });
+    let singles = [...buckets.values()]
+      .filter(
+        (group) => group.length === 1 && group[0].rank_confirmed === false,
+      )
+      .flat();
+    if (singles.length) {
+      await window.confirmSupabaseRankingEntries(
+        loaded.rankingId,
+        singles.map((entry) => entry.film_id),
+      );
+      loaded = await window.loadSupabaseRanking(scope, scopeType);
+    }
+  }
+  return loaded;
+};
+
+/**
+ * Confirms the specified films in one ranking without changing other scopes.
+ * @param {string} rankingId Selected ranking id.
+ * @param {string[]} filmIds Films deliberately ordered in that ranking.
+ */
+window.confirmSupabaseRankingEntries = async function (rankingId, filmIds) {
+  if (!filmIds.length) return;
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  // Keep PostgREST filter URLs bounded even for an all-time list with thousands of films.
+  for (let index = 0; index < filmIds.length; index += 100) {
+    let { error } = await ready.client
+      .from("ranking_entries")
+      .update({ rank_confirmed: true })
+      .eq("ranking_id", rankingId)
+      .in("film_id", filmIds.slice(index, index + 100));
+    if (error) throw error;
+  }
+};
+
+/**
+ * Seeds missing rated watched films into a selected ranking’s exact-rating shelves without changing existing entries.
+ * @param {string} rankingId Selected ranking id.
  * @param {Object[]} entries Existing ordered ranking entries.
  * @param {Object[]} watched Watched rows joined with films.
- * @param {string} year Selected year.
+ * @param {string|null} year Selected year, or null for prefiltered period rows.
+ * @param {Object[]} [sourceEntries] Preferred order inherited from a narrower period.
  * @returns {Promise<boolean>} Whether missing entries were submitted.
  */
 window.seedSupabaseYearRanking = async function (
@@ -544,7 +678,11 @@ window.seedSupabaseYearRanking = async function (
   entries,
   watched,
   year,
+  sourceEntries = [],
 ) {
+  let preferred = new Map(
+    sourceEntries.map((entry, index) => [entry.film_id, index]),
+  );
   let byId = new Map(watched.map((row) => [row.film_id, row]));
   let rankedIds = new Set(entries.map((entry) => entry.film_id));
   let ratingValue = (row) =>
@@ -554,13 +692,16 @@ window.seedSupabaseYearRanking = async function (
   let missing = watched
     .filter(
       (row) =>
-        String(row.films?.year) === String(year) &&
+        (year === null || String(row.films?.year) === String(year)) &&
         window.supabaseRankingRatingKey(row) &&
         !rankedIds.has(row.film_id),
     )
     .sort(
       (a, b) =>
-        ratingValue(b) - ratingValue(a) || a.film_id.localeCompare(b.film_id),
+        ratingValue(b) - ratingValue(a) ||
+        (preferred.get(a.film_id) ?? Infinity) -
+          (preferred.get(b.film_id) ?? Infinity) ||
+        a.film_id.localeCompare(b.film_id),
     );
   if (!missing.length) return false;
   let ordered = entries.slice();
@@ -1179,10 +1320,8 @@ window.loadSupabaseRankingPairReviews = async function (scope, scopeType) {
 };
 
 /**
- * Records one pair as reviewed and marks both films' ranking entries
- * deliberately confirmed - the same "not a mechanical default" signal
- * moveRankedFilmWithinRating() sets via rankConfirmed, now on
- * ranking_entries.rank_confirmed.
+ * Records one pair as reviewed without confirming a partially reviewed shelf.
+ * Confirmation is explicit for the selected ranking.
  * @param {string} scope
  * @param {'years'|'decades'|'centuries'|'allTime'} scopeType
  * @param {string} rankingId
@@ -1211,13 +1350,6 @@ window.resolveSupabaseRankingPairReview = async function (
       { onConflict: "user_id,scope_type,scope,film_id_a,film_id_b" },
     );
   if (insertError) throw insertError;
-
-  let { error: confirmError } = await ready.client
-    .from("ranking_entries")
-    .update({ rank_confirmed: true })
-    .eq("ranking_id", rankingId)
-    .in("film_id", [filmIdA, filmIdB]);
-  if (confirmError) throw confirmError;
 };
 
 /**
@@ -2623,7 +2755,9 @@ window.loadSupabaseProject = async function (projectId) {
     filmIds.length
       ? client
           .from("watchlist")
-          .select("id, film_id, tier, tier_modifier, position, reason, added_at, updated_at")
+          .select(
+            "id, film_id, tier, tier_modifier, position, reason, added_at, updated_at",
+          )
           .in("film_id", filmIds)
       : Promise.resolve({ data: [] }),
     window.loadSupabaseFranchiseCatalog(),
@@ -2727,23 +2861,39 @@ window.createSupabaseCollection = async function (name, filmIds, sourceLabel) {
  * (listSupabaseProjects). Filters client-side on the embedded projects
  * relationship being empty, rather than an unproven server-side
  * null-filter on an embed.
+ * @param {{includePosters?: boolean}} [options] Whether to include up to three ordered poster previews per collection.
  * @returns {Promise<Object[]>}
  */
-window.listSupabaseCollections = async function () {
+window.listSupabaseCollections = async function (options = {}) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
-  let { data, error } = await ready.client
+  let fields =
+    "id, name, source_label, created_at, updated_at, collection_items(count), projects(id)";
+  if (options.includePosters)
+    fields +=
+      ", preview_items:collection_items(position, films(id, title, year, poster_url))";
+  let query = ready.client
     .from("collections")
-    .select(
-      "id, name, source_label, created_at, updated_at, collection_items(count), projects(id)",
-    )
+    .select(fields)
     .order("updated_at", { ascending: false });
+  if (options.includePosters)
+    query = query
+      .order("position", { referencedTable: "preview_items" })
+      .limit(3, { referencedTable: "preview_items" });
+  let { data, error } = await query;
   if (error) throw error;
   return (data || [])
     .filter((row) => !row.projects)
     .map((row) => ({
       ...flattenCollectionRow(row),
       itemCount: row.collection_items?.[0]?.count || 0,
+      ...(options.includePosters
+        ? {
+            posterFilms: (row.preview_items || [])
+              .map((item) => item.films)
+              .filter(Boolean),
+          }
+        : {}),
     }));
 };
 
@@ -2793,7 +2943,9 @@ window.loadSupabaseCollection = async function (collectionId) {
     filmIds.length
       ? client
           .from("watchlist")
-          .select("id, film_id, tier, tier_modifier, position, reason, added_at, updated_at")
+          .select(
+            "id, film_id, tier, tier_modifier, position, reason, added_at, updated_at",
+          )
           .in("film_id", filmIds)
       : Promise.resolve({ data: [] }),
     window.loadSupabaseFranchiseCatalog(),

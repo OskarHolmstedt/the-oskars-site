@@ -105,6 +105,7 @@
  * @property {string} [letterboxdUrl]
  * @property {string} [rankingGroupId] Shared all-time ranking group id.
  * @property {string} [rankingGroupTitle]
+ * @property {Record<string, boolean>} [rankConfirmedByScope] Independent Supabase confirmation for years, decades, centuries, and allTime; missing scope keys are unconfirmed.
  * @property {boolean} [rankConfirmed] False once `resetRankingToDefaultOrder`
  *   drops a film back to the mechanical default order; missing/true means
  *   its rank reflects a deliberate placement (via `moveRankedFilmWithinRating`
@@ -1553,3 +1554,16 @@ window.browserPersistenceToRuntimeState = function (stored) {
   );
   return legacy;
 };
+
+/**
+ * A populated collection preview for the Collections hub.
+ * @typedef {Object} CollectionsHubItem
+ * @property {'directors'|'franchises'|'tags'|'custom'} type
+ * @property {string} id
+ * @property {string} name
+ * @property {string} href
+ * @property {number} watched
+ * @property {number} remaining
+ * @property {number} total
+ * @property {(FilmRecord|WatchlistItem|SupabaseFilmRow)[]} posters
+ */

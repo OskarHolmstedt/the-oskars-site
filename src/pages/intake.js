@@ -66,10 +66,11 @@
   function freshForm() {
     return `<details><summary class="button-link">Add watched film</summary>
       <form class="data-form" data-fresh-watched-film>
-        <label class="data-field">Title<input name="title" required></label>
-        <label class="data-field">Release year<input name="year" type="number" min="1888" max="2100" required></label>
+        <label class="data-field">Title<input name="title" required autocomplete="off" data-intake-title></label>
+        <div class="intake-lookup" data-intake-lookup></div>
+        <label class="data-field">Release year<input name="year" type="number" min="1888" max="2100" required data-intake-year></label>
         <label class="data-field">Director(s)<input name="director" placeholder="Comma-separated"></label>
-        <label class="data-field">TMDB ID<input name="tmdbId" type="number" min="1"></label>
+        <input type="hidden" name="tmdbId" data-intake-tmdbid>
         <label class="data-field">Rating${window.renderRatingInput({})}</label>
         <label class="data-field">Date watched<input name="dateWatched" type="date"></label>
         <label class="data-field">Platform<input name="platform"></label>
@@ -77,6 +78,143 @@
         <button type="submit"${busy ? " disabled" : ""}>Add and start Intake</button>
       </form>
     </details>`;
+  }
+
+  // Fresh-watched-film lookup (issue: intake film identification) - before
+  // asking the user to describe a film by hand, check whether it already
+  // exists (searchSupabaseFilmsByTitle - the same catalog lookup
+  // custom-collections.js/projects.js already use to add an existing film),
+  // and if not, look it up on TMDB (lookupTmdbMovieMetadata, the same
+  // pipeline setFilmTmdbMetadata's own refresh path uses) and ask the user
+  // to confirm the match before it's applied - create_fresh_watched_intake
+  // already dedupes server-side by tmdb_id (or an exact title+year fallback
+  // when none is set), so a confirmed match here is what lets that
+  // dedup actually fire instead of quietly creating a second films row.
+  let freshSearchTimer = null;
+
+  function lookupResultsEl(form) {
+    return form.querySelector("[data-intake-lookup]");
+  }
+
+  function filmLookupCardHtml(kind, id, title, year, posterUrl, tmdbId) {
+    return `<button type="button" class="intake-lookup-card" data-pick-${kind}-film="${escape(id)}" data-pick-title="${escape(title)}" data-pick-year="${escape(year || "")}" data-pick-tmdbid="${escape(tmdbId || "")}">
+      ${posterUrl ? `<img src="${escape(posterUrl)}" alt="">` : '<span class="intake-lookup-card-noposter" aria-hidden="true"></span>'}
+      <span>${escape(title)}${year ? ` (${escape(year)})` : ""}</span>
+    </button>`;
+  }
+
+  function renderLookupPicked(form, title, year, source) {
+    lookupResultsEl(form).innerHTML = `<p class="data-panel-status">Using ${escape(source)}: <strong>${escape(title)}</strong>${year ? ` (${escape(year)})` : ""}. <button type="button" class="button-link" data-intake-lookup-clear>Change</button></p>`;
+  }
+
+  function applyPickedFilm(form, { id, tmdbId, title, year, director }) {
+    form.querySelector('[name="title"]').value = title || "";
+    form.querySelector('[name="year"]').value = year || "";
+    form.querySelector("[data-intake-tmdbid]").value = tmdbId || "";
+    if (director && !form.querySelector('[name="director"]').value)
+      form.querySelector('[name="director"]').value = director;
+    renderLookupPicked(
+      form,
+      title,
+      year,
+      id ? "existing catalog film" : "TMDB match",
+    );
+  }
+
+  async function runTmdbLookup(form) {
+    let title = form.querySelector('[name="title"]').value.trim();
+    let year = form.querySelector("[data-intake-year]").value.trim();
+    if (!title) return;
+    let results = lookupResultsEl(form);
+    results.innerHTML = `<p class="data-panel-status">Searching TMDB…</p>`;
+    try {
+      let match = await window.lookupTmdbMovieMetadata({ title, year });
+      if (!match) {
+        results.innerHTML = `<p class="data-panel-status">No TMDB match found for "${escape(title)}". You can still add it by hand.</p>`;
+        return;
+      }
+      results.innerHTML = `<div class="intake-lookup-confirm">
+        ${match.poster?.url ? `<img src="${escape(match.poster.url)}" alt="">` : ""}
+        <div>
+          <p>Is this it? <strong>${escape(match.matchedTitle || title)}</strong>${match.matchedYear ? ` (${escape(match.matchedYear)})` : ""}${match.director ? ` · ${escape(match.director)}` : ""}</p>
+          <div class="data-form-actions">
+            <button type="button" data-intake-lookup-confirm>Yes, this is it</button>
+            <button type="button" class="button-link" data-intake-lookup-clear>No, keep typing</button>
+          </div>
+        </div>
+      </div>`;
+      results.dataset.tmdbMatch = JSON.stringify({
+        tmdbId: match.tmdbId,
+        title: match.matchedTitle || title,
+        year: match.matchedYear || year,
+        director: match.director,
+      });
+    } catch (err) {
+      results.innerHTML = `<p class="data-panel-status">${escape(err.message || String(err))}</p>`;
+    }
+  }
+
+  async function runCatalogSearch(form) {
+    let title = form.querySelector('[name="title"]').value.trim();
+    let results = lookupResultsEl(form);
+    if (title.length < 2) {
+      results.innerHTML = "";
+      return;
+    }
+    try {
+      let matches = await window.searchSupabaseFilmsByTitle(title);
+      let cards = matches
+        .slice(0, 6)
+        .map((film) =>
+          filmLookupCardHtml(
+            "catalog",
+            film.id,
+            film.title,
+            film.year,
+            film.poster_url,
+            film.tmdb_id,
+          ),
+        )
+        .join("");
+      results.innerHTML = `${cards ? `<p class="intake-lookup-heading">Already in the catalog?</p><div class="intake-lookup-grid">${cards}</div>` : `<p class="data-panel-status">No catalog matches for "${escape(title)}".</p>`}<button type="button" class="sort-order-button" data-intake-tmdb-search>Search TMDB instead</button>`;
+    } catch (err) {
+      results.innerHTML = `<p class="data-panel-status">${escape(err.message || String(err))}</p>`;
+    }
+  }
+
+  function wireFreshFormLookup(form) {
+    form
+      .querySelector("[data-intake-title]")
+      ?.addEventListener("input", () => {
+        clearTimeout(freshSearchTimer);
+        freshSearchTimer = setTimeout(() => runCatalogSearch(form), 250);
+      });
+    lookupResultsEl(form)?.addEventListener("click", (event) => {
+      let catalogPick = event.target.closest("[data-pick-catalog-film]");
+      let tmdbSearch = event.target.closest("[data-intake-tmdb-search]");
+      let confirm = event.target.closest("[data-intake-lookup-confirm]");
+      let clear = event.target.closest("[data-intake-lookup-clear]");
+      if (catalogPick) {
+        applyPickedFilm(form, {
+          id: catalogPick.dataset.pickCatalogFilm,
+          tmdbId: catalogPick.dataset.pickTmdbid || "",
+          title: catalogPick.dataset.pickTitle,
+          year: catalogPick.dataset.pickYear,
+        });
+      } else if (tmdbSearch) {
+        runTmdbLookup(form);
+      } else if (confirm) {
+        let picked = JSON.parse(
+          event.target
+            .closest("[data-intake-lookup]")
+            .dataset.tmdbMatch || "{}",
+        );
+        applyPickedFilm(form, picked);
+      } else if (clear) {
+        form.querySelector("[data-intake-tmdbid]").value = "";
+        lookupResultsEl(form).innerHTML = "";
+      }
+    });
   }
 
   function queueHtml() {
@@ -235,6 +373,8 @@
           : ""
       }`;
     window.enhanceRatingInputs?.(container);
+    let freshFormEl = container.querySelector("[data-fresh-watched-film]");
+    if (freshFormEl) wireFreshFormLookup(freshFormEl);
     finish?.(`${workflows.length} workflow(s)`);
   }
 

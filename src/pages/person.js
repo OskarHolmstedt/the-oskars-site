@@ -755,10 +755,13 @@
     }
 
     let aliases = person.aliases.filter((alias) => alias !== person.name);
-    let directorProgress =
-      isDirector && watchlistItems.length
-        ? window.directorCompletion?.(person)
-        : null;
+    // Unguarded by watchlistItems.length now (issue #204): the hero's
+    // relationship signal needs completion info even for a director with
+    // nothing left on the watchlist (the "watched every one of their
+    // films" fallback below), not just the metadata row's original use.
+    // directorCompletion() computes its own watchlist lookup internally,
+    // so this stays cheap either way.
+    let directorProgress = isDirector ? window.directorCompletion?.(person) : null;
     let stats = person.stats || {};
     let awardScores =
       person.awardScores ||
@@ -793,6 +796,68 @@
       metadataRow(ui("Nominations"), stats.nominations || 0, "#person-awards"),
     ].join("");
     let personStatsHtml = `<div class="detail-stat-grid"><div class="detail-stat-head"><b></b><span>${personPageEscape(ui("All-time"))}</span><span>${personPageEscape(ui("Century"))}</span><span>${personPageEscape(ui("Decade"))}</span><span>${personPageEscape(ui("Year"))}</span></div><div class="detail-stat-row"><b>${personPageEscape(ui("Score"))}</b><span><b>${awardScores.allTime}</b></span><span><b>${awardScores.century}</b></span><span><b>${awardScores.decade}</b></span><span><b>${awardScores.year}</b></span></div></div><div class="detail-stat-summary"><span><b>${person.filmIds.length}</b> ${personPageEscape(ui("Films"))}</span>${otherWatched.length ? `<span><b>${otherWatched.length}</b> ${personPageEscape(ui("Other watched"))}</span>` : ""}<span><b>${stats.wins || 0}</b> ${personPageEscape(ui("Wins"))}</span><span><b>${stats.nominations || 0}</b> ${personPageEscape(ui("Nominations"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape: personPageEscape, ui })}</div>${officialTotals.nominations ? `<div class="detail-stat-summary person-official-summary"><span><b>${personPageEscape(ui("Official results"))}</b></span><span><b>${officialTotals.wins}</b> ${personPageEscape(ui(officialTotals.wins === 1 ? "Win" : "Wins"))}</span><span><b>${officialTotals.nominations}</b> ${personPageEscape(ui(officialTotals.nominations === 1 ? "Nomination" : "Nominations"))}</span></div>` : ""}`;
+
+    // Hero model (issue #204): lead with identity, signature works, and
+    // one personal-relationship signal before the dense archive-wide
+    // metrics above - grounded entirely in this archive's own data (never
+    // a fetched biography), deliberately absent rather than fabricated
+    // for a genuinely sparse person.
+    let signatureFilms = window.personSignatureFilms?.(unsortedFilms) || [];
+    let relationshipSignal =
+      window.personRelationshipSignal?.(
+        person,
+        unsortedFilms,
+        ratingStatistics,
+        directorProgress,
+      ) || null;
+    let nextWatch = directorProgress?.nextItem
+      ? {
+          title: directorProgress.nextItem.title || "",
+          href: window.filmPageUrl(directorProgress.nextItem.supabaseFilmId),
+        }
+      : null;
+    let hasWatchedAnything = unsortedFilms.length > 0 || otherWatched.length > 0;
+    let primaryAction = nextWatch
+      ? {
+          href: nextWatch.href,
+          label: ui("Watch next: {title}", { title: nextWatch.title }),
+        }
+      : hasWatchedAnything
+        ? { href: "#person-filmography", label: ui("View filmography") }
+        : watchlistItems.length
+          ? {
+              href: combinedView ? "#person-filmography" : "#person-watchlist",
+              label: ui("View watchlist"),
+            }
+          : unseenFilms.length
+            ? { href: "#person-filmography", label: ui("View unseen films") }
+            : null;
+    // Sparse state (issue #204 acceptance criteria): nothing personal to
+    // lead with at all - no relationship signal, no watched films, no
+    // watchlist presence. Still says something true (credited-but-unseen
+    // count, when that's the only thing known) rather than an empty gap.
+    let heroEmptyStateText =
+      !relationshipSignal && !hasWatchedAnything && !watchlistItems.length
+        ? unseenFilms.length
+          ? ui(
+              "Credited on {count} films in the catalog you haven't watched yet.",
+              { count: unseenFilms.length },
+            )
+          : ui("No personal history with them in your archive yet.")
+        : "";
+    function personSignatureCard(film) {
+      return window.renderSharedFilmCard(film, {
+        classes: ["person-film-card"],
+        showYear: true,
+        escape: personPageEscape,
+      });
+    }
+    let signatureFilmsHtml = signatureFilms.length
+      ? `<div class="person-hero-signature"><span class="person-hero-signature-label">${personPageEscape(ui("Signature work"))}</span><div class="film-grid">${signatureFilms.map(personSignatureCard).join("")}</div></div>`
+      : "";
+    let heroVisualHtml =
+      window.renderPersonPortrait?.(person, "detail") ||
+      `<div class="person-portrait person-portrait--detail person-portrait--placeholder" aria-hidden="true">${personPageEscape(person.name.charAt(0))}</div>`;
     let reverseLabel =
       filmographySort === "director-rank"
         ? chronologyOrder === "asc"
@@ -867,11 +932,19 @@
     }
 
     container.innerHTML = `${window.renderDetailHeader({
+      classes: "person-detail-header has-person-portrait",
+      leadingHtml: heroVisualHtml,
       mainClasses: "detail-header-main person-detail-main",
       mainHtml: `<h1>${personPageEscape(person.name)}</h1><p>${personPageEscape(professionText)}</p>${aliases.length ? `<span class="leaderboard-meta">${personPageEscape(aliases.join(", "))}</span>` : ""}
-      ${personMetadataHtml ? `<dl class="film-metadata">${personMetadataHtml}</dl>` : ""}
-      ${personStatsHtml}
+      ${relationshipSignal ? `<p class="person-hero-signal">${personPageEscape(relationshipSignal.text)}</p>` : ""}
+      ${heroEmptyStateText ? `<p class="person-hero-empty">${personPageEscape(heroEmptyStateText)}</p>` : ""}
+      ${signatureFilmsHtml}
+      <div class="person-hero-metrics">${personMetadataHtml ? `<dl class="film-metadata">${personMetadataHtml}</dl>` : ""}
+      ${personStatsHtml}</div>
       ${window.renderSupabaseEntityNote({ entityKind: "person", entityKey: person.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, label: ui("Person note"), escape: personPageEscape })}`,
+      actionsHtml: primaryAction
+        ? `<a class="button-link person-hero-primary-action" href="${personPageEscape(primaryAction.href)}">${personPageEscape(primaryAction.label)}</a>`
+        : "",
     })}
   ${isDirector ? window.renderCollectionViewController({ view: collectionPageView, overviewUrl: window.personPageUrl(person.id), awardsUrl: `${window.personPageUrl(person.id)}&collection-view=awards`, escape: personPageEscape, ui }) : ""}
   <div data-collection-page-view="films" ${collectionPageView === "films" ? "" : "hidden"}>

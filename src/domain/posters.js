@@ -119,6 +119,14 @@ window.lookupTmdbMovieMetadata = async function (film, options = {}) {
     primaryCountry: productionCountries[0] || "",
     swedishTitle,
     runtimeMinutes,
+    // The match's own confirmed title/year, distinct from the caller's
+    // input title/year (which may be a typo or a translated title) - lets
+    // a confirmation UI show "Is this it?" against what TMDB actually
+    // found, not just echo the caller's own guess back at them.
+    matchedTitle: String(details.title || details.name || "").trim(),
+    matchedYear: String(
+      (details.release_date || details.first_air_date || "").slice(0, 4),
+    ),
     poster: posterPath
       ? window.normalizePosterRecord({
           url: `https://image.tmdb.org/t/p/w500${posterPath}`,

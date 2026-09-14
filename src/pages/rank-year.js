@@ -1,5 +1,5 @@
 /**
- * @file Renders one year's exact-rating ranking shelves from the shared all-time
+ * @file Renders one year's exact-rating ranking shelves from the year’s independently stored
  * order, initializing missing rated watched films as unconfirmed entries.
  * Owns shelf reordering, confirmation, and broader ranking handoffs.
  */
@@ -99,7 +99,7 @@
       group.every((entry) => entry.rank_confirmed !== false),
     );
     let decade = window.getDecadeKey(year);
-    return `<p class="setup-year-section-empty">Edits all-time order inside the same exact rating only.</p>
+    return `<p class="setup-year-section-empty">Edits this year’s order inside the same exact rating only. Broader rankings are confirmed separately.</p>
       <div class="setup-year-category-list">${sections}</div>
       <div class="setup-ranking-footer">${heatComplete ? `<span>Year heat complete</span><a class="button-link" href="ranking-review.html?type=decades&amp;key=${escape(decade)}">Continue to ${escape(decade)} finals →</a>` : `<a class="button-link" href="ranking-review.html?type=years&amp;key=${escape(year)}">Compare this year two at a time</a>`}</div>`;
   }
@@ -134,7 +134,7 @@
         year,
         bucketEntries,
       );
-      let loaded = await window.loadSupabaseRanking("alltime", "allTime");
+      let loaded = await window.loadSupabaseRanking(year, "years");
       allEntries = loaded.entries;
       render();
     } catch (error) {
@@ -170,7 +170,7 @@
       .closest("[data-setup-rank-film-id]")
       ?.classList.remove("drop-target");
   });
-  // The entry immediately before/after one film in the full all-time
+  // The entry immediately before/after one film in the full yearly
   // order (not the bucket-local order) - the true boundary to fall back
   // to when a move lands at a bucket's own edge, so a film can never
   // drift into a neighboring (differently-rated) bucket's territory just
@@ -222,7 +222,7 @@
         beforeFilmId,
         afterFilmId,
       );
-      let loaded = await window.loadSupabaseRanking("alltime", "allTime");
+      let loaded = await window.loadSupabaseRanking(year, "years");
       allEntries = loaded.entries;
       render();
     } catch (error) {
@@ -247,17 +247,11 @@
       watchedByFilmId = new Map(
         (workspace?.watched || []).map((row) => [row.film_id, row]),
       );
-      let loaded = await window.loadSupabaseRanking("alltime", "allTime");
-      if (
-        await window.seedSupabaseYearRanking(
-          loaded.rankingId,
-          loaded.entries,
-          workspace?.watched || [],
-          year,
-        )
-      ) {
-        loaded = await window.loadSupabaseRanking("alltime", "allTime");
-      }
+      let loaded = await window.prepareSupabasePeriodRanking(
+        year,
+        "years",
+        workspace?.watched || [],
+      );
       rankingId = loaded.rankingId;
       allEntries = loaded.entries;
       render();

@@ -37,6 +37,7 @@ window.parseDiary = function (raw) {
     "decadeRank",
     "centuryRank",
     "rankConfirmed",
+    "rankConfirmedByScope",
     "rankingGroupId",
     "rankingGroupTitle",
     "suppressAllTimeRank",

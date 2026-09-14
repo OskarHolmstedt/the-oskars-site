@@ -65,6 +65,7 @@ const CANONICAL_FILM_FIELDS = new Set([
   "primaryCountry",
   "rank",
   "rankConfirmed",
+  "rankConfirmedByScope",
   "rankingGroupId",
   "rankingGroupTitle",
   "rating",
@@ -175,6 +176,7 @@ const CANONICAL_OPINION_REBUILD_FILM_FIELDS = new Set([
   "rankingGroupId",
   "rankingGroupTitle",
   "rankConfirmed",
+  "rankConfirmedByScope",
   "review",
   "wantToRewatch",
   "rewatchTier",
@@ -545,6 +547,28 @@ function canonicalValidateFilm(errors, film, path, allowed) {
       `${path}.musicScore`,
       "must be a string or finite number",
     );
+  if (film.rankConfirmedByScope !== undefined) {
+    let scopes = film.rankConfirmedByScope;
+    if (!scopes || typeof scopes !== "object" || Array.isArray(scopes)) {
+      canonicalError(
+        errors,
+        `${path}.rankConfirmedByScope`,
+        "must be a scope-to-boolean object",
+      );
+    } else {
+      Object.entries(scopes).forEach(([scope, value]) => {
+        if (
+          !["years", "decades", "centuries", "allTime"].includes(scope) ||
+          typeof value !== "boolean"
+        )
+          canonicalError(
+            errors,
+            `${path}.rankConfirmedByScope.${scope}`,
+            "must be a known ranking scope with a boolean value",
+          );
+      });
+    }
+  }
   ["rankConfirmed", "suppressAllTimeRank", "wantToRewatch"].forEach((field) => {
     if (
       film[field] !== undefined &&
@@ -1486,6 +1510,7 @@ const CANONICAL_PUBLIC_FILM_FIELDS = new Set([
   "primaryCountry",
   "rank",
   "rankConfirmed",
+  "rankConfirmedByScope",
   "rankingGroupId",
   "rankingGroupTitle",
   "rating",

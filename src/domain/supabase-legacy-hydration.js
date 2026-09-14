@@ -309,6 +309,15 @@
       if (film) filmsBySupabaseId.set(film.supabaseFilmId, film);
     });
 
+    filmsBySupabaseId.forEach((film) => {
+      film.rankConfirmedByScope = {
+        years: false,
+        decades: false,
+        centuries: false,
+        allTime: false,
+      };
+      film.rankConfirmed = false;
+    });
     let allTimeFilms = [];
     (source.rankings || []).forEach((ranking) => {
       let rankField = RANK_FIELD_BY_SCOPE_TYPE[ranking.scope_type];
@@ -316,6 +325,10 @@
         let film = filmsBySupabaseId.get(entry.film_id);
         if (!film) return;
         if (rankField) film[rankField] = index + 1;
+        if (rankField)
+          film.rankConfirmedByScope[ranking.scope_type] =
+            entry.rank_confirmed !== false;
+        if (ranking.scope_type !== "allTime") return;
         film.rankConfirmed = entry.rank_confirmed !== false;
         film.suppressAllTimeRank = Boolean(entry.suppress_all_time_rank);
         if (entry.tie_group_id) {

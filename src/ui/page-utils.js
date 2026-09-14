@@ -351,7 +351,8 @@ window.bindWatchlistBulkTierControl = function (options = {}) {
   function onClick(event) {
     if (event.target?.closest?.("[data-watchlist-bulk-tier-undo]")) {
       let result = window.undoWatchlistBulkTierChange?.() || { ok: false };
-      if (result.ok) options.rerender?.({ tier: selectedTier, result, undone: true });
+      if (result.ok)
+        options.rerender?.({ tier: selectedTier, result, undone: true });
       return;
     }
     let button = event.target?.closest?.("[data-watchlist-bulk-tier-apply]");
@@ -372,6 +373,7 @@ window.bindWatchlistBulkTierControl = function (options = {}) {
 
 /** Renders an all-time Top 250 marker when eligible. @param {FilmRecord} film Film record. @returns {string} */
 window.renderTop250Marker = function (film) {
+  if (window.isFilmRankConfirmed?.(film, "allTime") === false) return "";
   let rank = Number(film?.allTimeRank);
   if (!Number.isInteger(rank) || rank < 1 || rank > 250) return "";
   return `<span class="top-250-marker" title="Top 250 · All-time rank ${rank}" aria-label="Top 250, all-time rank ${rank}"><span aria-hidden="true">★</span><small>${rank}</small></span>`;

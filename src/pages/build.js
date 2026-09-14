@@ -39,6 +39,22 @@
     };
   }
 
+  // Rating and ranking are their own useful progress, not a prerequisite
+  // for nominating - awards-year.js has never required either. The
+  // "rating"/"ranking" stage badge and primary action above stay as a
+  // suggested order, but a year with anything watched and any award slot
+  // still open always keeps a direct way to start its ceremony, so a new
+  // account isn't stuck grinding through a whole year's ratings first.
+  function secondaryAwardsAction(year) {
+    let needsPrompt = year.stage === "rating" || year.stage === "ranking";
+    if (needsPrompt && year.totalCount > 0 && !year.awardComplete)
+      return {
+        href: window.yearAwardsPageUrl(year.year),
+        label: ui("Build the ceremony"),
+      };
+    return null;
+  }
+
   function meter(label, done, total, complete) {
     let value = total ? Math.round((done / total) * 100) : complete ? 100 : 0;
     return `<div class="build-stage-meter${complete ? " is-complete" : ""}"><span><b>${escape(label)}</b><small>${escape(done)} / ${escape(total)}</small></span><progress value="${escape(value)}" max="100"></progress></div>`;
@@ -46,6 +62,7 @@
 
   function yearCard(year) {
     let action = stageAction(year);
+    let secondary = secondaryAwardsAction(year);
     let rankingTotal = year.rankingGroupCount;
     return `<article class="build-year-card" data-build-year="${escape(year.year)}" data-build-stage="${escape(year.stage)}">
       <a class="build-year-card-visual" href="${escape(action.href)}" aria-label="${escape(`${action.label}: ${year.year}`)}">${window.renderPosterDeck(year.posterFilms)}</a>
@@ -56,7 +73,7 @@
         ${meter(ui("Award categories"), year.awardFilledSlots, year.awardTotalSlots, year.awardComplete)}
       </div>
       ${year.otherFilms.length ? `<p class="build-year-note">${escape(ui("{count} rating-only standalone work(s)", { count: year.otherFilms.length }))}</p>` : ""}
-      <a class="button-link build-year-action" href="${escape(action.href)}">${escape(action.label)} →</a></div>
+      <div class="build-year-card-actions"><a class="button-link build-year-action" href="${escape(action.href)}">${escape(action.label)} →</a>${secondary ? `<a class="build-year-action-secondary" href="${escape(secondary.href)}">${escape(secondary.label)} →</a>` : ""}</div></div>
     </article>`;
   }
 
@@ -123,6 +140,8 @@
       .map(([value, label]) => `<a href="${escape(filterUrl(value))}"${stage === value ? ' class="active" aria-current="page"' : ""}>${escape(label)}<span>${escape(value === "all" ? years.length : years.filter((year) => year.stage === value).length)}</span></a>`)
       .join("");
     let recommendationAction = recommendation && stageAction(recommendation);
+    let recommendationSecondary =
+      recommendation && secondaryAwardsAction(recommendation);
     document.title = `${ui("Build your Oskars")} · The Oskars`;
     container.innerHTML = `${window.renderDetailHeader({ classes: "build-hero", mainHtml: `<span class="eyebrow">${escape(ui("Your film journey"))}</span><h1>${escape(ui("Build your Oskars"))}</h1><p>${escape(ui("Rate, rank, and celebrate your watched history one release year at a time."))}</p>` })}
       <section class="build-overview" aria-label="${escape(ui("Journey progress"))}">
@@ -132,7 +151,7 @@
         <div><strong>${escape(totals.completeYears)} / ${escape(years.length)}</strong><span>${escape(ui("years complete"))}</span></div>
       </section>
       ${renderMilestone(milestone)}
-      ${recommendation ? `<section class="build-continue-card"><div><span class="eyebrow">${escape(ui("Continue your journey"))}</span><h2>${escape(recommendation.year)}</h2><p>${escape(stageLabel(recommendation.stage))} · ${escape(recommendation.ratedCount)} / ${escape(recommendation.totalCount)} ${escape(ui("rated"))}</p><a class="button-link" href="${escape(recommendationAction.href)}">${escape(recommendationAction.label)} →</a></div>${window.renderPosterDeck(recommendation.posterFilms, { classes: "poster-deck--featured" })}</section>` : ""}
+      ${recommendation ? `<section class="build-continue-card"><div><span class="eyebrow">${escape(ui("Continue your journey"))}</span><h2>${escape(recommendation.year)}</h2><p>${escape(stageLabel(recommendation.stage))} · ${escape(recommendation.ratedCount)} / ${escape(recommendation.totalCount)} ${escape(ui("rated"))}</p><div class="build-year-card-actions"><a class="button-link" href="${escape(recommendationAction.href)}">${escape(recommendationAction.label)} →</a>${recommendationSecondary ? `<a class="build-year-action-secondary" href="${escape(recommendationSecondary.href)}">${escape(recommendationSecondary.label)} →</a>` : ""}</div></div>${window.renderPosterDeck(recommendation.posterFilms, { classes: "poster-deck--featured" })}</section>` : ""}
       <nav class="build-stage-filters" aria-label="${escape(ui("Filter years by next stage"))}">${filters}</nav>
       <section><div class="build-year-grid">${visible.map(yearCard).join("") || `<p class="detail-empty">${escape(ui("No years at this stage."))}</p>`}</div></section>`;
     finish?.(`${years.length} years, ${visible.length} shown, ${recommendation?.year || "complete"}`);
@@ -159,12 +178,12 @@
     try {
       let [workspace, ranking, awardReviews] = await Promise.all([
         window.loadSupabaseWorkspace(),
-        window.loadSupabaseRanking("alltime", "allTime"),
+        window.loadSupabaseStoredRankings(),
         window.loadSupabaseAwardReviews(),
       ]);
       journeyYears = window.buildJourneyYears(
         workspace.watched,
-        ranking.entries,
+        ranking.filter((scope) => scope.scope_type === "years").flatMap((scope) => scope.ranking_entries),
         awardReviews,
         window.getOrderedCategories?.() || [],
       );

@@ -42,6 +42,7 @@
     "collections",
     "custom-collections",
     "collection",
+    "films",
     "data-tools",
   ]);
   if (!pageEntries.has(entry))
@@ -85,12 +86,11 @@
     if (entry === "period") {
       let params = new URLSearchParams(window.location?.search || "");
       let view = params.get("view");
-      if (
-        view === "watchlist" ||
-        view === "shared" ||
-        view === "other" ||
-        (params.get("type") === "alltime" && view === "films")
-      )
+      // The all-time Watched view moved to its own films.html destination
+      // (issue #495) - period.html?view=films remains a valid, narrower
+      // period-scoped Watched browse (e.g. just the 1990s), so it isn't
+      // retired, but it no longer claims the primary Films section.
+      if (view === "watchlist" || view === "shared" || view === "other")
         return "films";
       return "periods";
     }
@@ -104,7 +104,7 @@
       entry === "tags"
     )
       return "collections";
-    if (entry === "watchlist-merge") return "films";
+    if (entry === "watchlist-merge" || entry === "films") return "films";
     if (
       entry === "collections" ||
       entry === "custom-collections" ||
@@ -134,8 +134,6 @@
       home: locale === "sv" ? "Hem" : "Home",
       periods: locale === "sv" ? "Perioder" : "Periods",
       categories: locale === "sv" ? "Kategorier" : "Categories",
-      customCollections:
-        locale === "sv" ? "Egna samlingar" : "Custom Collections",
       collections: locale === "sv" ? "Samlingar" : "Collections",
       films: locale === "sv" ? "Filmer" : "Films",
       projects: locale === "sv" ? "Projekt" : "Projects",
@@ -169,7 +167,7 @@
       ["periods", text.periods, "periods.html"],
       ["categories", text.categories, "categories.html"],
       ["collections", text.collections, "collections.html"],
-      ["films", text.films, "period.html?type=alltime&view=films"],
+      ["films", text.films, "films.html"],
       ["projects", text.projects, "projects.html"],
     ];
     let primary = navItems
@@ -202,7 +200,7 @@
       <details class="site-menu">
         <summary aria-label="${text.menuAria}" title="${text.menuTitle}"><span></span><span></span><span></span></summary>
         <div class="site-menu-panel">
-          <section><h2>${text.elsewhere}</h2><div class="site-menu-links"><a href="custom-collections.html">${text.customCollections}</a><a href="community.html">${text.community}</a><a href="discover.html">${text.discover}</a><a href="compare.html">${text.compare}</a><a href="presentation.html">${text.showcase}</a><a href="completion.html">${text.completion}</a><a href="stats.html">${text.statistics}</a><a href="people.html">${text.people}</a><a href="build.html">${text.build}</a><a href="intake.html">${text.intake}</a><a href="rate-watched.html">${text.rateWatched}</a><a href="data.html">${text.data}</a></div></section>
+          <section><h2>${text.elsewhere}</h2><div class="site-menu-links"><a href="community.html">${text.community}</a><a href="discover.html">${text.discover}</a><a href="compare.html">${text.compare}</a><a href="presentation.html">${text.showcase}</a><a href="completion.html">${text.completion}</a><a href="stats.html">${text.statistics}</a><a href="people.html">${text.people}</a><a href="build.html">${text.build}</a><a href="intake.html">${text.intake}</a><a href="rate-watched.html">${text.rateWatched}</a><a href="data.html">${text.data}</a></div></section>
         </div>
       </details>
     </div>`;
@@ -327,7 +325,9 @@
     ...(["period", "category", "stats"].includes(entry)
       ? ["src/domain/official-comparison.js"]
       : []),
-    ...(entry === "person" ? ["src/domain/official-people.js"] : []),
+    ...(entry === "person"
+      ? ["src/domain/official-people.js", "src/domain/person-hero.js"]
+      : []),
     ...([
       "period",
       "category",
@@ -335,12 +335,15 @@
       "completion",
       "film",
       "person",
+      "films",
     ].includes(entry)
       ? ["src/domain/supabase-official-results-hydration.js"]
       : []),
     "src/domain/projects.js",
     "src/domain/watch-queue.js",
     ...(entry === "home" ? ["src/domain/home-dashboard.js"] : []),
+    ...(entry === "collections" ? ["src/domain/collections-hub.js"] : []),
+    ...(entry === "films" ? ["src/domain/film-catalog.js"] : []),
     "src/domain/local-rank.js",
     "src/domain/merge-order.js",
     "src/domain/watched-films.js",
@@ -356,6 +359,7 @@
       "people",
       "projects",
       "periods",
+      "collections",
       "categories",
     ].includes(entry)
       ? ["src/ui/poster-deck.js"]
@@ -665,6 +669,8 @@
   // boundary after their pure legacy dependencies load.
   let supabaseHydratedEntries = new Set([
     "home",
+    "collections",
+    "films",
     "people",
     "directors",
     "subject",
@@ -817,8 +823,10 @@
       await loadScript("src/domain/supabase-watchlist-merge.js");
     if (entry === "local-rank-merge")
       await loadScript("src/domain/supabase-local-rank.js");
-    if (entry === "ranking-review")
+    if (entry === "ranking-review") {
       await loadScript("src/domain/supabase-ranking-consistency.js");
+      await loadScript("src/domain/fractional-position.js");
+    }
     if (entry === "rank-year") {
       await loadScript("src/domain/supabase-ranking-consistency.js");
       await loadScript("src/domain/fractional-position.js");
@@ -863,9 +871,17 @@
       supabaseFullDependencyEntries.has(entry)
     )
       await loadScript("src/domain/supabase-legacy-hydration.js");
+    // Community's directory/compare/ceremony views are read-only over the
+    // same isolated anonymous public reader direct profile viewing uses
+    // (issue #483) - `activeProfileSlug` only ever recognizes the
+    // singular `?profile=` viewing param, never Community's own bare
+    // directory or its plural `?view=compare/ceremony&profiles=a,b`, so
+    // without this it fell through to the same sign-in gate as every
+    // owner page even though it depends on no account at all (issue #490).
     if (
       window.runtimeAccountAccessRequired(runtimeModeResult.mode) &&
-      !activeProfileSlug
+      !activeProfileSlug &&
+      entry !== "community"
     ) {
       window.renderSupabaseAccountGate(
         { status: "loading" },

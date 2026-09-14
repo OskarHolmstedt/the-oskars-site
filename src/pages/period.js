@@ -586,7 +586,9 @@
     viewMode === "awards" &&
     initialViewState.edit === "bracket";
   let rankingEditMode =
-    viewMode === "films" && initialViewState.edit === "ranking";
+    viewMode === "films" &&
+    initialViewState.edit === "ranking" &&
+    !allFilms.some((film) => film.rankConfirmedByScope);
   let watchlistOrderEditMode =
     viewMode === "watchlist" && initialViewState.edit === "order";
   let tierEditMode =
@@ -831,7 +833,7 @@
     let rows = films
       .map((film) => {
         let rank = rankForFilm(film);
-        return `<tr><td class="leaderboard-position">${periodEscape(rank || "")}</td>${window.renderFilmIdentityCell(
+        return `<tr><td class="leaderboard-position">${periodEscape(rank && window.isFilmRankConfirmed(film, awardPeriodType) ? rank : rank ? "NR" : "")}</td>${window.renderFilmIdentityCell(
           film,
           {
             escape: periodEscape,
@@ -1260,6 +1262,13 @@
 
   function rankingEditControls() {
     if (viewMode !== "films" || periodOrder !== "rank" || !canEdit) return "";
+    if (allFilms.some((film) => film.rankConfirmedByScope)) {
+      let url =
+        type === "year"
+          ? window.yearRankingPageUrl(key)
+          : `ranking-review.html?type=${encodeURIComponent(awardPeriodType)}&key=${encodeURIComponent(key)}`;
+      return `<div class="period-edit-controls"><a class="button-link" href="${periodEscape(url)}">${periodEscape(ui("Edit ranking"))}</a></div>`;
+    }
     return `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-period-ranking-edit-toggle>${periodEscape(ui(rankingEditMode ? "Finish ranking" : "Edit ranking"))}</button>${rankingEditMode ? `<span>${periodEscape(ui("Edits all-time order inside the same exact rating only."))}</span>` : ""}${rankingEditMode && type === "alltime" ? `<a class="sort-order-button" href="ranking-review.html">${periodEscape(ui("Review consistency"))}</a>` : ""}</div>`;
   }
 

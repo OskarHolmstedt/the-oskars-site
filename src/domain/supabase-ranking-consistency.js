@@ -1,25 +1,6 @@
 /**
- * @file Finds head-to-head ranking-consistency pairs for issue #429's
- * Supabase-backed review tool, over loadSupabaseRanking("alltime",
- * "allTime")'s position-ordered entries - the single all-time order every
- * year/decade/century review filters down from, same as the previous
- * ranking-consistency.js filters window.allTimeSourceFilmsInOrder()
- * rather than maintaining independent per-scope orders. Reuses
- * src/ui/film-rating.js's already backend-agnostic rating math
- * (parseFilmRating/filmRatingGrade) and src/core/state.js's
- * getDecadeKey/getCenturyKey.
- *
- * Deliberate scope cut from the previous tool: a pair is only
- * surfaced when the two entries are also overall-position-adjacent in
- * the full all-time order, not just adjacent within the scope-filtered
- * subsequence. A same-rating pair within one year/decade/century can have
- * a differently-rated film from outside that scope sitting between them
- * in the master order; moveSupabaseRankingEntry's swap only ever
- * exchanges two truly-adjacent positions (no fractional-position
- * reposition scheme exists for ranking_entries), so this keeps every
- * surfaced pair safe to swap without one. Some theoretically-comparable
- * pairs won't surface as a result - an honest narrowing of an already
- * best-effort review tool, not a correctness bug.
+ * @file Finds unresolved adjacent exact-rating comparisons inside one independently
+ * stored Supabase period ranking, excluding same-narrower-period comparisons in finals.
  */
 
 /** Builds a stable identity key for one consistency pair. @param {string} filmIdA @param {string} filmIdB @returns {string} */
@@ -76,13 +57,14 @@ window.normalizeSupabaseRankingReviewScopeType = function (type) {
   );
 };
 
-function supabaseEntryInScope(scopeType, scopeKey, entry) {
+/** Tests whether a joined film row belongs to one ranking scope. @param {string} scopeType @param {string} scopeKey @param {Object} entry @returns {boolean} */
+window.supabaseRankingEntryInScope = function (scopeType, scopeKey, entry) {
   if (scopeType === "allTime") return true;
   let year = entry.films?.year;
   if (scopeType === "years") return String(year) === String(scopeKey);
   if (scopeType === "decades") return window.getDecadeKey(year) === scopeKey;
   return window.getCenturyKey(year) === scopeKey;
-}
+};
 
 function supabasePairCrossesNarrowerScope(scopeType, above, below) {
   let aboveYear = above.films?.year;
@@ -100,7 +82,7 @@ function supabasePairCrossesNarrowerScope(scopeType, above, below) {
  * and any extra session-only exclusions (skips).
  * @param {'years'|'decades'|'centuries'|'allTime'} scopeType
  * @param {string} scopeKey
- * @param {Object[]} allEntries The full all-time ranking's position-ordered entries.
+ * @param {Object[]} allEntries The selected ranking’s position-ordered entries.
  * @param {Map<string, Object>} watchedByFilmId film_id -> watched row (rating, rating_modifier).
  * @param {Set<string>} resolvedKeys Already-reviewed pair keys for this scope.
  * @param {Set<string>} [extraExcludeKeys] Session-only exclusions (skips).
@@ -119,8 +101,8 @@ window.supabaseRankingConsistencyPairs = function (
     let above = allEntries[index];
     let below = allEntries[index + 1];
     if (
-      !supabaseEntryInScope(scopeType, scopeKey, above) ||
-      !supabaseEntryInScope(scopeType, scopeKey, below)
+      !window.supabaseRankingEntryInScope(scopeType, scopeKey, above) ||
+      !window.supabaseRankingEntryInScope(scopeType, scopeKey, below)
     )
       continue;
     let aboveKey = window.supabaseRankingRatingKey(

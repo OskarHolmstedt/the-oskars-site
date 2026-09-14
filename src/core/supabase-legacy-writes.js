@@ -369,7 +369,9 @@
         return {
           film_id: film.supabaseFilmId,
           position: positionFor(index),
-          rank_confirmed: film.rankConfirmed !== false,
+          rank_confirmed:
+            film.rankConfirmedByScope?.[ranking.scope_type] ??
+            film.rankConfirmed !== false,
           suppress_all_time_rank: Boolean(film.suppressAllTimeRank),
           tie_group_id: film.rankingGroupId || original.tie_group_id || "",
           tie_group_title:

@@ -87,6 +87,38 @@ window.fetchSupabaseCommunityDirectory = async function () {
   return { profiles };
 };
 
+let COMMUNITY_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Looks up portrait images for a joint ceremony's award recipients. A
+ * recipient's `personId` (public-profile-supabase.js's
+ * award.recipients[].personId) is only ever a real `people.id` when the
+ * source nomination had one - it falls back to a normalized-name string
+ * when it didn't, which this filters out before querying rather than
+ * asking Supabase to match a non-uuid value.
+ * @param {string[]} personIds Candidate recipient ids, real or synthetic.
+ * @returns {Promise<Object<string, string>>} portrait_url keyed by person id, real ids only.
+ */
+window.fetchCommunityPortraits = async function (personIds) {
+  let realIds = [...new Set(personIds || [])].filter((id) =>
+    COMMUNITY_UUID_PATTERN.test(String(id || "")),
+  );
+  if (!realIds.length) return {};
+  let ready = await window.ensureSupabasePublicClient?.();
+  if (!ready) return {};
+  let { data, error } = await ready.client
+    .from("people")
+    .select("id, portrait_url")
+    .in("id", realIds);
+  if (error) throw error;
+  let byId = {};
+  (data || []).forEach((row) => {
+    if (row.portrait_url) byId[row.id] = row.portrait_url;
+  });
+  return byId;
+};
+
 function communityText(value) {
   return String(value || "").trim();
 }
@@ -309,6 +341,11 @@ window.buildCommunityComparison = function (profiles) {
   };
 };
 
+// TODO: only ever builds annual ("years") ballots, and assumes every
+// scope is a 4-digit year - a real limitation once decade/century/
+// all-time joint ceremonies are built, which will need a real scope-key
+// model (periodType + scope) instead of this year-only regex. Tracked
+// as a separate follow-up, not addressed here.
 function communityAnnualBallots(profile) {
   let ballots = new Map();
   communityFilmMap(profile.data).forEach((film) =>
@@ -322,19 +359,28 @@ function communityAnnualBallots(profile) {
         return;
       let ballotKey = `${award.year}\n${award.category}`;
       if (!ballots.has(ballotKey)) ballots.set(ballotKey, []);
-      ballots.get(ballotKey).push({ film, placement: Number(award.placement) });
+      ballots.get(ballotKey).push({
+        film,
+        placement: Number(award.placement),
+        recipients: Array.isArray(award.recipients) ? award.recipients : [],
+      });
     }),
   );
   return ballots;
 }
 
 /**
- * Builds equal-weight consensus results for the newest annual ceremony in
- * which at least two selected profiles published ballots.
+ * Builds equal-weight consensus results for one annual ceremony in which at
+ * least two selected profiles published ballots. Every such year is
+ * independently eligible - a couple catching up together often has more
+ * than one to run - so callers get the full sorted list back alongside the
+ * selected year and can offer the rest as choices instead of only ever
+ * seeing the newest.
  * @param {Array<{slug: string, ownerName: string, data: Object}>} profiles Selected profiles.
- * @returns {{year: string, categories: Object[], participatingProfiles: number, reason?: string}} Ceremony model.
+ * @param {string} [requestedYear] A specific eligible year to build, e.g. from a URL param. Falls back to the newest eligible year when omitted or not eligible.
+ * @returns {{year: string, years: string[], categories: Object[], participatingProfiles: number, reason?: string}} Ceremony model.
  */
-window.buildCommunityCeremony = function (profiles) {
+window.buildCommunityCeremony = function (profiles, requestedYear) {
   let prepared = profiles.map((profile) => ({
     ...profile,
     ballots: communityAnnualBallots(profile),
@@ -353,10 +399,14 @@ window.buildCommunityCeremony = function (profiles) {
         ).length >= 2,
     )
     .sort((left, right) => Number(right) - Number(left));
-  let year = eligibleYears[0] || "";
+  let year = eligibleYears.includes(requestedYear)
+    ? requestedYear
+    : eligibleYears[0] || "";
   if (!year)
     return {
       year: "",
+      years: eligibleYears,
+      periodType: "years",
       categories: [],
       participatingProfiles: 0,
       reason:
@@ -377,12 +427,21 @@ window.buildCommunityCeremony = function (profiles) {
       );
       if (participating.length < 2) return null;
       let candidates = new Map();
+      // One row per participating archive, each holding that archive's own
+      // nominees in its own placement order - the pre-reveal "who
+      // nominated what" view (issue #491), built from the exact same
+      // entries as the consensus ranking below rather than a second read.
+      let byPerson = [];
       participating.forEach((profile) => {
         let entries = profile.ballots.get(ballotKey) || [];
         let maximumPlacement = Math.max(
           1,
           ...entries.map((entry) => entry.placement),
         );
+        byPerson.push({
+          ownerName: profile.ownerName,
+          entries: [...entries].sort((left, right) => left.placement - right.placement),
+        });
         entries.forEach((entry) => {
           let key = communityFilmKey(entry.film);
           if (!key) return;
@@ -391,6 +450,7 @@ window.buildCommunityCeremony = function (profiles) {
             score: 0,
             firstPlaceVotes: 0,
             support: [],
+            recipients: [],
           };
           let normalizedScore =
             maximumPlacement === 1
@@ -402,6 +462,8 @@ window.buildCommunityCeremony = function (profiles) {
             ownerName: profile.ownerName,
             placement: entry.placement,
           });
+          if (!candidate.recipients.length && entry.recipients?.length)
+            candidate.recipients = entry.recipients;
           candidates.set(key, candidate);
         });
       });
@@ -411,7 +473,12 @@ window.buildCommunityCeremony = function (profiles) {
           right.firstPlaceVotes - left.firstPlaceVotes ||
           communityTitleCompare(left.film.title, right.film.title),
       );
-      return { category, participatingProfiles: participating.length, ranking };
+      return {
+        category,
+        participatingProfiles: participating.length,
+        ranking,
+        byPerson,
+      };
     })
     .filter(Boolean)
     .sort((left, right) =>
@@ -419,6 +486,14 @@ window.buildCommunityCeremony = function (profiles) {
     );
   return {
     year,
+    years: eligibleYears,
+    // Hardcoded, not derived - communityAnnualBallots() only ever builds
+    // annual ("years") ballots today. Callers use this to decide whether
+    // a per-nominee year label is redundant (every nominee necessarily
+    // shares the ceremony's own year) - once decade/century/all-time
+    // joint ceremonies exist, this should reflect the real scope's
+    // period type instead, since nominees could then span several years.
+    periodType: "years",
     categories,
     participatingProfiles: prepared.filter((profile) =>
       [...profile.ballots.keys()].some((key) => key.startsWith(`${year}\n`)),

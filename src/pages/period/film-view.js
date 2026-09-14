@@ -64,7 +64,17 @@ window.renderPeriodFilmGrid = function (options) {
             ? `<span class="table-film-link">${escape(film.title)}</span>`
             : undefined,
           rankLabel:
-            rank && film.rankConfirmed !== false
+            rank &&
+            (window.isFilmRankConfirmed?.(
+              film,
+              {
+                year: "years",
+                decade: "decades",
+                century: "centuries",
+                alltime: "allTime",
+              }[type] || type,
+            ) ??
+              film.rankConfirmed !== false)
               ? `${rank}.`
               : canonicalContext
                 ? ""

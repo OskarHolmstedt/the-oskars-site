@@ -77,6 +77,22 @@
   };
 
   let literalTranslations = {
+    "By filmmaker": { sv: "Efter regissör" },
+    "Series & worlds": { sv: "Serier & världar" },
+    "Pick a theme": { sv: "Välj ett tema" },
+    "Your collections": { sv: "Dina samlingar" },
+    "Made by you": { sv: "Skapade av dig" },
+    "New collection": { sv: "Ny samling" },
+    "Your list": { sv: "Din lista" },
+    "Dive in": { sv: "Utforska" },
+    "1 film": { sv: "1 film" },
+    "Some previews unavailable.": { sv: "Vissa förhandsvisningar saknas." },
+    "1 film left": { sv: "1 film kvar" },
+    "{count} films left": { sv: "{count} filmer kvar" },
+    "Previews unavailable.": { sv: "Förhandsvisning saknas." },
+    "Make it yours.": { sv: "Skapa något eget." },
+    "Your film lists.": { sv: "Dina filmlistor." },
+
     "Your rating, notes, tags, and memberships": {
       sv: "Ditt betyg, dina anteckningar, taggar och medlemskap",
     },
@@ -797,6 +813,26 @@
     Awards: { sv: "Priser" },
     "At least {rating}": { sv: "Minst {rating}" },
     "At most {rating}": { sv: "Högst {rating}" },
+    "At least {minutes} min": { sv: "Minst {minutes} min" },
+    "At most {minutes} min": { sv: "Högst {minutes} min" },
+    "Every film in the catalog — watched, watchlisted, or not yet seen.": {
+      sv: "Varje film i katalogen — sedd, på watchlist eller osedd.",
+    },
+    "Filter by status": { sv: "Filtrera efter status" },
+    "Advanced filters": { sv: "Avancerade filter" },
+    "Any country": { sv: "Alla länder" },
+    "Minimum runtime": { sv: "Minsta speltid" },
+    "Maximum runtime": { sv: "Högsta speltid" },
+    "Show ascending": { sv: "Visa stigande" },
+    "Show descending": { sv: "Visa fallande" },
+    "Personal award category": { sv: "Personlig priskategori" },
+    "Personal award": { sv: "Personligt pris" },
+    "Official result": { sv: "Officiellt resultat" },
+    "Any tag": { sv: "Alla taggar" },
+    "Any franchise": { sv: "Alla franchiser" },
+    Won: { sv: "Vunnit" },
+    Nominated: { sv: "Nominerad" },
+    Any: { sv: "Alla" },
     "Browse posters": { sv: "Bläddra bland posters" },
     "Poster options": { sv: "Poster-val" },
     "Poster picker. Use the left and right arrow keys to change poster.": {
@@ -1758,6 +1794,17 @@
     "Collection display": { sv: "Samlingsvisning" },
     "Create collection": { sv: "Skapa samling" },
     "Custom Collections": { sv: "Egna samlingar" },
+    "Watch next: {title}": { sv: "Se härnäst: {title}" },
+    "View filmography": { sv: "Visa filmografi" },
+    "View watchlist": { sv: "Visa önskelista" },
+    "View unseen films": { sv: "Visa osedda filmer" },
+    "Credited on {count} films in the catalog you haven't watched yet.": {
+      sv: "Krediterad på {count} filmer i katalogen du inte har sett än.",
+    },
+    "No personal history with them in your archive yet.": {
+      sv: "Ingen personlig historik med dem i ditt arkiv än.",
+    },
+    "Signature work": { sv: "Signaturverk" },
     "Explore films by director.": { sv: "Utforska filmer efter regissör." },
     "Browse film series and shared universes.": {
       sv: "Bläddra bland filmserier och gemensamma universum.",

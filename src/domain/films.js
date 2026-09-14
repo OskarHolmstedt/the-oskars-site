@@ -335,6 +335,7 @@ window.clearOpinionData = function (options = {}) {
         delete film.rankingGroupTitle;
         touched = true;
       }
+      delete film.rankConfirmedByScope;
       if (film.rankConfirmed !== undefined) {
         delete film.rankConfirmed;
         touched = true;

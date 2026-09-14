@@ -284,6 +284,15 @@
       });
     });
 
+    filmsById.forEach((film) => {
+      film.rankConfirmedByScope = {
+        years: false,
+        decades: false,
+        centuries: false,
+        allTime: false,
+      };
+      film.rankConfirmed = false;
+    });
     let allTimeFilms = [];
     // Positions are fractional/lexicographic sort keys, not rank numbers -
     // assign 1-based ranks per individual scope by sorted position order,
@@ -307,6 +316,10 @@
         .forEach((entry, index) => {
           let film = filmsById.get(entry.film_id);
           if (rankField) film[rankField] = index + 1;
+          if (rankField)
+            film.rankConfirmedByScope[scopeType] =
+              entry.rank_confirmed !== false;
+          if (scopeType !== "allTime") return;
           film.rankConfirmed = entry.rank_confirmed !== false;
           film.suppressAllTimeRank = Boolean(entry.suppress_all_time_rank);
           if (entry.tie_group_id) {

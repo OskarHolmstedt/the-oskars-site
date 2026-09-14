@@ -33,10 +33,12 @@ window.rankingRatingSortValueFromKey = function (key) {
   let parts = String(key || "").split("|");
   let value = Number(parts[0]) || 0;
   let modifier = parts[1] || "";
-  return window.filmRatingGrade?.({
-    ratingValue: value,
-    ratingModifier: modifier,
-  }) || 0;
+  return (
+    window.filmRatingGrade?.({
+      ratingValue: value,
+      ratingModifier: modifier,
+    }) || 0
+  );
 };
 
 /**
@@ -82,7 +84,8 @@ window.recomputeAllTimeRankProjections = function () {
     .filter(
       (film, index, films) =>
         films.findIndex(
-          (candidate) => rankingFilmIdentity(candidate) === rankingFilmIdentity(film),
+          (candidate) =>
+            rankingFilmIdentity(candidate) === rankingFilmIdentity(film),
         ) === index,
     )
     .sort((left, right) =>
@@ -96,7 +99,9 @@ window.recomputeAllTimeRankProjections = function () {
   );
   if (window.state.years?.alltime)
     window.state.years.alltime.films = [
-      ...allTimeFilms.filter((film) => sourceIdentities.has(rankingFilmIdentity(film))),
+      ...allTimeFilms.filter((film) =>
+        sourceIdentities.has(rankingFilmIdentity(film)),
+      ),
       ...unrankedSourceFilms,
     ];
   let identityRanks = new Map();
@@ -117,12 +122,15 @@ window.recomputeAllTimeRankProjections = function () {
     }
     if (!film.rankingGroupId || allTimeRank === nextAllTimeRank)
       nextAllTimeRank += 1;
+    if (film.rankConfirmedByScope)
+      film.rankConfirmedByScope.allTime = film.rankConfirmed !== false;
     film.allTimeRank = allTimeRank;
     film.rank = allTimeRank;
     let identity = rankingFilmIdentity(film);
     identityRanks.set(identity, {
       allTimeRank,
       rankConfirmed: film.rankConfirmed,
+      rankConfirmedByScope: film.rankConfirmedByScope,
       yearRank: null,
       decadeRank: null,
       centuryRank: null,
@@ -153,9 +161,9 @@ window.recomputeAllTimeRankProjections = function () {
           groupRanks.set(film.rankingGroupId, rank);
         }
         if (!film.rankingGroupId || rank === nextRank) nextRank += 1;
-        film[field] = rank;
+        if (!film.rankConfirmedByScope) film[field] = rank;
         let ranks = identityRanks.get(rankingFilmIdentity(film));
-        if (ranks) ranks[field] = rank;
+        if (ranks) ranks[field] = film[field];
       });
     });
   }
@@ -172,6 +180,8 @@ window.recomputeAllTimeRankProjections = function () {
       film.decadeRank = ranks.decadeRank;
       film.centuryRank = ranks.centuryRank;
       film.rankConfirmed = ranks.rankConfirmed;
+      if (ranks.rankConfirmedByScope)
+        film.rankConfirmedByScope = { ...ranks.rankConfirmedByScope };
       if (period.periodType === "years") film.rank = ranks.yearRank;
       else if (period.periodType === "decades") film.rank = ranks.decadeRank;
       else if (period.periodType === "centuries") film.rank = ranks.centuryRank;
@@ -187,6 +197,8 @@ window.recomputeAllTimeRankProjections = function () {
     film.decadeRank = ranks.decadeRank;
     film.centuryRank = ranks.centuryRank;
     film.rankConfirmed = ranks.rankConfirmed;
+    if (ranks.rankConfirmedByScope)
+      film.rankConfirmedByScope = { ...ranks.rankConfirmedByScope };
     film.rank = ranks.allTimeRank;
   });
 };
@@ -470,4 +482,3 @@ window.resetRankingToDefaultOrder = function (options = {}) {
   });
   return { changed };
 };
-

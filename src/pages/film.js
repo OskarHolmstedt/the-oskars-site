@@ -666,7 +666,9 @@
       film.centuryRank,
       film.decadeRank,
       film.yearRank,
-    ];
+    ].map((rank, index) =>
+      window.isFilmRankConfirmed(film, periodTypes[index]) ? rank : null,
+    );
     let scoreValues = [
       awardScores.allTime,
       awardScores.century,
@@ -1208,10 +1210,13 @@
       // sitting live in the DOM (a detached node after render() below
       // keeps its .value in memory, same trick the tier-only write
       // already relied on here).
-      let selectEl = tierSelect || container.querySelector("[data-tier-select]");
+      let selectEl =
+        tierSelect || container.querySelector("[data-tier-select]");
       let modifierEl =
         tierModifierToggle ||
-        container.querySelector('[data-tier-modifier-input] input[name="tierModifier"]');
+        container.querySelector(
+          '[data-tier-modifier-input] input[name="tierModifier"]',
+        );
       watchlistBusy = true;
       render(false);
       try {

@@ -62,7 +62,7 @@
   /**
    * Derives every populated watched year in chronological order.
    * @param {SupabaseWatchedRow[]} watchedRows Watched rows joined with films.
-   * @param {SupabaseRankingEntry[]} rankingEntries All-time ranking entries.
+   * @param {SupabaseRankingEntry[]} rankingEntries Entries from independently stored yearly rankings.
    * @param {SupabaseAwardReview[]} awardReviews Annual category outcomes.
    * @param {string[]} categoryNames Ordered annual award categories.
    * @returns {BuildYearProgress[]} Year progress rows.
@@ -118,7 +118,13 @@
         ).length;
         let reviewedCategories = reviewedCategoriesByYear.get(year)?.size || 0;
         let rankingReady = ratedCount === yearRows.length;
-        let rankingComplete = rankingReady && reviewedGroups === groups.length;
+        let rankedIds = new Set(
+          yearRankingEntries
+            .filter((entry) => entry.rank_confirmed !== false)
+            .map((entry) => entry.film_id),
+        );
+        let rankingComplete =
+          rankingReady && yearRows.every((row) => rankedIds.has(row.film_id));
         let awardComplete =
           categoryNames.length > 0 &&
           reviewedCategories >= categoryNames.length;
@@ -140,7 +146,10 @@
           ratingPercent: percent(ratedCount, yearRows.length),
           rankingGroupCount: groups.length,
           reviewedRankingGroupCount: reviewedGroups,
-          rankingPercent: percent(reviewedGroups, groups.length),
+          rankingPercent: percent(
+            yearRows.filter((row) => rankedIds.has(row.film_id)).length,
+            yearRows.length,
+          ),
           rankingReady,
           rankingComplete,
           awardFilledSlots: reviewedCategories,

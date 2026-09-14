@@ -20,6 +20,7 @@
  * @returns {string} Rank HTML, or "" when the film has no positive rank.
  */
 window.renderFilmAllTimeRank = function (film, options = {}) {
+  if (window.isFilmRankConfirmed?.(film, "allTime") === false) return "";
   let escape = options.escape || window.pageEscape;
   let marker = window.renderTop250Marker(film);
   if (marker) return marker;
@@ -42,7 +43,8 @@ window.renderWatchlistTierBadge = function (tier, options = {}) {
   let escape = options.escape || window.pageEscape;
   let normalized = window.normalizeWatchlistTier?.(tier) || "";
   if (!normalized) return "";
-  let label = window.renderTierWithModifier?.(tier, options.modifier) || normalized;
+  let label =
+    window.renderTierWithModifier?.(tier, options.modifier) || normalized;
   return `<span class="watchlist-tier tier-${escape(normalized.toLowerCase())}">${escape(label)}</span>`;
 };
 

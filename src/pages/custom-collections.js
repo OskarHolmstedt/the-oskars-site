@@ -6,6 +6,7 @@
 
   let collections = [];
   let pickedFilms = [];
+  let openCreateOnLoad = window.pageQueryParam("create") === "1";
 
   function collectionCard(collection) {
     return `<a class="film-card project-card" href="${escape(window.collectionPageUrl(collection.id))}">
@@ -39,7 +40,7 @@
     document.title = `${ui("Custom Collections")} · The Oskars`;
     let cards = collections.map(collectionCard).join("");
     container.innerHTML = `${window.renderDetailHeader({
-      mainHtml: `<h1>${escape(ui("Custom Collections"))}</h1><p>${escape(ui("Named film lists you've saved but haven't turned into a project yet."))} <a href="projects.html">${escape(ui("Browse your projects"))}</a></p>`,
+      mainHtml: `<h1>${escape(ui("Custom Collections"))}</h1><p>${escape(ui("Your film lists."))} <a href="projects.html">${escape(ui("Projects"))}</a></p>`,
       actionsHtml: `<button type="button" class="button-link" data-create-collection>${escape(ui("Create collection"))}</button>`,
     })}
     <div class="film-grid project-film-grid">${cards || `<p class="detail-empty">${escape(ui("No collections yet."))}</p>`}</div>
@@ -131,6 +132,10 @@
         statusEl.textContent = err.message || String(err);
       }
     });
+    if (openCreateOnLoad) {
+      openCreateOnLoad = false;
+      container.querySelector("[data-create-collection]")?.click();
+    }
     finishRenderTimer?.(`${collections.length} collections`);
   }
 

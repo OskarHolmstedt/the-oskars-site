@@ -986,6 +986,79 @@ pre.data-panel-status {
   gap: 8px;
   margin-top: 14px;
 }
+.intake-lookup {
+  margin: -4px 0 4px;
+}
+.intake-lookup:empty {
+  margin: 0;
+}
+.intake-lookup-heading {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.intake-lookup-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.intake-lookup-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 4px 8px 4px 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+.intake-lookup-card:hover {
+  border-color: var(--accent);
+}
+.intake-lookup-card img {
+  flex: 0 0 27px;
+  width: 27px;
+  height: 40px;
+  border-radius: 2px;
+  object-fit: cover;
+}
+.intake-lookup-card-noposter {
+  flex: 0 0 27px;
+  width: 27px;
+  height: 40px;
+  border-radius: 2px;
+  background: var(--surface-soft);
+}
+.intake-lookup-card span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.intake-lookup-confirm {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-soft);
+}
+.intake-lookup-confirm img {
+  flex: 0 0 46px;
+  width: 46px;
+  height: 68px;
+  border-radius: 3px;
+  object-fit: cover;
+}
+.intake-lookup-confirm p {
+  margin: 0 0 6px;
+}
 .opinion-rebuild-active {
   border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
   background: color-mix(in srgb, var(--accent) 5%, var(--surface));
@@ -3378,6 +3451,26 @@ pre.data-panel-status {
   margin: -8px -8px 9px;
   border-radius: 6px 6px 0 0;
 }
+/* Missing-portrait deliberate state (issue #204): a monogram in the same
+   180px/2:3 box renderPersonPortrait's own <figure> would occupy, so the
+   hero layout doesn't shift based on whether TMDB happened to have an
+   image. */
+.person-portrait--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 48px;
+  font-weight: 700;
+}
+/* .film-detail-header.has-poster/.has-person-portrait's shared 210px
+   column (used by film.html's poster) is wider than a person portrait's
+   own 180px, which would otherwise leave a visible gutter - the person
+   detail header overrides just the column width here. */
+.person-detail-header.has-person-portrait {
+  grid-template-columns: 180px minmax(0, 1fr) auto;
+}
 .person-portrait-placeholder--compare {
   width: calc(100% + 16px);
   height: auto;
@@ -4450,6 +4543,50 @@ dialog h2 {
   gap: 9px 18px;
   margin: 17px 0 0;
 }
+/* Person hero (issue #204): identity, the one relationship signal, and
+   signature work lead the first screen; the dense score/metadata grids
+   below (.person-hero-metrics, already-existing .film-metadata/
+   .detail-stat-grid) stay fully available but visually de-emphasized -
+   smaller, muted, set off by a rule - rather than competing equally. */
+.person-hero-signal {
+  margin: 10px 0 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+.person-hero-empty {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.person-hero-signature {
+  margin: 16px 0 0;
+}
+.person-hero-signature-label {
+  display: block;
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* Compound selector, not a bare .person-hero-signature-grid class - a
+   same-specificity single-class rule would depend on source order
+   against .film-grid's own grid-template-columns (the exact bug fixed
+   in issue #493's joint ceremony work). */
+.person-hero-signature .film-grid {
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+}
+.person-hero-metrics {
+  margin-top: 18px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.person-hero-metrics .detail-stat-grid {
+  border-top: none;
+}
 .detail-stat-grid {
   margin-top: 15px;
   border-top: 1px solid var(--line);
@@ -4855,8 +4992,14 @@ dialog h2 {
 }
 /* A film has at most 4 period groups (year/decade/century/all-time), so
    pack two per row instead of the person page's auto-fit, which needs
-   room for a much longer, variable-length list of periods. */
-.film-page-body .film-award-period-grid {
+   room for a much longer, variable-length list of periods. Scoped to
+   #filmPage specifically, not the misleadingly-named .film-page-body
+   (issue #204: that class is the generic body wrapper nearly every page
+   carries, not just film.html - it let this film-only 460px override
+   leak onto every other page's own narrower .film-award-period-grid,
+   including a real mobile overflow on person.html once its hero left
+   less room for this grid to shrink into). */
+#filmPage .film-award-period-grid {
   grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
 }
 .film-award-period {
@@ -7187,9 +7330,20 @@ a.rate-watched-year-arrow:hover {
   color: var(--muted);
   font-size: 11px;
 }
+.build-year-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+}
 .build-year-action {
   align-self: flex-start;
-  margin-top: auto;
+}
+.build-year-action-secondary {
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: underline;
 }
 @media (max-width: 800px) {
   .build-overview {
@@ -8321,6 +8475,19 @@ a.rate-watched-year-arrow:hover {
   .detail-header-actions {
     grid-column: 2;
     align-items: flex-start;
+  }
+  /* .detail-stat-head/.detail-stat-row's desktop-sized columns (80px
+     label + four minmax(56px, 1fr)) need at least ~324px - narrower than
+     a typical mobile viewport on its own, but exactly the kind of
+     intrinsic-minimum overflow the has-poster/has-person-portrait 105px
+     column above can't absorb once a poster/portrait is also taking
+     header width (issue #204: found once person.html's hero introduced
+     this narrow content column - film.html shares this grid and was
+     equally exposed, just never exercised by a mobile check before). */
+  .detail-stat-head,
+  .detail-stat-row {
+    grid-template-columns: 60px repeat(4, minmax(40px, 1fr));
+    gap: 3px;
   }
   .film-detail-header h1 {
     font-size: 28px;
@@ -9998,6 +10165,28 @@ a.rate-watched-year-arrow:hover {
   justify-content: start;
   margin-top: 0;
 }
+#rankYearPage .ranking-edit-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  padding: 6px;
+  gap: 6px;
+}
+#rankYearPage .ranking-edit-card > img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 3px;
+}
+#rankYearPage .ranking-edit-card > .table-film-link {
+  font-size: 11px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
 .setup-year-pool-card {
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -10669,6 +10858,96 @@ a.rate-watched-year-arrow:hover {
 .ceremony-stage-slide.ceremony-revealed .ceremony-revealed-only {
   display: block;
 }
+/* Joint ceremony rows-by-person (issue #491, revised #493): each
+   archive's own row stays visible on Reveal ranking (unlike the
+   original #491 design, which swapped it out entirely) and instead
+   sorts in place via the generic .ceremony-stage-nominee/--placement
+   reveal rules above - the same mechanic, just reached by more rows.
+   The cross-archive consensus (.ceremony-stage-by-position below)
+   becomes an *additional* section shown underneath once revealed,
+   not a replacement. */
+.ceremony-stage-by-person {
+  display: grid;
+  gap: 18px;
+  margin: 0 0 16px;
+  text-align: left;
+}
+.ceremony-stage-person-name {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+/* community.js's own rows use the larger "winner"-size poster (88px)
+   via candidateVisualHtml, unlike presentation.js's single-archive
+   ceremony stage (still "thumb", 38px) which shares the base
+   .ceremony-stage-nominees/.ceremony-stage-nominee rules above - scoped
+   here so presentation.js's cards are unaffected. Fixed flex-basis
+   instead of the base rule's stretchy grid track, sized to the poster's
+   88px plus this card's own 10px padding and 1px border on each side
+   (matching .film-poster--thumb's own flex:0 0 38px guard elsewhere). */
+.ceremony-stage-by-person .ceremony-stage-nominees {
+  display: flex;
+  flex-wrap: wrap;
+}
+.ceremony-stage-by-person .ceremony-stage-nominee {
+  box-sizing: border-box;
+  flex: 0 0 110px;
+  width: 110px;
+}
+.ceremony-stage-consensus-heading {
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+/* No bare `display` here - .ceremony-stage-by-position also carries
+   .ceremony-revealed-only (display: none by default), and a same-
+   specificity single-class rule here would win on source order and
+   defeat that hiding. The compound selector below only applies once
+   revealed, same as .ceremony-revealed-only's own reveal rule. */
+.ceremony-stage-by-position {
+  gap: 10px;
+  margin: 0 0 16px;
+  text-align: left;
+}
+.ceremony-stage-slide.ceremony-revealed .ceremony-stage-by-position {
+  display: grid;
+}
+.ceremony-stage-position-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--page);
+}
+.ceremony-stage-position-row--winner {
+  border-color: var(--accent);
+  background: var(--surface-soft);
+}
+.ceremony-stage-position-badge {
+  flex: 0 0 auto;
+  font-size: 22px;
+}
+.ceremony-stage-position-body {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  text-align: left;
+}
+.ceremony-recipient-credit {
+  display: block;
+  color: var(--muted);
+}
+.community-visual-monogram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-weight: 700;
+}
 .ceremony-stage-empty {
   margin: 0 0 16px;
   color: var(--muted);
@@ -10801,6 +11080,13 @@ a.rate-watched-year-arrow:hover {
   color: var(--muted);
   font-size: 18px;
   line-height: 1.55;
+}
+.ceremony-year-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+  font-weight: 600;
 }
 .community-grid {
   display: grid;
@@ -10997,11 +11283,19 @@ a.rate-watched-year-arrow:hover {
 }
 .community-ceremony-category li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 10px;
   border-radius: 10px;
   background: var(--surface-soft);
+}
+/* The fixed 88px .film-poster--winner (issue #493) shouldn't shrink
+   against a multi-line text block in these flex rows - the shared base
+   rule stays unscoped since other .film-poster--winner usages
+   (category winner callouts) aren't flex children needing this guard. */
+.community-ceremony-category .film-poster--winner,
+.ceremony-stage-position-row .film-poster--winner {
+  flex-shrink: 0;
 }
 .community-ceremony-category li div,
 .community-ceremony-category small {
@@ -11129,4 +11423,362 @@ a.rate-watched-year-arrow:hover {
 :root[data-theme="papyrus"] .detail-stats b,
 :root[data-theme="papyrus"] .import-report-stats b {
   color: var(--ink);
+}
+
+/* Collections hub: short labels and compact, decorative poster previews. */
+.collections-hub-types {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.collections-hub-directors {
+  --hub-tint: #9876aa;
+}
+.collections-hub-franchises {
+  --hub-tint: #ba7c55;
+}
+.collections-hub-tags {
+  --hub-tint: #739781;
+}
+.collections-hub-custom {
+  --hub-tint: #c3a258;
+}
+.collections-hub-tile {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  min-height: 194px;
+  padding: 24px;
+  gap: 16px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--hub-tint) 35%, var(--line));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--hub-tint) 15%, var(--surface));
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+.collections-hub-tile:hover,
+.collections-hub-pick:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgb(50 35 25 / 10%);
+}
+.collections-hub-tile:focus-visible,
+.collections-hub-pick:focus-visible,
+.collections-hub-create:focus-visible,
+[data-collections-surprise]:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}
+.collections-hub-tile-body {
+  grid-column: 1;
+  grid-row: 1;
+}
+.collections-hub-tile h2 {
+  margin: 0 0 7px;
+  font-size: clamp(20px, 2vw, 28px);
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+.collections-hub-tile p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.collections-hub-count {
+  display: inline-flex;
+  margin-left: 7px;
+  vertical-align: middle;
+  min-width: 25px;
+  min-height: 25px;
+  padding: 3px 7px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  font-size: 12px;
+  letter-spacing: normal;
+  font-weight: 600;
+}
+.collections-hub-arrow {
+  position: absolute;
+  top: 18px;
+  left: 24px;
+  font-size: 23px;
+  color: var(--accent-dark);
+}
+.poster-deck.collections-hub-deck {
+  --deck-width: 80px;
+  --deck-shift: 25px;
+  width: 146px;
+  height: 143px;
+  margin: 0;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+.collections-hub-deck .poster-deck-card {
+  background: color-mix(in srgb, var(--hub-tint) 35%, var(--surface));
+  border-width: 2px;
+  border-radius: 6px;
+}
+.collections-hub-deck .is-placeholder {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0 12px,
+      rgb(255 255 255 / 12%) 12px 13px
+    ),
+    color-mix(in srgb, var(--hub-tint) 40%, var(--surface));
+}
+.collections-hub-discover {
+  margin-top: 32px;
+}
+.collections-hub-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.collections-hub-section-header h2 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.035em;
+}
+.collections-hub-picks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.collections-hub-pick {
+  position: relative;
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+.collections-hub-pick .collections-hub-deck {
+  --deck-width: 57px;
+  --deck-shift: 14px;
+  width: 95px;
+  height: 104px;
+  grid-column: 1;
+}
+.collections-hub-kind {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.collections-hub-pick h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.collections-hub-pick-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+.collections-hub-pick-arrow {
+  position: absolute;
+  right: 13px;
+  bottom: 10px;
+  color: var(--muted);
+}
+.collections-hub-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 22px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+@media (max-width: 1000px) {
+  .collections-hub-picks {
+    grid-template-columns: 1fr;
+  }
+  .collections-hub-pick {
+    grid-template-columns: 100px minmax(0, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .collections-hub-types {
+    gap: 10px;
+  }
+  .collections-hub-tile {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 212px;
+    padding: 15px;
+    gap: 9px;
+    align-content: space-between;
+  }
+  .collections-hub-tile > .collections-hub-deck {
+    --deck-width: 57px;
+    --deck-shift: 19px;
+    width: 107px;
+    height: 102px;
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: center;
+  }
+  .collections-hub-tile-body {
+    grid-row: 2;
+  }
+  .collections-hub-tile h2 {
+    font-size: 19px;
+  }
+  .collections-hub-tile p {
+    font-size: 12px;
+  }
+  .collections-hub-count {
+    min-width: 21px;
+    min-height: 21px;
+    font-size: 10px;
+  }
+  .collections-hub-arrow {
+    top: 10px;
+    left: auto;
+    right: 12px;
+    font-size: 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .collections-hub-tile,
+  .collections-hub-pick,
+  .collections-hub-deck .poster-deck-card {
+    transition: none;
+  }
+  .collections-hub-tile:hover,
+  .collections-hub-pick:hover {
+    transform: none;
+  }
+  .collections-hub-deck:hover .poster-deck-card {
+    transform: rotate(calc((-3 + var(--deck-index) * 1.6) * 1deg));
+  }
+}
+
+/* films.html - the full shared catalog browse (issue #495). */
+.films-status-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.films-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 12px;
+}
+.films-status-pill:hover {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+.films-status-pill.is-active {
+  border-color: #8aa7ff;
+  background: #edf2ff;
+  color: var(--accent-dark);
+  font-weight: bold;
+}
+/* The toolbar reuses the shared .detail-toolbar/.detail-toolbar-controls
+   row (matching people.js/tag.js) instead of a bespoke layout - a bordered
+   card treatment scoped to this page, mirroring #periodPage's own
+   `.detail-toolbar` override rather than restyling the shared class
+   itself (person.html and project.html use it for unrelated toolbars). */
+#filmsPage .films-toolbar {
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  box-shadow: var(--shadow);
+}
+.films-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.films-search input {
+  width: min(240px, 55vw);
+}
+.films-advanced-filters {
+  flex: 1 0 100%;
+}
+.films-advanced-filters summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+}
+.films-advanced-filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px 14px;
+  margin-top: 10px;
+}
+.films-advanced-filters-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.films-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.films-status {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 650;
+}
+.films-status--watched {
+  background: #edf2ff;
+  color: var(--accent-dark);
+}
+.films-status--watchlist {
+  background: #fff2e0;
+  color: #8a5a15;
+}
+.films-status--unseen {
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+@media (max-width: 900px) {
+  .films-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .films-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .films-advanced-filters-grid {
+    grid-template-columns: 1fr;
+  }
 }

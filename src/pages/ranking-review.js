@@ -1,24 +1,4 @@
-/**
- * @file Ranking-consistency review, cut over to Supabase for real (issue
- * #429), continuing #420/#421/#422's pattern: gate check ->
- * loadSupabaseWorkspace() + loadSupabaseRanking("alltime", "allTime") ->
- * render -> each action calls its supabase-workspace.js function
- * directly. No save() step - every Supabase write is already durable.
- *
- * Filters the single all-time ranking's position-ordered entries down to
- * one year/decade/century heat or the all-time final (see
- * src/domain/supabase-ranking-consistency.js's header for why this stays
- * one order, matching the previous tool's own
- * window.allTimeSourceFilmsInOrder() filtering rather than maintaining
- * independent per-scope orders), and persists reviewed pairs to
- * ranking_pair_reviews instead of window.state.rankingReviews[type][key].
- *
- * Deliberate scope cuts from the version this replaces (documented in
- * supabase-ranking-consistency.js): only overall-adjacent same-rating
- * pairs surface (no bucket-relative repositioning), and no tie-group
- * cascading on swap - no fractional-position reposition scheme exists
- * for ranking_entries.
- */
+/** @file Reviews and confirms exact-rating order in the selected independently stored ranking scope. */
 
 (function () {
   let escape = window.pageEscape;
@@ -87,14 +67,27 @@
   }
 
   function renderEmpty() {
+    let remaining = window.supabaseRankingConsistencyPairs(
+      scopeType,
+      scopeKey,
+      allEntries,
+      watchedByFilmId,
+      resolvedKeys,
+      new Set(),
+    );
+    let canConfirm =
+      allEntries.length &&
+      !remaining.length &&
+      allEntries.some((entry) => entry.rank_confirmed === false);
     let next = nextScope();
     let nextAction = next
       ? `<a class="button-link" href="ranking-review.html?type=${escape(next.type)}&key=${escape(next.key)}">${escape(`Continue to ${next.type === "allTime" ? "all-time final" : next.key}`)} →</a>`
       : `<a class="button-link" href="build.html">Return to Build your Oskars</a>`;
     return `<div class="detail-empty">
-      <span class="eyebrow">Final settled</span><h2>${escape(scopeLabel())}</h2>
-      <p>Every relevant same-rating comparison in this scope is settled, or there are not two films to compare yet.</p>
-      ${nextAction}
+      <span class="eyebrow">${remaining.length ? "Comparisons skipped" : canConfirm ? "Ready to confirm" : allEntries.length ? "Period confirmed" : "No rated films"}</span><h2>${escape(scopeLabel())}</h2>
+      <p>${remaining.length ? "Skipped comparisons remain. Reload to revisit them before confirming this period." : "Confirmation applies only to this period. Broader rankings are settled separately."}</p>
+      ${canConfirm ? `<button type="button" data-ranking-confirm-scope>Keep this order for this period</button>` : ""}
+      ${!remaining.length && !canConfirm ? nextAction : ""}
     </div>`;
   }
 
@@ -240,6 +233,27 @@
     pick(pickTarget.dataset.rankingConsistencyPick);
   });
 
+  container.addEventListener("click", async (event) => {
+    let confirm = event.target.closest("[data-ranking-confirm-scope]");
+    if (!confirm) return;
+    confirm.disabled = true;
+    try {
+      await window.confirmSupabaseRankingEntries(
+        rankingId,
+        allEntries.map((entry) => entry.film_id),
+      );
+      allEntries.forEach((entry) => {
+        entry.rank_confirmed = true;
+      });
+      feedback =
+        "This period’s order is confirmed. Other periods are unchanged.";
+      render();
+    } catch (error) {
+      confirm.disabled = false;
+      alert(error.message || String(error));
+    }
+  });
+
   container.addEventListener("click", (event) => {
     let pickTarget = event.target.closest("[data-ranking-consistency-pick]");
     if (pickTarget) {
@@ -266,7 +280,11 @@
       watchedByFilmId = new Map(
         (workspace?.watched || []).map((row) => [row.film_id, row]),
       );
-      let loaded = await window.loadSupabaseRanking("alltime", "allTime");
+      let loaded = await window.prepareSupabasePeriodRanking(
+        scopeKey,
+        scopeType,
+        workspace?.watched || [],
+      );
       rankingId = loaded.rankingId;
       allEntries = loaded.entries;
       resolvedKeys = await window.loadSupabaseRankingPairReviews(

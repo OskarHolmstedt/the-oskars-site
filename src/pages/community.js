@@ -7,6 +7,22 @@
  * (`scripts/generate-profile-artifacts.jxa.js`, `publish-profiles.yml`)
  * any more, so results always reflect each archive's current public data
  * rather than a fixed revision.
+ *
+ * The joint ceremony's staged reveal shows one row per participating
+ * archive with that archive's own nominees. Reveal ranking sorts each
+ * row into that archive's own placement order in place (the same
+ * --ceremony-placement/order mechanic presentation.js's single-archive
+ * ceremony uses for one shared list, just applied independently per row
+ * here) and reveals a "Consensus" section underneath with the
+ * cross-archive result - an additional section, not a replacement
+ * (issue #493). Every nominee (board and stage alike) renders as a
+ * fixed-width poster card (`window.renderFilmPoster(film, "winner")`,
+ * matching the site's other single-film-spotlight usage), or a
+ * recipient's portrait wherever a nomination actually credits someone
+ * with a real `person_id` (issue #491). A nominee's year label is
+ * omitted for a "years" ceremony (redundant - the page's own heading
+ * already states it) but kept once decade/century/all-time ceremonies
+ * exist, since those can span several different years.
  */
 
 (async function () {
@@ -188,62 +204,130 @@
       : "";
   }
 
-  function ceremonyBoardCategoryHtml(category) {
+  // A category-appropriate portrait beats a poster when the nomination
+  // actually credits someone (Best Director, Best Lead Actor, ...) - a
+  // poster still carries no information about who's up for the award in
+  // those categories. Falls through to the film's poster, then a plain
+  // monogram, exactly like the directory cards already do for a profile
+  // with no posters at all.
+  function candidateRecipientPortrait(nominee, portraitByPersonId) {
+    for (let recipient of nominee.recipients || []) {
+      let url = portraitByPersonId[recipient.personId];
+      if (url) return { url, name: recipient.name };
+    }
+    return null;
+  }
+
+  function candidateVisualHtml(nominee, portraitByPersonId) {
+    let portrait = candidateRecipientPortrait(nominee, portraitByPersonId);
+    if (portrait)
+      return `<figure class="film-poster film-poster--winner"><img src="${escape(portrait.url)}" alt="${escape(`Portrait of ${portrait.name}`)}" loading="lazy" decoding="async"></figure>`;
+    let posterHtml = window.renderFilmPoster?.(nominee.film, "winner");
+    if (posterHtml) return posterHtml;
+    return `<div class="film-poster film-poster--winner community-visual-monogram" aria-hidden="true">${escape(String(nominee.film?.title || "?").charAt(0))}</div>`;
+  }
+
+  function recipientCreditHtml(nominee) {
+    let names = (nominee.recipients || []).map((recipient) => recipient.name);
+    return names.length
+      ? `<small class="ceremony-recipient-credit">${escape(names.join(", "))}</small>`
+      : "";
+  }
+
+  // A year-ceremony's every nominee necessarily shares the ceremony's own
+  // year (already stated in the page's own <h1>), so repeating it on
+  // every card is noise - omitted only for "years" ceremonies. A future
+  // decade/century/all-time ceremony can span several different years,
+  // where the label becomes meaningful again (issue #493).
+  function consensusMetaHtml(candidate, periodType) {
+    let yearPrefix =
+      periodType === "years" ? "" : `${escape(candidate.film.year)} · `;
+    return `<small>${yearPrefix}${(candidate.score * 100).toFixed(0)}% consensus score · ${candidate.firstPlaceVotes} first-place vote${candidate.firstPlaceVotes === 1 ? "" : "s"}</small>`;
+  }
+
+  function ceremonyBoardCategoryHtml(category, portraitByPersonId, periodType) {
     return `<article class="community-ceremony-category">
       <header><h2>${escape(category.category)}</h2><span>${category.participatingProfiles} ballots</span></header>
       <ol>${category.ranking
         .map(
           (candidate, index) => `<li class="community-podium-${index + 1}">
             <span class="community-medal">${placementBadge(index + 1)}</span>
-            <div><strong>${escape(candidate.film.title)}</strong><small>${escape(candidate.film.year)} · ${(candidate.score * 100).toFixed(0)}% consensus score · ${candidate.firstPlaceVotes} first-place vote${candidate.firstPlaceVotes === 1 ? "" : "s"}</small>${supportListHtml(candidate)}${agreementBadgeHtml(candidate)}</div>
+            ${candidateVisualHtml(candidate, portraitByPersonId)}
+            <div><strong>${escape(candidate.film.title)}</strong>${consensusMetaHtml(candidate, periodType)}${recipientCreditHtml(candidate)}${supportListHtml(candidate)}${agreementBadgeHtml(candidate)}</div>
           </li>`,
         )
         .join("")}</ol>
     </article>`;
   }
 
-  // Nominees list alphabetically until revealed (spoiler-safe, matching the
-  // personal archive's own Run ceremony stage in presentation.js) - the
-  // reveal then reorders them into the full consensus ranking via the same
-  // `--ceremony-placement` CSS custom property and `.ceremony-revealed`
-  // class that stage already defines, rather than a second copy of that
-  // mechanic.
-  function ceremonyStageSlideHtml(category, index, total) {
-    let rankByCandidate = new Map(
-      category.ranking.map((candidate, position) => [candidate, position + 1]),
-    );
-    let alphabetical = [...category.ranking].sort((left, right) =>
-      String(left.film.title).localeCompare(
-        String(right.film.title),
-        undefined,
-        {
-          sensitivity: "base",
-        },
-      ),
-    );
-    let nomineeItems = alphabetical
-      .map((candidate) => {
-        let rank = rankByCandidate.get(candidate);
-        // Support (who nominated this and at what placement) and the
-        // agreement badge are themselves spoilers - both already give away
-        // where a candidate is heading in the consensus ranking - so they
-        // stay inside .ceremony-revealed-only, hidden until Reveal ranking
-        // exactly like .ceremony-placement itself.
-        return `<li class="ceremony-stage-nominee${rank === 1 ? " ceremony-stage-nominee--winner" : ""}" style="--ceremony-placement:${rank}">
+  // One row per archive with that archive's own nominees, in that
+  // archive's own placement order. Pre-reveal, this is the only thing
+  // shown - alphabetical-feeling but actually placement-ordered, no
+  // badges - since one person's own ballot order isn't itself a spoiler
+  // for the joint outcome. On reveal it stays visible (unlike the old
+  // full-swap design) and each row sorts into that person's own
+  // placement via the same --ceremony-placement/order mechanic
+  // presentation.js's single-archive ceremony already uses for one
+  // shared list, just applied independently per row here (issue #493).
+  function personRowHtml(personEntry, portraitByPersonId, periodType) {
+    let items = personEntry.entries
+      .map(
+        (entry) => `<li class="ceremony-stage-nominee${entry.placement === 1 ? " ceremony-stage-nominee--winner" : ""}" style="--ceremony-placement:${entry.placement}">
+          ${candidateVisualHtml(entry, portraitByPersonId)}
           <span class="ceremony-stage-nominee-body">
-            <i class="ceremony-placement">${escape(placementBadge(rank))}</i>
-            <b>${escape(candidate.film.title)}</b>
-            <small>${escape(candidate.film.year)}</small>
-            <span class="ceremony-revealed-only">${supportListHtml(candidate)}${agreementBadgeHtml(candidate)}</span>
+            <i class="ceremony-placement" aria-label="${escape(`Placement ${entry.placement}`)}">${escape(placementBadge(entry.placement))}</i>
+            <b>${escape(entry.film.title)}</b>
+            ${periodType === "years" ? "" : `<small>${escape(entry.film.year)}</small>`}
+            ${recipientCreditHtml(entry)}
           </span>
-        </li>`;
-      })
+        </li>`,
+      )
+      .join("");
+    return `<div class="ceremony-stage-person-row">
+      <h4 class="ceremony-stage-person-name">${escape(personEntry.ownerName)}</h4>
+      <ul class="ceremony-stage-nominees">${items}</ul>
+    </div>`;
+  }
+
+  // The cross-archive consensus, one row per position - support (who
+  // nominated this and at what placement) and the agreement badge give
+  // away the joint outcome, so this whole block stays hidden behind
+  // .ceremony-revealed-only until Reveal ranking. Unlike the original
+  // #491 design, this no longer replaces the by-person rows above - it
+  // appears as an additional section underneath them once both are
+  // visible (issue #493).
+  function positionRowHtml(candidate, position, portraitByPersonId, periodType) {
+    return `<div class="ceremony-stage-position-row${position === 1 ? " ceremony-stage-position-row--winner" : ""}">
+      <span class="ceremony-stage-position-badge">${escape(placementBadge(position))}</span>
+      ${candidateVisualHtml(candidate, portraitByPersonId)}
+      <div class="ceremony-stage-position-body">
+        <b>${escape(candidate.film.title)}</b>
+        ${consensusMetaHtml(candidate, periodType)}
+        ${recipientCreditHtml(candidate)}
+        ${supportListHtml(candidate)}
+        ${agreementBadgeHtml(candidate)}
+      </div>
+    </div>`;
+  }
+
+  function ceremonyStageSlideHtml(category, index, total, portraitByPersonId, periodType) {
+    let byPersonHtml = category.byPerson
+      .map((personEntry) =>
+        personRowHtml(personEntry, portraitByPersonId, periodType),
+      )
+      .join("");
+    let byPositionHtml = category.ranking
+      .map((candidate, position) =>
+        positionRowHtml(candidate, position + 1, portraitByPersonId, periodType),
+      )
       .join("");
     return `<div class="ceremony-stage-slide" data-ceremony-slide="${index}" data-has-ranking="true"${index === 0 ? "" : " hidden"}>
       <div class="ceremony-stage-progress">Category ${index + 1} of ${total}</div>
       <h3 class="ceremony-stage-category">${escape(category.category)}</h3>
       <p class="community-ceremony-stage-meta">${category.participatingProfiles} archives nominated in this category.</p>
-      <ul class="ceremony-stage-nominees">${nomineeItems}</ul>
+      <div class="ceremony-stage-by-person">${byPersonHtml}</div>
+      <h4 class="ceremony-stage-consensus-heading ceremony-revealed-only">Consensus</h4>
+      <div class="ceremony-stage-by-position ceremony-revealed-only">${byPositionHtml}</div>
     </div>`;
   }
 
@@ -299,20 +383,55 @@
     prevButton?.addEventListener("click", () => show(index - 1));
   }
 
-  function renderCeremony(profiles) {
-    let ceremony = window.buildCommunityCeremony(profiles);
+  function yearPickerHtml(ceremony, slugs) {
+    if (ceremony.years.length < 2) return "";
+    let options = ceremony.years
+      .map(
+        (year) =>
+          `<option value="${escape(year)}"${year === ceremony.year ? " selected" : ""}>${escape(year)}</option>`,
+      )
+      .join("");
+    return `<label class="ceremony-year-picker">Year <select data-ceremony-year-picker>${options}</select></label>`;
+  }
+
+  function ceremonyRecipientPersonIds(ceremony) {
+    let ids = new Set();
+    ceremony.categories.forEach((category) =>
+      category.ranking.forEach((candidate) =>
+        (candidate.recipients || []).forEach(
+          (recipient) => recipient.personId && ids.add(recipient.personId),
+        ),
+      ),
+    );
+    return [...ids];
+  }
+
+  async function renderCeremony(profiles, slugs) {
+    let requestedYear = new URLSearchParams(window.location.search).get(
+      "year",
+    );
+    let ceremony = window.buildCommunityCeremony(profiles, requestedYear);
+    let portraitByPersonId = {};
+    try {
+      portraitByPersonId = await window.fetchCommunityPortraits?.(
+        ceremonyRecipientPersonIds(ceremony),
+      ) || {};
+    } catch (err) {
+      console.warn("Community ceremony portraits:", err);
+    }
     container.innerHTML = `<header class="community-hero community-ceremony-hero">
       <p class="eyebrow">Joint ceremony</p>
       <h1>${ceremony.year ? `${escape(ceremony.year)} Community Awards` : "No shared ceremony yet"}</h1>
-      <p>${ceremony.year ? `The newest annual ceremony with ballots from at least two selected archives. Each archive contributes equal total weight in every category. Run the ceremony to see every archive's nominees before the consensus ranking is revealed.` : escape(ceremony.reason)}</p>
+      <p>${ceremony.year ? `${ceremony.years.length > 1 ? "Every year with ballots from at least two selected archives is available below." : "The only annual ceremony with ballots from at least two selected archives."} Each archive contributes equal total weight in every category. Run the ceremony to see every archive's nominees before the consensus ranking is revealed.` : escape(ceremony.reason)}</p>
+      ${yearPickerHtml(ceremony, slugs)}
       <a href="community.html">Choose different archives</a>
     </header>
     ${
       ceremony.categories.length
         ? `<div class="ceremony-toolbar"><span class="ceremony-year-badge">${escape(ceremony.year)}</span><button type="button" class="button-link" data-ceremony-start>Run ceremony</button></div>
-          <div class="community-ceremony-grid" data-ceremony-board>${ceremony.categories.map(ceremonyBoardCategoryHtml).join("")}</div>
+          <div class="community-ceremony-grid" data-ceremony-board>${ceremony.categories.map((category) => ceremonyBoardCategoryHtml(category, portraitByPersonId, ceremony.periodType)).join("")}</div>
           <div class="ceremony-stage" data-ceremony-stage hidden>
-            ${ceremony.categories.map((category, index) => ceremonyStageSlideHtml(category, index, ceremony.categories.length)).join("")}
+            ${ceremony.categories.map((category, index) => ceremonyStageSlideHtml(category, index, ceremony.categories.length, portraitByPersonId, ceremony.periodType)).join("")}
             <div class="ceremony-stage-controls">
               <button type="button" data-ceremony-prev>Previous category</button>
               <button type="button" data-ceremony-reveal>Reveal ranking</button>
@@ -325,6 +444,16 @@
     <section class="community-method"><h2>How the result is calculated</h2><p>Each ballot is normalized from first to last place, then given the same total weight. Consensus score decides the order, followed by first-place votes and title for deterministic ties. Missing categories count as abstentions. A film nominated by more than one selected archive is marked as an agreement.</p></section>
     ${sourceHtml(profiles)}`;
     if (ceremony.categories.length) wireCeremonyStage(container);
+    container
+      .querySelector("[data-ceremony-year-picker]")
+      ?.addEventListener("change", (event) => {
+        let params = new URLSearchParams({
+          view: "ceremony",
+          profiles: slugs.join(","),
+          year: event.target.value,
+        });
+        window.location.href = `community.html?${params}`;
+      });
   }
 
   try {
@@ -332,13 +461,12 @@
     let view = params.get("view") || "";
     if (view === "compare" || view === "ceremony") {
       container.innerHTML = `<div class="detail-empty"><h1>Loading Community view…</h1></div>`;
-      let profiles = await fetchSelectedProfiles(
-        String(params.get("profiles") || "")
-          .split(",")
-          .filter(Boolean),
-      );
+      let slugs = String(params.get("profiles") || "")
+        .split(",")
+        .filter(Boolean);
+      let profiles = await fetchSelectedProfiles(slugs);
       if (view === "compare") renderComparison(profiles);
-      else renderCeremony(profiles);
+      else await renderCeremony(profiles, slugs);
     } else {
       renderDirectory(await window.fetchSupabaseCommunityDirectory());
     }
