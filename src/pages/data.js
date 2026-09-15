@@ -436,21 +436,49 @@
       .getElementById("letterboxdZipInput")
       .addEventListener("change", async (event) => {
         let status = document.getElementById("letterboxdImportStatus");
+        let progress = document.getElementById("letterboxdImportProgress");
+        let applyBtn = document.getElementById("letterboxdImportApplyBtn");
+        applyBtn.disabled = true;
+        status.textContent = ui("Parsing your export…");
         try {
           pendingLetterboxd = await window.proposeLetterboxdZipImport(
             event.target.files?.[0],
             { baseState: window.state },
           );
+          // Films with no archive match get their TMDB details looked up
+          // now, before Apply - the shared catalog is create-only once a
+          // film row exists (issue #440), so this is the only point a
+          // fresh film's metadata can still be filled in automatically.
+          let freshCount =
+            pendingLetterboxd.report.freshArchiveFilms?.length || 0;
+          if (freshCount) {
+            status.textContent = ui(
+              "Looking up film details for {count} new film(s)…",
+              { count: freshCount },
+            );
+            await window.enrichLetterboxdProposalMetadata(pendingLetterboxd, {
+              onProgress(done, total) {
+                progress.hidden = false;
+                progress.max = total || 1;
+                progress.value = done;
+                status.textContent = ui(
+                  "Looking up film details ({done}/{total})…",
+                  { done, total },
+                );
+              },
+            });
+          }
           status.textContent = JSON.stringify(
             pendingLetterboxd.report,
             null,
             2,
           );
-          document.getElementById("letterboxdImportApplyBtn").disabled =
-            !pendingLetterboxd.allowed;
+          applyBtn.disabled = !pendingLetterboxd.allowed;
         } catch (error) {
           pendingLetterboxd = null;
           status.textContent = error.message || String(error);
+        } finally {
+          progress.hidden = true;
         }
       });
     document
@@ -459,16 +487,28 @@
         if (!pendingLetterboxd) return;
         let button = event.currentTarget;
         let status = document.getElementById("letterboxdImportStatus");
+        let progress = document.getElementById("letterboxdImportProgress");
         button.disabled = true;
         // Saving reconciles the whole archive against Supabase one changed
         // film at a time (src/core/supabase-legacy-writes.js), so a large
-        // import can take a real while with no other visible progress -
-        // without this, "still working" and "did nothing" look identical.
+        // import can take a real while - the stage progress below is the
+        // only other visible sign it's still working, not stuck.
         status.textContent = ui(
           "Saving to your account… this can take a while for a large import. Don't close this tab.",
         );
+        function onProgress(stage, done, total) {
+          progress.hidden = false;
+          progress.max = total || 1;
+          progress.value = done;
+          status.textContent = ui(
+            "Saving {stage} ({done}/{total})… Don't close this tab.",
+            { stage, done, total },
+          );
+        }
         try {
-          let result = await window.applyImportProposal(pendingLetterboxd);
+          let result = await window.applyImportProposal(pendingLetterboxd, {
+            onProgress,
+          });
           if (!result?.ok)
             throw new Error(result?.errors?.join(" ") || ui("Import failed."));
           await refreshSource();
@@ -476,6 +516,7 @@
         } catch (error) {
           status.textContent = error.message || String(error);
         } finally {
+          progress.hidden = true;
           button.disabled = false;
         }
       });

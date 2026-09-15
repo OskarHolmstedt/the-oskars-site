@@ -102,12 +102,24 @@
   let pageSize = 100;
 
   function fullCatalog() {
-    if (!catalog)
+    if (!catalog) {
+      // A Letterboxd (or Directors/Franchise sheet) row that doesn't match
+      // the ranked archive lands in state.watchedOther instead (see
+      // src/imports/letterboxd.js) - it never enters ranked lists or award
+      // brackets, but it was still watched, so it belongs in this browse's
+      // "Watched" status too (issue: imported films going missing from the
+      // one global Watched destination). statusBadgeHtml() below tags these
+      // "Other watched" rather than letting them read as fully ranked.
+      let watchedFilms = [
+        ...Object.values(state.filmsById || {}),
+        ...(state.watchedOther || []),
+      ];
       catalog = window.buildFullFilmCatalog(
         window.OSKARS_SHARED_FILM_ARCHIVE || {},
-        Object.values(state.filmsById || {}),
+        watchedFilms,
         state.watchlist || [],
       );
+    }
     return catalog;
   }
 
@@ -302,11 +314,23 @@
     );
   }
 
+  let watchedOtherIndex = null;
+  function isOtherWatchedFilm(film) {
+    if (!watchedOtherIndex)
+      watchedOtherIndex = new Set(
+        (state.watchedOther || []).map((entry) => entry.id),
+      );
+    return watchedOtherIndex.has(film.id);
+  }
+
   function statusBadgeHtml(film) {
-    if (film.catalogStatus === "watched")
+    if (film.catalogStatus === "watched") {
+      if (isOtherWatchedFilm(film))
+        return `<span class="films-status films-status--watched films-status--other">${escape(ui("Other watched"))}</span>`;
       return film.rating
         ? `<span class="films-status films-status--watched">${escape(film.rating)}</span>`
         : `<span class="films-status films-status--watched">${escape(ui("Watched"))}</span>`;
+    }
     if (film.catalogStatus === "watchlist")
       // A tier already implies watchlist membership - no tier means the
       // item hasn't been tiered yet, so "Watchlist" is the only fact left

@@ -669,9 +669,11 @@ window.importData = function (raw, importType, options = {}) {
       return { added: true, changed: true };
     }
 
-    // Rated, already-watched entries that don't match any archive film (e.g.
-    // a miniseries or other non-film credit) aren't a watchlist item and
-    // aren't a canonical film, so they're kept in their own collection.
+    // Rated, already-watched entries that don't match any archive film
+    // (e.g. a miniseries or other non-film credit) aren't a watchlist item,
+    // so a row with a usable year gets its own new ranked-archive entry
+    // below; watchedOther is only the fallback for the rare row with no
+    // year at all, since it isn't persisted anywhere.
     function upsertWatchedOtherEntry(entry, extra = {}) {
       state.watchedOther ||= [];
       let year = String(entry.year || "");
@@ -725,6 +727,27 @@ window.importData = function (raw, importType, options = {}) {
           if (before !== after) changed = true;
         }
         return { added: false, changed };
+      }
+      // state.watchedOther has no Supabase table backing it (nothing ever
+      // syncs it), so anything routed there on a Supabase-hydrated page is
+      // lost the next time it reloads. A row with a real release year
+      // belongs in the ranked archive instead, which does persist -
+      // addOrUpdateYearFilm already guards against creating a duplicate
+      // there. Only a row with no usable year at all still has nowhere
+      // real to go and falls back to watchedOther below.
+      if (/^\d{4}$/.test(year)) {
+        addOrUpdateYearFilm(
+          year,
+          {
+            title: entry.title,
+            rating: entry.rating || "",
+            ratingValue: entry.ratingValue || 0,
+            director: extra.director || "",
+            franchises: membership ? [membership] : [],
+          },
+          {},
+        );
+        return { added: true, changed: true };
       }
       state.watchedOther.push({
         id,

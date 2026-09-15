@@ -211,17 +211,6 @@
 
   function importWatched(rows, ratings, diary, report) {
     let archiveRecords = archiveSourceRecords();
-    // An account with no ranked archive yet is the primary new-user path
-    // (Letterboxd import is the expected first step, per the Data page
-    // guide) - for that case only, a freshly-imported film with no existing
-    // match becomes an unranked years[].films entry, ready for the normal
-    // per-year ranking tools, instead of landing in watchedOther (which
-    // never enters ranked lists or award brackets - see README.md's
-    // "Other watched" section). An account that already has a ranked
-    // archive keeps the original merge-only behavior unchanged, so a
-    // repeat/incremental sync never overrides a deliberate watchedOther
-    // choice (e.g. a short or stage show) for a film with no archive match.
-    let archiveWasEmpty = archiveRecords.length === 0;
     let archiveLookup = buildLookup(archiveRecords);
     let otherLookup = buildLookup(window.state.watchedOther || []);
     let factsByRow = viewingFacts(rows, ratings, diary);
@@ -257,7 +246,15 @@
         applyViewingFacts(existingOther, row, facts);
         window.enrichPersonalRecordFromSharedArchive?.(existingOther, "film");
         report.watchedOtherMerged += 1;
-      } else if (archiveWasEmpty && validYear) {
+      } else if (validYear) {
+        // state.watchedOther has no Supabase table backing it - nothing
+        // ever syncs it, so anything routed there is lost the next time
+        // this page (or any Supabase-hydrated page) reloads. A row with a
+        // real release year belongs in the ranked archive instead, which
+        // does persist (find_or_create_film via reconcile()'s syncWatched)
+        // - regardless of whether this account already had other films
+        // before this import. Only a row with no usable year at all (rare)
+        // still has nowhere real to go and falls back to watchedOther below.
         let entry = freshWatchedRecordFields(row, validYear);
         applyViewingFacts(entry, row, facts);
         window.enrichPersonalRecordFromSharedArchive?.(entry, "film");
@@ -266,6 +263,11 @@
         archiveRecords.push(entry);
         keysFor(entry).forEach((key) => archiveLookup.set(key, entry));
         report.archiveAdded += 1;
+        report.freshArchiveFilms.push({
+          id: entry.id,
+          title: entry.title,
+          year: entry.year,
+        });
       } else {
         let entry = {
           ...freshWatchedRecordFields(row, validYear),
@@ -350,6 +352,11 @@
       skippedDetails: [],
       watchedArchiveMerged: 0,
       archiveAdded: 0,
+      // Identifying info (not object references - createImportProposal
+      // deep-clones candidateState/report, orphaning any reference held
+      // here) for enrichLetterboxdProposalMetadata() to find and fill in
+      // afterward.
+      freshArchiveFilms: [],
       watchedOtherAdded: 0,
       watchedOtherMerged: 0,
       watchlistAdded: 0,
@@ -411,5 +418,78 @@
       }
     });
     return window.proposeLetterboxdImport(files, options);
+  };
+
+  function applyTmdbMatchToFilm(film, match) {
+    if (match.tmdbId) film.tmdbId = String(match.tmdbId);
+    if (match.director) film.director = String(match.director).trim();
+    if (match.country) film.country = String(match.country).trim();
+    if (match.primaryCountry)
+      film.primaryCountry = String(match.primaryCountry).trim();
+    if (match.swedishTitle) film.swedishTitle = String(match.swedishTitle).trim();
+    if (match.runtimeMinutes) film.runtimeMinutes = match.runtimeMinutes;
+    if (match.poster) film.poster = match.poster;
+    if (match.type) film.type = match.type;
+    window.normalizeFilmMetadata?.(film);
+  }
+
+  /**
+   * Looks up TMDB metadata for every freshly created archive film tracked
+   * on a Letterboxd proposal's report (proposal.report.freshArchiveFilms),
+   * filling in tmdbId/director/country/runtime/poster/type directly on
+   * proposal.candidateState before the proposal is ever applied - the
+   * shared catalog is create-only for ordinary users once a film row
+   * exists (issue #440), so this is the one point where getting it right
+   * actually matters, mirroring the pattern Intake now uses (issue #496).
+   * Deliberately separate from proposeLetterboxdImport/proposeLetterboxdZipImport
+   * (which stay synchronous) rather than folded into the parse/classify
+   * pass, both because createImportProposal deep-clones candidateState/
+   * report (so an object reference captured during classification would
+   * already be orphaned by the time this could run) and so the fast
+   * preview render never blocks on what could be many network round trips.
+   * A lookup failure or no match just leaves that film without metadata,
+   * same as an ordinary Letterboxd import row always has today - it still
+   * gets created either way.
+   * @param {ImportProposal} proposal A Letterboxd proposal, already built.
+   * @param {Object} [options] Batch controls.
+   * @param {number} [options.concurrency] Parallel lookups, default 4.
+   * @param {function(number, number): void} [options.onProgress] Called
+   *   as (done, total) after each lookup settles.
+   * @returns {Promise<void>} Completion after every lookup settles.
+   */
+  window.enrichLetterboxdProposalMetadata = async function (
+    proposal,
+    options = {},
+  ) {
+    let targets = proposal?.report?.freshArchiveFilms || [];
+    if (!targets.length || !window.lookupTmdbMovieMetadata) return;
+    let concurrency = Math.max(
+      1,
+      Math.min(targets.length, Number(options.concurrency) || 4),
+    );
+    let cursor = 0;
+    let done = 0;
+    async function worker() {
+      while (cursor < targets.length) {
+        let target = targets[cursor++];
+        let film = (
+          proposal.candidateState?.years?.[target.year]?.films || []
+        ).find((candidate) => candidate.id === target.id);
+        if (film && !film.tmdbId) {
+          try {
+            let match = await window.lookupTmdbMovieMetadata({
+              title: film.title,
+              year: film.year,
+            });
+            if (match) applyTmdbMatchToFilm(film, match);
+          } catch (err) {
+            console.warn(`TMDB lookup failed for ${target.title}`, err);
+          }
+        }
+        done += 1;
+        options.onProgress?.(done, targets.length);
+      }
+    }
+    await Promise.all(Array.from({ length: concurrency }, worker));
   };
 })();

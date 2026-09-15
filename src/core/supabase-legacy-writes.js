@@ -445,7 +445,8 @@
     }
   }
 
-  async function reconcile() {
+  async function reconcile(options = {}) {
+    let onProgress = options.onProgress;
     let ready = await window.ensureSupabaseClient();
     if (!ready) throw new Error("Supabase not configured.");
     let auth = await window.resolveSupabaseAuthState();
@@ -453,12 +454,29 @@
     let source = window.OSKARS_SUPABASE_HYDRATION_SOURCE || {};
     window.ensureAggregatesFresh?.();
     let films = Object.values(window.state?.filmsById || {});
-    await syncWatched(ready.client, source, films);
-    await syncTags(ready.client, auth.user.id, source, films);
-    await syncFranchiseAdditions(ready.client, source, films);
-    await syncAwards(ready.client, source, films);
-    await syncRankings(ready.client, source, films);
-    await syncWatchlist(ready.client, source, window.state?.watchlist || []);
+    // Coarse per-stage progress, not per-film: this is the shared write
+    // path behind every window.save() call in the app (single-edit saves
+    // included), so reporting stays a cheap optional hook here rather than
+    // plumbed into each stage's own per-row loop.
+    let stages = [
+      ["Watched films", () => syncWatched(ready.client, source, films)],
+      ["Tags", () => syncTags(ready.client, auth.user.id, source, films)],
+      [
+        "Franchise additions",
+        () => syncFranchiseAdditions(ready.client, source, films),
+      ],
+      ["Awards", () => syncAwards(ready.client, source, films)],
+      ["Rankings", () => syncRankings(ready.client, source, films)],
+      [
+        "Watchlist",
+        () => syncWatchlist(ready.client, source, window.state?.watchlist || []),
+      ],
+    ];
+    for (let index = 0; index < stages.length; index++) {
+      let [label, run] = stages[index];
+      await run();
+      onProgress?.(label, index + 1, stages.length);
+    }
     window.OSKARS_SUPABASE_HYDRATION_SOURCE =
       await window.loadSupabaseLegacyHydrationSource();
     window.applySharedFilmArchive?.(
@@ -474,10 +492,15 @@
   /**
    * Saves the current film/period view model straight through to Supabase.
    * Calls are serialized so rapid UI actions cannot interleave writes.
+   * @param {Object} [options] Save options.
+   * @param {function(string, number, number): void} [options.onProgress]
+   *   Called once per reconcile stage as (label, doneStages, totalStages) -
+   *   optional, for callers doing a large bulk save (e.g. an import apply)
+   *   that want to show real progress instead of a silent wait.
    * @returns {Promise<boolean>} Resolves after the requested state is durable.
    */
-  window.saveSupabaseHydratedState = function () {
-    let operation = saveChain.catch(() => false).then(reconcile);
+  window.saveSupabaseHydratedState = function (options = {}) {
+    let operation = saveChain.catch(() => false).then(() => reconcile(options));
     saveChain = operation.catch((error) => {
       console.error("Could not save Supabase page changes", error);
       window.showStorageStatus?.(error.message || String(error), "error");

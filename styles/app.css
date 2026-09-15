@@ -11769,6 +11769,10 @@ a.rate-watched-year-arrow:hover {
   background: var(--surface-soft);
   color: var(--muted);
 }
+.films-status--other {
+  background: var(--surface-soft);
+  color: var(--muted);
+}
 @media (max-width: 900px) {
   .films-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));

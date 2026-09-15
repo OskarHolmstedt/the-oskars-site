@@ -252,9 +252,12 @@ window.importProposalDraftMetadata = function (
 /**
  * Applies the exact reviewed proposal after recovery, revalidation, and a stale check.
  * @param {ImportProposal} proposal Session proposal.
+ * @param {Object} [options] Apply options.
+ * @param {function(string, number, number): void} [options.onProgress]
+ *   Forwarded to window.save() - see saveSupabaseHydratedState's onProgress.
  * @returns {Promise<{ok: boolean, errors?: string[], report?: ImportReport}>} Apply result.
  */
-window.applyImportProposal = async function (proposal) {
+window.applyImportProposal = async function (proposal, options = {}) {
   let plan = window.planImportProposalApplication(proposal);
   if (!plan.ok) return { ok: false, errors: plan.errors };
   let beforeState = window.cloneRecord(window.state);
@@ -302,7 +305,10 @@ window.applyImportProposal = async function (proposal) {
     };
   }
   window.rebuildAggregates?.();
-  let saving = window.save?.({ immediate: true });
+  let saving = window.save?.({
+    immediate: true,
+    onProgress: options.onProgress,
+  });
   let saved = saving?.then ? await saving : saving !== false;
   if (!saved) {
     window.state = beforeState;

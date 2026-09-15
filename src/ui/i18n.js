@@ -161,6 +161,16 @@
       {
         sv: "Sparar till ditt konto… det kan ta ett tag för en stor import. Stäng inte den här fliken.",
       },
+    "Parsing your export…": { sv: "Tolkar din export…" },
+    "Saving {stage} ({done}/{total})… Don't close this tab.": {
+      sv: "Sparar {stage} ({done}/{total})… Stäng inte den här fliken.",
+    },
+    "Looking up film details for {count} new film(s)…": {
+      sv: "Slår upp filmdetaljer för {count} ny(a) film(er)…",
+    },
+    "Looking up film details ({done}/{total})…": {
+      sv: "Slår upp filmdetaljer ({done}/{total})…",
+    },
     "Save the previewed Google Sheets changes to your account?": {
       sv: "Spara de förhandsgranskade Google Sheets-ändringarna i ditt konto?",
     },
