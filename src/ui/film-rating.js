@@ -42,7 +42,7 @@ window.parseFilmRating = function (value) {
   }
   let modifier = /[+＋]\s*$/.test(normalizedText)
     ? "plus"
-    : /[-–—]\s*$/.test(rawText)
+    : /[-–—]\s*$/.test(normalizedText)
       ? "minus"
       : "";
   return {

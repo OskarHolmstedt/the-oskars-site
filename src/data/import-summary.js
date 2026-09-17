@@ -157,6 +157,7 @@ window.summarizeGoogleSheetsReports = function (reports, source) {
       total.awardsRejected += report.awardsRejected || 0;
       total.skipped += report.skipped || 0;
       total.ruleViolations.push(...(report.ruleViolations || []));
+      total.titleVariants.push(...(report.titleVariants || []));
       total.missingAllTimeFilms.push(
         ...(report.missingAllTimeFilms || []).map((detail) =>
           Object.assign(rangeTag(), detail),

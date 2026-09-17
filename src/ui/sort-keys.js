@@ -6,8 +6,14 @@ window.personSurnameSortKey = function (value) {
     .normalize("NFKC")
     .trim()
     .replace(/\s+/g, " ");
+  // Matches both "Hal Roach, Jr." and the far more common no-comma form
+  // "George Nichols Jr." - the comma is optional, and the suffix is
+  // anchored to end-of-string ($) rather than a word boundary (\b),
+  // since \b doesn't match immediately after a literal "." at the end
+  // of the string (found live: it left a stray period stuck to the
+  // surname for the comma form, and missed the no-comma form entirely).
   let withoutSuffix = name
-    .replace(/,\s*((?:Jr|Sr)\.?|II|III|IV)\b/gi, "")
+    .replace(/,?\s+((?:Jr|Sr)\.?|II|III|IV)$/i, "")
     .trim();
   let parts = withoutSuffix.split(" ").filter(Boolean);
   if (parts.length <= 1) return withoutSuffix;

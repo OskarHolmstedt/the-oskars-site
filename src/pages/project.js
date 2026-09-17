@@ -215,7 +215,7 @@
       },
     )}
     ${window.renderDetailStats({ itemsHtml: `<span><b>${watched.length}</b> ${escape(ui("Watched"))}</span><span><b>${queue.length}</b> ${escape(ui("Queue"))}</span><span><b>${total}</b> ${escape(ui("Total"))}</span><span><b>${percent}%</b> ${escape(ui("Complete"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}
-    ${window.renderSupabaseEntityNote({ entityKind: "project", entityKey: project.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, label: ui("Project note"), escape })}
+    ${window.renderSupabaseEntityNote({ entityKind: "project", entityKey: project.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Project note"), escape })}
     <div class="project-progress-meter project-progress-meter--detail" aria-label="${escape(ui("{percent} percent complete", { percent }))}"><span style="width:${escape(percent)}%"></span></div>
     <div class="period-edit-controls">${statusButtons}</div>
     <h2>${escape(ui("Queue"))}</h2>${toolbarHtml}${queueControls}${

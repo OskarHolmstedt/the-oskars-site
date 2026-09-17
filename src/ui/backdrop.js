@@ -118,9 +118,14 @@
     if (path === "period.html") {
       let type = params.get("type") || "alltime";
       let key = params.get("key") || params.get("id") || type;
-      return Object.values(window.state.filmsById || {}).filter((film) =>
-        periodMatches(film, type, key),
-      );
+      return [
+        ...Object.values(window.state.filmsById || {}).filter((film) =>
+          periodMatches(film, type, key),
+        ),
+        ...(window.state.watchlist || [])
+          .map(watchlistFilm)
+          .filter((film) => periodMatches(film, type, key)),
+      ];
     }
     return [];
   }

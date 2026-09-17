@@ -48,14 +48,31 @@
   let tmdbCastCache = new Map(); // filmId -> cast[]
   let tmdbCastFetching = new Set();
   let castExpanded = false; // whether the open form's cast list shows more than the first page
+  let castGenderFilter = true; // whether a gendered Actor/Actress category's cast list is narrowed to its expected gender
 
   // ---- Bracket state (session-only) ----
   let expandedCategory;
   let pendingNominee = null; // { category, filmId, placement }
+  let pendingNomineeGeneration = 0; // bumped on every pendingNominee reassignment, incl. null
   let editingNominee = null; // { category, nominationId, placement }
   let excludedFromPool = new Map(); // category -> Set<filmId>
 
   let CAPACITIES = { picture: 10, category: 5 };
+
+  // Every pendingNominee reassignment (including closing it back to null)
+  // goes through here so a stale async caller can tell "the slot changed"
+  // apart from "the same category/filmId/placement got reopened" - which
+  // field-value comparison alone can't distinguish.
+  function setPendingNominee(value) {
+    pendingNominee = value;
+    pendingNomineeGeneration++;
+    return pendingNomineeGeneration;
+  }
+
+  function resetCastListState() {
+    castExpanded = false;
+    castGenderFilter = true;
+  }
 
   function excludedFromPoolFor(category) {
     return excludedFromPool.get(category) || new Set();
@@ -203,14 +220,40 @@
   // category form - reuses the same data-setup-award-credit-suggestion
   // click handler the crew/personal-nomination suggestion buttons above
   // already use (fills recipient + Role from the clicked entry), so no
-  // new click wiring is needed for picking a cast member.
+  // new click wiring is needed for picking a cast member. A gendered
+  // category (Best Lead/Supporting Actor vs Actress) defaults to hiding
+  // only cast confidently tagged as the *opposite* binary gender via
+  // window.ACTOR_CATEGORY_GENDER - non-binary and untagged cast stay
+  // eligible for either category. TMDB's gender field is also often just
+  // unset, so a filter that would hide the *entire* cast is never applied
+  // (falls back to everyone), and a toggle always stays available to see
+  // the rest.
   function castListHtml(filmId, category) {
     if (!isActingCategory(category)) return "";
     let cast = tmdbCastCache.get(filmId);
     if (!cast?.length) return "";
-    let visibleCount = castExpanded ? cast.length : Math.min(CAST_PAGE_SIZE, cast.length);
-    let remaining = cast.length - visibleCount;
-    let items = cast
+    let expectedGender = window.ACTOR_CATEGORY_GENDER?.[category];
+    // A gendered category only excludes cast confidently tagged as the
+    // *opposite* binary gender - non-binary (3) and not-set (0) stay
+    // eligible for either category, since there's no signal they don't
+    // belong, and TMDB has no non-binary Actor/Actress category of its
+    // own to defer to either way.
+    let oppositeGender =
+      expectedGender === 1 ? 2 : expectedGender === 2 ? 1 : null;
+    let matching = oppositeGender
+      ? cast.filter((person) => person.gender !== oppositeGender)
+      : cast;
+    let isFiltered =
+      Boolean(oppositeGender) &&
+      castGenderFilter &&
+      matching.length > 0 &&
+      matching.length < cast.length;
+    let visible = isFiltered ? matching : cast;
+    let visibleCount = castExpanded
+      ? visible.length
+      : Math.min(CAST_PAGE_SIZE, visible.length);
+    let remaining = visible.length - visibleCount;
+    let items = visible
       .slice(0, visibleCount)
       .map(
         (person) =>
@@ -221,7 +264,11 @@
       remaining > 0
         ? `<button type="button" class="sort-order-button" data-setup-award-cast-more>Show ${escape(remaining)} more</button>`
         : "";
-    return `<div class="setup-year-cast-list"><span>Cast, by billing</span><div class="setup-year-cast-grid">${items}</div>${showMore}</div>`;
+    let genderToggle =
+      oppositeGender && matching.length > 0 && matching.length < cast.length
+        ? `<button type="button" class="sort-order-button" data-setup-award-cast-gender-toggle>${isFiltered ? `Show all ${escape(cast.length)} cast` : "Show likely matches only"}</button>`
+        : "";
+    return `<div class="setup-year-cast-list"><span>Cast, by billing</span>${genderToggle}<div class="setup-year-cast-grid">${items}</div>${showMore}</div>`;
   }
 
   function creditFieldsHtml(category, recipient, detail, suggestions = [], filmId) {
@@ -408,6 +455,39 @@
     </form>`;
   }
 
+  // A category with a single-recipient credit job (Director, Cinematographer,
+  // Composer, Editor, Screenwriter(s), Costume Designer, Visual Effects
+  // Supervisor) has one inarguable answer - possibly several people (two
+  // co-directors, two credited screenwriters), but never a pick among
+  // options, unlike the acting categories' billing-sorted cast list. Once
+  // that answer resolves, add it straight to the board rather than making
+  // the user re-confirm and click Add on a form that was only ever going
+  // to hold that one already-known answer - matching how Best Picture and
+  // Best International Picture already skip the form entirely.
+  async function autoResolveTmdbCredit(film, category, filmId, placement, generation) {
+    await ensureTmdbCreditFetched(film, category);
+    // The user may have cancelled, moved on to a different film/category, or
+    // reopened this exact same slot again while the TMDB round trip was in
+    // flight - compare by generation, not field values, since reopening the
+    // identical category/filmId/placement would pass a value comparison but
+    // is still a different (later) invocation than this one.
+    if (generation !== pendingNomineeGeneration) return;
+    let suggestions = combinedCreditSuggestions(filmId, category);
+    if (suggestions.length === 1) {
+      addNominee(
+        category,
+        filmId,
+        placement,
+        suggestions[0].recipient,
+        suggestions[0].detail || "",
+      );
+    } else {
+      // TMDB had no match (missing tmdb_id, no crew data) - fall back to
+      // the ordinary form for manual entry, same as before this existed.
+      render();
+    }
+  }
+
   function beginNominee(category, filmId, placement) {
     if (category === "Best Picture") {
       addNominee(category, filmId, placement, "", "");
@@ -418,11 +498,29 @@
       addNominee(category, filmId, placement, filmPrimaryCountry(film), "");
       return;
     }
-    pendingNominee = { category, filmId, placement };
-    editingNominee = null;
-    castExpanded = false;
-    render();
     let film = yearWatchedFilms().find((candidate) => candidate.id === filmId);
+    if (window.awardCategoryCreditJob?.(category)) {
+      let known = candidateCreditOptions(filmId, category);
+      if (known.length === 1) {
+        addNominee(category, filmId, placement, known[0].recipient, known[0].detail || "");
+        return;
+      }
+      if (!known.length) {
+        let generation = setPendingNominee({ category, filmId, placement });
+        editingNominee = null;
+        resetCastListState();
+        render();
+        autoResolveTmdbCredit(film, category, filmId, placement, generation);
+        return;
+      }
+      // known.length > 1: genuinely conflicting local credits (e.g. two
+      // different recipients recorded for this film/category before) -
+      // fall through to the ordinary form so the user picks between them.
+    }
+    setPendingNominee({ category, filmId, placement });
+    editingNominee = null;
+    resetCastListState();
+    render();
     ensureTmdbCreditFetched(film, category);
     ensureTmdbCastFetched(film, category);
   }
@@ -447,7 +545,7 @@
         recipients,
       );
       await window.reopenSupabaseAwardReview(year, category);
-      pendingNominee = null;
+      setPendingNominee(null);
       if (recipient) persistMatchedTmdbCredit(filmId, category, recipient);
       await refreshProgress();
       render();
@@ -517,7 +615,7 @@
     if (!excludedFromPool.has(category))
       excludedFromPool.set(category, new Set());
     excludedFromPool.get(category).add(filmId);
-    pendingNominee = null;
+    setPendingNominee(null);
     editingNominee = null;
     render();
 
@@ -551,7 +649,7 @@
 
   function toggleCategory(category) {
     expandedCategory = expandedCategory === category ? null : category;
-    pendingNominee = null;
+    setPendingNominee(null);
     editingNominee = null;
     render();
   }
@@ -651,8 +749,8 @@
       editingNominee = {
         nominationId: creditEditTarget.dataset.setupAwardNominationId,
       };
-      pendingNominee = null;
-      castExpanded = false;
+      setPendingNominee(null);
+      resetCastListState();
       render();
       let category = creditEditTarget.dataset.setupAwardCategory;
       let film = yearWatchedFilms().find(
@@ -664,15 +762,22 @@
     }
 
     if (event.target.closest("[data-setup-award-credit-cancel]")) {
-      pendingNominee = null;
+      setPendingNominee(null);
       editingNominee = null;
-      castExpanded = false;
+      resetCastListState();
       render();
       return;
     }
 
     if (event.target.closest("[data-setup-award-cast-more]")) {
       castExpanded = true;
+      render();
+      return;
+    }
+
+    if (event.target.closest("[data-setup-award-cast-gender-toggle]")) {
+      castGenderFilter = !castGenderFilter;
+      castExpanded = false;
       render();
       return;
     }

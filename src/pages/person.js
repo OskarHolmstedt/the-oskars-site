@@ -256,12 +256,6 @@
       return { professions, detailHtml };
     }
 
-    function personFilmPosition(film) {
-      return filmographySort === "director-rank"
-        ? directorPosition.get(film.id)
-        : localRankMap.get(film.supabaseFilmId) || "—";
-    }
-
     function personFilmRow(film, index = 0) {
       let credit = filmCredit(film);
       let attributes = window.renderOrderEditItemAttributes(
@@ -941,7 +935,7 @@
       ${signatureFilmsHtml}
       <div class="person-hero-metrics">${personMetadataHtml ? `<dl class="film-metadata">${personMetadataHtml}</dl>` : ""}
       ${personStatsHtml}</div>
-      ${window.renderSupabaseEntityNote({ entityKind: "person", entityKey: person.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, label: ui("Person note"), escape: personPageEscape })}`,
+      ${window.renderSupabaseEntityNote({ entityKind: "person", entityKey: person.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Person note"), escape: personPageEscape })}`,
       actionsHtml: primaryAction
         ? `<a class="button-link person-hero-primary-action" href="${personPageEscape(primaryAction.href)}">${personPageEscape(primaryAction.label)}</a>`
         : "",

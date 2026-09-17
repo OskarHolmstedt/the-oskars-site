@@ -22,7 +22,12 @@
  */
 window.runSupabaseMetadataBatch = async function (items, config) {
   let candidates = items || [];
-  let result = { attempted: candidates.length, found: 0, failed: 0, failures: [] };
+  let result = {
+    attempted: candidates.length,
+    found: 0,
+    failed: 0,
+    failures: [],
+  };
   let cursor = 0;
   async function worker() {
     while (cursor < candidates.length) {
@@ -40,7 +45,11 @@ window.runSupabaseMetadataBatch = async function (items, config) {
         result.failed += 1;
         result.failures.push({ item, reason: String(err?.message || err) });
       }
-      config.onProgress?.(result.found + result.failed, candidates.length, item);
+      config.onProgress?.(
+        result.found + result.failed,
+        candidates.length,
+        item,
+      );
     }
   }
   let concurrency = Math.min(
@@ -95,8 +104,17 @@ async function lookupKnownTvEpisodePoster(film, fetchFn) {
 }
 
 const SMALL_NUMBER_WORDS = [
-  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
-  "nine", "ten",
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
 ];
 
 // TMDB is inconsistent about spelling out small numbers in a title -
@@ -128,7 +146,9 @@ function numberWordVariants(value) {
 // then get correctly rejected here anyway since "neecha nagar (lowly
 // city)" isn't equal to "neecha nagar" - found live.
 function parentheticalStrippedVariant(value) {
-  return String(value).replace(/\s*\([^)]*\)\s*$/, "").trim();
+  return String(value)
+    .replace(/\s*\([^)]*\)\s*$/, "")
+    .trim();
 }
 
 /**
@@ -307,7 +327,8 @@ window.lookupTmdbFilmMetadata = async function (film, fetchFn) {
     ...result,
     country: countries.join(", ") || null,
     primaryCountry: countries[0] || null,
-    runtimeMinutes: Number(details?.runtime) > 0 ? Number(details.runtime) : null,
+    runtimeMinutes:
+      Number(details?.runtime) > 0 ? Number(details.runtime) : null,
     tmdbId: String(result.poster.providerId),
   };
 };
@@ -531,7 +552,8 @@ window.lookupTmdbReferenceMatch = async function (reference, fetchFn) {
     year: Number.isFinite(year) ? year : null,
     country: countries.join(", ") || null,
     primaryCountry: countries[0] || null,
-    runtimeMinutes: Number(details.runtime) > 0 ? Number(details.runtime) : null,
+    runtimeMinutes:
+      Number(details.runtime) > 0 ? Number(details.runtime) : null,
     // Every OTHER legitimate release year/runtime TMDB lists (regional
     // release dates, translated-cut runtimes) - lets a caller that force-
     // corrects a film's data (applyConfirmedTmdbMatch,
@@ -580,4 +602,72 @@ window.parseTmdbReferenceInput = function (input) {
     season: tvMatch[2] !== undefined ? Number(tvMatch[2]) : null,
     episode: tvMatch[3] !== undefined ? Number(tvMatch[3]) : null,
   };
+};
+
+/** Reads a consistent TMDB person identity from stored portrait provenance. @param {Object} person Shared person row. @returns {number|null} Recorded TMDB person id. */
+window.personPortraitTmdbIdentity = function (person) {
+  if (person.portrait_source !== "tmdb") return null;
+  let provider = String(person.portrait_provider_id || "");
+  let source = String(person.portrait_source_url || "");
+  let sourceId = source.match(
+    /^https:\/\/www\.themoviedb\.org\/person\/([0-9]{1,10})(?:[^0-9]|$)/,
+  )?.[1];
+  if ((provider && !/^[0-9]{1,10}$/.test(provider)) || (source && !sourceId))
+    return null;
+  if (provider && sourceId && Number(provider) !== Number(sourceId))
+    return null;
+  let id = Number(provider || sourceId);
+  return Number.isInteger(id) && id > 0 && id <= 2147483647 ? id : null;
+};
+
+/** Finds unlinked people with unambiguous stored TMDB evidence, excluding dismissed pairs. @param {Object[]} people Shared person rows. @param {Set<string>} [dismissed] Dismissed duplicate pair keys. @returns {Object[]} Person and resolved TMDB identity pairs. */
+window.personIdentityRepairCandidates = function (
+  people,
+  dismissed = new Set(),
+) {
+  let nameKey = (name) =>
+    String(name || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+  let asset = (url) =>
+    String(url || "").match(
+      /^https:\/\/image\.tmdb\.org\/t\/p\/[^/]+\/([^/?#]+)/,
+    )?.[1] || "";
+  let byId = new Map();
+  let byPortrait = new Map();
+  for (let person of people || []) {
+    if (!person.tmdb_id) continue;
+    byId.set(Number(person.tmdb_id), person);
+    if (!asset(person.portrait_url)) continue;
+    let key = `${nameKey(person.name)}::${asset(person.portrait_url)}`;
+    if (!byPortrait.has(key)) byPortrait.set(key, []);
+    byPortrait.get(key).push(person);
+  }
+  let result = [];
+  for (let person of people || []) {
+    if (person.tmdb_id || !asset(person.portrait_url)) continue;
+    let tmdbId = window.personPortraitTmdbIdentity(person);
+    if (
+      !tmdbId &&
+      person.portrait_provider_id == null &&
+      person.portrait_source_url == null
+    ) {
+      let matches =
+        byPortrait.get(
+          `${nameKey(person.name)}::${asset(person.portrait_url)}`,
+        ) || [];
+      if (matches.length === 1) tmdbId = Number(matches[0].tmdb_id);
+    }
+    if (!tmdbId) continue;
+    let keeper = byId.get(tmdbId);
+    if (
+      keeper &&
+      (nameKey(keeper.name) !== nameKey(person.name) ||
+        dismissed.has(window.duplicatePairKey(keeper.id, person.id)))
+    )
+      continue;
+    result.push({ person, tmdbId });
+  }
+  return result;
 };

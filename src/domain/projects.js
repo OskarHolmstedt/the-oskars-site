@@ -282,13 +282,17 @@ window.startProjectFromSourceAndOpen = async function (sourceType, sourceId) {
 
 // Resolves one collection_items row's film_id to a ProjectFilmRef
 // (issue #458): "archive" if it's a watched film already in the ranked
-// archive, "watchlist" (keyed by the watchlist row's own id, not the
-// film id) if it's watchlisted instead, or omitted entirely if the
+// archive, "watched" for Other watched titles, "watchlist" (keyed by the
+// watchlist row's own id, not the film id) if it's watchlisted instead, or omitted entirely if the
 // viewer has neither - matching the same accepted-gap pattern an
 // unresolvable official-results nominee ref already has.
 function projectSourceIndexRef(filmId) {
   if (state.filmsById?.[filmId])
     return window.projectFilmRef("archive", filmId);
+  let other = (state.watchedOther || []).find(
+    (entry) => entry.supabaseFilmId === filmId || entry.id === filmId,
+  );
+  if (other) return window.projectFilmRef("watched", other.id);
   let watchlistItem = (state.watchlist || []).find(
     (entry) => entry.supabaseFilmId === filmId,
   );

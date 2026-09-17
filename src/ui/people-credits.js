@@ -145,8 +145,10 @@ window.renderFranchiseMembershipLinks = function (franchises, options = {}) {
   let escape = options.escape || window.pageEscape;
   let filmId = options.filmId || "";
   let itemId = options.itemId || "";
-  let franchiseIndex =
-    window.ensureFranchiseIndex?.() || window.state?.franchisesById || {};
+  // ensureFranchiseIndex() (src/domain/franchises.js) always returns
+  // state.franchisesById itself (cached or freshly rebuilt) - no separate
+  // fallback needed, just the usual optional-chaining default.
+  let franchiseIndex = window.ensureFranchiseIndex?.() || {};
   return window
     .leafFranchiseMemberships(franchises)
     .map((membership) => {

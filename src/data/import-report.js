@@ -180,6 +180,8 @@ window.showImportReport = function (report) {
   let preservedFieldDetails = (report.preservedFieldDetails || []).slice(0, 25);
   let sourceConflicts = (report.sourceConflicts || []).slice(0, 25);
   let officialResultIssues = (report.officialResultIssues || []).slice(0, 100);
+  let ruleViolations = (report.ruleViolations || []).slice(0, 10);
+  let titleVariants = (report.titleVariants || []).slice(0, 10);
   let letterboxdSummary =
     report.sourceKind === "letterboxd" ||
     report.watchedArchiveMerged !== undefined
@@ -517,13 +519,34 @@ window.showImportReport = function (report) {
   </tr>`,
     )
     .join("");
-  let variants = (report.titleVariants || [])
-    .slice(0, 10)
+  let variants = titleVariants
     .map(
       (variant) =>
         `<li>${importReportEscape(variant.imported)} → ${importReportEscape(variant.matched)}</li>`,
     )
     .join("");
+  let titleVariantsOverflow = overflowNote(
+    titleVariants.length,
+    detailTotal("titleVariants"),
+    ui("Showing {shown} of {total} title variants resolved.", {
+      shown: titleVariants.length,
+      total: detailTotal("titleVariants"),
+    }),
+  );
+  let ruleViolationRows = ruleViolations
+    .map(
+      (violation) =>
+        `<li>${importReportEscape(violation.film)} · ${importReportEscape(violation.category)}: ${importReportEscape(violation.message)}</li>`,
+    )
+    .join("");
+  let ruleViolationsOverflow = overflowNote(
+    ruleViolations.length,
+    detailTotal("ruleViolations"),
+    ui("Showing {shown} of {total} rule violations.", {
+      shown: ruleViolations.length,
+      total: detailTotal("ruleViolations"),
+    }),
+  );
 
   body.innerHTML = `
     <div class="import-report-stats">
@@ -560,18 +583,8 @@ window.showImportReport = function (report) {
     ${missingAllTimeRows ? `<div class="import-report-missing-alltime import-report-attention-item"><b>${importReportEscape(ui("Bracket films missing from all-time ranked list"))}</b><div class="leaderboard-wrap"><table class="leaderboard import-missing-alltime-summary"><thead><tr><th>${importReportEscape(ui("Source"))}</th><th>${importReportEscape(ui("Period"))}</th><th>${importReportEscape(ui("Rank"))}</th><th>${importReportEscape(ui("Film"))}</th></tr></thead><tbody>${missingAllTimeRows}</tbody></table></div>${missingAllTimeOverflow}</div>` : ""}
     ${eligibilityRows ? `<div class="import-report-eligibility import-report-attention-item"><b>${importReportEscape(ui("Eligibility checks"))}</b><div class="leaderboard-wrap"><table class="leaderboard import-eligibility-summary"><thead><tr><th>${importReportEscape(ui("Count"))}</th><th>${importReportEscape(ui("Source"))}</th><th>${importReportEscape(ui("Category"))}</th><th>${importReportEscape(ui("Issue"))}</th><th>${importReportEscape(ui("Sample films"))}</th><th>${importReportEscape(ui("Sample periods"))}</th></tr></thead><tbody>${eligibilityRows}</tbody></table></div>${eligibilityOverflow}</div>` : ""}
     ${skippedRows ? `<div class="import-report-skipped import-report-attention-item"><b>${importReportEscape(ui("Skipped rows"))}</b><div class="leaderboard-wrap"><table class="leaderboard import-skipped-summary"><thead><tr><th>${importReportEscape(ui("Source"))}</th><th>${importReportEscape(ui("Row"))}</th><th>${importReportEscape(ui("Reason"))}</th><th>${importReportEscape(ui("Values"))}</th></tr></thead><tbody>${skippedRows}</tbody></table></div>${skippedOverflow}</div>` : ""}
-    ${
-      (report.ruleViolations || []).length
-        ? `<div class="import-report-rule-violations import-report-attention-item"><b>${importReportEscape(ui("Rule violations"))}</b><ul>${report.ruleViolations
-            .slice(0, 10)
-            .map(
-              (violation) =>
-                `<li>${importReportEscape(violation.film)} · ${importReportEscape(violation.category)}: ${importReportEscape(violation.message)}</li>`,
-            )
-            .join("")}</ul></div>`
-        : ""
-    }
-    ${variants ? `<div class="import-report-title-variants"><b>${importReportEscape(ui("Title variants resolved"))}</b><ul>${variants}</ul></div>` : ""}`;
+    ${ruleViolationRows ? `<div class="import-report-rule-violations import-report-attention-item"><b>${importReportEscape(ui("Rule violations"))}</b><ul>${ruleViolationRows}</ul>${ruleViolationsOverflow}</div>` : ""}
+    ${variants ? `<div class="import-report-title-variants"><b>${importReportEscape(ui("Title variants resolved"))}</b><ul>${variants}</ul>${titleVariantsOverflow}</div>` : ""}`;
   organizeImportReport(body);
   let unratedCount = report.preview
     ? 0

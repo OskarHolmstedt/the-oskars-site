@@ -159,7 +159,9 @@ window.renderCountryWithFlags = function (value, escape = window.pageEscape) {
   let countries = window.countryListValues(value);
   if (!countries.length) return "";
   let text = countries.join(", ");
-  let flags = window.countryFlagList(countries.join(", "));
+  let flags = [
+    ...new Set(countries.map(window.countryFlagEmoji).filter(Boolean)),
+  ].join(" ");
   return `${flags ? `<span class="country-flags" aria-hidden="true">${escape(flags)}</span> ` : ""}${escape(text)}`;
 };
 

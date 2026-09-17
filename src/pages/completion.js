@@ -98,12 +98,22 @@
     watchGoalDecades: { key: "percent", dir: -1 },
     watchGoalCenturies: { key: "percent", dir: -1 },
   };
-  officialSourceIds.forEach((sourceId) => {
-    sortState[officialPeriodsSortSection(sourceId)] = {
-      key: "nomineePercent",
-      dir: -1,
-    };
-  });
+  // Backfill only - never overwrite an existing entry, since a user's
+  // in-session sort change must survive a later call (the post-hydration
+  // refresh below can introduce a source id that wasn't present yet at
+  // this first call, e.g. one added to Supabase after the bundled
+  // default was last regenerated - without this guard, sortRows/
+  // sortHeader would dereference sortState[section].key on undefined
+  // for that source and crash the whole page render).
+  function ensureOfficialSortState() {
+    officialSourceIds.forEach((sourceId) => {
+      sortState[officialPeriodsSortSection(sourceId)] ||= {
+        key: "nomineePercent",
+        dir: -1,
+      };
+    });
+  }
+  ensureOfficialSortState();
   let sortDefaultDir = {
     name: 1,
     period: 1,
@@ -995,6 +1005,7 @@ ${officialWatchlistDialog()}`;
   );
   window.hydrateOfficialResultsFromSupabase?.().then(() => {
     refreshOfficialCompletions();
+    ensureOfficialSortState();
     // Backfill only - never overwrite an existing entry, since a user's
     // in-session tier change (line ~1071 below) must survive this refresh.
     officialSourceIds.forEach((sourceId) => {

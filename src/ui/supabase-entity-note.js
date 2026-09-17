@@ -18,14 +18,20 @@
 
   /**
    * Renders one entity note section, in either display or edit mode.
-   * @param {{entityKind: string, entityKey: string, note: string, editing: boolean, busy: boolean, label?: string, escape?: function}} options
+   * @param {{entityKind: string, entityKey: string, note: string, editing: boolean, busy: boolean, draft?: string, label?: string, escape?: function}} options
    * @returns {string}
    */
   window.renderSupabaseEntityNote = function (options) {
     let escape = options.escape || window.pageEscape;
-    let { note, editing, busy, label = ui("Note") } = options;
+    let { note, editing, busy, draft, label = ui("Note") } = options;
     if (editing) {
-      return `<section class="detail-note" data-supabase-entity-note><form data-supabase-entity-note-form><textarea name="note" rows="4" maxlength="1200">${escape(note)}</textarea><div><button type="submit"${busy ? " disabled" : ""}>${escape(ui("Save note"))}</button><button type="button" data-cancel-supabase-entity-note>${escape(ui("Cancel"))}</button></div></form></section>`;
+      // Prefers the caller's in-flight draft (set on submit, kept on a
+      // failed save) over the last confirmed note - without this, the
+      // busy-state rerender right after clicking Save, or a rerender after
+      // the save fails, redraws the textarea from the still-stale
+      // confirmed note and silently discards whatever the user just typed.
+      let value = draft != null ? draft : note;
+      return `<section class="detail-note" data-supabase-entity-note><form data-supabase-entity-note-form><textarea name="note" rows="4" maxlength="1200">${escape(value)}</textarea><div><button type="submit"${busy ? " disabled" : ""}>${escape(ui("Save note"))}</button><button type="button" data-cancel-supabase-entity-note>${escape(ui("Cancel"))}</button></div></form></section>`;
     }
     if (!note && busy) return "";
     return `<section class="detail-note" data-supabase-entity-note><div><h2>${escape(label)}</h2><button type="button" data-edit-supabase-entity-note${busy ? " disabled" : ""}>${escape(note ? ui("Edit") : ui("Add note"))}</button></div>${note ? `<p>${escape(note)}</p>` : `<p class="detail-note-empty">${escape(ui("No note yet."))}</p>`}</section>`;
@@ -49,9 +55,11 @@
     container.addEventListener("click", (event) => {
       if (event.target.closest("[data-edit-supabase-entity-note]")) {
         noteState.editing = true;
+        noteState.draft = undefined;
         rerender();
       } else if (event.target.closest("[data-cancel-supabase-entity-note]")) {
         noteState.editing = false;
+        noteState.draft = undefined;
         rerender();
       }
     });
@@ -60,12 +68,14 @@
       if (!form) return;
       event.preventDefault();
       let value = String(new FormData(form).get("note") || "").trim();
+      noteState.draft = value;
       noteState.busy = true;
       rerender();
       try {
         await window.setSupabaseEntityNote(entityKind, entityKey, value);
         noteState.note = value;
         noteState.editing = false;
+        noteState.draft = undefined;
       } catch (err) {
         alert(err.message || String(err));
       } finally {

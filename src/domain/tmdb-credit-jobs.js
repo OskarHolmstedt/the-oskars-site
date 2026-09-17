@@ -139,9 +139,14 @@ window.fetchTmdbCategoryCredit = async function (film, category) {
  * cast list has no signal for "lead" vs "supporting", or which of
  * several credited actors a real nomination means - seeing the whole
  * billing-ordered list and picking is the honest alternative (see
- * window.isMultiNomineeCategory / creditSubjectType "role").
+ * window.isMultiNomineeCategory / creditSubjectType "role"). `gender`
+ * (TMDB's own self-reported field: 0 not set, 1 female, 2 male, 3
+ * non-binary) rides along unfiltered here - it's only ever used to narrow
+ * which cast members are shown by default for a gendered Actor/Actress
+ * category (window.ACTOR_CATEGORY_GENDER, src/domain/people/index.js),
+ * never to exclude anyone outright.
  * @param {Object} details TMDB movie details (from lookupTmdbMovieDetails).
- * @returns {{tmdbId: number, name: string, character: string, order: number, profilePath: string|null}[]}
+ * @returns {{tmdbId: number, name: string, character: string, order: number, profilePath: string|null, gender: number}[]}
  */
 window.tmdbCastCandidates = function (details) {
   let cast = details?.credits?.cast || [];
@@ -158,6 +163,7 @@ window.tmdbCastCandidates = function (details) {
       character: String(member.character || "").trim(),
       order: Number.isFinite(member.order) ? member.order : Number.MAX_SAFE_INTEGER,
       profilePath: member.profile_path || null,
+      gender: Number.isFinite(member.gender) ? member.gender : 0,
     }))
     .filter((member) => member.tmdbId && member.name)
     .sort((left, right) => left.order - right.order);

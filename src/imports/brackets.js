@@ -15,6 +15,7 @@ function parseTable(raw, options = {}) {
     return String(value ?? "")
       .replace(/\r\n/g, "\n")
       .replace(/\r/g, "\n")
+      .replace(/[‎‏‪-‮]/g, "")
       .trim();
   }
 
@@ -267,15 +268,6 @@ function parseTable(raw, options = {}) {
     });
   }
 
-  function pictureColumnForPlacement(pictureDef, placement, capacities) {
-    let columns = pictureDef?.columns || {};
-    let splitPoint = Math.ceil(capacities.picture / 2);
-
-    return placement <= splitPoint
-      ? columns.filmFirstHalf
-      : columns.filmSecondHalf;
-  }
-
   let rows = rowsFromInput(raw);
   if (!rows.length) return null;
 
@@ -460,12 +452,16 @@ function parseTable(raw, options = {}) {
           : cleanCell(row[def.columns.recipient]);
       let detail =
         def.columns.detail == null ? "" : cleanCell(row[def.columns.detail]);
+      if (isBlankOrDash(recipient)) recipient = "";
+      if (isBlankOrDash(detail)) detail = "";
+      if (recipient && normalizeTitle(recipient) === normalizeTitle(sourceTitle))
+        recipient = "";
       nominations.push({
         category: def.category,
         winner: position === 1,
         sourceTitle,
-        ...(isBlankOrDash(recipient) ? {} : { recipient }),
-        ...(isBlankOrDash(detail) ? {} : { detail }),
+        ...(recipient ? { recipient } : {}),
+        ...(detail ? { detail } : {}),
       });
     }
 
@@ -516,22 +512,6 @@ function parseTable(raw, options = {}) {
         });
     });
 
-    let categoryNominations = new Map();
-    nominations.forEach((nomination) => {
-      let entries = categoryNominations.get(nomination.category) || [];
-      entries.push(nomination);
-      categoryNominations.set(nomination.category, entries);
-    });
-    categoryNominations.forEach((entries, category) => {
-      let winners = entries.filter((entry) => entry.winner);
-      if (!winners.length) diagnostics.missingWinners.push({ category });
-      if (winners.length > 1)
-        diagnostics.multipleWinners.push({
-          category,
-          titles: winners.map((entry) => entry.sourceTitle),
-        });
-    });
-
     let seen = new Set();
     nominations = nominations
       .sort((left, right) => {
@@ -569,6 +549,27 @@ function parseTable(raw, options = {}) {
         return false;
       });
 
+    // Computed after the dedup pass above (not on the raw nominations list)
+    // so an accidental exact-duplicate row is only ever reported once, as a
+    // duplicate - checking missing/multiple winners on the pre-dedup list
+    // could otherwise misreport a duplicated winner row as "multiple
+    // winners" for that category.
+    let categoryNominations = new Map();
+    nominations.forEach((nomination) => {
+      let entries = categoryNominations.get(nomination.category) || [];
+      entries.push(nomination);
+      categoryNominations.set(nomination.category, entries);
+    });
+    categoryNominations.forEach((entries, category) => {
+      let winners = entries.filter((entry) => entry.winner);
+      if (!winners.length) diagnostics.missingWinners.push({ category });
+      if (winners.length > 1)
+        diagnostics.multipleWinners.push({
+          category,
+          titles: winners.map((entry) => entry.sourceTitle),
+        });
+    });
+
     return {
       year,
       periodType,
@@ -579,7 +580,7 @@ function parseTable(raw, options = {}) {
   }
 
   let films = [];
-  let diagnostics = { rejectedAwards: [], ruleWarnings: [] };
+  let diagnostics = { rejectedAwards: [], ruleWarnings: [], malformedRows: [] };
   let placementOwners = new Map();
 
   function acceptAward(film, award, allowTie) {
@@ -611,9 +612,16 @@ function parseTable(raw, options = {}) {
   let pictureDef = awardDefs.find((def) => def.category === "Best Picture");
   let otherDefs = awardDefs.filter((def) => def.category !== "Best Picture");
 
-  awardRows.forEach((row) => {
+  awardRows.forEach((row, rowIndex) => {
     let placement = parsePlacement(row[0]);
-    if (!placement) return;
+    if (!placement) {
+      if (row.slice(2).some((cell) => !isBlankOrDash(cell)))
+        diagnostics.malformedRows.push({
+          rowNumber: headerRowIndex + rowIndex + 2,
+          reason: "Populated award row has no positive integer Position.",
+        });
+      return;
+    }
 
     if (pictureDef && placement <= capacities.category) {
       let firstCol = pictureDef.columns.filmFirstHalf;

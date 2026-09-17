@@ -22,26 +22,19 @@
  */
 
 (function () {
-  function classList(base, extras) {
-    let values = Array.isArray(extras)
-      ? extras
-      : String(extras || "").split(/\s+/);
-    return [...new Set([base, ...values].filter(Boolean))].join(" ");
-  }
-
   /** Renders a detail header around caller-owned content and actions.
    * @param {DetailHeaderOptions} options Header content and optional classes.
    * @returns {string} Detail-header HTML.
    */
   window.renderDetailHeader = function (options = {}) {
-    let mainClasses = classList("", options.mainClasses);
+    let mainClasses = window.pageClassList("", options.mainClasses);
     let main = mainClasses
       ? `<div class="${mainClasses}">${options.mainHtml || ""}</div>`
       : `<div>${options.mainHtml || ""}</div>`;
     let actions = Object.prototype.hasOwnProperty.call(options, "actionsHtml")
       ? `<div class="detail-header-actions">${options.actionsHtml || ""}</div>`
       : "";
-    return `<header class="${classList("film-detail-header", options.classes)}">${options.leadingHtml || ""}${main}${actions}</header>`;
+    return `<header class="${window.pageClassList("film-detail-header", options.classes)}">${options.leadingHtml || ""}${main}${actions}</header>`;
   };
 
   /** Renders the standard flex-row detail-stat summary wrapper.
@@ -49,7 +42,7 @@
    * @returns {string} Detail-stat summary HTML.
    */
   window.renderDetailStats = function (options = {}) {
-    return `<div class="${classList("detail-stats", options.classes)}">${options.itemsHtml || ""}</div>`;
+    return `<div class="${window.pageClassList("detail-stats", options.classes)}">${options.itemsHtml || ""}</div>`;
   };
 
   /** Renders reusable mean, spread, and coverage stat items. @param {RatingStatistics} statistics Rating statistics. @param {RatingStatisticsItemsOptions} options Rendering options. @returns {string} Stat-item HTML. */

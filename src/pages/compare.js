@@ -308,6 +308,27 @@
     });
   }
 
+  // Same shape as src/pages/people.js and src/pages/compare/panels.js's own
+  // private copies (issue #546 tracks consolidating all three into one
+  // shared window.initialsFor()).
+  function initials(name) {
+    return String(name || "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase();
+  }
+
+  // Same shape as src/pages/compare/panels.js's own private copy - this
+  // file called it at 3 call sites with no such function ever in its own
+  // scope (issue #552's ESLint setup caught this live ReferenceError; #546
+  // tracks consolidating this and initials() above into shared helpers).
+  function targetTypeLabel(target) {
+    return ui(window.TARGET_TYPE_LABELS[target.type] || target.type);
+  }
+
   function renderPersonTargetCard(target) {
     let portrait =
       window.renderPersonPortrait?.(target.record, "card") ||

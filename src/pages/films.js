@@ -339,8 +339,8 @@
     return `<span class="films-status films-status--unseen">${escape(ui("Unseen"))}</span>`;
   }
 
-  function filmCardHtml(film) {
-    let title = window.localizedFilmTitle?.(film) || film.title;
+  function filmCardHtml(film, locale) {
+    let title = window.localizedFilmTitle?.(film, locale) || film.title;
     return window.renderSharedFilmCard(film, {
       classes: ["films-card"],
       openFilm: false,
@@ -352,8 +352,8 @@
     });
   }
 
-  function filmRowHtml(film) {
-    let title = window.localizedFilmTitle?.(film) || film.title;
+  function filmRowHtml(film, locale) {
+    let title = window.localizedFilmTitle?.(film, locale) || film.title;
     return `<tr>
       <td class="film-table-cell">${window.renderFilmPoster?.(film, "thumb") || ""}<span><a class="table-film-link" href="${escape(film.href)}">${escape(title)}</a></span></td>
       <td>${escape(film.year || "")}</td>
@@ -375,6 +375,9 @@
 
   function render() {
     let finish = window.startOskarsPerformance?.("films:render");
+    // Resolved once per render rather than per film below - render() already
+    // re-runs on an "oskars:localechange" event, so this can't go stale.
+    let locale = window.oskarsLocale();
     let films = fullCatalog();
     let filmFilters = Object.fromEntries(
       filterNames.map((name) => [name, currentState[name]]),
@@ -477,7 +480,7 @@
     ${
       pageItems.length
         ? currentState.view === "grid"
-          ? `<div class="film-grid films-grid">${pageItems.map(filmCardHtml).join("")}</div>`
+          ? `<div class="film-grid films-grid">${pageItems.map((film) => filmCardHtml(film, locale)).join("")}</div>`
           : window.renderLeaderboardTable({
               headers: [
                 ui("Film"),
@@ -485,7 +488,7 @@
                 ui("Director"),
                 ui("Status"),
               ].map(escape),
-              rows: pageItems.map(filmRowHtml).join(""),
+              rows: pageItems.map((film) => filmRowHtml(film, locale)).join(""),
             })
         : `<div class="detail-empty"><h2>${escape(ui("No matches"))}</h2><p>${escape(ui("Try relaxing one or two filters."))}</p></div>`
     }

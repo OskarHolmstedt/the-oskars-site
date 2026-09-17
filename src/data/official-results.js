@@ -137,11 +137,23 @@ function officialParseLongForm(rows, report, blockError) {
     if (!period) {
       period = { year, ceremony, periodType: "years", sourceUrl: "", nominations: [] };
       periods.set(year, period);
-    } else if (period.ceremony !== ceremony) {
+    } else if (ceremony && period.ceremony && period.ceremony !== ceremony) {
       let message = `Period ${year} has conflicting ceremony values.`;
+      report.skipped += 1;
+      report.skippedDetails.push({
+        source: report.source,
+        rowNumber,
+        reason: message,
+        values: [ceremony, year, sourceCategory],
+      });
       officialResultsIssue(report, { period: year, message });
       blockError(`$officialResults.rows[${rowNumber}].Ceremony`, message);
       return;
+    } else if (ceremony && !period.ceremony) {
+      // An earlier row for this year had no ceremony number (see the
+      // blank-tolerance comment above); a later row that does have one
+      // fills it in rather than being treated as a conflict.
+      period.ceremony = ceremony;
     }
     let recipient = value("Nominees") || value("Name");
     let detail = value("Detail");
@@ -158,6 +170,13 @@ function officialParseLongForm(rows, report, blockError) {
       .join("\u001f");
     if (duplicateKeys.has(duplicateKey)) {
       let message = `Duplicate nomination (also row ${duplicateKeys.get(duplicateKey)}).`;
+      report.skipped += 1;
+      report.skippedDetails.push({
+        source: report.source,
+        rowNumber,
+        reason: message,
+        values: [year, category, sourceTitle],
+      });
       officialResultsIssue(report, { period: year, category, title: sourceTitle, message });
       blockError(`$officialResults.rows[${rowNumber}]`, message);
       return;
@@ -259,6 +278,13 @@ function officialParseSingleWinner(rows, report, blockError, category) {
       .join("");
     if (duplicateKeys.has(duplicateKey)) {
       let message = `Duplicate nomination (also row ${duplicateKeys.get(duplicateKey)}).`;
+      report.skipped += 1;
+      report.skippedDetails.push({
+        source: report.source,
+        rowNumber,
+        reason: message,
+        values: [year, sourceTitle],
+      });
       officialResultsIssue(report, { period: year, title: sourceTitle, message });
       blockError(`$officialResults.rows[${rowNumber}]`, message);
       return;

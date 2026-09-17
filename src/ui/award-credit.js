@@ -107,10 +107,10 @@ window.renderCollectionAwardsView = function (model, options = {}) {
       return `<section class="collection-award-card${group.category === "Best Picture" ? " full-width" : ""}"><h2>${escape(window.localizedCategoryName?.(group.category) || group.category)}</h2>${window.renderLeaderboardTable({ headers: [ui("Place"), ui("Film"), ui("Credit")].map(escape), rows, classes: "collection-award-table" })}</section>`;
     })
     .join("");
-  let source = model?.bracket.sourceUrl
+  let source = model?.bracket?.sourceUrl
     ? `<a class="period-link" href="${escape(model.bracket.sourceUrl)}" target="_blank" rel="noopener noreferrer">${escape(ui("Source"))}</a>`
     : "";
-  let unresolved = model?.unresolved.length
+  let unresolved = model?.unresolved?.length
     ? `<p class="completion-note">${escape(ui("{count} nomination films are not uniquely matched to this collection.", { count: model.unresolved.length }))}</p>`
     : "";
   let content = model

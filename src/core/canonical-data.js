@@ -37,6 +37,11 @@ window.OSKARS_CANONICAL_SECTION_KEYS = CANONICAL_TOP_LEVEL_KEYS.filter(
   (key) => key !== "canonicalSchemaVersion",
 );
 
+// The four ranking scopes a film/period can be grouped by. Declared once
+// and reused everywhere this set is checked, so the allowlist can't drift
+// between call sites.
+const CANONICAL_RANKING_SCOPES = ["years", "decades", "centuries", "allTime"];
+
 const CANONICAL_FILM_FIELDS = new Set([
   "adaptation",
   "adaptationSource",
@@ -547,27 +552,22 @@ function canonicalValidateFilm(errors, film, path, allowed) {
       `${path}.musicScore`,
       "must be a string or finite number",
     );
-  if (film.rankConfirmedByScope !== undefined) {
-    let scopes = film.rankConfirmedByScope;
-    if (!scopes || typeof scopes !== "object" || Array.isArray(scopes)) {
-      canonicalError(
-        errors,
-        `${path}.rankConfirmedByScope`,
-        "must be a scope-to-boolean object",
-      );
-    } else {
-      Object.entries(scopes).forEach(([scope, value]) => {
-        if (
-          !["years", "decades", "centuries", "allTime"].includes(scope) ||
-          typeof value !== "boolean"
-        )
-          canonicalError(
-            errors,
-            `${path}.rankConfirmedByScope.${scope}`,
-            "must be a known ranking scope with a boolean value",
-          );
-      });
-    }
+  if (
+    film.rankConfirmedByScope !== undefined &&
+    canonicalCheckRecord(
+      errors,
+      film.rankConfirmedByScope,
+      `${path}.rankConfirmedByScope`,
+    )
+  ) {
+    Object.entries(film.rankConfirmedByScope).forEach(([scope, value]) => {
+      if (!CANONICAL_RANKING_SCOPES.includes(scope) || typeof value !== "boolean")
+        canonicalError(
+          errors,
+          `${path}.rankConfirmedByScope.${scope}`,
+          "must be a known ranking scope with a boolean value",
+        );
+    });
   }
   ["rankConfirmed", "suppressAllTimeRank", "wantToRewatch"].forEach((field) => {
     if (
@@ -797,7 +797,7 @@ function canonicalValidateOfficialResults(errors, sources) {
         periodPath,
         new Set(["ceremony", "nominations", "periodType", "sourceUrl"]),
       );
-      if (!["years", "decades", "centuries", "allTime"].includes(period.periodType))
+      if (!CANONICAL_RANKING_SCOPES.includes(period.periodType))
         canonicalError(
           errors,
           `${periodPath}.periodType`,
@@ -1084,9 +1084,7 @@ window.validateCanonicalData = function (source) {
       );
       if (
         period.periodType !== undefined &&
-        !["years", "decades", "centuries", "allTime"].includes(
-          period.periodType,
-        )
+        !CANONICAL_RANKING_SCOPES.includes(period.periodType)
       )
         canonicalError(
           errors,

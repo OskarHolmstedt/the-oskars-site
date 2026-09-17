@@ -128,13 +128,14 @@ window.tmdbMovieSearchTitleVariants = function (title) {
   });
 };
 
-function tmdbMovieSearchParams(film, queryTitle) {
+function tmdbMovieSearchParams(film, queryTitle, yearOverride) {
   let params = new URLSearchParams({
     query: queryTitle || film.title,
     include_adult: "false",
     language: "en-US",
   });
-  if (/^\d{4}$/.test(String(film.year || ""))) params.set("year", film.year);
+  let year = yearOverride !== undefined ? yearOverride : film.year;
+  if (/^\d{4}$/.test(String(year || ""))) params.set("year", year);
   return params;
 }
 
@@ -246,49 +247,76 @@ window.lookupTmdbPosterOptions = async function (
     .slice(0, Math.max(1, Number(options.limit) || 12));
 };
 
-/** Finds a TMDB movie using titles and alternative-title details. @param {FilmRecord} film Film. @param {Function} fetchFn Fetch implementation. @returns {Promise<Object|null>} TMDB result. */
+/**
+ * Finds a TMDB movie using titles and alternative-title details.
+ * TMDB's own `year` search parameter is a hard filter, not a ranking
+ * hint (confirmed live: querying with an off-by-one year excludes the
+ * correct film entirely, it isn't just deprioritized) - a film's
+ * recorded year, year-1, and year+1 are all tried in turn, matching the
+ * same tolerance src/domain/supabase-metadata-batch.js's
+ * lookupTmdbFilmPoster already has for its own, separate search path.
+ * @param {FilmRecord} film Film.
+ * @param {Function} fetchFn Fetch implementation.
+ * @returns {Promise<Object|null>} TMDB result.
+ */
 window.lookupTmdbMovieSearch = async function (film, fetchFn) {
   if (!window.tmdbMovieSearchEligible(film)) return null;
-  for (let queryTitle of window.tmdbMovieSearchTitleVariants(film.title)) {
-    let params = tmdbMovieSearchParams(film, queryTitle);
-    let data = await window.requestPosterJson(
-      fetchFn,
-      `${window.TMDB_API_BASE}/search/movie?${params}`,
-      { headers: { accept: "application/json" } },
-      "TMDB",
-      2,
-    );
-    let directMatch = window.selectTmdbMovie(film, data.results);
-    if (directMatch) return directMatch;
-    let candidates = (data.results || [])
-      .slice(0, 8)
-      .filter(
-        (result) =>
-          !film.year ||
-          posterYear(result.release_date) === String(film.year || ""),
+  let year = Number(film.year);
+  // A missing/non-numeric year must still try one bare, unconstrained
+  // search - the ±1 neighbors of a non-finite year are also non-finite,
+  // so filtering them out would leave candidateYears empty and this
+  // whole loop a silent no-op.
+  let candidateYears = Number.isFinite(year)
+    ? [year, year - 1, year + 1]
+    : [null];
+  for (let candidateYear of candidateYears) {
+    // selectTmdbMovie's own +50 year-match bonus reads film.year - pass a
+    // view with the *candidate* year being tried this pass, not the
+    // film's originally recorded one, so a year-1/year+1 pass can still
+    // score as a confident match instead of always missing its own bonus.
+    let scoringFilm =
+      candidateYear == null ? film : { ...film, year: candidateYear };
+    for (let queryTitle of window.tmdbMovieSearchTitleVariants(film.title)) {
+      let params = tmdbMovieSearchParams(film, queryTitle, candidateYear);
+      let data = await window.requestPosterJson(
+        fetchFn,
+        `${window.TMDB_API_BASE}/search/movie?${params}`,
+        { headers: { accept: "application/json" } },
+        "TMDB",
+        2,
       );
-    let detailsById = {};
-    for (let result of candidates) {
-      try {
-        detailsById[result.id] = await window.lookupTmdbMovieDetails(
-          result.id,
-          fetchFn,
+      let directMatch = window.selectTmdbMovie(scoringFilm, data.results);
+      if (directMatch) return directMatch;
+      let candidates = (data.results || [])
+        .slice(0, 8)
+        .filter(
+          (result) =>
+            candidateYear == null ||
+            posterYear(result.release_date) === String(candidateYear),
         );
-      } catch (err) {
-        console.warn(
-          `TMDB alternative-title lookup failed for ${result.title || result.id}`,
-          err,
-        );
+      let detailsById = {};
+      for (let result of candidates) {
+        try {
+          detailsById[result.id] = await window.lookupTmdbMovieDetails(
+            result.id,
+            fetchFn,
+          );
+        } catch (err) {
+          console.warn(
+            `TMDB alternative-title lookup failed for ${result.title || result.id}`,
+            err,
+          );
+        }
       }
+      let alternativeMatch = window.selectTmdbMovie(
+        scoringFilm,
+        candidates,
+        detailsById,
+      );
+      if (alternativeMatch && detailsById[alternativeMatch.id])
+        alternativeMatch._details = detailsById[alternativeMatch.id];
+      if (alternativeMatch) return alternativeMatch;
     }
-    let alternativeMatch = window.selectTmdbMovie(
-      film,
-      candidates,
-      detailsById,
-    );
-    if (alternativeMatch && detailsById[alternativeMatch.id])
-      alternativeMatch._details = detailsById[alternativeMatch.id];
-    if (alternativeMatch) return alternativeMatch;
   }
   return null;
 };
@@ -422,8 +450,61 @@ window.lookupTmdbTvMetadataFields = async function (reference, fetchFn) {
   return { country, primaryCountry, runtimeMinutes };
 };
 
-/** Finds a TMDB portrait for a person. @param {PersonRecord} person Person. @param {Function} fetchFn Fetch implementation. @returns {Promise<PosterRecord|null>} Portrait. */
+/**
+ * Confirms which of several identically-named TMDB person ids is the real
+ * match, by checking whether it appears in the real cast/crew of a film
+ * this person is already known to be locally credited on - a strictly
+ * stronger signal than popularity or profile-photo presence, since it ties
+ * the id to an already-confirmed real credit rather than a heuristic
+ * guess. Only consulted when a name search returns more than one distinct
+ * same-named person (see lookupTmdbPersonPortrait). Reuses
+ * lookupTmdbMovieDetails, which already requests
+ * append_to_response=credits for every metadata lookup elsewhere in the
+ * app - no new TMDB endpoint.
+ * @param {(number|string)[]} creditedFilmTmdbIds Locally-credited films' TMDB ids.
+ * @param {number[]} candidateIds Ambiguous same-named TMDB person ids.
+ * @param {Function} fetchFn
+ * @returns {Promise<number|null>} The one confirmed id, or null if inconclusive.
+ */
+async function confirmTmdbPersonByLocalCredit(
+  creditedFilmTmdbIds,
+  candidateIds,
+  fetchFn,
+) {
+  for (let filmTmdbId of creditedFilmTmdbIds || []) {
+    let details = await window.lookupTmdbMovieDetails(filmTmdbId, fetchFn);
+    let realCreditIds = new Set(
+      [
+        ...(details?.credits?.cast || []),
+        ...(details?.credits?.crew || []),
+      ].map((member) => member.id),
+    );
+    let confirmed = candidateIds.filter((id) => realCreditIds.has(id));
+    if (confirmed.length === 1) return confirmed[0];
+  }
+  return null;
+}
+
+/** Finds a TMDB portrait for a person. @param {PersonRecord & {creditedFilmTmdbIds?: (number|string)[]}} person Person. @param {Function} fetchFn Fetch implementation. @returns {Promise<PosterRecord|null>} Portrait. */
 window.lookupTmdbPersonPortrait = async function (person, fetchFn) {
+  let knownId = person.tmdbId || person.tmdb_id;
+  if (/^[1-9][0-9]*$/.test(String(knownId || ""))) {
+    let match = await window.requestPosterJson(
+      fetchFn,
+      `${window.TMDB_API_BASE}/person/${knownId}?language=en-US`,
+      { headers: { accept: "application/json" } },
+      "TMDB",
+      2,
+    );
+    if (!match?.profile_path || Number(match.id) !== Number(knownId))
+      return null;
+    return window.normalizePosterRecord({
+      url: `https://image.tmdb.org/t/p/h632${match.profile_path}`,
+      source: "tmdb",
+      sourceUrl: `https://www.themoviedb.org/person/${match.id}`,
+      providerId: match.id,
+    });
+  }
   let params = new URLSearchParams({
     query: person.name,
     include_adult: "false",
@@ -436,7 +517,32 @@ window.lookupTmdbPersonPortrait = async function (person, fetchFn) {
     "TMDB",
     2,
   );
-  let match = window.selectTmdbPersonPortrait(person, data.results);
+  let exact = (data.results || []).filter(
+    (result) =>
+      window.normalizePersonName(result.name) ===
+      window.normalizePersonName(person.name),
+  );
+  let uniqueIds = [...new Set(exact.map((result) => result.id))];
+  if (uniqueIds.length > 1) {
+    let confirmedId = await confirmTmdbPersonByLocalCredit(
+      person.creditedFilmTmdbIds,
+      uniqueIds,
+      fetchFn,
+    );
+    if (confirmedId != null) {
+      exact = exact.filter((result) => result.id === confirmedId);
+    } else {
+      // Popularity alone cannot establish which namesake belongs to an
+      // unlinked record, but a namesake with no profile photo at all is
+      // never a plausible rival to one that has one.
+      let withPhoto = exact.filter((result) => result.profile_path);
+      if (new Set(withPhoto.map((result) => result.id)).size !== 1)
+        return null;
+      exact = withPhoto;
+    }
+  }
+  if (!exact.length) return null;
+  let match = window.selectTmdbPersonPortrait(person, exact);
   if (!match) return null;
   return window.normalizePosterRecord({
     url: `https://image.tmdb.org/t/p/h632${match.profile_path}`,

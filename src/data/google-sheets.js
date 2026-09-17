@@ -821,9 +821,10 @@
     ];
     let seen = new Set();
     films = films.filter((film) => {
+      if (!film?.title) return false;
       let key =
         film.id || `${film.year || ""}::${window.normalizeTitle(film.title)}`;
-      if (!film?.title || seen.has(key)) return false;
+      if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });

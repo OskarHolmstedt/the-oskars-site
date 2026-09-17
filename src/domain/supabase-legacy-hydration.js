@@ -1,7 +1,7 @@
 /**
  * @file Reshapes the raw Supabase rows from
  * `window.loadSupabaseLegacyHydrationSource()` into the same `window.state`
- * shape (`state.years`, `state.watchlist`, `state.publicProfileDisplayName`)
+ * shape (`state.years`, `state.watchedOther`, `state.watchlist`, and profile name)
  * the established page controllers already expect - so their
  * existing, already-tested rendering logic (and `rebuildAggregates()`,
  * `rebuildPeopleIndex()`, `rebuildFranchiseIndex()`, all pure functions over
@@ -10,7 +10,7 @@
  * existing shared-film discovery contract from Supabase catalog rows. Pure
  * and Node-testable - no Supabase client, no DOM.
  *
- * Deliberately does not populate `state.watchedOther`, `state.projects`,
+ * Deliberately does not populate `state.projects`,
  * `state.entityNotes`, `state.localRanks`,
  * `state.declinedOfficialWatchlistAdds`, `state.franchiseLinks`,
  * `state.rejectedPersonAliases`, or `state.opinionRebuildSession` - each
@@ -293,12 +293,12 @@
   };
 
   /**
-   * Builds `{years, watchlist, publicProfileDisplayName}` from raw Supabase
+   * Builds `{years, watchedOther, watchlist, publicProfileDisplayName}` from raw Supabase
    * rows - the exact fields `window.state` needs assigned before
    * `rebuildAggregates()` runs. Pure; call sites own actually mutating
    * `window.state` and calling `rebuildAggregates()` afterward.
    * @param {Object} source Result of `window.loadSupabaseLegacyHydrationSource()`.
-   * @returns {{years: Object, watchlist: Object[], publicProfileDisplayName: string}}
+   * @returns {{years: Object, watchedOther: Object[], watchlist: Object[], publicProfileDisplayName: string}}
    */
   window.buildLegacyStateFromSupabaseHydration = function (source) {
     let chains = buildFranchiseChains(source.franchises);
@@ -365,12 +365,26 @@
     });
 
     let years = {};
+    let watchedOther = [];
+    function isOther(film) {
+      let type = String(film.type || "")
+        .trim()
+        .toLowerCase();
+      return Boolean(type && type !== "film");
+    }
     filmsBySupabaseId.forEach((film) => {
+      if (isOther(film)) {
+        watchedOther.push(film);
+        return;
+      }
       if (!film.year) return;
       years[film.year] ||= { films: [] };
       years[film.year].films.push(film);
     });
-    years.alltime = { periodType: "allTime", films: allTimeFilms };
+    years.alltime = {
+      periodType: "allTime",
+      films: allTimeFilms.filter((film) => !isOther(film)),
+    };
 
     let watchlist = (source.watchlist || [])
       .map((row, index) =>
@@ -380,6 +394,7 @@
 
     return {
       years,
+      watchedOther,
       watchlist,
       publicProfileDisplayName: source.profile?.display_name || "",
     };

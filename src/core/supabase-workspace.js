@@ -55,48 +55,23 @@ const WATCHLIST_SELECT =
 
 let workspaceState = null;
 let workspaceLoadPromise = null;
-let workspaceOwnerId = null; // whose signed-in id workspaceState belongs to
+let workspaceOwnerId = window.getSupabaseCurrentUser?.()?.id || null;
+let workspaceGeneration = 0;
 
-// The cache above is bound to whoever was signed in when it was fetched.
-// Found running through an account-switch sequence by hand: nothing
-// cleared it on sign-out or on signing in as someone else, so
-// getSupabaseWorkspace() could hand a later account the previous
-// account's rows for the rest of the page's life. Subscribed once, at
-// module load, rather than left to whatever page happens to also
-// subscribe - a same-account token refresh reports the same user id and
-// is correctly a no-op here.
-window.onSupabaseAuthChange?.((user) => {
-  let currentUserId = user?.id || null;
-  if (workspaceState !== null && currentUserId !== workspaceOwnerId) {
-    workspaceState = null;
-    workspaceOwnerId = null;
-  }
-});
+function syncWorkspaceAccount(userId) {
+  if (userId === workspaceOwnerId) return;
+  workspaceGeneration += 1;
+  workspaceOwnerId = userId;
+  workspaceState = null;
+  workspaceLoadPromise = null;
+}
 
-async function fetchWorkspace() {
-  // A signed-out/unconfigured caller isn't a bug to throw about - it's
-  // the ordinary "haven't logged in yet" state, resolved gracefully to
-  // an empty workspace. But it's a *different* state from "genuinely
-  // couldn't check" (offline/error), which does propagate as a real
-  // error rather than silently masquerading as "you have nothing yet."
-  // Checking the client alone isn't enough here - the client itself
-  // initializes fine even fully signed out (found running this in a real
-  // browser with no session: an anonymous caller has no grant on
-  // watched's private columns at all, so the query below would surface
-  // as a confusing "permission denied" instead of this clean distinction).
-  let authState = await window.resolveSupabaseAuthState();
-  if (
-    authState.status === "unconfigured" ||
-    authState.status === "signed-out"
-  ) {
-    return { watched: [], watchlist: [], loadedAt: null };
-  }
-  if (authState.status !== "signed-in") {
-    throw new Error(
-      authState.error ||
-        `Could not resolve the signed-in account (${authState.status}).`,
-    );
-  }
+// Account changes invalidate pending reads as well as cached rows. Token
+// refreshes for the same account preserve both.
+window.onSupabaseAuthChange?.((user) => syncWorkspaceAccount(user?.id || null));
+
+async function fetchWorkspace(ownerId) {
+  if (!ownerId) return { watched: [], watchlist: [], loadedAt: null };
 
   let ready = await window.ensureSupabaseClient();
   if (!ready) return { watched: [], watchlist: [], loadedAt: null };
@@ -106,12 +81,14 @@ async function fetchWorkspace() {
       ready.client
         .from("watched")
         .select(WATCHED_SELECT, withCount ? { count: "exact" } : undefined)
+        .eq("user_id", ownerId)
         .order("id"),
     ),
     fetchAllSupabaseRows((withCount) =>
       ready.client
         .from("watchlist")
         .select(WATCHLIST_SELECT, withCount ? { count: "exact" } : undefined)
+        .eq("user_id", ownerId)
         .order("position")
         .order("id"),
     ),
@@ -127,23 +104,45 @@ async function fetchWorkspace() {
 /**
  * Fetches the signed-in user's watched/watchlist rows (joined with their
  * films) once and caches the result for the rest of the session.
- * Concurrent callers during the first load share one in-flight request
- * rather than each triggering their own.
+ * Concurrent callers for the same account share one in-flight request.
+ * Account changes and newer forced refreshes reject superseded results.
  * @param {{force?: boolean}} [options] `force: true` re-fetches even if
  *   already cached — the explicit "refresh" case, never automatic.
  * @returns {Promise<{watched: Object[], watchlist: Object[], loadedAt: string|null}>}
  */
 window.loadSupabaseWorkspace = async function (options = {}) {
+  let authState = await window.resolveSupabaseAuthState();
+  if (!["signed-in", "signed-out", "unconfigured"].includes(authState.status)) {
+    throw new Error(
+      authState.error ||
+        `Could not resolve the signed-in account (${authState.status}).`,
+    );
+  }
+  let ownerId = authState.status === "signed-in" ? authState.user?.id : null;
+  let currentUserId = window.getSupabaseCurrentUser()?.id || null;
+  syncWorkspaceAccount(currentUserId);
+  if (ownerId !== currentUserId)
+    throw new Error("Account changed while loading — reload first.");
   if (workspaceState && !options.force) return workspaceState;
   if (workspaceLoadPromise && !options.force) return workspaceLoadPromise;
-  workspaceLoadPromise = fetchWorkspace();
+  let generation = workspaceGeneration;
+  let pending = fetchWorkspace(ownerId).then((result) => {
+    if (
+      generation !== workspaceGeneration ||
+      ownerId !== (window.getSupabaseCurrentUser()?.id || null)
+    )
+      throw new Error("Account changed while loading — reload first.");
+    if (workspaceLoadPromise !== pending)
+      throw new Error("Workspace load superseded by a newer refresh.");
+    workspaceState = result;
+    return result;
+  });
+  workspaceLoadPromise = pending;
   try {
-    workspaceState = await workspaceLoadPromise;
-    workspaceOwnerId = window.getSupabaseCurrentUser()?.id || null;
+    return await pending;
   } finally {
-    workspaceLoadPromise = null;
+    if (workspaceLoadPromise === pending) workspaceLoadPromise = null;
   }
-  return workspaceState;
 };
 
 /**
@@ -152,6 +151,7 @@ window.loadSupabaseWorkspace = async function (options = {}) {
  * @returns {{watched: Object[], watchlist: Object[], loadedAt: string|null}|null}
  */
 window.getSupabaseWorkspace = function () {
+  syncWorkspaceAccount(window.getSupabaseCurrentUser()?.id || null);
   return workspaceState;
 };
 
@@ -3163,10 +3163,52 @@ window.loadSupabasePeopleCatalogForDataTools = async function () {
     ready.client
       .from("people")
       .select(
-        "id, tmdb_id, name, portrait_url",
+        "id, tmdb_id, name, portrait_url, portrait_source, portrait_source_url, portrait_provider_id, portrait_fetched_at",
         withCount ? { count: "exact" } : undefined,
       ),
   );
+};
+
+/**
+ * Finds each given person's locally-credited films' TMDB ids (only films
+ * that already carry one), for ambiguous-namesake disambiguation during a
+ * portrait fetch batch: a same-named TMDB search result that appears in
+ * the real cast/crew of a film this person is already locally credited on
+ * is confirmed correct, a strictly stronger signal than popularity or
+ * profile-photo presence alone (see window.lookupTmdbPersonPortrait).
+ * Scoped to just the given person ids, not embedded on the full people
+ * catalog query above - this is only useful for the small subset actually
+ * missing a tmdb_id in a given batch run, and embedding it on every row of
+ * the full catalog (used elsewhere for duplicate detection) would carry
+ * nested credit/film data nobody there needs.
+ * @param {string[]} personIds
+ * @returns {Promise<Map<string, number[]>>} Person id -> distinct locally-credited films' TMDB ids.
+ */
+window.loadSupabasePersonCreditFilmTmdbIds = async function (personIds) {
+  let ids = [...new Set(personIds || [])].filter(Boolean);
+  let byPerson = new Map();
+  if (!ids.length) return byPerson;
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) return byPerson;
+  let CHUNK_SIZE = 100;
+  for (let index = 0; index < ids.length; index += CHUNK_SIZE) {
+    let chunk = ids.slice(index, index + CHUNK_SIZE);
+    let rows = await fetchAllSupabaseRows((withCount) =>
+      ready.client
+        .from("credits")
+        .select("person_id, films(tmdb_id)", withCount ? { count: "exact" } : undefined)
+        .in("person_id", chunk),
+    );
+    rows.forEach((row) => {
+      let tmdbId = row.films?.tmdb_id;
+      if (!tmdbId) return;
+      if (!byPerson.has(row.person_id)) byPerson.set(row.person_id, new Set());
+      byPerson.get(row.person_id).add(tmdbId);
+    });
+  }
+  let plain = new Map();
+  byPerson.forEach((set, personId) => plain.set(personId, [...set]));
+  return plain;
 };
 
 /**
@@ -3239,22 +3281,24 @@ window.setSupabaseFilmMetadata = async function (filmId, fields) {
  * shared people catalog.
  * @param {string} personId
  * @param {{url: string, source?: string, sourceUrl?: string, providerId?: string}} posterRecord
- * @returns {Promise<void>}
+ * @returns {Promise<string>} Canonical person id after identity reconciliation.
  */
 window.setSupabasePersonPortrait = async function (personId, posterRecord) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
-  let { error } = await ready.client
-    .from("people")
-    .update({
-      portrait_url: posterRecord.url,
-      portrait_source: posterRecord.source || null,
-      portrait_source_url: posterRecord.sourceUrl || null,
-      portrait_provider_id: posterRecord.providerId || null,
-      portrait_fetched_at: new Date().toISOString(),
-    })
-    .eq("id", personId);
+  if (
+    posterRecord.source !== "tmdb" ||
+    !/^[1-9][0-9]*$/.test(String(posterRecord.providerId || ""))
+  )
+    throw new Error("A resolved TMDB person identity is required.");
+  let { data, error } = await ready.client.rpc("save_person_tmdb_portrait", {
+    p_person_id: personId,
+    p_tmdb_id: Number(posterRecord.providerId),
+    p_portrait_url: posterRecord.url,
+  });
   if (error) throw error;
+  window.invalidateSupabaseHydrationCache?.();
+  return data;
 };
 
 /**
@@ -3357,4 +3401,16 @@ window.dismissSupabaseDuplicateGroup = async function (entityType, ids) {
       ignoreDuplicates: true,
     });
   if (error) throw error;
+};
+
+/** Reconciles a person's stored TMDB provenance atomically without another search. @param {string} personId Person row id. @returns {Promise<string>} Canonical person id. */
+window.reconcileSupabasePersonIdentity = async function (personId) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { data, error } = await ready.client.rpc("reconcile_person_identity", {
+    p_person_id: personId,
+  });
+  if (error) throw error;
+  window.invalidateSupabaseHydrationCache?.();
+  return data;
 };

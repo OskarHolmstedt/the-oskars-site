@@ -217,8 +217,8 @@ window.addFilmToStore = function (year, film, options = {}) {
   window.normalizeFilmMetadata?.(film);
 
   let norm = normalizeTitle(film.title);
-  let effectiveYear =
-    window.filmConcreteYear(film.year) || window.filmConcreteYear(year);
+  let filmYearIsConcrete = window.filmConcreteYear(film.year);
+  let effectiveYear = filmYearIsConcrete || window.filmConcreteYear(year);
   let existing = window.findExistingFilmStoreRecord(
     film,
     effectiveYear,
@@ -278,13 +278,13 @@ window.addFilmToStore = function (year, film, options = {}) {
     existing.type = existing.type || film.type || "";
     existing.platform = existing.platform || film.platform || "";
     existing.dateWatched = existing.dateWatched || film.dateWatched || "";
-    existing.views = existing.views || film.views || null;
+    existing.views = existing.views ?? film.views ?? null;
     existing.musicScore = existing.musicScore ?? film.musicScore ?? null;
     existing.musicRating = existing.musicRating || film.musicRating || "";
     existing.musicRatingValue =
       existing.musicRatingValue ?? film.musicRatingValue ?? null;
     existing.runtimeMinutes =
-      existing.runtimeMinutes || film.runtimeMinutes || null;
+      existing.runtimeMinutes ?? film.runtimeMinutes ?? null;
     if (film.rankConfirmedByScope)
       existing.rankConfirmedByScope = { ...film.rankConfirmedByScope };
     existing.rankingGroupId =
@@ -313,14 +313,15 @@ window.addFilmToStore = function (year, film, options = {}) {
       existing.poster ||
       window.normalizePosterRecord?.(film.poster) ||
       film.poster;
-    existing.tags =
-      window.parseFilmTags?.([
-        ...(existing.tags || []),
-        ...(film.tags || []),
-      ]) ||
-      existing.tags ||
-      film.tags ||
-      [];
+    existing.tags = existing.tags?.length || film.tags?.length
+      ? window.parseFilmTags?.([
+          ...(existing.tags || []),
+          ...(film.tags || []),
+        ]) ||
+        existing.tags ||
+        film.tags ||
+        []
+      : existing.tags || film.tags || [];
     existing.review = existing.review || film.review || "";
     if (effectiveYear && !/^\d{4}$/.test(String(existing.year || ""))) {
       existing.year = effectiveYear;
@@ -339,7 +340,7 @@ window.addFilmToStore = function (year, film, options = {}) {
       film.id &&
       existing.id &&
       film.id !== existing.id &&
-      (!window.filmConcreteYear(film.year) ||
+      (!filmYearIsConcrete ||
         window.periodKeyContainsYear(film.year, existing.year))
     ) {
       window.replaceFilmStoreId(film.id, existing.id, existing);
@@ -418,9 +419,16 @@ function mergeAwardsSimple(existingAwards, newAwards) {
  * @returns {boolean} Whether the awards represent the same result.
  */
 window.sameAward = function (a, b) {
+  let placementA = Number(a.placement);
+  let placementB = Number(b.placement);
+  // Number(a.placement) === Number(b.placement) is false for two "not
+  // placed" awards (NaN === NaN is false) - both-NaN counts as a match so
+  // two structurally-identical not-placed entries still de-dupe.
+  let samePlacement =
+    placementA === placementB || (Number.isNaN(placementA) && Number.isNaN(placementB));
   return (
     a.category === b.category &&
-    Number(a.placement) === Number(b.placement) &&
+    samePlacement &&
     String(a.year || "") === String(b.year || "") &&
     window.getAwardPeriodType(a) === window.getAwardPeriodType(b) &&
     window.awardRecipientKey(a) === window.awardRecipientKey(b) &&

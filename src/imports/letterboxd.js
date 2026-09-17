@@ -449,7 +449,13 @@
    * preview render never blocks on what could be many network round trips.
    * A lookup failure or no match just leaves that film without metadata,
    * same as an ordinary Letterboxd import row always has today - it still
-   * gets created either way.
+   * gets created either way. A lookup revealing the row is actually a TV
+   * special, documentary, or short (not the "Film" type importWatched
+   * always defaults a fresh row to) moves it from
+   * proposal.candidateState.years[year].films into
+   * proposal.candidateState.watchedOther, matching how every other
+   * metadata-resolution path (setFilmTmdbMetadata, src/domain/posters.js)
+   * keeps non-Film types out of ranking/awards eligibility.
    * @param {ImportProposal} proposal A Letterboxd proposal, already built.
    * @param {Object} [options] Batch controls.
    * @param {number} [options.concurrency] Parallel lookups, default 4.
@@ -472,16 +478,41 @@
     async function worker() {
       while (cursor < targets.length) {
         let target = targets[cursor++];
-        let film = (
-          proposal.candidateState?.years?.[target.year]?.films || []
-        ).find((candidate) => candidate.id === target.id);
+        let yearFilms = proposal.candidateState?.years?.[target.year]?.films;
+        let filmIndex = (yearFilms || []).findIndex(
+          (candidate) => candidate.id === target.id,
+        );
+        let film = filmIndex >= 0 ? yearFilms[filmIndex] : null;
         if (film && !film.tmdbId) {
           try {
             let match = await window.lookupTmdbMovieMetadata({
               title: film.title,
               year: film.year,
             });
-            if (match) applyTmdbMatchToFilm(film, match);
+            if (match) {
+              applyTmdbMatchToFilm(film, match);
+              // A fresh row always starts as type "Film" (importWatched's
+              // only option, since watched.csv carries no type of its
+              // own) - a lookup revealing it's actually a TV special,
+              // documentary, or short must move it out of the ranked
+              // archive the same way setFilmTmdbMetadata (src/domain/
+              // posters.js) already does for every other metadata-
+              // resolution path, or it stays wrongly eligible for
+              // ranking/awards despite having the correct type recorded.
+              if (match.type && match.type !== "Film") {
+                yearFilms.splice(filmIndex, 1);
+                proposal.candidateState.watchedOther ||= [];
+                proposal.candidateState.watchedOther.push(film);
+                if (proposal.report) {
+                  proposal.report.archiveAdded = Math.max(
+                    0,
+                    (proposal.report.archiveAdded || 0) - 1,
+                  );
+                  proposal.report.watchedOtherAdded =
+                    (proposal.report.watchedOtherAdded || 0) + 1;
+                }
+              }
+            }
           } catch (err) {
             console.warn(`TMDB lookup failed for ${target.title}`, err);
           }

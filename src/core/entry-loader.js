@@ -117,6 +117,11 @@
     return "";
   }
 
+  // "oskars-locale" is written here as a literal, not via
+  // window.OSKARS_LOCALE_KEY (src/ui/i18n.js) - this runs before i18n.js
+  // has loaded (this function and the language-toggle handler below fire
+  // from the pre-hydration header render), so that constant doesn't exist
+  // yet. Keep this literal in sync with OSKARS_LOCALE_KEY's value by hand.
   function initialLocale() {
     try {
       return localStorage.getItem("oskars-locale") === "sv" ? "sv" : "en";
@@ -219,6 +224,7 @@
     header
       .querySelector("[data-language-toggle]")
       ?.addEventListener("click", () => {
+        // Same "oskars-locale" literal as initialLocale() above, same reason.
         try {
           localStorage.setItem("oskars-locale", locale === "sv" ? "en" : "sv");
         } catch (err) {}
@@ -276,7 +282,12 @@
           window.location.reload();
         });
     };
-    window.onSupabaseAuthChange?.(() => window.renderStaticHeaderAuth?.());
+    // Not window.onSupabaseAuthChange?.(...) here: this runs before
+    // src/core/supabase-client.js (the only place that global is ever
+    // defined) has loaded, so a registration attempt at this point is
+    // always a no-op. src/ui/site-header.js re-registers the identical
+    // callback later, once supabase-client.js is actually loaded, and is
+    // the registration that does the real work.
   }
 
   renderStaticSiteHeader();

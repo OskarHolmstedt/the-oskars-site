@@ -1,7 +1,22 @@
 /** @file Renders and binds the shared site header, navigation, search, locale, menu, and theme controls. */
 
 (function () {
-  let siteSearchCache = { key: "", entries: [] };
+  // Mirrors window.pageEscape's own body - a defensive fallback for the
+  // rare case this file's functions run before page-utils.js has defined
+  // it.
+  function defaultHeaderEscape(value) {
+    return String(value ?? "").replace(
+      /[&<>"']/g,
+      (character) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[character],
+    );
+  }
 
   // Light/dark/papyrus cycle (issue #152); papyrus is only ever reached by
   // explicit toggle, never inferred from prefers-color-scheme. The icon
@@ -177,7 +192,6 @@
       labels,
       cacheKeySuffix: "site-header",
     });
-    siteSearchCache = { key: "", entries };
     return entries;
   }
 
@@ -401,9 +415,7 @@
           signOut.title = String(error?.message || error);
         }
       });
-    window.onSupabaseAuthChange?.(() =>
-      refreshHeaderAuthStatus(header, escape),
-    );
+    window.onSupabaseAuthChange?.(() => refreshHeaderAuthStatus(header));
     let searchForm = header.querySelector("[data-site-search]");
     let searchInput = header.querySelector("[data-site-search-input]");
     let searchResults = header.querySelector("[data-site-search-results]");
@@ -499,7 +511,7 @@
     });
   }
 
-  async function refreshHeaderAuthStatus(header, escape) {
+  async function refreshHeaderAuthStatus(header) {
     let status = header.querySelector("[data-auth-status]");
     if (!status) return;
     if (window.renderPublicProfileExit?.(status)) return;
@@ -528,20 +540,7 @@
    */
   window.renderSignedInHeaderAccount = function (container, user, displayName) {
     if (!container) return;
-    let escape =
-      window.pageEscape ||
-      ((value) =>
-        String(value ?? "").replace(
-          /[&<>"']/g,
-          (character) =>
-            ({
-              "&": "&amp;",
-              "<": "&lt;",
-              ">": "&gt;",
-              '"': "&quot;",
-              "'": "&#39;",
-            })[character],
-        ));
+    let escape = window.pageEscape || defaultHeaderEscape;
     let name = String(displayName || user?.email || "Profile").trim();
     let initial = Array.from(name)[0]?.toLocaleUpperCase() || "?";
     let candidateAvatar =
@@ -603,7 +602,7 @@
       }
     }
     bindSiteHeader(header, escape);
-    refreshHeaderAuthStatus(header, escape);
+    refreshHeaderAuthStatus(header);
     updateLanguageToggle(header.querySelector("[data-language-toggle]"));
     header._siteSearchEntries = null;
     done?.();

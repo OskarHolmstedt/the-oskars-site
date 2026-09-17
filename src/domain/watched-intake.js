@@ -100,10 +100,11 @@
   function exactMatches(values) {
     let tmdbId = String(values.tmdbId || "").trim();
     let key = identity(values);
+    // filmsById is already keyed by unique id, so Object.values() can
+    // never contain two entries with the same id - no dedup needed here.
     let archive = Object.values(window.state.filmsById || {}).filter(
-      (film, index, films) =>
-        films.findIndex((entry) => entry.id === film.id) === index &&
-        ((tmdbId && String(film.tmdbId || "") === tmdbId) || identity(film) === key),
+      (film) =>
+        (tmdbId && String(film.tmdbId || "") === tmdbId) || identity(film) === key,
     );
     let watched = (window.state.watchedOther || []).filter(
       (film) =>

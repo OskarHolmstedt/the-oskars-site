@@ -73,7 +73,8 @@
       let before = String(store[section.dataset.noteKey] || "");
       if (value) store[section.dataset.noteKey] = value;
       else delete store[section.dataset.noteKey];
-      if (before !== value && window.recordEdit) {
+      let changed = before !== value;
+      if (changed && window.recordEdit) {
         window.recordEdit({
           type: "entity note",
           summary: `${section.dataset.entityNote}:${section.dataset.noteKey}`,
@@ -107,7 +108,7 @@
           },
         });
       }
-      window.save();
+      if (changed) window.save();
       section.outerHTML = window.renderEntityNote(
         section.dataset.entityNote,
         section.dataset.noteKey,

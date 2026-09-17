@@ -571,6 +571,32 @@
     if (error && error.code !== "23505") throw error;
   }
 
+  /**
+   * Resolves and records a film's director credit, shared by
+   * runAllTimeStage and runDirectorsFranchisesStage (both stages carry a
+   * director name alongside a film row).
+   */
+  async function applyDirectorCredit(personResolver, filmId, directorName, ctx) {
+    let directorResolution = await resolveOrCreatePerson(
+      personResolver,
+      directorName,
+      ctx,
+    );
+    if (!directorResolution || !ctx.confirm) return;
+    let { error } = await ctx.client.from("credits").insert({
+      film_id: filmId,
+      person_id: directorResolution.person.id,
+      role: "director",
+    });
+    // authenticated only has select+insert on credits (a shared,
+    // append-only catalog fact) - no update grant, so upsert's ON
+    // CONFLICT DO UPDATE plan is rejected outright even when no row
+    // actually conflicts. A plain insert plus tolerating the unique
+    // violation gets the same "create if missing" result and matches
+    // how supabase-workspace.js already treats film_franchises.
+    if (error && error.code !== "23505") throw error;
+  }
+
   /* ===========================
      Stage 1: All-time ranked list
   =========================== */
@@ -614,25 +640,12 @@
       watchedFilmIds.add(filmId);
 
       if (film.director) {
-        let directorResolution = await resolveOrCreatePerson(
+        await applyDirectorCredit(
           resolvers.personResolver,
+          filmId,
           film.director,
           ctx,
         );
-        if (directorResolution && ctx.confirm) {
-          let { error } = await ctx.client.from("credits").insert({
-            film_id: filmId,
-            person_id: directorResolution.person.id,
-            role: "director",
-          });
-          // authenticated only has select+insert on credits (a shared,
-          // append-only catalog fact) - no update grant, so upsert's ON
-          // CONFLICT DO UPDATE plan is rejected outright even when no row
-          // actually conflicts. A plain insert plus tolerating the unique
-          // violation gets the same "create if missing" result and matches
-          // how supabase-workspace.js already treats film_franchises.
-          if (error && error.code !== "23505") throw error;
-        }
       }
 
       let ratingParsed = window.parseFilmRating(film.rating);
@@ -899,25 +912,12 @@
       let filmId = resolution.film.id;
 
       if (item.director) {
-        let directorResolution = await resolveOrCreatePerson(
+        await applyDirectorCredit(
           resolvers.personResolver,
+          filmId,
           item.director,
           ctx,
         );
-        if (directorResolution && ctx.confirm) {
-          let { error } = await ctx.client.from("credits").insert({
-            film_id: filmId,
-            person_id: directorResolution.person.id,
-            role: "director",
-          });
-          // authenticated only has select+insert on credits (a shared,
-          // append-only catalog fact) - no update grant, so upsert's ON
-          // CONFLICT DO UPDATE plan is rejected outright even when no row
-          // actually conflicts. A plain insert plus tolerating the unique
-          // violation gets the same "create if missing" result and matches
-          // how supabase-workspace.js already treats film_franchises.
-          if (error && error.code !== "23505") throw error;
-        }
       }
 
       for (let membership of item.franchises) {

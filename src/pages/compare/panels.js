@@ -599,7 +599,14 @@ let ui = window.uiText || ((text) => text);
       `<tr><th>${escape(ui("Name"))}</th>${targets.map((target) => valueCell(target.displayName, { href: target.url })).join("")}</tr>`,
       ...metricKeys.map(
         (key) =>
-          `<tr><th>${escape(ui(key))}</th>${targets.map((target) => valueCell(targetMetricValue(target, key), { className: typeof targetMetricValue(target, key) === "number" ? "compare-number-cell" : "" })).join("")}</tr>`,
+          `<tr><th>${escape(ui(key))}</th>${targets
+            .map((target) => {
+              let value = targetMetricValue(target, key);
+              return valueCell(value, {
+                className: typeof value === "number" ? "compare-number-cell" : "",
+              });
+            })
+            .join("")}</tr>`,
       ),
     ].join("");
     let headers = [

@@ -97,7 +97,13 @@ window.renderPublicProfilePublication = function (container) {
       ${findings ? `<h3>Findings</h3><ul>${findings}</ul>` : "<p>This projection is valid.</p>"}
     </div>`;
   }
-  let downloadDisabled = preparedPublicProfilePreview && !preparedPublicProfilePreview.valid;
+  // Disabled by default until a preview has actually run - previously
+  // evaluated to a falsy `null` (never disabled) before the owner's first
+  // "Preview snapshot" click, letting an unvalidated config be downloaded
+  // (and potentially published) with no check against
+  // planPublicProfilePublication's validation errors at all.
+  let downloadDisabled =
+    !preparedPublicProfilePreview || !preparedPublicProfilePreview.valid;
   container.innerHTML = `<h3>Community snapshot</h3>
     <p>Prepare a fixed archive revision for Community comparisons. Reviewing or downloading here does not change public access; the separate deployment workflow does that.</p>
     <p>Preparing for <strong>${publicProfileEscape(ownerName)}</strong>. Change the name on the <a href="profile.html">Profile page</a>.</p>

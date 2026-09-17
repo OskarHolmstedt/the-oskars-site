@@ -1,16 +1,13 @@
 /**
- * @file Pure local-rank-order merging (issue #422) - a direct port of
- * src/domain/local-rank.js's mergeLocalRankOrder(), same semantics: a
- * stored explicit order wins for the ids it still covers, in its own
- * order; anything left over (new additions, or every id when nothing's
- * stored yet) is appended in its given order. No Supabase/window.state
- * coupling at all - the "given order" the caller supplies already
- * encodes whatever the Supabase-side collection-fetch decided as its
- * own implicit default (alphabetical - see
- * loadSupabaseLocalRankCollectionFilms() in supabase-workspace.js),
- * this function doesn't need to know what that was.
- *
- * No DOM, no Supabase SDK import - directly Node-testable.
+ * @file Supabase-side wrapper for local-rank-order merging (issue #422).
+ * The merge itself has no Supabase/window.state coupling - the "given
+ * order" the caller supplies already encodes whatever the Supabase-side
+ * collection-fetch decided as its own implicit default (alphabetical -
+ * see loadSupabaseLocalRankCollectionFilms() in supabase-workspace.js),
+ * so this delegates straight to src/domain/local-rank.js's
+ * mergeLocalRankOrder(), which is exactly as Node-testable (no DOM, no
+ * Supabase SDK import) - kept as a separate export only so callers in
+ * this module's area don't need to know the merge lives in local-rank.js.
  */
 
 /**
@@ -20,15 +17,5 @@
  * @returns {string[]} Final film id order.
  */
 window.mergeSupabaseLocalRankOrder = function (storedOrder, currentIds) {
-  let currentSet = new Set(currentIds || []);
-  let seen = new Set();
-  let ordered = (storedOrder || []).filter((id) => {
-    if (!currentSet.has(id) || seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
-  (currentIds || []).forEach((id) => {
-    if (!seen.has(id)) ordered.push(id);
-  });
-  return ordered;
+  return window.mergeLocalRankOrder(storedOrder, currentIds);
 };

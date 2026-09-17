@@ -194,7 +194,13 @@ function parseRankedList(raw, options = {}) {
   }
 
   function valueAt(values, idx) {
-    return values[idx] || values[0] || "";
+    // A part explicitly present at idx (even an intentionally blank "")
+    // stays as-is - only a genuinely missing part (idx beyond the
+    // semicolon-split array's length) falls back to the shared first
+    // part's value. `values[idx] || values[0]` used to treat an
+    // intentional blank the same as missing, silently inheriting a
+    // sibling tied/composite part's value instead of staying blank.
+    return idx < values.length ? values[idx] || "" : values[0] || "";
   }
 
   function parseRow(cols) {
@@ -635,7 +641,11 @@ function musicScoreOrNull(value) {
 }
 
 function positiveIntegerOrNull(value) {
-  let text = cleanRankedListDash(value);
+  // Strips thousands-separator commas before matching - a Views/runtime
+  // cell like "1,234" (common for popular Letterboxd entries) otherwise
+  // matched only the first contiguous digit run ("1"), silently
+  // truncating the real value with no error or diagnostic.
+  let text = cleanRankedListDash(value).replace(/,/g, "");
   let match = text.match(/\d+/);
   if (!match) return null;
   let number = Number(match[0]);

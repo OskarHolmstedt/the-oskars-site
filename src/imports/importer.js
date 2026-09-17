@@ -90,6 +90,7 @@ window.importData = function (raw, importType, options = {}) {
     function sourceConflictKey(conflict) {
       return [
         conflict.source,
+        conflict.target,
         conflict.field,
         conflict.title,
         conflict.year || "",
@@ -736,6 +737,7 @@ window.importData = function (raw, importType, options = {}) {
       // there. Only a row with no usable year at all still has nowhere
       // real to go and falls back to watchedOther below.
       if (/^\d{4}$/.test(year)) {
+        let mergedBefore = report.filmsMerged;
         addOrUpdateYearFilm(
           year,
           {
@@ -747,7 +749,13 @@ window.importData = function (raw, importType, options = {}) {
           },
           {},
         );
-        return { added: true, changed: true };
+        // addOrUpdateYearFilm routes to either report.filmsAdded or
+        // report.filmsMerged internally - report {added:false} when this
+        // call merged into an existing archive film, so the caller's own
+        // watchedOtherAdded/watchedOtherMerged tally (this entry never
+        // touched watchedOther either way) doesn't mislabel a merge as an
+        // add.
+        return { added: report.filmsMerged === mergedBefore, changed: true };
       }
       state.watchedOther.push({
         id,

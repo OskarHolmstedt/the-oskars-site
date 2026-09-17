@@ -500,7 +500,7 @@
     ${window.renderCollectionViewController({ view: collectionPageView, overviewUrl: window.franchisePageUrl(franchise.id), awardsUrl: `${window.franchisePageUrl(franchise.id)}&collection-view=awards`, escape, ui })}
     <div data-collection-page-view="films" ${collectionPageView === "films" ? "" : "hidden"}>
     ${window.renderDetailStats({ itemsHtml: `<span><b>${completion.watchedCount}</b> ${escape(ui("Watched"))}</span>${completion.watchlistCount ? `<span><b>${completion.watchlistCount}</b> Watchlist</span>` : ""}<span><b>${completion.total}</b> ${escape(ui("Known"))}</span><span><b>${completion.percent}%</b> ${escape(ui("Complete"))}</span>${years.length ? `<span><b>${Math.min(...years)}–${Math.max(...years)}</b> ${escape(ui("Years"))}</span>` : ""}<span><b>${children.length}</b> ${escape(ui("Child franchises"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}
-    ${window.renderSupabaseEntityNote({ entityKind: "franchise", entityKey: franchise.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, label: ui("Franchise note"), escape })}
+    ${window.renderSupabaseEntityNote({ entityKind: "franchise", entityKey: franchise.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Franchise note"), escape })}
     <div class="project-progress-meter project-progress-meter--detail" aria-label="${escape(ui("{percent} percent complete", { percent: completion.percent }))}"><span style="width:${escape(completion.percent)}%"></span></div>
     ${completionCaveat}
     ${nextWatchlist}

@@ -541,6 +541,7 @@ window.watchlistPeriodKeys = function (periodType, tier) {
 // reversible (issue #132); keys and normalization mirror setWatchlistMetadata.
 let WATCHLIST_UNDO_FIELD_LABELS = {
   tier: "tier",
+  tierModifier: "interest tier refinement",
   director: "director",
   tags: "tags",
   franchises: "franchises",
@@ -861,6 +862,7 @@ window.moveWatchlistItemWithinTier = function (
   fromId,
   toId,
   position = "before",
+  options = {},
 ) {
   if (!fromId || !toId || fromId === toId)
     return { ok: false, reason: "Choose two different watchlist films." };
@@ -927,6 +929,7 @@ window.moveWatchlistItemWithinTier = function (
       context: { fromId, toId, position, tier: fromTier },
     });
   }
+  if (options.save !== false) window.save();
   return { ok: true };
 };
 
@@ -973,7 +976,7 @@ window.watchlistTierPeriodScopeItems = function (tier, periodType, periodKey) {
  * @param {string[]} orderedIds Watchlist ids in the desired final relative order.
  * @returns {Object} Apply result with an explanatory reason on failure.
  */
-window.applyWatchlistTierMergeOrder = function (tier, orderedIds) {
+window.applyWatchlistTierMergeOrder = function (tier, orderedIds, options = {}) {
   let normalizedTier = window.normalizeWatchlistTier(tier);
   let ids = (orderedIds || []).map((id) => String(id || "")).filter(Boolean);
   let idSet = new Set(ids);
@@ -1033,6 +1036,7 @@ window.applyWatchlistTierMergeOrder = function (tier, orderedIds) {
       context: { tier: normalizedTier, ids },
     });
   }
+  if (options.save !== false) window.save();
   return { ok: true, changed: mergedItems.length };
 };
 

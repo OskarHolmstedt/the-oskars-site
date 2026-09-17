@@ -77,6 +77,19 @@
   };
 
   let literalTranslations = {
+    // Data-health finding issue labels and severity tokens
+    // (src/domain/data-health.js, src/data/health-view.js) - these were
+    // falling back to raw English in Swedish locale (issue #497 sweep
+    // finding). Note: the nomination-plans.js dialog headings this same
+    // finding flagged (Changes/Details/Warnings/Blocked/Cancel) turned out
+    // to already have entries elsewhere in this table under unquoted keys
+    // - the original finding's grep missed them; no fix needed there.
+    "Shared placement (tie)": { sv: "Delad placering (oavgjort)" },
+    "Ambiguous people credits": { sv: "Tvetydiga medverkande" },
+    "Potential duplicate person": { sv: "Möjlig dubblett av person" },
+    info: { sv: "Info" },
+    warning: { sv: "Varning" },
+    error: { sv: "Fel" },
     "By filmmaker": { sv: "Efter regissör" },
     "Series & worlds": { sv: "Serier & världar" },
     "Pick a theme": { sv: "Välj ett tema" },
@@ -2860,6 +2873,12 @@
     "Showing {shown} of {total} rank changes.": {
       sv: "Visar {shown} av {total} rankändringar.",
     },
+    "Showing {shown} of {total} rule violations.": {
+      sv: "Visar {shown} av {total} regelbrott.",
+    },
+    "Showing {shown} of {total} title variants resolved.": {
+      sv: "Visar {shown} av {total} lösta titelvarianter.",
+    },
     "Ambiguous no-year franchise rows": {
       sv: "Tvetydiga franchise-rader utan år",
     },
@@ -3664,12 +3683,15 @@
   /**
    * Returns the locale-appropriate title for a film.
    * @param {FilmRecord} film Film record.
+   * @param {'en'|'sv'} [locale] Pre-resolved locale, to avoid a fresh
+   *   window.oskarsLocale() read per call in a render loop over many
+   *   films. Defaults to the current locale when omitted.
    * @returns {string}
    */
-  window.localizedFilmTitle = function (film) {
+  window.localizedFilmTitle = function (film, locale) {
     let title = String(film?.title || "").trim();
     let swedishTitle = String(film?.swedishTitle || "").trim();
-    return window.oskarsLocale() === "sv" && swedishTitle
+    return (locale || window.oskarsLocale()) === "sv" && swedishTitle
       ? swedishTitle
       : title;
   };

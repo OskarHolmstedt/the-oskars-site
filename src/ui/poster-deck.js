@@ -4,7 +4,9 @@
   /** Renders up to five films as a compact layered deck. @param {(FilmRecord|SupabaseFilmRow)[]} films Poster source films. @param {{classes?: string, limit?: number}} [options] Presentation options. @returns {string} Poster deck HTML. */
   window.renderPosterDeck = function (films, options = {}) {
     let escape = window.pageEscape || ((value) => String(value ?? ""));
-    let limit = Number(options.limit) || 5;
+    let limit = Number.isFinite(Number(options.limit))
+      ? Number(options.limit)
+      : 5;
     let cards = (films || []).slice(0, limit).map((film, index) => {
       let poster =
         window.normalizePosterRecord?.(film.poster) ||

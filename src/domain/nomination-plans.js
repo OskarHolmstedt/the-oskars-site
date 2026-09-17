@@ -69,20 +69,30 @@
   };
 
   /**
-   * Formats every proposed placement change and validation finding for review.
+   * Resolves the heading shown for a placement plan: the plan's own
+   * explicit heading if set, else one derived from its operation.
    * @param {NominationPlacementPlan} plan Placement plan.
-   * @returns {string} Multi-line preview text.
+   * @returns {string}
    */
-  window.nominationPlacementPlanText = function (plan) {
-    let heading = plan.heading
+  function nominationPlacementPlanHeading(plan) {
+    return plan.heading
       ? ui(plan.heading)
       : plan.operation === "insert"
         ? ui("Add nomination?")
         : plan.operation === "merge"
           ? ui("Merge annual category?")
-        : plan.operation === "delete"
-          ? ui("Delete nomination?")
-          : ui("Reorder nominations?");
+          : plan.operation === "delete"
+            ? ui("Delete nomination?")
+            : ui("Reorder nominations?");
+  }
+
+  /**
+   * Formats every proposed placement change and validation finding for review.
+   * @param {NominationPlacementPlan} plan Placement plan.
+   * @returns {string} Multi-line preview text.
+   */
+  window.nominationPlacementPlanText = function (plan) {
+    let heading = nominationPlacementPlanHeading(plan);
     let lines = [
       heading,
       "",
@@ -116,15 +126,7 @@
     let escape = window.pageEscape || ((value) => String(value ?? ""));
     let dialog = document.createElement("dialog");
     dialog.className = "nomination-placement-review";
-    let heading = plan.heading
-      ? ui(plan.heading)
-      : plan.operation === "insert"
-        ? ui("Add nomination?")
-        : plan.operation === "merge"
-          ? ui("Merge annual category?")
-          : plan.operation === "delete"
-            ? ui("Delete nomination?")
-            : ui("Reorder nominations?");
+    let heading = nominationPlacementPlanHeading(plan);
     let changes = plan.changes.length
       ? `<ul>${plan.changes
           .map(

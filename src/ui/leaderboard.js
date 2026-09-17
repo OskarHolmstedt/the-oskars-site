@@ -9,13 +9,6 @@
  */
 
 (function () {
-  function classList(base, extras) {
-    let values = Array.isArray(extras)
-      ? extras
-      : String(extras || "").split(/\s+/);
-    return [...new Set([base, ...values].filter(Boolean))].join(" ");
-  }
-
   /** Renders the standard leaderboard wrapper, header row, and body.
    * @param {LeaderboardTableOptions} options Pre-rendered table content and optional classes.
    * @returns {string} Leaderboard table HTML.
@@ -24,6 +17,6 @@
     let headers = (options.headers || [])
       .map((header) => `<th>${header}</th>`)
       .join("");
-    return `<div class="${classList("leaderboard-wrap", options.wrapClasses)}"><table class="${classList("leaderboard", options.classes)}"><thead><tr>${headers}</tr></thead><tbody>${options.rows || ""}</tbody></table></div>`;
+    return `<div class="${window.pageClassList("leaderboard-wrap", options.wrapClasses)}"><table class="${window.pageClassList("leaderboard", options.classes)}"><thead><tr>${headers}</tr></thead><tbody>${options.rows || ""}</tbody></table></div>`;
   };
 })();

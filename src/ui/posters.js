@@ -13,6 +13,22 @@ window.posterSourceLabel = function (poster) {
       : "";
 };
 
+// Mirrors window.pageEscape's own body - a defensive fallback for the rare
+// case this file's functions run before page-utils.js has defined it.
+function defaultPosterEscape(value) {
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character],
+  );
+}
+
 // Only the single-focus 'detail' variant (a page's own hero poster/portrait,
 // never repeated in a list/grid) links out to its stored provider source -
 // list/grid thumbnails (card/thumb/hub/winner/progression/...) are a plain,
@@ -27,20 +43,7 @@ window.posterSourceLabel = function (poster) {
 window.renderFilmPoster = function (film, variant = "card") {
   let poster = window.normalizePosterRecord?.(film?.poster);
   if (!poster) return "";
-  let escape =
-    window.pageEscape ||
-    ((value) =>
-      String(value ?? "").replace(
-        /[&<>"']/g,
-        (character) =>
-          ({
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#39;",
-          })[character],
-      ));
+  let escape = window.pageEscape || defaultPosterEscape;
   let image = `<img src="${escape(poster.url)}" alt="Poster for ${escape(film.title)}" loading="lazy" decoding="async">`;
   if (variant !== "detail")
     return `<figure class="film-poster film-poster--${escape(variant)}">${image}</figure>`;
@@ -67,20 +70,7 @@ window.renderPersonPortrait = function (person, variant = "detail") {
     person?.portrait || state.personPortraits?.[person?.id],
   );
   if (!portrait) return "";
-  let escape =
-    window.pageEscape ||
-    ((value) =>
-      String(value ?? "").replace(
-        /[&<>"']/g,
-        (character) =>
-          ({
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#39;",
-          })[character],
-      ));
+  let escape = window.pageEscape || defaultPosterEscape;
   let image = `<img src="${escape(portrait.url)}" alt="Portrait of ${escape(person.name)}" loading="lazy" decoding="async">`;
   if (variant !== "detail")
     return `<figure class="person-portrait person-portrait--${escape(variant)}">${image}</figure>`;

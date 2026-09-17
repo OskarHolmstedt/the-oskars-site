@@ -63,20 +63,15 @@ window.normalizeEditLogTarget = function (entry = {}) {
   let type = String(explicit.type || "").trim();
   if (!EDIT_LOG_TARGET_TYPES.has(type)) type = inferredEditLogTargetType(entry);
   let context = entry.context || {};
+  let contextIdKeyByType = {
+    film: "filmId",
+    watchlist: "watchlistId",
+    project: "projectId",
+    alias: "aliasId",
+    note: "noteKey",
+  };
   let id = String(
-    explicit.id ||
-      (type === "film"
-        ? context.filmId
-        : type === "watchlist"
-          ? context.watchlistId
-          : type === "project"
-            ? context.projectId
-            : type === "alias"
-              ? context.aliasId
-              : type === "note"
-                ? context.noteKey
-                : "") ||
-      "",
+    explicit.id || context[contextIdKeyByType[type]] || "",
   ).trim();
   return {
     type,
@@ -131,7 +126,7 @@ window.recordEdit = function (entry = {}) {
     Object.assign({}, record, { target: entry.target }),
   );
   window.state.editLog.unshift(record);
-  window.state.editLog = window.state.editLog.slice(0, 500);
+  if (window.state.editLog.length > 500) window.state.editLog.length = 500;
   return record;
 };
 

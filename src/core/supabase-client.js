@@ -4,9 +4,10 @@
  * isolated anonymous client for published-profile reads.
  *
  * Google Identity Services supplies an ID token, which Supabase exchanges
- * for a session with signInWithIdToken(). A fresh nonce is used for each
- * rendered sign-in control. The module is loaded dynamically so pages that
- * do not need authentication do not load the client SDK.
+ * for a session with signInWithIdToken(). Overlapping sign-in renders share
+ * one initialization; later renders use a fresh nonce, captured by their
+ * credential callback. The module is loaded dynamically so pages that do
+ * not need authentication do not load the client SDK.
  */
 
 window.OSKARS_SUPABASE_SDK_VERSION = "2.112.4";
@@ -14,7 +15,7 @@ let supabaseModulePromise = null;
 let supabaseClientInstance = null;
 let supabasePublicClientInstance = null;
 let googleIdentityScriptPromise = null;
-let currentRawGoogleNonce = null;
+let googleIdentityInitializationPromise = null;
 let deliberateSignOutAt = 0;
 const DELIBERATE_SIGN_OUT_WINDOW_MS = 5000;
 let supabaseAuthResolutionPromise = null;
@@ -156,14 +157,14 @@ async function sha256Hex(value) {
   ).join("");
 }
 
-async function handleGoogleCredentialForSupabase(response) {
+async function handleGoogleCredentialForSupabase(response, rawNonce) {
   try {
     let ready = await window.ensureSupabaseClient();
     if (!ready) return;
     let { data, error } = await ready.client.auth.signInWithIdToken({
       provider: "google",
       token: response.credential,
-      nonce: currentRawGoogleNonce,
+      nonce: rawNonce,
     });
     if (error) throw error;
     lastResolvedSupabaseUser = data?.user || null;
@@ -172,26 +173,30 @@ async function handleGoogleCredentialForSupabase(response) {
   }
 }
 
-// Requires supabase.config.js's googleWebClientId field, set only once
-// Authentication -> Providers -> Google is enabled in the Supabase
-// dashboard - a real setup step, not something this file configures on
-// its own. Returns false (not an error) when unset, matching every other
-// optional-credential feature in this app. Re-initializes with a fresh
-// nonce on every call (see generateNonce() above) rather than only once -
-// google.accounts.id.initialize() is safe to call repeatedly and just
-// updates its config, so each render gets its own single-use nonce.
+// Overlapping controls share one pending initialization. Its callback captures
+// the raw nonce before any async credential exchange; later renders cannot
+// change the nonce associated with an already-received response.
 async function ensureSupabaseGoogleIdentityInitialized() {
   if (!window.oskarsSupabaseConfigured()) return false;
   let clientId = window.OSKARS_SUPABASE_CONFIG.googleWebClientId;
   if (!clientId) return false;
-  await loadGoogleIdentityScript();
-  currentRawGoogleNonce = generateNonce();
-  window.google.accounts.id.initialize({
-    client_id: clientId,
-    callback: handleGoogleCredentialForSupabase,
-    nonce: await sha256Hex(currentRawGoogleNonce),
-  });
-  return true;
+  if (!googleIdentityInitializationPromise) {
+    googleIdentityInitializationPromise = (async () => {
+      await loadGoogleIdentityScript();
+      let rawNonce = generateNonce();
+      let nonce = await sha256Hex(rawNonce);
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: (response) =>
+          handleGoogleCredentialForSupabase(response, rawNonce),
+        nonce,
+      });
+      return true;
+    })().finally(() => {
+      googleIdentityInitializationPromise = null;
+    });
+  }
+  return googleIdentityInitializationPromise;
 }
 
 /**

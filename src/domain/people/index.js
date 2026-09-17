@@ -18,6 +18,21 @@ window.PERSON_AWARD_PROFESSIONS = {
   "Best Costume Design": "Costume designer",
 };
 
+// TMDB's own cast gender field (0 not set, 1 female, 2 male, 3 non-binary),
+// keyed by the four gendered acting categories this app names after the
+// historical Oscar convention - used only to narrow the default cast list
+// shown for a nomination (src/pages/awards-year.js), never to block a
+// nomination outright. The consuming filter only excludes the *opposite*
+// binary gender (Actor hides confirmed-female, Actress hides
+// confirmed-male) - a non-binary or untagged cast member is left eligible
+// for either category, since the field is self-reported and often unset.
+window.ACTOR_CATEGORY_GENDER = {
+  "Best Lead Actor": 2,
+  "Best Supporting Actor": 2,
+  "Best Lead Actress": 1,
+  "Best Supporting Actress": 1,
+};
+
 window.PERSON_PROFESSION_ORDER = [
   "Director",
   "Screenwriter",

@@ -582,17 +582,19 @@
   let scope = initialViewState.scope;
   let viewMode = initialViewState.viewMode;
   let editMode =
+    canEdit &&
     canEditBracket &&
     viewMode === "awards" &&
     initialViewState.edit === "bracket";
   let rankingEditMode =
+    canEdit &&
     viewMode === "films" &&
     initialViewState.edit === "ranking" &&
     !allFilms.some((film) => film.rankConfirmedByScope);
   let watchlistOrderEditMode =
-    viewMode === "watchlist" && initialViewState.edit === "order";
+    canEdit && viewMode === "watchlist" && initialViewState.edit === "order";
   let tierEditMode =
-    viewMode === "watchlist" && initialViewState.edit === "interest";
+    canEdit && viewMode === "watchlist" && initialViewState.edit === "interest";
   let mediumFilter = initialViewState.mediumFilter;
   let screenplayFilter = initialViewState.screenplayFilter;
   let sourceFilter = initialViewState.sourceFilter;
@@ -2268,7 +2270,9 @@
       "Watchlist ordering moves are limited to the same interest tier.",
     ),
     moveItem: (from, target, position) =>
-      window.moveWatchlistItemWithinTier?.(from.id, target.id, position),
+      window.moveWatchlistItemWithinTier?.(from.id, target.id, position, {
+        save: false,
+      }),
     afterMove() {
       render();
       window.save?.({ immediate: true, rebuild: false });

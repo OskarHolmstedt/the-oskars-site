@@ -77,11 +77,12 @@
  * @property {string} [rating] Star rating text (e.g. "★★★★—").
  * @property {number} [ratingValue] Numeric star count.
  * @property {string} [ratingModifier] Rating suffix/modifier, if any.
- * @property {number} [allTimeRank]
- * @property {number} [centuryRank]
- * @property {number} [decadeRank]
- * @property {number} [yearRank]
- * @property {number} [rank] Rank within its source period record.
+ * @property {number|null} [allTimeRank]
+ * @property {number|null} [centuryRank]
+ * @property {number|null} [decadeRank]
+ * @property {number|null} [yearRank]
+ * @property {number|null} [rank] Rank within its source period record. Explicitly `null`
+ *   (not just absent) when a replace-ranks merge clears a prior rank.
  * @property {string} [tmdbId]
  * @property {string} [country] Possibly multiple production countries.
  * @property {string} [primaryCountry] Single normalized country used for
@@ -430,6 +431,7 @@
  * @property {string|null} date_watched
  * @property {string|null} platform
  * @property {number|null} views
+ * @property {string} updated_at Optimistic-concurrency token.
  * @property {SupabaseFilmRow} films
  */
 
@@ -492,6 +494,7 @@
  * @property {string} id Film or watchlist item id.
  * @property {string} [sourceId] Official-results source id `id` resolves against (type "official" only; a project's official refs always come from one source). Missing on refs created before issue #343 - resolvers default those to "academy-awards".
  * @property {number} projectOrder Queue position local to this project.
+ * @property {number|null} [rank] Optional rank within the project, set by domain code and read for sort order.
  */
 
 /**
@@ -1125,7 +1128,7 @@
  *   Explicit annual ballot completion, including reviewed-none categories.
  * @property {OpinionRebuildSession|null} opinionRebuildSession Private baseline
  *   retained while the owner rebuilds the active opinion layer blind.
- * @property {{baseRevision: string, dirty: boolean, changedAt?: string, reason?: string, publishedRevision?: string, reconciliationStatus?: string, requiredAction?: string, lastCanonicalCheckAt?: string, publication?: PublicationAttempt, remoteSync?: WorkspaceRemoteSync, pushHeld?: boolean}|null} draftMetadata Local-change marker and legacy canonical-reconciliation/Firestore-sync metadata. Always null for a public-profile viewer state (issue #256) - that state is never a private draft. `publication`/`remoteSync`/`pushHeld` are backward-compatible legacy fields, never written by current code (the reconciliation and Firestore-sync engines that wrote them are retired) - kept only so an old already-persisted workspace or JSON backup still hydrates without loss.
+ * @property {{baseRevision: string, dirty: boolean, lastLocalSaveAt: string, changedAt?: string, reason?: string, lastPublishedRevision?: string, publishedRevision?: string, reconciliationStatus?: string, requiredAction?: string, lastCanonicalCheckAt?: string, publication?: PublicationAttempt, remoteSync?: WorkspaceRemoteSync, pushHeld?: boolean}|null} draftMetadata Local-change marker and legacy canonical-reconciliation/Firestore-sync metadata. Always null for a public-profile viewer state (issue #256) - that state is never a private draft. `publication`/`remoteSync`/`pushHeld` are backward-compatible legacy fields, never written by current code (the reconciliation and Firestore-sync engines that wrote them are retired) - kept only so an old already-persisted workspace or JSON backup still hydrates without loss.
  * @property {boolean} isPublicProfileView Set by `hydratePublicProfileState()`
  *   (issue #256) when state was hydrated from another owner's published
  *   public-profile document rather than a private canonical/workspace
@@ -1475,15 +1478,11 @@ function buildDraftMetadata(existing, baseRevision, defaultReason) {
       : {}),
     // Per-shard Firestore sync bookkeeping and observable bounded-backoff
     // diagnostics, including the Firebase UID that owns every baseline
-    // (issues #248, #333, and #335) - deliberately NOT
-    // carried by intentionalClearDraftMetadata() (persistence.js) or
-    // publishedCanonicalWorkspace() (reconciliation.js), both of which
-    // build fresh metadata objects without it: a full local clear or a
-    // published-canonical adoption is a different data lineage, and
-    // resetting remoteSync makes the next cloud sync pass treat it as a
-    // fresh device (pulling the account's cloud copy back down, per
-    // the legacy workspace-sync bootstrap rules) rather
-    // than pushing the wipe/replacement up to the cloud.
+    // (issues #248, #333, and #335). The reconciliation and Firestore-sync
+    // engines that wrote and consumed this field are retired along with
+    // Firebase itself - kept only so an old already-persisted workspace or
+    // JSON backup still hydrates without loss; no current code path reads
+    // or writes it.
     ...(existing.remoteSync
       ? { remoteSync: window.cloneRecord(existing.remoteSync) }
       : {}),

@@ -116,8 +116,24 @@
         let rerendered = options.rerender?.();
         return rerendered?.then ? rerendered.then(() => result) : result;
       }
-      let result = options.commit(from, target, position);
-      return result?.then ? result.then(finish) : finish(result);
+      // A rejecting/throwing commit (network error, RLS failure) must still
+      // surface to the user and resolve to a defined {ok:false} result -
+      // without this, an async commit's rejection propagated as an
+      // unhandled promise rejection from the "drop" listener's `await
+      // move(...)`, leaving the drag interaction looking like it completed
+      // with no sign the reorder never actually persisted.
+      function handleError(error) {
+        let reason = error?.message || String(error);
+        window.alert?.(reason);
+        return { ok: false, reason };
+      }
+      let result;
+      try {
+        result = options.commit(from, target, position);
+      } catch (error) {
+        return handleError(error);
+      }
+      return result?.then ? result.then(finish, handleError) : finish(result);
     }
 
     listen("dragstart", (event) => {

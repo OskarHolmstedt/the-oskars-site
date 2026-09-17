@@ -34,9 +34,9 @@ function opinionRebuildClone(value) {
 function opinionRebuildKey(record) {
   let id = String(record?.id || "").trim();
   if (id) return id;
-  let title = String(record?.normalizedTitle || record?.title || "")
-    .trim()
-    .toLowerCase();
+  let title = window.normalizeTitle(
+    String(record?.normalizedTitle || record?.title || ""),
+  );
   return title ? `${String(record?.year || "")}::${title}` : "";
 }
 

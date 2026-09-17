@@ -1,4 +1,12 @@
-/** @file Shared page primitives: escaping, query params, action feedback, technical details, watch-queue reason text, copy-view-link, list/grid view mode, and the watchlist bulk-tier control. */
+/** @file Shared page primitives: escaping, query params, action feedback, technical details, watch-queue reason text, copy-view-link, list/grid view mode, class-list building, and the watchlist bulk-tier control. */
+
+/** Builds a deduplicated HTML class attribute value from a base class plus extras. @param {string} base Always-included base class. @param {string|string[]} [extras] Extra class(es), space-separated if a string. @returns {string} Space-joined class list. */
+window.pageClassList = function (base, extras) {
+  let values = Array.isArray(extras)
+    ? extras
+    : String(extras || "").split(/\s+/);
+  return [...new Set([base, ...values].filter(Boolean))].join(" ");
+};
 
 /** Escapes a value for HTML text or attribute output. @param {*} value Value to escape. @returns {string} */
 window.pageEscape = function (value) {
@@ -17,8 +25,20 @@ window.pageEscape = function (value) {
 
 /** Reads and decodes one query parameter. @param {string} name Parameter name. @returns {string} */
 window.pageQueryParam = function (name) {
-  let decode = (value) =>
-    decodeURIComponent(String(value || "").replace(/\+/g, " "));
+  let decode = (value) => {
+    let raw = String(value || "").replace(/\+/g, " ");
+    try {
+      return decodeURIComponent(raw);
+    } catch (err) {
+      // A malformed percent-escape (e.g. a mistyped/truncated share link)
+      // - fall back to the raw, un-decoded value rather than throwing:
+      // for a key this just fails to match `name` (harmlessly excluded),
+      // for a value it degrades instead of blanking the whole page. This
+      // function is called from ~70 sites across src/pages/src/ui,
+      // several during initial page render.
+      return raw;
+    }
+  };
   let match = String(window.location?.search || "")
     .replace(/^\?/, "")
     .split("&")

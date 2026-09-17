@@ -163,7 +163,7 @@ window.renderSharedFilmCard = function (film, options = {}) {
     options.directorTitle || compactDirector?.fullText || director;
   let directorDisplay = compactDirector?.overflowCount
     ? compactDirector.displayText
-    : director;
+    : compactDirector?.fullText || director;
   let directorHtml =
     options.directorHtml ||
     (director
