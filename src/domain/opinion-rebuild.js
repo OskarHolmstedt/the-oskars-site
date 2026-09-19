@@ -19,6 +19,7 @@ const OPINION_REBUILD_FILM_FIELDS = [
   "rankingGroupId",
   "rankingGroupTitle",
   "rankConfirmed",
+  "rankConfirmedByScope",
   "review",
   "wantToRewatch",
   "rewatchTier",
@@ -54,7 +55,8 @@ function opinionRebuildPresentFields(record, fields) {
     let key = String(membership?.id || membership?.name || "").trim();
     if (key && membership?.rank != null) franchiseRanks[key] = membership.rank;
   });
-  if (Object.keys(franchiseRanks).length) snapshot.franchiseRanks = franchiseRanks;
+  if (Object.keys(franchiseRanks).length)
+    snapshot.franchiseRanks = franchiseRanks;
   return snapshot;
 }
 
@@ -142,7 +144,8 @@ function opinionRebuildApplyFields(record, snapshot, fields) {
   (record.franchises || []).forEach((membership) => {
     delete membership.rank;
     let key = String(membership?.id || membership?.name || "").trim();
-    if (Object.prototype.hasOwnProperty.call(ranks, key)) membership.rank = ranks[key];
+    if (Object.prototype.hasOwnProperty.call(ranks, key))
+      membership.rank = ranks[key];
   });
 }
 
@@ -175,8 +178,7 @@ window.startOpinionRebuild = function (startedAt) {
  */
 window.restoreOpinionRebuildBaseline = function () {
   let baseline = window.state.opinionRebuildSession;
-  if (!baseline)
-    return { ok: false, reason: "No blind rebuild is active." };
+  if (!baseline) return { ok: false, reason: "No blind rebuild is active." };
   window.clearOpinionData();
   Object.values(window.state.years || {}).forEach((period) =>
     opinionRebuildApplyMap(
@@ -197,9 +199,13 @@ window.restoreOpinionRebuildBaseline = function () {
   ]);
   window.state.entityNotes = opinionRebuildClone(baseline.entityNotes || {});
   window.state.localRanks = opinionRebuildClone(baseline.localRanks || {});
-  window.state.rankingReviews = opinionRebuildClone(baseline.rankingReviews || {});
+  window.state.rankingReviews = opinionRebuildClone(
+    baseline.rankingReviews || {},
+  );
   window.state.awardReviews = opinionRebuildClone(baseline.awardReviews || {});
-  window.state.sourceConflicts = opinionRebuildClone(baseline.sourceConflicts || []);
+  window.state.sourceConflicts = opinionRebuildClone(
+    baseline.sourceConflicts || [],
+  );
   window.state.opinionRebuildSession = null;
   window.recomputeWatchlistOrder?.();
   window.rebuildAggregates?.();
@@ -252,7 +258,9 @@ function opinionRebuildAwards(films, titleSource = films) {
         award.periodType,
         award.year,
         award.category,
-        Number(award.placement),
+        Number.isFinite(Number(award.placement))
+          ? Number(award.placement)
+          : String(award.placement ?? ""),
         filmId,
       ].join("\n");
       records.set(key, {
@@ -331,11 +339,13 @@ window.compareOpinionRebuild = function (source = window.state) {
   let baselineAwards = opinionRebuildAwards(baseline.films, current);
   let currentAwards = opinionRebuildAwards(current);
   let awardRows = [];
-  new Set([...baselineAwards.keys(), ...currentAwards.keys()]).forEach((key) => {
-    let before = baselineAwards.get(key) || null;
-    let after = currentAwards.get(key) || null;
-    if (!before || !after) awardRows.push({ before, after });
-  });
+  new Set([...baselineAwards.keys(), ...currentAwards.keys()]).forEach(
+    (key) => {
+      let before = baselineAwards.get(key) || null;
+      let after = currentAwards.get(key) || null;
+      if (!before || !after) awardRows.push({ before, after });
+    },
+  );
   return {
     status: baseline.status || "active",
     startedAt: baseline.startedAt || "",

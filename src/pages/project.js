@@ -119,7 +119,12 @@
     });
   }
 
-  function itemRow(record, index = 0, editable = false) {
+  function itemRow(
+    record,
+    index = 0,
+    editable = false,
+    showRewatchTier = false,
+  ) {
     if (record.status === "watchlist") {
       let item = record.item;
       let film = window.watchlistFilmLike(item);
@@ -133,7 +138,7 @@
         },
         escape,
       );
-      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", item.year))}">${escape(item.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, href: window.filmPageUrl(item.supabaseFilmId) })}${window.renderRatingTierCell({ item }, { escape })}</tr>`;
+      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", item.year))}">${escape(item.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, href: window.filmPageUrl(item.supabaseFilmId) })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td>${window.renderRatingTierCell({ item }, { escape })}</tr>`;
     }
     let film = record.film;
     let missingEditable = editable && record.status === "missing";
@@ -147,7 +152,7 @@
       },
       escape,
     );
-    return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}${record.status === "missing" ? `<td>${escape(ui("Not in your collection yet"))}</td>` : window.renderRatingTierCell({ film }, { escape })}</tr>`;
+    return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td>${record.status === "missing" ? `<td>${escape(ui("Not in your collection yet"))}</td>` : window.renderRatingTierCell({ film }, { escape, showRewatchTier })}</tr>`;
   }
 
   function render() {
@@ -160,7 +165,7 @@
     let finishRenderTimer = window.startOskarsPerformance?.("project:render");
     let watched = items.filter((record) => record.status === "watched");
     let queue = items
-      .filter((record) => record.status !== "watched")
+      .filter((record) => record.status !== "watched" || record.rewatch)
       .sort(recordCompare);
     let sortedWatched = [...watched].sort(recordCompare);
     let ratingStatistics = window.collectionRatingStatistics(
@@ -186,7 +191,7 @@
       .map((record, index) => itemCard(record, index, queueEditMode))
       .join("");
     let queueRows = queue
-      .map((record, index) => itemRow(record, index, queueEditMode))
+      .map((record, index) => itemRow(record, index, queueEditMode, true))
       .join("");
     let watchedCards = sortedWatched.map((record) => itemCard(record)).join("");
     let watchedRows = sortedWatched.map((record) => itemRow(record)).join("");
@@ -208,8 +213,21 @@
       )
       .join("");
 
+    let deckFilms = window.projectPosterDeckFilms
+      ? window.projectPosterDeckFilms({
+          watchlist: queue,
+          watched: sortedWatched,
+        })
+      : [];
+    let posterDeckHtml =
+      deckFilms.length && window.renderPosterDeck
+        ? `<div class="project-detail-poster">${window.renderPosterDeck(deckFilms)}</div>`
+        : "";
+
     container.innerHTML = `${window.renderBreadcrumbs([{ label: ui("Projects"), href: "projects.html" }, { label: project.name }], { escape })}${window.renderDetailHeader(
       {
+        classes: "project-detail-header",
+        leadingHtml: posterDeckHtml,
         mainHtml: `<h1>${escape(project.name)}</h1><p>${project.source_label ? escape(project.source_label) : escape(ui("Custom project"))} · <span class="project-status-badge">${escape(statusLabel)}</span></p>`,
         actionsHtml: `<button type="button" class="sort-order-button" data-pin-project${busy ? " disabled" : ""}>${escape(ui(project.pinned ? "Unpin" : "Pin"))}</button>`,
       },
@@ -226,6 +244,7 @@
     ${watched.length ? `<h2>${escape(ui("Watched"))}</h2>${filmView === "grid" ? `<div class="film-grid project-film-grid">${watchedCards}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))}</th></tr></thead><tbody>${watchedRows}</tbody></table></div>`}` : ""}
     <section class="project-manage" data-project-manage>
       <h2>${escape(ui("Manage"))}</h2>
+      <button type="button" class="sort-order-button" data-add-project-film${busy ? " disabled" : ""}>${escape(ui("Add film"))}</button>
       <ul class="project-manage-list">${items
         .map(
           (record) =>
@@ -233,6 +252,16 @@
         )
         .join("")}</ul>
       <button type="button" class="sort-order-button" data-delete-project${busy ? " disabled" : ""}>${escape(ui("Delete project"))}</button>
+      <dialog id="addProjectFilmDialog">
+        <form method="dialog" data-add-project-film-form>
+          <h2>${escape(ui("Add film"))}</h2>
+          <label class="wide">${escape(ui("Search films"))}
+            <input name="filmSearch" autocomplete="off" placeholder="${escape(ui("Start typing…"))}">
+          </label>
+          <p class="data-panel-status" data-add-project-film-status></p>
+          <div class="dialog-actions"><button type="button" data-add-project-film-cancel>${escape(ui("Cancel"))}</button></div>
+        </form>
+      </dialog>
       <dialog id="deleteProjectDialog">
         <form method="dialog">
           <h2>${escape(ui("Delete this project?"))}</h2>
@@ -256,6 +285,65 @@
         queueEditMode = !queueEditMode;
         window.location.href = projectViewUrl();
       });
+    let addDialog = container.querySelector("#addProjectFilmDialog");
+    let addForm = container.querySelector("[data-add-project-film-form]");
+    let addStatus = container.querySelector("[data-add-project-film-status]");
+    let addSearchInput = addForm?.querySelector('[name="filmSearch"]');
+    let projectFilmIds = new Set(
+      items.map((record) => (record.film || record.item).supabaseFilmId),
+    );
+    container
+      .querySelector("[data-add-project-film]")
+      ?.addEventListener("click", () => {
+        addForm?.reset();
+        if (addStatus) addStatus.textContent = "";
+        addDialog?.showModal();
+        addSearchInput?.focus();
+      });
+    container
+      .querySelector("[data-add-project-film-cancel]")
+      ?.addEventListener("click", () => addDialog?.close());
+    let addSearchTimer = null;
+    addSearchInput?.addEventListener("input", () => {
+      clearTimeout(addSearchTimer);
+      let query = addSearchInput.value;
+      addSearchTimer = setTimeout(async () => {
+        if (!query.trim()) {
+          if (addStatus) addStatus.innerHTML = "";
+          return;
+        }
+        try {
+          let results = await window.searchSupabaseFilmsByTitle(query);
+          let available = results.filter(
+            (film) => !projectFilmIds.has(film.id),
+          );
+          if (addStatus)
+            addStatus.innerHTML = available
+              .slice(0, 8)
+              .map(
+                (film) =>
+                  `<button type="button" class="sort-order-button" data-add-project-film-id="${escape(film.id)}">${escape(film.title)} (${escape(film.year || "")})</button>`,
+              )
+              .join(" ");
+        } catch (err) {
+          if (addStatus) addStatus.textContent = err.message || String(err);
+        }
+      }, 250);
+    });
+    addStatus?.addEventListener("click", async (event) => {
+      let button = event.target.closest("[data-add-project-film-id]");
+      if (!button) return;
+      addStatus.textContent = ui("Adding…");
+      try {
+        await window.addSupabaseCollectionItem(
+          project.id,
+          button.dataset.addProjectFilmId,
+        );
+        reload();
+      } catch (err) {
+        addStatus.textContent = err.message || String(err);
+      }
+    });
     container
       .querySelector("[data-pin-project]")
       ?.addEventListener("click", async () => {
@@ -316,16 +404,20 @@
     container
       .querySelector("[data-delete-project-cancel]")
       ?.addEventListener("click", () => deleteDialog?.close());
-    container
-      .querySelector("[data-delete-project-confirm]")
-      ?.addEventListener("click", async () => {
-        try {
-          await window.deleteSupabaseCollection(project.id);
-          window.location.href = "projects.html";
-        } catch (err) {
-          alert(err.message || String(err));
-        }
-      });
+    let deleteConfirmButton = container.querySelector(
+      "[data-delete-project-confirm]",
+    );
+    deleteConfirmButton?.addEventListener("click", async () => {
+      if (deleteConfirmButton.disabled) return;
+      deleteConfirmButton.disabled = true;
+      try {
+        await window.deleteSupabaseCollection(project.id);
+        window.location.href = "projects.html";
+      } catch (err) {
+        deleteConfirmButton.disabled = false;
+        alert(err.message || String(err));
+      }
+    });
     window.createOrderEditController({
       container,
       scope: "queue",

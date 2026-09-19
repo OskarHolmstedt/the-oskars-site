@@ -18,7 +18,8 @@
   /** Groups unrated watched records by release year. @returns {Map<string, FilmRecord[]>} Year queues in chronological film order. */
   window.unratedWatchedFilmsByYear = function () {
     let grouped = new Map();
-    window.watchedFilmsForRating()
+    window
+      .watchedFilmsForRating()
       .filter((film) => !window.filmRatingGrade?.(film))
       .sort(
         (left, right) =>

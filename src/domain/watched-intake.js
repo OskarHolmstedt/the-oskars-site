@@ -48,7 +48,9 @@
   /** Resolves the authoritative film record for a workflow. @param {WatchedFilmIntake|string} value Workflow or id. @returns {FilmRecord|WatchedOtherEntry|null} Film or null. */
   window.watchedIntakeFilm = function (value) {
     let workflow =
-      typeof value === "string" ? window.findWatchedIntakeWorkflow(value) : value;
+      typeof value === "string"
+        ? window.findWatchedIntakeWorkflow(value)
+        : value;
     if (!workflow) return null;
     return (
       window.findFilmById?.(workflow.filmId) ||
@@ -67,7 +69,8 @@
         values.id ||
         `intake-${values.source || "fresh"}-${values.filmId}-${createdAt}`,
       filmId: String(values.filmId || ""),
-      source: values.source === "watchlist-transition" ? values.source : "fresh",
+      source:
+        values.source === "watchlist-transition" ? values.source : "fresh",
       sourceRecordId: String(values.sourceRecordId || ""),
       createdAt,
       baseRevision: String(values.baseRevision || baseRevision()),
@@ -104,11 +107,13 @@
     // never contain two entries with the same id - no dedup needed here.
     let archive = Object.values(window.state.filmsById || {}).filter(
       (film) =>
-        (tmdbId && String(film.tmdbId || "") === tmdbId) || identity(film) === key,
+        (tmdbId && String(film.tmdbId || "") === tmdbId) ||
+        identity(film) === key,
     );
     let watched = (window.state.watchedOther || []).filter(
       (film) =>
-        (tmdbId && String(film.tmdbId || "") === tmdbId) || identity(film) === key,
+        (tmdbId && String(film.tmdbId || "") === tmdbId) ||
+        identity(film) === key,
     );
     return { archive, watched };
   }
@@ -131,7 +136,8 @@
     let parsed = window.parseFilmRating?.(values.rating || "");
     let errors = [];
     if (!title) errors.push("Title is required.");
-    if (!/^\d{4}$/.test(year)) errors.push("A four-digit release year is required.");
+    if (!/^\d{4}$/.test(year))
+      errors.push("A four-digit release year is required.");
     if (values.rating && !parsed?.value) errors.push("Rating is invalid.");
     let record = {
       id: String(values.id || `${year}::${window.normalizeTitle(title)}`),
@@ -160,13 +166,26 @@
         : {}),
       ...(Number(values.views) > 0 ? { views: Number(values.views) } : {}),
     };
-    let matches = title && /^\d{4}$/.test(year) ? exactMatches(record) : { archive: [], watched: [] };
+    let matches =
+      title && /^\d{4}$/.test(year)
+        ? exactMatches(record)
+        : { archive: [], watched: [] };
     if (matches.archive.length + matches.watched.length > 1)
-      errors.push("More than one watched or archive identity matches this film.");
+      errors.push(
+        "More than one watched or archive identity matches this film.",
+      );
     let target = matches.archive[0]
-      ? { type: "archive", id: matches.archive[0].id, before: clone(matches.archive[0]) }
+      ? {
+          type: "archive",
+          id: matches.archive[0].id,
+          before: clone(matches.archive[0]),
+        }
       : matches.watched[0]
-        ? { type: "watched", id: matches.watched[0].id, before: clone(matches.watched[0]) }
+        ? {
+            type: "watched",
+            id: matches.watched[0].id,
+            before: clone(matches.watched[0]),
+          }
         : { type: "watched", id: record.id, before: null };
     return {
       ok: errors.length === 0,
@@ -176,7 +195,9 @@
       createdAt: now(values),
       sourceSignature: freshSourceSignature(record),
       actions: [
-        target.before ? `Merge into ${target.before.title}` : `Create watched film ${title}`,
+        target.before
+          ? `Merge into ${target.before.title}`
+          : `Create watched film ${title}`,
         "Create the shared rating, ranking, and awards intake",
         "Mark the browser draft unpublished",
       ],
@@ -186,19 +207,26 @@
   function updateArchiveCopies(filmId, updater) {
     Object.values(window.state.years || {}).forEach((period) => {
       (period.films || []).forEach((film) => {
-        if (film.id === filmId || identity(film) === identity(window.findFilmById?.(filmId)))
+        if (
+          film.id === filmId ||
+          identity(film) === identity(window.findFilmById?.(filmId))
+        )
           updater(film);
       });
     });
   }
 
   function markDraft(reason, changedAt) {
-    window.state.draftMetadata = Object.assign({}, window.state.draftMetadata || {}, {
-      baseRevision: baseRevision(),
-      dirty: true,
-      changedAt,
-      reason,
-    });
+    window.state.draftMetadata = Object.assign(
+      {},
+      window.state.draftMetadata || {},
+      {
+        baseRevision: baseRevision(),
+        dirty: true,
+        changedAt,
+        reason,
+      },
+    );
   }
 
   /** Applies a valid fresh-watched plan and creates the shared workflow atomically. @param {Object} plan Fresh plan. @param {Object} [options] Save controls. @returns {Object} Result. */
@@ -221,7 +249,8 @@
     } else if (plan.target.before) {
       target = window.findWatchedFilmById(plan.target.id);
       Object.entries(plan.record).forEach(([key, value]) => {
-        if (target[key] == null || target[key] === "") target[key] = clone(value);
+        if (target[key] == null || target[key] === "")
+          target[key] = clone(value);
       });
     } else {
       target = clone(plan.record);
@@ -242,7 +271,11 @@
       summary: `${target.title} watched intake started`,
       target: { type: "other", id: target.id, label: target.title },
       changes: [
-        { field: "Watched identity", before: plan.target.before ? "Existing" : "None", after: plan.target.type },
+        {
+          field: "Watched identity",
+          before: plan.target.before ? "Existing" : "None",
+          after: plan.target.type,
+        },
         { field: "Intake", before: "None", after: "Open" },
       ],
       context: { filmId: target.id, workflowId: workflow.id, source: "fresh" },
@@ -251,15 +284,21 @@
     plan.applied = true;
     plan.workflow = workflow;
     plan.film = target;
-    if (options.save !== false) plan.persisted = window.save({ immediate: true, rebuild: false });
+    if (options.save !== false)
+      plan.persisted = window.save({ immediate: true, rebuild: false });
     return plan;
   };
 
   /** Updates rating and viewing facts, completing rating only after a valid rating. @param {string} workflowId Workflow id. @param {Object} values Facts. @param {Object} [options] Save controls. @returns {Object} Result. */
-  window.completeWatchedIntakeRating = function (workflowId, values = {}, options = {}) {
+  window.completeWatchedIntakeRating = function (
+    workflowId,
+    values = {},
+    options = {},
+  ) {
     let workflow = window.findWatchedIntakeWorkflow(workflowId);
     let film = window.watchedIntakeFilm(workflow);
-    if (!workflow || !film || workflow.completedAt) return { ok: false, reason: "missing" };
+    if (!workflow || !film || workflow.completedAt)
+      return { ok: false, reason: "missing" };
     let parsed = window.parseFilmRating?.(values.rating || film.rating || "");
     if (!parsed?.value) return { ok: false, reason: "rating-required" };
     let facts = {
@@ -277,7 +316,10 @@
         : {}),
     };
     if (window.findWatchedFilmById(workflow.filmId)) Object.assign(film, facts);
-    else updateArchiveCopies(workflow.filmId, (copy) => Object.assign(copy, facts));
+    else
+      updateArchiveCopies(workflow.filmId, (copy) =>
+        Object.assign(copy, facts),
+      );
     let completedAt = now(values);
     workflow.steps.rating = {
       status: "complete",
@@ -294,7 +336,8 @@
       changes: [{ field: "Rating", before: "Pending", after: facts.rating }],
       context: { filmId: workflow.filmId, workflowId: workflow.id },
     });
-    if (options.save !== false) window.save({ immediate: true, rebuild: false });
+    if (options.save !== false)
+      window.save({ immediate: true, rebuild: false });
     return { ok: true, workflow, film, auditEntry: audit };
   };
 
@@ -303,7 +346,10 @@
       (film) => film?.title && !film.suppressAllTimeRank,
     );
     let seen = new Set();
-    return [...archive, ...(window.state.watchedOther || []).filter((film) => film.allTimeRank)]
+    return [
+      ...archive,
+      ...(window.state.watchedOther || []).filter((film) => film.allTimeRank),
+    ]
       .filter((film) => {
         let key = identity(film);
         if (seen.has(key)) return false;
@@ -314,7 +360,10 @@
         window.compareByAllTimeRank(
           left,
           right,
-          (item) => ({ allTimeRank: item.allTimeRank || item.rank, title: item.title }),
+          (item) => ({
+            allTimeRank: item.allTimeRank || item.rank,
+            title: item.title,
+          }),
           { yearFallback: false },
         ),
       );
@@ -338,24 +387,35 @@
     let level = RANKING_LEVELS[decisions.length] || "allTime";
     let filmYear = Number(window.filmConcreteYear?.(film.year) || film.year);
     let candidates = rankedCandidates().filter((candidate) => {
-      if (identity(candidate) === identity(film) || ratingKey(candidate) !== ratingKey(film)) return false;
-      let year = Number(window.filmConcreteYear?.(candidate.year) || candidate.year);
+      if (
+        identity(candidate) === identity(film) ||
+        ratingKey(candidate) !== ratingKey(film)
+      )
+        return false;
+      let year = Number(
+        window.filmConcreteYear?.(candidate.year) || candidate.year,
+      );
       if (level === "year") return year === filmYear;
-      if (level === "decade") return window.getDecadeKey(year) === window.getDecadeKey(filmYear);
-      if (level === "century") return window.getCenturyKey(year) === window.getCenturyKey(filmYear);
+      if (level === "decade")
+        return window.getDecadeKey(year) === window.getDecadeKey(filmYear);
+      if (level === "century")
+        return window.getCenturyKey(year) === window.getCenturyKey(filmYear);
       return true;
     });
     return { ok: true, workflow, film, level, decisions, candidates };
   };
 
   function visualRankingScope(guide) {
-    let year = Number(window.filmConcreteYear?.(guide.film.year) || guide.film.year);
+    let year = Number(
+      window.filmConcreteYear?.(guide.film.year) || guide.film.year,
+    );
     if (guide.level === "year")
       return {
         key: String(year),
         matches: (candidate) =>
-          Number(window.filmConcreteYear?.(candidate.year) || candidate.year) ===
-          year,
+          Number(
+            window.filmConcreteYear?.(candidate.year) || candidate.year,
+          ) === year,
       };
     if (guide.level === "allTime")
       return {
@@ -487,17 +547,26 @@
     );
     if (!exists) {
       let copy = clone(film);
-      copy.awards = (copy.awards || []).filter((award) => String(award.year) === "alltime");
+      copy.awards = (copy.awards || []).filter(
+        (award) => String(award.year) === "alltime",
+      );
       window.state.years.alltime.films.push(copy);
     }
   }
 
   function applyGlobalPlacement(film, target, position) {
-    if (!window.findWatchedFilmById?.(film.id)) addArchiveToAllTimeIfNeeded(film);
-    let all = rankedCandidates().filter((candidate) => identity(candidate) !== identity(film));
-    let targetIndex = all.findIndex((candidate) => identity(candidate) === identity(target));
+    if (!window.findWatchedFilmById?.(film.id))
+      addArchiveToAllTimeIfNeeded(film);
+    let all = rankedCandidates().filter(
+      (candidate) => identity(candidate) !== identity(film),
+    );
+    let targetIndex = all.findIndex(
+      (candidate) => identity(candidate) === identity(target),
+    );
     if (targetIndex < 0) return false;
-    let placement = Number(target.allTimeRank || target.rank || targetIndex + 1);
+    let placement = Number(
+      target.allTimeRank || target.rank || targetIndex + 1,
+    );
     film.allTimeRank = placement + (position === "after" ? 0.25 : -0.25);
     if (!window.findWatchedFilmById?.(film.id))
       updateArchiveCopies(film.id, (copy) => {
@@ -514,10 +583,14 @@
     options = {},
   ) {
     let guide = window.watchedIntakeRankingGuide(workflowId);
-    if (!guide.ok || guide.workflow.steps.ranking.status === "complete") return guide;
+    if (!guide.ok || guide.workflow.steps.ranking.status === "complete")
+      return guide;
     let position = decision.position === "after" ? "after" : "before";
-    let target = guide.candidates.find((candidate) => candidate.id === decision.targetFilmId);
-    if (!target && guide.candidates.length) return { ok: false, reason: "invalid-target", guide };
+    let target = guide.candidates.find(
+      (candidate) => candidate.id === decision.targetFilmId,
+    );
+    if (!target && guide.candidates.length)
+      return { ok: false, reason: "invalid-target", guide };
     if (["decade", "century", "allTime"].includes(guide.level)) {
       let board = window.watchedIntakeRankingBoard(workflowId);
       if (!board.ok) return board;
@@ -536,7 +609,10 @@
     let reference = target
       ? `${guide.level}:${position}:${target.id}`
       : `${guide.level}:not-applicable:`;
-    let decisions = [...guide.decisions.map((parts) => parts.join(":")), reference];
+    let decisions = [
+      ...guide.decisions.map((parts) => parts.join(":")),
+      reference,
+    ];
     let completedAt = now(decision);
     if (guide.level === "allTime") {
       if (!target) {
@@ -566,11 +642,27 @@
       type: "watched intake ranking",
       summary: `${guide.film.title} ${guide.level} ranking reviewed`,
       target: { type: "other", id: guide.film.id, label: guide.film.title },
-      changes: [{ field: guide.level, before: "Pending", after: target ? `${position} ${target.title}` : "Not applicable" }],
-      context: { filmId: guide.workflow.filmId, workflowId, rankingLevel: guide.level },
+      changes: [
+        {
+          field: guide.level,
+          before: "Pending",
+          after: target ? `${position} ${target.title}` : "Not applicable",
+        },
+      ],
+      context: {
+        filmId: guide.workflow.filmId,
+        workflowId,
+        rankingLevel: guide.level,
+      },
     });
-    if (options.save !== false) window.save({ immediate: true, rebuild: false });
-    return { ok: true, workflow: guide.workflow, film: guide.film, auditEntry: audit };
+    if (options.save !== false)
+      window.save({ immediate: true, rebuild: false });
+    return {
+      ok: true,
+      workflow: guide.workflow,
+      film: guide.film,
+      auditEntry: audit,
+    };
   };
 
   function awardPeriodKey(film, level) {
@@ -661,7 +753,10 @@
   }
 
   /** Builds the resumable category-by-category awards queue for one level. @param {string} workflowId Workflow id. @param {string} [level] Award level ("year", "decade", "century", "allTime"). @returns {Object} Award review guide. */
-  window.watchedIntakeAnnualAwardsGuide = function (workflowId, level = "year") {
+  window.watchedIntakeAnnualAwardsGuide = function (
+    workflowId,
+    level = "year",
+  ) {
     let workflow = window.findWatchedIntakeWorkflow(workflowId);
     let film = window.watchedIntakeFilm(workflow);
     if (!workflow || !film) return { ok: false, reason: "missing" };
@@ -879,11 +974,12 @@
     let nextGuide = window.watchedIntakeAnnualAwardsGuide(workflowId, level);
     let completion = null;
     if (nextGuide.ok && !nextGuide.current) {
-      let hasAwards = awardsForFilmAtLevel(
-        window.watchedIntakeFilm(guide.workflow),
-        guide.year,
-        periodType,
-      ).length > 0;
+      let hasAwards =
+        awardsForFilmAtLevel(
+          window.watchedIntakeFilm(guide.workflow),
+          guide.year,
+          periodType,
+        ).length > 0;
       completion = window.completeWatchedIntakeAwardsLevel(
         workflowId,
         level,
@@ -905,10 +1001,7 @@
   };
 
   /** Completes an already exhausted category queue without changing nominations. @param {string} workflowId Workflow id. @param {Object} [options] Save controls, plus level ("year" default). @returns {Object} Result. */
-  window.finishWatchedIntakeAnnualAwards = function (
-    workflowId,
-    options = {},
-  ) {
+  window.finishWatchedIntakeAnnualAwards = function (workflowId, options = {}) {
     let level = options.level || "year";
     let guide = window.watchedIntakeAnnualAwardsGuide(workflowId, level);
     if (!guide.ok) return guide;
@@ -963,14 +1056,26 @@
     let workflow = window.findWatchedIntakeWorkflow(workflowId);
     let film = window.watchedIntakeFilm(workflow);
     let index = AWARD_LEVELS.indexOf(level);
-    if (!workflow || !film || index < 0 || !["complete", "none", "not-applicable"].includes(status))
+    if (
+      !workflow ||
+      !film ||
+      index < 0 ||
+      !["complete", "none", "not-applicable"].includes(status)
+    )
       return { ok: false, reason: "invalid" };
-    if (workflow.steps.ranking.status === "pending") return { ok: false, reason: "ranking-required" };
-    if (AWARD_LEVELS.slice(0, index).some((name) => workflow.steps.awards[name].status === "pending"))
+    if (workflow.steps.ranking.status === "pending")
+      return { ok: false, reason: "ranking-required" };
+    if (
+      AWARD_LEVELS.slice(0, index).some(
+        (name) => workflow.steps.awards[name].status === "pending",
+      )
+    )
       return { ok: false, reason: "previous-level-required" };
     let periodKey = awardPeriodKey(film, level);
-    let matchingAwards = (film.awards || []).filter(
-      (award) => String(award.year || "") === String(periodKey),
+    let matchingAwards = awardsForFilmAtLevel(
+      film,
+      periodKey,
+      AWARD_PERIOD_TYPES[level],
     );
     if (status === "complete" && !matchingAwards.length)
       return { ok: false, reason: "no-awards-recorded" };
@@ -989,9 +1094,15 @@
       summary: `${film.title} ${level} awards reviewed`,
       target: { type: "other", id: film.id, label: film.title },
       changes: [{ field: `${level} awards`, before: "Pending", after: status }],
-      context: { filmId: workflow.filmId, workflowId, awardsLevel: level, periodKey },
+      context: {
+        filmId: workflow.filmId,
+        workflowId,
+        awardsLevel: level,
+        periodKey,
+      },
     });
-    if (options.save !== false) window.save({ immediate: true, rebuild: false });
+    if (options.save !== false)
+      window.save({ immediate: true, rebuild: false });
     return { ok: true, workflow, film, auditEntry: audit };
   };
 
@@ -1004,10 +1115,18 @@
     if (workflow.steps.rating.status !== "complete") pending.push("rating");
     if (workflow.steps.ranking.status === "pending") pending.push("ranking");
     AWARD_LEVELS.forEach((level) => {
-      if (workflow.steps.awards[level].status === "pending") pending.push(`${level} awards`);
+      if (workflow.steps.awards[level].status === "pending")
+        pending.push(`${level} awards`);
     });
     let summary = `${film.title}: ${film.rating || "unrated"}; ${film.allTimeRank ? `all-time #${film.allTimeRank}` : "global rank not applicable"}; awards ${AWARD_LEVELS.map((level) => `${level}=${workflow.steps.awards[level].status}`).join(", ")}`;
-    return { ok: pending.length === 0, reason: pending.length ? "pending" : "", workflow, film, pending, summary: summary.slice(0, 1000) };
+    return {
+      ok: pending.length === 0,
+      reason: pending.length ? "pending" : "",
+      workflow,
+      film,
+      pending,
+      summary: summary.slice(0, 1000),
+    };
   };
 
   /** Explicitly completes a fully reviewed intake. @param {string} workflowId Workflow id. @param {Object} [options] Save controls. @returns {Object} Result. */
@@ -1026,7 +1145,8 @@
     });
     plan.workflow.auditEntryId = audit.id;
     markDraft("watched-intake-completed", completedAt);
-    if (options.save !== false) window.save({ immediate: true, rebuild: false });
+    if (options.save !== false)
+      window.save({ immediate: true, rebuild: false });
     return Object.assign(plan, { auditEntry: audit });
   };
 
@@ -1034,12 +1154,15 @@
   window.reopenWatchedIntake = function (workflowId, options = {}) {
     let workflow = window.findWatchedIntakeWorkflow(workflowId);
     let film = window.watchedIntakeFilm(workflow);
-    if (!workflow || !film || !workflow.completedAt) return { ok: false, reason: "not-complete" };
+    if (!workflow || !film || !workflow.completedAt)
+      return { ok: false, reason: "not-complete" };
     let reopenedAt = now(options);
     workflow.reopenedAt = reopenedAt;
     delete workflow.completedAt;
     delete workflow.summary;
-    let level = [...AWARD_LEVELS].reverse().find((name) => workflow.steps.awards[name].status !== "pending");
+    let level = [...AWARD_LEVELS]
+      .reverse()
+      .find((name) => workflow.steps.awards[name].status !== "pending");
     if (level) workflow.steps.awards[level] = { status: "pending" };
     markDraft("watched-intake-reopened", reopenedAt);
     let audit = window.recordEdit({
@@ -1050,7 +1173,8 @@
       context: { filmId: workflow.filmId, workflowId },
     });
     workflow.auditEntryId = audit.id;
-    if (options.save !== false) window.save({ immediate: true, rebuild: false });
+    if (options.save !== false)
+      window.save({ immediate: true, rebuild: false });
     return { ok: true, workflow, film, auditEntry: audit };
   };
 })();

@@ -134,8 +134,13 @@
     try {
       let source = await window.loadSupabaseOfficialResultsSource();
       let live = window.buildOfficialResultsFromSupabase(source);
-      if (!Object.keys(live).length) return false;
-      window.state.officialResults = live;
+      let liveKeys = Object.keys(live);
+      if (!liveKeys.length) return false;
+      window.state.officialResults = Object.assign(
+        {},
+        window.state.officialResults || {},
+        live,
+      );
       return true;
     } catch (err) {
       console.warn("Could not load live official results from Supabase.", err);

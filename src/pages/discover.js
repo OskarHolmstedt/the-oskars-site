@@ -273,7 +273,7 @@
       rating: false,
       escape,
       beforeTitleHtml: options.beforeTitleHtml || "",
-      titleHtml: `<h2><a href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(title)}</a></h2>`,
+      titleHtml: `<h2><a href="${escape(window.filmPageUrl(item.supabaseFilmId || item.id))}">${escape(title)}</a></h2>`,
       bodyHtml: `<p>${escape(item.year || "")}${item.director ? ` · ${escape(item.director)}` : ""}</p>${window.renderWatchlistTierBadge(item.tier, { escape, modifier: item.tierModifier })}${options.extraBodyHtml || ""}${tags.length ? `<div class="film-tag-list">${tags.map((tag) => `<a class="film-tag" href="${escape(window.tagPageUrl(tag))}">${escape(tag)}</a>`).join("")}</div>` : ""}`,
     });
   }
@@ -325,9 +325,14 @@
   container.addEventListener("click", (event) => {
     let copyButton = event.target.closest("[data-copy-view-link]");
     if (copyButton) {
-      window.copyViewLink().then((copied) => {
-        copyButton.textContent = ui(copied ? "Copied" : "Copy failed");
-      });
+      window
+        .copyViewLink()
+        .then((copied) => {
+          copyButton.textContent = ui(copied ? "Copied" : "Copy failed");
+        })
+        .catch(() => {
+          copyButton.textContent = ui("Copy failed");
+        });
       return;
     }
     let button = event.target.closest("[data-discover]");
@@ -362,7 +367,9 @@
       : emptyResultHtml();
   });
   container.addEventListener("change", (event) => {
-    if (!event.target.closest("#discoveryFilters select, #discoveryFilters input"))
+    if (
+      !event.target.closest("#discoveryFilters select, #discoveryFilters input")
+    )
       return;
     filters();
     discoverUrlState.replace(currentFilters);

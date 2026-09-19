@@ -123,7 +123,8 @@ function ratingStatisticsFilmKey(film) {
   if (id) return `id:${id}`;
   let title = window.normalizeTitle?.(film?.normalizedTitle || film?.title);
   if (title) {
-    let year = window.filmConcreteYear?.(film?.year) || String(film?.year || "");
+    let year =
+      window.filmConcreteYear?.(film?.year) || String(film?.year || "");
     return `film:${year}::${title}`;
   }
   return film;
@@ -174,7 +175,9 @@ window.collectionRatingStatistics = function (films = []) {
 
 /** Formats a nullable rating statistic to two decimals. @param {number|null|undefined} value Statistic. @returns {string} Formatted statistic. */
 window.formatRatingStatistic = function (value) {
-  return value === null || value === undefined || !Number.isFinite(Number(value))
+  return value === null ||
+    value === undefined ||
+    !Number.isFinite(Number(value))
     ? "—"
     : Number(value).toFixed(2);
 };
@@ -192,7 +195,9 @@ window.formatAverageRating = function (value) {
   let grade = Math.max(1, Math.min(30, Math.round(numeric * 6)));
   let rating = window.filmRatingFromGrade?.(grade);
   let stars = rating ? window.renderFilmRating?.(rating) || "" : "";
-  return [stars, window.formatRatingStatistic(numeric)].filter(Boolean).join(" ");
+  return [stars, window.formatRatingStatistic(numeric)]
+    .filter(Boolean)
+    .join(" ");
 };
 
 function viewingRatingPeriodRows(records, keyForFilm) {
@@ -403,9 +408,16 @@ function calculateAwardStats(awards) {
   });
 }
 
-function getFilmStats(film, periodKey, periodType) {
+/**
+ * Calculates film award summary statistics filtered to an optional period and period type.
+ * @param {FilmRecord} film Film record.
+ * @param {string} [periodKey] Period key to filter awards.
+ * @param {string} [periodType] Period type (e.g. 'decade', 'century') to resolve collisions.
+ * @returns {Object} Award placement and score summary.
+ */
+window.getFilmStats = function getFilmStats(film, periodKey, periodType) {
   let awards = (film.awards || []).filter((award) =>
     isAwardVisibleForPeriod(award, periodKey, periodType),
   );
   return calculateAwardStats(awards);
-}
+};

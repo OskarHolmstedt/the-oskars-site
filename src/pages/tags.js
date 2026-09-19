@@ -36,7 +36,8 @@
     } else {
       let nextSort = next.sort || sort;
       let nextOrder = next.order || order;
-      if (nextSort !== "title") params.push(`sort=${encodeURIComponent(nextSort)}`);
+      if (nextSort !== "title")
+        params.push(`sort=${encodeURIComponent(nextSort)}`);
       if (nextOrder !== defaultOrderForSort(nextSort))
         params.push(`order=${encodeURIComponent(nextOrder)}`);
     }
@@ -114,16 +115,17 @@
     let header = window.renderDetailHeader({
       mainHtml: `<h1>${escape(ui("Tags"))}</h1><p>${escape(ui("Personal collections and themes across the film library."))}</p>`,
     });
-    container.innerHTML =
-      `${header}${orderedTags.length ? `<form class="tags-controls" id="tagsControls"><div class="tags-sort-controls"><label class="tags-sort-control"><span>${escape(ui("Sort"))}</span><select data-tags-sort><option value="title"${sort === "title" ? " selected" : ""}>${escape(ui("Title"))}</option><option value="count"${sort === "count" ? " selected" : ""}>${escape(ui("Watched film count"))}</option><option value="rating"${sort === "rating" ? " selected" : ""}>${escape(ui("Average rating"))}</option></select></label>${window.renderChronologyControl({ iconOnly: true, escape, title: orderToggleLabel() })}${window.renderShuffleControl({ escape, label: ui("Shuffle") })}</div></form>${paginationControls}<div class="tag-grid">${cards}</div>${paginationControls}` : `<div class="detail-empty">${escape(ui("No film tags yet. Add them from a film’s Edit mode."))}</div>`}`;
-    container.querySelectorAll?.("[data-start-project-source]").forEach((button) => {
-      button.addEventListener("click", () => {
-        window.startProjectFromSourceAndOpen(
-          button.dataset.startProjectSource,
-          button.dataset.projectSourceId,
-        );
+    container.innerHTML = `${header}${orderedTags.length ? `<form class="tags-controls" id="tagsControls"><div class="tags-sort-controls"><label class="tags-sort-control"><span>${escape(ui("Sort"))}</span><select data-tags-sort><option value="title"${sort === "title" ? " selected" : ""}>${escape(ui("Title"))}</option><option value="count"${sort === "count" ? " selected" : ""}>${escape(ui("Watched film count"))}</option><option value="rating"${sort === "rating" ? " selected" : ""}>${escape(ui("Average rating"))}</option></select></label>${window.renderChronologyControl({ iconOnly: true, escape, title: orderToggleLabel() })}${window.renderShuffleControl({ escape, label: ui("Shuffle") })}</div></form>${paginationControls}<div class="tag-grid">${cards}</div>${paginationControls}` : `<div class="detail-empty">${escape(ui("No film tags yet. Add them from a film’s Edit mode."))}</div>`}`;
+    container
+      .querySelectorAll?.("[data-start-project-source]")
+      .forEach((button) => {
+        button.addEventListener("click", () => {
+          window.startProjectFromSourceAndOpen(
+            button.dataset.startProjectSource,
+            button.dataset.projectSourceId,
+          );
+        });
       });
-    });
     finishRenderTimer?.(`${tags.length} tags`);
   }
 

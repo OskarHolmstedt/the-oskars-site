@@ -12,6 +12,8 @@ function filmCardAttributes(attributes, escape) {
 function collectionActionIcon(kind) {
   if (kind === "watched")
     return `<svg class="collection-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="m8 12 2.5 2.5L16 9"></path></svg>`;
+  if (kind === "rewatch")
+    return `<svg class="collection-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7a8.5 8.5 0 0 1 14.8 1.5"></path><path d="M19 4v5h-5"></path><path d="M20 17a8.5 8.5 0 0 1-14.8-1.5"></path><path d="M5 20v-5h5"></path></svg>`;
   return `<svg class="collection-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.5 3.5h11v17l-5.5-3.5-5.5 3.5z"></path><path d="M12 7v6M9 10h6"></path></svg>`;
 }
 
@@ -20,7 +22,7 @@ function collectionActionIcon(kind) {
  * collection, or (with `active`) a pressed toggle representing "already in
  * this collection, click to remove."
  * @param {Object} options Action kind, label, attributes, and escaping.
- * @param {'watchlist'|'watched'} options.kind Destination collection.
+ * @param {'watchlist'|'watched'|'rewatch'} options.kind Destination collection or rewatch toggle.
  * @param {string} options.label Localized accessible action name.
  * @param {boolean} [options.active] Renders a filled/pressed toggle state
  *   (`is-active` class, `aria-pressed="true"`) for a removal action, instead
@@ -32,7 +34,9 @@ function collectionActionIcon(kind) {
  */
 window.renderCollectionActionButton = function (options = {}) {
   let escape = options.escape || window.pageEscape;
-  let kind = options.kind === "watched" ? "watched" : "watchlist";
+  let kind = ["watched", "rewatch"].includes(options.kind)
+    ? options.kind
+    : "watchlist";
   let label = String(options.label || "").trim();
   let active = Boolean(options.active);
   let extraClasses = Array.isArray(options.classes)

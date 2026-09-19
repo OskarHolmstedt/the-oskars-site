@@ -83,7 +83,9 @@
 
   function milestoneDismissed(id) {
     try {
-      return localStorage.getItem(`oskars-build-milestone:${id}`) === "dismissed";
+      return (
+        localStorage.getItem(`oskars-build-milestone:${id}`) === "dismissed"
+      );
     } catch (error) {
       return false;
     }
@@ -91,14 +93,46 @@
 
   function milestoneCopy(milestone) {
     if (milestone.type === "archive")
-      return { eyebrow: ui("Archive milestone"), title: ui("Your Oskars are complete"), text: ui("Every watched year is rated, ranked, and celebrated."), href: "presentation.html", action: ui("Open the showcase") };
+      return {
+        eyebrow: ui("Archive milestone"),
+        title: ui("Your Oskars are complete"),
+        text: ui("Every watched year is rated, ranked, and celebrated."),
+        href: "presentation.html",
+        action: ui("Open the showcase"),
+      };
     if (milestone.type === "decade")
-      return { eyebrow: ui("Decade milestone"), title: ui("{scope} is complete", { scope: milestone.key }), text: ui("Every watched year in this decade has completed its creative journey."), href: window.periodPageUrl("decade", milestone.key), action: ui("View the decade") };
+      return {
+        eyebrow: ui("Decade milestone"),
+        title: ui("{scope} is complete", { scope: milestone.key }),
+        text: ui(
+          "Every watched year in this decade has completed its creative journey.",
+        ),
+        href: window.periodPageUrl("decade", milestone.key),
+        action: ui("View the decade"),
+      };
     if (milestone.type === "ceremony")
-      return { eyebrow: ui("Ceremony complete"), title: ui("Your {year} ceremony is ready", { year: milestone.key }), text: ui("The ballot is sealed and ready to present."), href: `presentation.html?scope=period&id=year:${encodeURIComponent(milestone.key)}`, action: ui("Run the ceremony") };
+      return {
+        eyebrow: ui("Ceremony complete"),
+        title: ui("Your {year} ceremony is ready", { year: milestone.key }),
+        text: ui("The ballot is sealed and ready to present."),
+        href: `presentation.html?scope=period&id=year:${encodeURIComponent(milestone.key)}`,
+        action: ui("Run the ceremony"),
+      };
     if (milestone.type === "ranked")
-      return { eyebrow: ui("Year ranked"), title: ui("{scope} has its order", { scope: milestone.key }), text: ui("The year's same-rating shelves are deliberately arranged."), href: window.yearAwardsPageUrl(milestone.key), action: ui("Build the ceremony") };
-    return { eyebrow: ui("Year rated"), title: ui("{scope} is rated", { scope: milestone.key }), text: ui("Every watched work from the year now has your grade."), href: window.yearRankingPageUrl(milestone.key), action: ui("Rank this year") };
+      return {
+        eyebrow: ui("Year ranked"),
+        title: ui("{scope} has its order", { scope: milestone.key }),
+        text: ui("The year's same-rating shelves are deliberately arranged."),
+        href: window.yearAwardsPageUrl(milestone.key),
+        action: ui("Build the ceremony"),
+      };
+    return {
+      eyebrow: ui("Year rated"),
+      title: ui("{scope} is rated", { scope: milestone.key }),
+      text: ui("Every watched work from the year now has your grade."),
+      href: window.yearRankingPageUrl(milestone.key),
+      action: ui("Rank this year"),
+    };
   }
 
   function renderMilestone(milestone) {
@@ -113,10 +147,13 @@
     let recommendation = window.buildJourneyRecommendation(years);
     let milestone = window.buildJourneyMilestone(years);
     let requestedStage = window.pageQueryParam("stage");
-    let stage = ["rating", "ranking", "awards", "complete"].includes(requestedStage)
+    let stage = ["rating", "ranking", "awards", "complete"].includes(
+      requestedStage,
+    )
       ? requestedStage
       : "all";
-    let visible = stage === "all" ? years : years.filter((year) => year.stage === stage);
+    let visible =
+      stage === "all" ? years : years.filter((year) => year.stage === stage);
     let totals = years.reduce(
       (summary, year) => {
         summary.watched += year.totalCount;
@@ -128,7 +165,15 @@
         if (year.stage === "complete") summary.completeYears += 1;
         return summary;
       },
-      { watched: 0, rated: 0, rankingGroups: 0, reviewedGroups: 0, awardSlots: 0, filledSlots: 0, completeYears: 0 },
+      {
+        watched: 0,
+        rated: 0,
+        rankingGroups: 0,
+        reviewedGroups: 0,
+        awardSlots: 0,
+        filledSlots: 0,
+        completeYears: 0,
+      },
     );
     let filters = [
       ["all", ui("All years")],
@@ -137,7 +182,10 @@
       ["awards", ui("Ceremonies")],
       ["complete", ui("Complete")],
     ]
-      .map(([value, label]) => `<a href="${escape(filterUrl(value))}"${stage === value ? ' class="active" aria-current="page"' : ""}>${escape(label)}<span>${escape(value === "all" ? years.length : years.filter((year) => year.stage === value).length)}</span></a>`)
+      .map(
+        ([value, label]) =>
+          `<a href="${escape(filterUrl(value))}"${stage === value ? ' class="active" aria-current="page"' : ""}>${escape(label)}<span>${escape(value === "all" ? years.length : years.filter((year) => year.stage === value).length)}</span></a>`,
+      )
       .join("");
     let recommendationAction = recommendation && stageAction(recommendation);
     let recommendationSecondary =
@@ -154,7 +202,9 @@
       ${recommendation ? `<section class="build-continue-card"><div><span class="eyebrow">${escape(ui("Continue your journey"))}</span><h2>${escape(recommendation.year)}</h2><p>${escape(stageLabel(recommendation.stage))} · ${escape(recommendation.ratedCount)} / ${escape(recommendation.totalCount)} ${escape(ui("rated"))}</p><div class="build-year-card-actions"><a class="button-link" href="${escape(recommendationAction.href)}">${escape(recommendationAction.label)} →</a>${recommendationSecondary ? `<a class="build-year-action-secondary" href="${escape(recommendationSecondary.href)}">${escape(recommendationSecondary.label)} →</a>` : ""}</div></div>${window.renderPosterDeck(recommendation.posterFilms, { classes: "poster-deck--featured" })}</section>` : ""}
       <nav class="build-stage-filters" aria-label="${escape(ui("Filter years by next stage"))}">${filters}</nav>
       <section><div class="build-year-grid">${visible.map(yearCard).join("") || `<p class="detail-empty">${escape(ui("No years at this stage."))}</p>`}</div></section>`;
-    finish?.(`${years.length} years, ${visible.length} shown, ${recommendation?.year || "complete"}`);
+    finish?.(
+      `${years.length} years, ${visible.length} shown, ${recommendation?.year || "complete"}`,
+    );
   }
 
   container.addEventListener("click", (event) => {
@@ -162,7 +212,10 @@
     if (!dismiss) return;
     let milestone = dismiss.closest("[data-build-milestone]");
     try {
-      localStorage.setItem(`oskars-build-milestone:${milestone.dataset.buildMilestone}`, "dismissed");
+      localStorage.setItem(
+        `oskars-build-milestone:${milestone.dataset.buildMilestone}`,
+        "dismissed",
+      );
     } catch (error) {}
     render();
   });
@@ -183,7 +236,9 @@
       ]);
       journeyYears = window.buildJourneyYears(
         workspace.watched,
-        ranking.filter((scope) => scope.scope_type === "years").flatMap((scope) => scope.ranking_entries),
+        ranking
+          .filter((scope) => scope.scope_type === "years")
+          .flatMap((scope) => scope.ranking_entries),
         awardReviews,
         window.getOrderedCategories?.() || [],
       );

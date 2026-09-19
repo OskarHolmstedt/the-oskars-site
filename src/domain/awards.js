@@ -75,7 +75,9 @@ window.withoutAnnualBallotNomination = function (
     nextCategory: categories.find((entry) => !entry.reviewed)?.category || "",
     winners: categories
       .map((entry) =>
-        entry.nominations.find((nomination) => Number(nomination.placement) === 1),
+        entry.nominations.find(
+          (nomination) => Number(nomination.placement) === 1,
+        ),
       )
       .filter(Boolean),
   };
@@ -326,10 +328,12 @@ window.validateAward = function (film, award, context = {}) {
   let errors = [];
   let warnings = [];
   let periodType = window.getAwardPeriodType(award, context.periodType);
-  let limits = window.PERIOD_LIMITS[periodType];
+  // Mirrors bracketCapacities()'s fallback: an unresolved period type still
+  // gets range-checked against the "years" limits rather than skipped.
+  let limits = window.PERIOD_LIMITS[periodType] || window.PERIOD_LIMITS.years;
   let placement = Number(award?.placement);
 
-  if (limits) {
+  {
     let limit =
       award.category === "Best Picture" ? limits.picture : limits.category;
     if (!Number.isInteger(placement) || placement < 1 || placement > limit) {
@@ -374,9 +378,11 @@ window.validateAward = function (film, award, context = {}) {
 
   if (award.category === "Best Director") {
     let credited = window
-      .awardRecipients(award)
+      .resolveAwardRecipients(award)
       .map((record) => record.personId);
-    let directors = parsePeople(film.directors);
+    let directors = parsePeople(film.directors).map((id) =>
+      window.resolveAwardRecipientPersonId(id),
+    );
     if (!directors.length) warnings.push("Director metadata is missing.");
     else if (!credited.length)
       warnings.push("Best Director recipient is missing.");
@@ -438,7 +444,11 @@ window.tryAddAward = function (film, award, context = {}) {
  * @param {string} [periodType] Period type ("years" by default).
  * @returns {{film: FilmRecord, warnings: string[]}[]} Eligible films with any non-blocking warnings.
  */
-window.eligibleFilmsForCategory = function (films, category, periodType = "years") {
+window.eligibleFilmsForCategory = function (
+  films,
+  category,
+  periodType = "years",
+) {
   return (films || []).reduce((eligible, film) => {
     let normalized = window.cloneRecord(film);
     window.normalizeFilmMetadata?.(normalized);
@@ -451,7 +461,8 @@ window.eligibleFilmsForCategory = function (films, category, periodType = "years
       periodType,
       filmMetadataNormalized: true,
     });
-    if (validation.valid) eligible.push({ film, warnings: validation.warnings });
+    if (validation.valid)
+      eligible.push({ film, warnings: validation.warnings });
     return eligible;
   }, []);
 };
@@ -478,7 +489,10 @@ window.nomineesForCategory = function (periodKey, periodType, category) {
         )
         .map((award) => ({ film, award })),
     )
-    .sort((left, right) => Number(left.award.placement) - Number(right.award.placement));
+    .sort(
+      (left, right) =>
+        Number(left.award.placement) - Number(right.award.placement),
+    );
 };
 
 /** Returns every personal award entry for a category across canonical watched films. @param {string} category Category name. @returns {{film: FilmRecord, award: AwardRecord}[]} Award entries. */

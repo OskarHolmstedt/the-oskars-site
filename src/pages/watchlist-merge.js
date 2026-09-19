@@ -43,7 +43,8 @@
 
   function ensurePickerDefaults() {
     let tiers = window.supabaseWatchlistTiersWithItems();
-    if (!picker.tier || !tiers.includes(picker.tier)) picker.tier = tiers[0] || "";
+    if (!picker.tier || !tiers.includes(picker.tier))
+      picker.tier = tiers[0] || "";
     if (
       picker.aType !== "all" &&
       !scopeKeyOptions(picker.tier, picker.aType).includes(picker.aKey)

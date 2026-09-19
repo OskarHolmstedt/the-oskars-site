@@ -289,16 +289,20 @@
     container
       .querySelector("[data-delete-collection-cancel]")
       ?.addEventListener("click", () => deleteDialog?.close());
-    container
-      .querySelector("[data-delete-collection-confirm]")
-      ?.addEventListener("click", async () => {
-        try {
-          await window.deleteSupabaseCollection(collection.id);
-          window.location.href = "custom-collections.html";
-        } catch (err) {
-          alert(err.message || String(err));
-        }
-      });
+    let deleteConfirmButton = container.querySelector(
+      "[data-delete-collection-confirm]",
+    );
+    deleteConfirmButton?.addEventListener("click", async () => {
+      if (deleteConfirmButton.disabled) return;
+      deleteConfirmButton.disabled = true;
+      try {
+        await window.deleteSupabaseCollection(collection.id);
+        window.location.href = "custom-collections.html";
+      } catch (err) {
+        deleteConfirmButton.disabled = false;
+        alert(err.message || String(err));
+      }
+    });
     window.createOrderEditController({
       container,
       scope: "queue",

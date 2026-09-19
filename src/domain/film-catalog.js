@@ -39,41 +39,102 @@ window.buildFullFilmCatalog = function (
   let sharedPreviewUrl =
     window.sharedFilmPreviewUrl || ((tmdbId) => `film.html?tmdb=${tmdbId}`);
   let byKey = new Map();
+  let keyByTmdbId = new Map();
+  let keyById = new Map();
+  let keyByTitleYear = new Map();
+
+  function titleYearKey(record) {
+    let title = window.normalizeTitle
+      ? window.normalizeTitle(record?.title)
+      : String(record?.title || "")
+          .trim()
+          .toLowerCase();
+    if (!title) return "";
+    let year =
+      (window.filmConcreteYear ? window.filmConcreteYear(record?.year) : "") ||
+      String(record?.year || "").trim();
+    return `${title}::${year}`;
+  }
 
   function keyFor(record) {
     let tmdbId = String(record?.tmdbId || "").trim();
     if (tmdbId) return `tmdb:${tmdbId}`;
     let id = String(record?.id || record?.supabaseFilmId || "").trim();
     if (id) return `id:${id}`;
-    return `title:${String(record?.title || "").toLowerCase()}::${record?.year || ""}`;
+    let ty = titleYearKey(record);
+    return ty
+      ? `title:${ty}`
+      : `title:${String(record?.title || "").toLowerCase()}::${record?.year || ""}`;
+  }
+
+  function findExistingKey(record) {
+    let tmdbId = String(record?.tmdbId || "").trim();
+    if (tmdbId && keyByTmdbId.has(tmdbId)) return keyByTmdbId.get(tmdbId);
+    let id = String(record?.id || record?.supabaseFilmId || "").trim();
+    if (id && keyById.has(id)) return keyById.get(id);
+    let ty = titleYearKey(record);
+    if (ty && keyByTitleYear.has(ty)) return keyByTitleYear.get(ty);
+    return null;
+  }
+
+  function registerKeys(primaryKey, record) {
+    let tmdbId = String(record?.tmdbId || "").trim();
+    if (tmdbId) keyByTmdbId.set(tmdbId, primaryKey);
+    let id = String(record?.id || record?.supabaseFilmId || "").trim();
+    if (id) keyById.set(id, primaryKey);
+    let ty = titleYearKey(record);
+    if (ty) keyByTitleYear.set(ty, primaryKey);
   }
 
   Object.values(catalogByTmdbId || {}).forEach((film) => {
-    byKey.set(keyFor(film), {
+    let key = keyFor(film);
+    let entry = {
       ...film,
       catalogStatus: "unseen",
       href: film.id ? filmPageUrl(film.id) : sharedPreviewUrl(film.tmdbId),
-    });
+    };
+    byKey.set(key, entry);
+    registerKeys(key, entry);
   });
   (watchlistItems || []).forEach((item) => {
-    let key = keyFor(item);
+    let key = findExistingKey(item) || keyFor(item);
     let existing = byKey.get(key) || {};
-    byKey.set(key, {
+    let resolvedId =
+      item.supabaseFilmId || existing.supabaseFilmId || existing.id || item.id;
+    let resolvedTmdbId = item.tmdbId || existing.tmdbId || "";
+    let entry = {
       ...existing,
       ...item,
+      tmdbId: resolvedTmdbId,
       catalogStatus: "watchlist",
-      href: filmPageUrl(item.supabaseFilmId || item.id),
-    });
+      href: resolvedId
+        ? filmPageUrl(resolvedId)
+        : resolvedTmdbId
+          ? sharedPreviewUrl(resolvedTmdbId)
+          : filmPageUrl(""),
+    };
+    byKey.set(key, entry);
+    registerKeys(key, entry);
   });
   (watchedFilms || []).forEach((film) => {
-    let key = keyFor(film);
+    let key = findExistingKey(film) || keyFor(film);
     let existing = byKey.get(key) || {};
-    byKey.set(key, {
+    let resolvedId =
+      film.id || existing.id || film.supabaseFilmId || existing.supabaseFilmId;
+    let resolvedTmdbId = film.tmdbId || existing.tmdbId || "";
+    let entry = {
       ...existing,
       ...film,
+      tmdbId: resolvedTmdbId,
       catalogStatus: "watched",
-      href: filmPageUrl(film.id),
-    });
+      href: resolvedId
+        ? filmPageUrl(resolvedId)
+        : resolvedTmdbId
+          ? sharedPreviewUrl(resolvedTmdbId)
+          : filmPageUrl(""),
+    };
+    byKey.set(key, entry);
+    registerKeys(key, entry);
   });
   return [...byKey.values()];
 };

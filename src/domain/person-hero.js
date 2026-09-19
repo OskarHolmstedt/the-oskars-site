@@ -103,7 +103,11 @@ window.personRelationshipSignal = function (
       text: `Often credited with ${collaborator.name} — ${collaborator.filmTitles.length} films together in your archive.`,
       collaboratorId: collaborator.id,
     };
-  if (completion && completion.watchedCount > 0 && completion.watchlistCount === 0)
+  if (
+    completion &&
+    completion.watchedCount > 0 &&
+    completion.watchlistCount === 0
+  )
     return {
       text: `You've watched every one of their ${completion.watchedCount} films in your archive.`,
     };

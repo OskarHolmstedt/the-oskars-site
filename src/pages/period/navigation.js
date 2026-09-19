@@ -111,8 +111,7 @@ window.renderPeriodChildNavigation = function (
               String(Number(key.replace(/s$/, "")) + digit),
             ),
             ...populatedPeriodKeys(childType).filter(
-              (child) =>
-                window.getDecadeKey(String(child).slice(0, 4)) === key,
+              (child) => window.getDecadeKey(String(child).slice(0, 4)) === key,
             ),
           ]),
         ].sort(

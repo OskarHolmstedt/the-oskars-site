@@ -212,9 +212,9 @@
       progressSection.querySelector("b").textContent = ratedCount;
       progressSection.querySelector("progress").value = ratedCount;
     }
-    let yearHeading = container.querySelector(
-      ".rate-watched-grid",
-    )?.parentElement?.querySelector("h2");
+    let yearHeading = container
+      .querySelector(".rate-watched-grid")
+      ?.parentElement?.querySelector("h2");
     if (yearHeading)
       yearHeading.textContent = `${activeYear} · ${queue.length} unrated`;
     let yearOption = container.querySelector(

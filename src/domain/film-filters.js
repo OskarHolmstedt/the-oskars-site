@@ -51,9 +51,15 @@
         if (inactive(value)) return true;
         if (value === "unknown")
           return !/^\d{4}$/.test(String(record?.year || ""));
+        let defaultType = /s$/.test(value) ? "decade" : "year";
         let [type, key] = String(value).includes(":")
           ? String(value).split(":")
-          : [/s$/.test(value) ? "decade" : "year", String(value)];
+          : [
+              options?.periodType ||
+                options?.type ||
+                (options?.century ? "century" : defaultType),
+              String(value),
+            ];
         if (type === "alltime")
           return options.alltimeMatchesAll || Number(record?.allTimeRank) > 0;
         if (type === "year") return String(record?.year || "") === key;
@@ -216,8 +222,7 @@
     // are the only records that carry catalogStatus at all.
     status: {
       validate: (value) =>
-        inactive(value) ||
-        ["watched", "watchlist", "unseen"].includes(value),
+        inactive(value) || ["watched", "watchlist", "unseen"].includes(value),
       matches: (record, value) =>
         inactive(value) || record?.catalogStatus === value,
     },

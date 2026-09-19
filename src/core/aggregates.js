@@ -78,15 +78,27 @@ window.rebuildAggregates = function () {
   }
 
   function directPeriodTypesForSourceFilm(film, periodKey, sourcePeriod) {
-    if (sourcePeriod.periodType) return [sourcePeriod.periodType];
+    if (sourcePeriod?.periodType) return [sourcePeriod.periodType];
     let types = new Set(
       (film.awards || [])
         .filter((award) => String(award.year || "") === String(periodKey))
         .map((award) => window.getAwardPeriodType(award))
         .filter(Boolean),
     );
-    if (!types.size && sourcePeriod.periodType)
-      types.add(sourcePeriod.periodType);
+    if (!types.size) {
+      let key = String(periodKey || "");
+      let inferred =
+        key === "alltime"
+          ? "allTime"
+          : /^\d{4}$/.test(key)
+            ? "years"
+            : /^\d{3,4}s$/.test(key)
+              ? "decades"
+              : /century$/i.test(key)
+                ? "centuries"
+                : "";
+      if (inferred) types.add(inferred);
+    }
     return [...types];
   }
 

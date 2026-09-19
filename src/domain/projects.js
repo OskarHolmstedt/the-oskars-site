@@ -192,6 +192,12 @@ window.projectSourceRecord = function (sourceType, sourceId) {
   }
   if (sourceType === "tag") {
     let tag = window.tagRecord?.(sourceId);
+    if (!tag) {
+      let transient = transientProjectSources.get(
+        transientProjectSourceKey(sourceType, sourceId),
+      );
+      if (transient) return transient;
+    }
     if (!tag) return null;
     return {
       name: tag.name,
@@ -618,7 +624,13 @@ function projectSortValue(record, sort) {
       (window.calculateAwardStats?.(film.awards || []) || {}).awardScore || 0,
       titleKey,
     ];
-  return [Number(record.ref?.projectOrder || record.index + 1 || 0), titleKey];
+  return [
+    Number(
+      record.ref?.projectOrder ??
+        (record.index != null ? record.index + 1 : (record.position ?? 0)),
+    ),
+    titleKey,
+  ];
 }
 
 // Axes where "ascending" already means best-first (lower rank/tier number
@@ -694,14 +706,23 @@ window.projectPosterDeckFilms = function (progress, limit = 5) {
     ...window.sortProjectRecords(progress?.watched || [], "project"),
   ]
     .filter((record) => {
+      let film =
+        record.film ||
+        (record.item ? window.watchlistFilmLike?.(record.item, null) : null);
       let key =
-        record.film?.id || `${record.ref?.type || ""}:${record.ref?.id || ""}`;
-      if (!record.film || seen.has(key)) return false;
+        film?.id ||
+        film?.supabaseFilmId ||
+        `${record.ref?.type || ""}:${record.ref?.id || ""}`;
+      if (!film || seen.has(key)) return false;
       seen.add(key);
       return true;
     })
     .slice(0, Math.max(1, Number(limit) || 5))
-    .map((record) => record.film);
+    .map(
+      (record) =>
+        record.film ||
+        (record.item ? window.watchlistFilmLike?.(record.item, null) : null),
+    );
 };
 
 /** Calculates resolved records, counts, and next items for a project. @param {ProjectRecord} project Project. @returns {Object} Progress model. */

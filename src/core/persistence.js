@@ -54,7 +54,11 @@ function staleWriteError() {
 // deployment whose baked mode would otherwise allow it.
 function persistenceAllowed() {
   if (window.oskarsAccountAccessBlocked?.()) return false;
-  if (window.state?.isPublicProfileView) return false;
+  if (
+    window.state?.isPublicProfileView ||
+    Boolean(window.resolveActiveProfileSlug?.())
+  )
+    return false;
   return window.oskarsCapabilities
     ? window.oskarsCapabilities().canPersistPrivateState
     : true;
@@ -507,63 +511,80 @@ window.restoreRecoveryWorkspace = async function () {
   });
 };
 
+let activeSavePromise = null;
+
 async function flushScheduledSave() {
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = null;
   }
+  while (activeSavePromise) {
+    await activeSavePromise;
+  }
   if (!saveWaiters.length) return true;
   let waiters = saveWaiters.splice(0);
   let saved = false;
-  try {
-    let database = await openStateDatabase();
-    let doneWrite = window.startOskarsPerformance?.("save:write");
-    if (database)
-      await writeDatabaseState(database, () => {
-        let doneSnapshot = window.startOskarsPerformance?.("save:snapshot");
-        let snapshot = window.getBrowserPersistenceState();
-        doneSnapshot?.();
-        return snapshot;
-      });
-    else writeFallbackState(window.getBrowserPersistenceState());
-    doneWrite?.(database ? "IndexedDB" : "localStorage");
-    saved = true;
-    if (window.isBackupReminderDue?.()) {
-      window.noteBackupTaken();
-      storageStatus("Saved locally · Back up your archive", "saved", [
-        {
-          label: "Back up now",
-          run: () => {
-            window.location.href = "data.html";
-          },
-        },
-      ]);
-    } else {
-      storageStatus("Saved locally", "saved");
-    }
-  } catch (err) {
-    if (err?.code === "OSKARS_STALE_STATE") {
-      markPersistenceStale();
-      waiters.forEach((resolve) => resolve(false));
-      return false;
-    }
-    console.error("Failed to save The Oskars data", err);
+
+  let execute = async () => {
     try {
-      writeFallbackState(window.getBrowserPersistenceState());
+      let database = await openStateDatabase();
+      let doneWrite = window.startOskarsPerformance?.("save:write");
+      if (database)
+        await writeDatabaseState(database, () => {
+          let doneSnapshot = window.startOskarsPerformance?.("save:snapshot");
+          let snapshot = window.getBrowserPersistenceState();
+          doneSnapshot?.();
+          return snapshot;
+        });
+      else writeFallbackState(window.getBrowserPersistenceState());
+      doneWrite?.(database ? "IndexedDB" : "localStorage");
       saved = true;
-      storageStatus("Saved using fallback storage", "warning");
-    } catch (fallbackError) {
-      if (fallbackError?.code === "OSKARS_STALE_STATE") {
+      if (window.isBackupReminderDue?.()) {
+        window.noteBackupTaken();
+        storageStatus("Saved locally · Back up your archive", "saved", [
+          {
+            label: "Back up now",
+            run: () => {
+              window.location.href = "data.html";
+            },
+          },
+        ]);
+      } else {
+        storageStatus("Saved locally", "saved");
+      }
+    } catch (err) {
+      if (err?.code === "OSKARS_STALE_STATE") {
         markPersistenceStale();
         waiters.forEach((resolve) => resolve(false));
         return false;
       }
-      console.error("Fallback save also failed", fallbackError);
-      storageStatus("Save failed — download a backup", "error");
+      console.error("Failed to save The Oskars data", err);
+      try {
+        writeFallbackState(window.getBrowserPersistenceState(), {
+          allowOverwrite: true,
+        });
+        saved = true;
+        storageStatus("Saved using fallback storage", "warning");
+      } catch (fallbackError) {
+        if (fallbackError?.code === "OSKARS_STALE_STATE") {
+          markPersistenceStale();
+          waiters.forEach((resolve) => resolve(false));
+          return false;
+        }
+        console.error("Fallback save also failed", fallbackError);
+        storageStatus("Save failed — download a backup", "error");
+      }
     }
+    waiters.forEach((resolve) => resolve(saved));
+    return saved;
+  };
+
+  activeSavePromise = execute();
+  try {
+    return await activeSavePromise;
+  } finally {
+    activeSavePromise = null;
   }
-  waiters.forEach((resolve) => resolve(saved));
-  return saved;
 }
 
 /**
@@ -806,7 +827,18 @@ window.load = function () {
     let database = await openStateDatabase();
     try {
       let imported = database ? await readDatabaseState(database) : null;
-      if (imported) {
+      let legacy = readLegacyState();
+      let importedSavedAt = imported?.[PERSISTENCE_META_KEY]?.savedAt || "";
+      let legacySavedAt = legacy?.[PERSISTENCE_META_KEY]?.savedAt || "";
+      let preferLegacy = Boolean(
+        legacy &&
+        (!imported ||
+          (legacySavedAt &&
+            importedSavedAt &&
+            legacySavedAt > importedSavedAt)),
+      );
+
+      if (imported && !preferLegacy) {
         window.hydrateState(imported);
         persistenceLoadInfo = { found: true, source: "indexedDB" };
         markPersistenceFresh(imported);
@@ -819,11 +851,15 @@ window.load = function () {
             () => window.getBrowserPersistenceState(),
             { allowOverwrite: true },
           );
+        if (legacy) {
+          try {
+            localStorage.removeItem("oskars");
+          } catch (err) {}
+        }
         storageStatus("Saved locally", "saved");
         done?.("IndexedDB");
         return window.state;
       }
-      let legacy = readLegacyState();
       if (legacy) {
         window.hydrateState(legacy);
         persistenceLoadInfo = { found: true, source: "localStorage" };
@@ -859,5 +895,12 @@ window.load = function () {
 
 setupPersistenceChannel();
 window.addEventListener?.("pagehide", () => {
+  if (saveTimer || saveWaiters.length || activeSavePromise) {
+    try {
+      writeFallbackState(window.getBrowserPersistenceState(), {
+        allowOverwrite: true,
+      });
+    } catch (err) {}
+  }
   flushScheduledSave();
 });

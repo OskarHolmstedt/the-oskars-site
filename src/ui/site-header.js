@@ -5,17 +5,7 @@
   // rare case this file's functions run before page-utils.js has defined
   // it.
   function defaultHeaderEscape(value) {
-    return String(value ?? "").replace(
-      /[&<>"']/g,
-      (character) =>
-        ({
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          '"': "&quot;",
-          "'": "&#39;",
-        })[character],
-    );
+    return (window.escapeHtml || window.pageEscape || String)(value ?? "");
   }
 
   // Light/dark/papyrus cycle (issue #152); papyrus is only ever reached by
@@ -210,13 +200,8 @@
     let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
     let rows = [
       ["films.html?status=watched", headerText("nav.watched", "Watched")],
-      [
-        "films.html?status=watchlist",
-        headerText("nav.watchlist", "Watchlist"),
-      ],
-      ...(canEdit
-        ? [["films.html?status=unseen", literalText("Unseen")]]
-        : []),
+      ["films.html?status=watchlist", headerText("nav.watchlist", "Watchlist")],
+      ...(canEdit ? [["films.html?status=unseen", literalText("Unseen")]] : []),
       ["period.html?type=alltime&view=other", literalText("Other watched")],
     ];
     return `<div class="films-preview-links">${rows.map(([href, label]) => `<a class="films-preview-link" href="${escape(href)}">${escape(label)}</a>`).join("")}</div>`;
@@ -266,11 +251,7 @@
         headerText("nav.collections", "Collections"),
         "collections.html",
       ],
-      [
-        "films",
-        headerText("nav.films", "Films"),
-        "films.html",
-      ],
+      ["films", headerText("nav.films", "Films"), "films.html"],
       ["projects", headerText("nav.projects", "Projects"), "projects.html"],
     ];
     return primaryItems

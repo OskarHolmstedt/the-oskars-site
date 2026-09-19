@@ -77,7 +77,9 @@ window.renderPeriodOfficialResults = function ({
       creditParts.push(
         `<span class="official-result-source-category">${escape(nomination.sourceCategory)}</span>`,
       );
-    let label = nomination.winner ? ui("Official winner") : ui("Official nominee");
+    let label = nomination.winner
+      ? ui("Official winner")
+      : ui("Official nominee");
     return `<li class="official-result-nomination${nomination.winner ? " is-winner" : ""}${isPersonalPick ? " is-personal-pick" : ""}">
       <span class="official-result-status" aria-label="${escape(label)}">${nomination.winner ? "🏆" : ""}</span>
       <div><div class="official-result-title">${titleHtml}${nomination.winner ? `<strong>${escape(ui("Winner"))}</strong>` : ""}${isPersonalPick ? `<strong class="official-result-personal-pick">${escape(ui("Your pick"))}</strong>` : ""}</div>${creditParts.length ? `<div class="official-result-credit">${creditParts.join('<span aria-hidden="true">·</span>')}</div>` : ""}${nomineeActionsHtml}</div>
@@ -86,14 +88,17 @@ window.renderPeriodOfficialResults = function ({
 
   let categoryHtml = categories
     .map((category) => {
-      let entries = groups.get(category).slice().sort(
-        (left, right) =>
-          Number(right.winner) - Number(left.winner) ||
-          String(left.sourceCategory || "").localeCompare(
-            String(right.sourceCategory || ""),
-          ) ||
-          left.sourceTitle.localeCompare(right.sourceTitle),
-      );
+      let entries = groups
+        .get(category)
+        .slice()
+        .sort(
+          (left, right) =>
+            Number(right.winner) - Number(left.winner) ||
+            String(left.sourceCategory || "").localeCompare(
+              String(right.sourceCategory || ""),
+            ) ||
+            left.sourceTitle.localeCompare(right.sourceTitle),
+        );
       let sourceCategories = new Set(
         entries.map((entry) => entry.sourceCategory).filter(Boolean),
       );

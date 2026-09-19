@@ -36,6 +36,7 @@
 (function () {
   let escape = window.pageEscape;
   let container = document.getElementById("awardsYearPage");
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let year = String(window.pageQueryParam?.("year") || "").trim();
   let valid = /^\d{4}$/.test(year);
 
@@ -111,7 +112,9 @@
     if (category === "Best Adapted Screenplay")
       return film.screenplay_type !== "original";
     if (category === "Best Animated Picture")
-      return !film.medium || film.medium === "unknown" || film.medium === "animation";
+      return (
+        !film.medium || film.medium === "unknown" || film.medium === "animation"
+      );
     return true;
   }
 
@@ -271,15 +274,24 @@
     return `<div class="setup-year-cast-list"><span>Cast, by billing</span>${genderToggle}<div class="setup-year-cast-grid">${items}</div>${showMore}</div>`;
   }
 
-  function creditFieldsHtml(category, recipient, detail, suggestions = [], filmId) {
+  function creditFieldsHtml(
+    category,
+    recipient,
+    detail,
+    suggestions = [],
+    filmId,
+  ) {
     let detailField =
       window.creditDetailFieldHtml?.(category, detail, { escape }) || "";
     // A single suggestion (the common case: one director, one composer,
     // one cinematographer) prefills the field directly rather than
     // requiring a click - matches renderPendingNomineeForm's existing
     // single-suggestion prefill, now also honored here for the edit form.
-    if (!recipient && suggestions.length === 1) recipient = suggestions[0].recipient;
-    let fromTmdb = suggestions.some((suggestion) => suggestion.source === "tmdb-crew");
+    if (!recipient && suggestions.length === 1)
+      recipient = suggestions[0].recipient;
+    let fromTmdb = suggestions.some(
+      (suggestion) => suggestion.source === "tmdb-crew",
+    );
     let suggestionsHtml =
       suggestions.length > 1
         ? `<div class="setup-year-credit-suggestions"><span>${fromTmdb ? "From TMDB" : "Known credits"}</span><div>${suggestions.map((suggestion) => `<button type="button" data-setup-award-credit-suggestion data-recipient="${escape(suggestion.recipient)}" data-detail="${escape(suggestion.detail || "")}"><b>${escape(suggestion.recipient)}</b>${suggestion.detail ? `<small>${escape(suggestion.detail)}</small>` : ""}</button>`).join("")}</div></div>`
@@ -323,7 +335,8 @@
     let poster = `<span class="setup-year-nominee-poster">${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="">` : `<span aria-hidden="true">${escape(String(film.title || "?").charAt(0))}</span>`}</span>`;
     let filmTitle = `<span class="setup-year-nominee-title">${escape(film.title || "Unknown film")}</span>`;
     let removeButton = `<button type="button" class="card-remove-button" aria-label="Remove ${escape(film.title || "film")}" title="Remove" data-setup-award-remove data-setup-award-category="${escape(category)}" data-setup-award-film-id="${escape(film.id)}" data-setup-award-placement="${escape(nomination.placement)}">×</button>`;
-    let isEditing = editingNominee?.nominationId === nomination.id;
+    if (!canEdit) removeButton = "";
+    let isEditing = canEdit && editingNominee?.nominationId === nomination.id;
     if (isEditing) {
       let editSuggestions = combinedCreditSuggestions(
         nomination.film_id,
@@ -347,8 +360,12 @@
     let creditControl =
       category === "Best Picture"
         ? ""
-        : `<button type="button" class="setup-year-credit-edit" data-setup-award-credit-edit data-setup-award-nomination-id="${escape(nomination.id)}" data-setup-award-category="${escape(category)}" data-setup-award-film-id="${escape(nomination.film_id)}">${credit || "Add credit"}</button>`;
-    return `<article class="setup-year-nominee" draggable="true" data-setup-award-film="${escape(nomination.film_id)}" data-setup-award-target="${escape(nomination.placement)}">
+        : canEdit
+          ? `<button type="button" class="setup-year-credit-edit" data-setup-award-credit-edit data-setup-award-nomination-id="${escape(nomination.id)}" data-setup-award-category="${escape(category)}" data-setup-award-film-id="${escape(nomination.film_id)}">${credit || "Add credit"}</button>`
+          : credit
+            ? `<span class="setup-year-credit-display">${credit}</span>`
+            : "";
+    return `<article class="setup-year-nominee"${canEdit ? ' draggable="true"' : ""} data-setup-award-film="${escape(nomination.film_id)}" data-setup-award-target="${escape(nomination.placement)}">
       ${poster}
       ${rankBadge}
       ${removeButton}
@@ -400,8 +417,15 @@
       nominations.length >= capacity
         ? `<p class="setup-year-category-full">${escape(window.localizedCategoryName?.(category) || category)} is full. Drop a film onto a nominee above to bump it in, or remove one first.</p>`
         : "";
-    let restoreHtml = excludedIds.size
-      ? `<button type="button" class="sort-order-button" data-setup-pool-restore="${escape(category)}">Show ${escape(excludedIds.size)} hidden</button>`
+    let restoreHtml =
+      excludedIds.size && canEdit
+        ? `<button type="button" class="sort-order-button" data-setup-pool-restore="${escape(category)}">Show ${escape(excludedIds.size)} hidden</button>`
+        : "";
+    let ballotActions = canEdit
+      ? `<div class="setup-ballot-actions">${nominations.length ? `<button type="button" data-setup-award-finish="${escape(category)}">Finish category</button>` : `<button type="button" class="button-secondary" data-setup-award-none="${escape(category)}">No award this year</button>`}</div>`
+      : "";
+    let poolSection = canEdit
+      ? `<h4>Eligible films from ${escape(year)} ${restoreHtml}</h4>${poolHtml}`
       : "";
 
     return `<div class="setup-year-category-row is-expanded">
@@ -411,15 +435,15 @@
           <div class="board-nominees">${nomineeRowsHtml || `<p class="setup-year-section-empty">No nominees yet.</p>`}</div>
         </div>
       </div>
-      ${fullNotice}
-      <div class="setup-ballot-actions">${nominations.length ? `<button type="button" data-setup-award-finish="${escape(category)}">Finish category</button>` : `<button type="button" class="button-secondary" data-setup-award-none="${escape(category)}">No award this year</button>`}</div>
-      <h4>Eligible films from ${escape(year)} ${restoreHtml}</h4>
-      ${poolHtml}
+      ${canEdit ? fullNotice : ""}
+      ${ballotActions}
+      ${poolSection}
     </div>`;
   }
 
   function renderBracketSection() {
     let films = yearWatchedFilms();
+    if (!progress) return "";
     if (expandedCategory === undefined)
       expandedCategory = progress.nextCategory || null;
     let rows = progress.categories
@@ -464,7 +488,13 @@
   // the user re-confirm and click Add on a form that was only ever going
   // to hold that one already-known answer - matching how Best Picture and
   // Best International Picture already skip the form entirely.
-  async function autoResolveTmdbCredit(film, category, filmId, placement, generation) {
+  async function autoResolveTmdbCredit(
+    film,
+    category,
+    filmId,
+    placement,
+    generation,
+  ) {
     await ensureTmdbCreditFetched(film, category);
     // The user may have cancelled, moved on to a different film/category, or
     // reopened this exact same slot again while the TMDB round trip was in
@@ -474,7 +504,7 @@
     if (generation !== pendingNomineeGeneration) return;
     let suggestions = combinedCreditSuggestions(filmId, category);
     if (suggestions.length === 1) {
-      addNominee(
+      await addNominee(
         category,
         filmId,
         placement,
@@ -489,12 +519,15 @@
   }
 
   function beginNominee(category, filmId, placement) {
+    if (!canEdit) return;
     if (category === "Best Picture") {
       addNominee(category, filmId, placement, "", "");
       return;
     }
     if (category === "Best International Picture") {
-      let film = yearWatchedFilms().find((candidate) => candidate.id === filmId);
+      let film = yearWatchedFilms().find(
+        (candidate) => candidate.id === filmId,
+      );
       addNominee(category, filmId, placement, filmPrimaryCountry(film), "");
       return;
     }
@@ -502,7 +535,13 @@
     if (window.awardCategoryCreditJob?.(category)) {
       let known = candidateCreditOptions(filmId, category);
       if (known.length === 1) {
-        addNominee(category, filmId, placement, known[0].recipient, known[0].detail || "");
+        addNominee(
+          category,
+          filmId,
+          placement,
+          known[0].recipient,
+          known[0].detail || "",
+        );
         return;
       }
       if (!known.length) {
@@ -531,6 +570,7 @@
   }
 
   async function addNominee(category, filmId, placement, recipient, detail) {
+    if (!canEdit) return;
     try {
       let recipients = recipient
         ? window.splitRecipientNames?.(recipient) || [recipient]
@@ -554,7 +594,14 @@
     }
   }
 
-  async function saveNomineeCredit(nominationId, category, filmId, recipient, detail) {
+  async function saveNomineeCredit(
+    nominationId,
+    category,
+    filmId,
+    recipient,
+    detail,
+  ) {
+    if (!canEdit) return;
     try {
       let recipients = recipient
         ? window.splitRecipientNames?.(recipient) || [recipient]
@@ -572,7 +619,7 @@
   }
 
   async function moveNominee(category, filmId, fromPlacement, toPlacement) {
-    if (fromPlacement === toPlacement) return;
+    if (!canEdit || fromPlacement === toPlacement) return;
     try {
       await window.moveSupabasePersonalNomination(
         personalAwardId,
@@ -599,6 +646,7 @@
   }
 
   async function removeNominee(category, filmId, placement) {
+    if (!canEdit) return;
     let numericPlacement = Number(placement);
     let previousProgress = progress;
     let optimisticProgress = window.withoutAnnualBallotNomination(
@@ -691,6 +739,10 @@
     let finishTarget = event.target.closest("[data-setup-award-finish]");
     let noneTarget = event.target.closest("[data-setup-award-none]");
     if (finishTarget || noneTarget) {
+      if (!canEdit) return;
+      let target = finishTarget || noneTarget;
+      if (target.disabled) return;
+      target.disabled = true;
       let category =
         (finishTarget || noneTarget).dataset.setupAwardFinish ||
         (finishTarget || noneTarget).dataset.setupAwardNone;
@@ -705,6 +757,7 @@
           await refreshProgress();
           render();
         } catch (error) {
+          target.disabled = false;
           alert(error.message || String(error));
         }
       })();
@@ -754,7 +807,8 @@
       render();
       let category = creditEditTarget.dataset.setupAwardCategory;
       let film = yearWatchedFilms().find(
-        (candidate) => candidate.id === creditEditTarget.dataset.setupAwardFilmId,
+        (candidate) =>
+          candidate.id === creditEditTarget.dataset.setupAwardFilmId,
       );
       ensureTmdbCreditFetched(film, category);
       ensureTmdbCastFetched(film, category);
@@ -836,6 +890,7 @@
 
   let draggedFilmId = null;
   container.addEventListener("dragstart", (event) => {
+    if (!canEdit) return;
     let card = event.target.closest("[data-setup-award-film]");
     if (!card) return;
     draggedFilmId = card.dataset.setupAwardFilm;
@@ -849,6 +904,7 @@
     draggedFilmId = null;
   });
   container.addEventListener("dragover", (event) => {
+    if (!canEdit) return;
     let target = draggedFilmId
       ? event.target.closest("[data-setup-award-target]")
       : null;
@@ -862,7 +918,7 @@
       ?.classList.remove("drop-target");
   });
   container.addEventListener("drop", (event) => {
-    if (!draggedFilmId) return;
+    if (!canEdit || !draggedFilmId) return;
     let target = event.target.closest("[data-setup-award-target]");
     if (!target) return;
     event.preventDefault();

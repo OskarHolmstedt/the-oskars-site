@@ -168,7 +168,16 @@ window.renderFilmIdentityCell = function (film, options = {}) {
 window.renderRatingTierCell = function (record = {}, options = {}) {
   let escape = options.escape || window.pageEscape;
   let content = options.editHtml || "";
-  if (!content && record.film) content = escape(record.film.rating || "");
+  if (!content && record.film) {
+    content = escape(record.film.rating || "");
+    if (options.showRewatchTier && record.film.wantToRewatch) {
+      let rewatchTier = window.renderWatchlistTierBadge(
+        record.film.rewatchTier,
+        { escape, modifier: record.film.rewatchTierModifier },
+      );
+      content = [content, rewatchTier].filter(Boolean).join(" ");
+    }
+  }
   if (!content && record.item)
     content = window.renderWatchlistTierBadge(record.item.tier, {
       escape,

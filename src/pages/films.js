@@ -35,7 +35,12 @@
   // local predicate below (matchesTags/matchesFranchise/matchesPersonalAward/
   // matchesOfficialResult), same treatment as the free-text search and the
   // catalog-only `status` field.
-  let localFilterNames = ["tags", "franchise", "personalAward", "officialResult"];
+  let localFilterNames = [
+    "tags",
+    "franchise",
+    "personalAward",
+    "officialResult",
+  ];
   let sortAxes = [
     { value: "title", label: "Title" },
     { value: "year", label: "Year" },
@@ -146,15 +151,17 @@
   }
 
   function runtimeOptions(kind) {
-    return [60, 90, 120, 150, 180, 210].map((value) =>
-      option(
-        value,
-        kind === "minimum"
-          ? ui("At least {minutes} min", { minutes: value })
-          : ui("At most {minutes} min", { minutes: value }),
-        kind === "minimum" ? "minimumRuntime" : "maximumRuntime",
-      ),
-    ).join("");
+    return [60, 90, 120, 150, 180, 210]
+      .map((value) =>
+        option(
+          value,
+          kind === "minimum"
+            ? ui("At least {minutes} min", { minutes: value })
+            : ui("At most {minutes} min", { minutes: value }),
+          kind === "minimum" ? "minimumRuntime" : "maximumRuntime",
+        ),
+      )
+      .join("");
   }
 
   function periodOptionsHtml(films) {
@@ -165,9 +172,9 @@
           .filter((year) => /^\d{4}$/.test(year)),
       ),
     ].sort((left, right) => Number(right) - Number(left));
-    let decades = [...new Set(years.map((year) => window.getDecadeKey(year)))].sort(
-      (left, right) => right.localeCompare(left),
-    );
+    let decades = [
+      ...new Set(years.map((year) => window.getDecadeKey(year))),
+    ].sort((left, right) => right.localeCompare(left));
     let centuries = [
       ...new Set(years.map((year) => window.getCenturyKey(year))),
     ].sort((left, right) => right.localeCompare(left));
@@ -180,9 +187,7 @@
         films.flatMap((film) => window.countryListValues?.(film.country) || []),
       ),
     ].sort((left, right) => left.localeCompare(right));
-    return countries
-      .map((value) => option(value, value, "country"))
-      .join("");
+    return countries.map((value) => option(value, value, "country")).join("");
   }
 
   function tierOptionsHtml() {
@@ -249,9 +254,7 @@
   function franchiseMemberIds(value) {
     let franchise = window.ensureFranchiseIndex?.()[value];
     if (!franchise) return null;
-    let ids = new Set(
-      (franchise.films || []).map((entry) => entry.filmId),
-    );
+    let ids = new Set((franchise.films || []).map((entry) => entry.filmId));
     (franchise.watchlistFilms || []).forEach((entry) => ids.add(entry.itemId));
     return ids;
   }
@@ -298,19 +301,26 @@
     let needle = query.trim().toLowerCase();
     if (!needle) return true;
     let director = String(
-      film.director || Object.values(film.people || {}).find((p) => p.professions?.includes("Director"))?.name || "",
+      film.director ||
+        Object.values(film.people || {}).find((p) =>
+          p.professions?.includes("Director"),
+        )?.name ||
+        "",
     ).toLowerCase();
     return (
-      String(film.title || "").toLowerCase().includes(needle) ||
-      director.includes(needle)
+      String(film.title || "")
+        .toLowerCase()
+        .includes(needle) || director.includes(needle)
     );
   }
 
   function statusLabel(status) {
     return (
-      { watched: ui("Watched"), watchlist: ui("Watchlist"), unseen: ui("Unseen") }[
-        status
-      ] || status
+      {
+        watched: ui("Watched"),
+        watchlist: ui("Watchlist"),
+        unseen: ui("Unseen"),
+      }[status] || status
     );
   }
 
@@ -494,18 +504,16 @@
     }
     ${paginationHtml}`;
 
-    container
-      .querySelectorAll("[data-films-page]")
-      .forEach((button) =>
-        button.addEventListener("click", () => {
-          currentState = Object.assign({}, currentState, {
-            page: Number(button.dataset.filmsPage),
-          });
-          viewState.replace(currentState);
-          render();
-          container.scrollIntoView({ block: "start" });
-        }),
-      );
+    container.querySelectorAll("[data-films-page]").forEach((button) =>
+      button.addEventListener("click", () => {
+        currentState = Object.assign({}, currentState, {
+          page: Number(button.dataset.filmsPage),
+        });
+        viewState.replace(currentState);
+        render();
+        container.scrollIntoView({ block: "start" });
+      }),
+    );
     container
       .querySelector("[data-reverse-order-button]")
       ?.addEventListener("click", () => {
@@ -536,7 +544,9 @@
         let focused = document.activeElement;
         let caret = focused?.selectionStart;
         render();
-        let restored = document.getElementById("filmsToolbar")?.querySelector('[name="q"]');
+        let restored = document
+          .getElementById("filmsToolbar")
+          ?.querySelector('[name="q"]');
         if (restored) {
           restored.focus();
           if (caret != null) restored.setSelectionRange(caret, caret);
@@ -555,7 +565,9 @@
       render();
     });
 
-    finish?.(`${films.length} catalog, ${sorted.length} matched, page ${pagination.page}/${pagination.pageCount}`);
+    finish?.(
+      `${films.length} catalog, ${sorted.length} matched, page ${pagination.page}/${pagination.pageCount}`,
+    );
   }
 
   render();

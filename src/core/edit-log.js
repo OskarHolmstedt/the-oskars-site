@@ -39,11 +39,7 @@ function inferredEditLogTargetType(entry) {
   if (type.includes("project") || context.projectId) return "project";
   if (type.includes("alias") || context.aliasId) return "alias";
   if (type.includes("note") || context.noteKey) return "note";
-  if (
-    type.includes("film") ||
-    type.includes("poster") ||
-    context.filmId
-  )
+  if (type.includes("film") || type.includes("poster") || context.filmId)
     return "film";
   return "other";
 }
@@ -131,7 +127,9 @@ window.recordEdit = function (entry = {}) {
 };
 
 function importHistoryText(value, limit = 500) {
-  return String(value ?? "").trim().slice(0, limit);
+  return String(value ?? "")
+    .trim()
+    .slice(0, limit);
 }
 
 function importHistoryCount(value) {
@@ -213,16 +211,14 @@ window.recordImportHistory = function (report = {}, options = {}) {
   let allRanges = Array.isArray(report.rangeSummaries)
     ? report.rangeSummaries
     : [];
-  let ranges = allRanges
-    .slice(0, 30)
-    .map((range) => ({
-      key: importHistoryText(range.key || "Range", 100),
-      range: importHistoryText(range.range, 200),
-      rows: importHistoryCount(range.rows),
-      filmsParsed: importHistoryCount(range.filmsParsed),
-      awardsAdded: importHistoryCount(range.awardsAdded),
-      skipped: importHistoryCount(range.skipped),
-    }));
+  let ranges = allRanges.slice(0, 30).map((range) => ({
+    key: importHistoryText(range.key || "Range", 100),
+    range: importHistoryText(range.range, 200),
+    rows: importHistoryCount(range.rows),
+    filmsParsed: importHistoryCount(range.filmsParsed),
+    awardsAdded: importHistoryCount(range.awardsAdded),
+    skipped: importHistoryCount(range.skipped),
+  }));
   let allPeriods = Array.isArray(report.periods) ? report.periods : [];
   let periods = allPeriods
     .slice(0, 50)
@@ -377,9 +373,7 @@ window.formatEditLogForSheet = function (entries = window.state.editLog || []) {
       changes,
     ]);
   });
-  return rows
-    .map((row) => row.map(editLogTsvCell).join("\t"))
-    .join("\n");
+  return rows.map((row) => row.map(editLogTsvCell).join("\t")).join("\n");
 };
 
 /**
@@ -505,9 +499,10 @@ window.formatGroupedEditLogForSheet = function (
       ];
       [...group.entries].sort(editLogExportEntrySort).forEach((entry) => {
         let target = window.normalizeEditLogTarget(entry);
-        let changes = Array.isArray(entry.changes) && entry.changes.length
-          ? entry.changes
-          : [{}];
+        let changes =
+          Array.isArray(entry.changes) && entry.changes.length
+            ? entry.changes
+            : [{}];
         changes.forEach((change) => {
           rows.push([
             editLogExportStatus(entry),

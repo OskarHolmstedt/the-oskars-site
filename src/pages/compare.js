@@ -54,23 +54,27 @@
   }
 
   function initialTargets() {
-    let typed = String(window.pageQueryParam("targets") || "")
-      .split(",")
-      .map(window.decodeCompareTarget)
-      .filter(Boolean);
-    if (typed.length) return normalizeTargets(typed);
-    let ids = String(window.pageQueryParam("films") || "")
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean);
-    if (!ids.length) {
-      let legacy = window.pageQueryParam("ids");
-      ids = String(legacy || "")
+    try {
+      let typed = String(window.pageQueryParam("targets") || "")
+        .split(",")
+        .map((value) => window.decodeCompareTarget?.(value))
+        .filter(Boolean);
+      if (typed.length) return normalizeTargets(typed);
+      let ids = String(window.pageQueryParam("films") || "")
         .split(",")
         .map((value) => value.trim())
         .filter(Boolean);
+      if (!ids.length) {
+        let legacy = window.pageQueryParam("ids");
+        ids = String(legacy || "")
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean);
+      }
+      return normalizeTargets([...new Set(ids)].map(filmTarget));
+    } catch {
+      return normalizeTargets([]);
     }
-    return normalizeTargets([...new Set(ids)].map(filmTarget));
   }
 
   function ensureTargets() {
@@ -584,13 +588,18 @@
     render();
   });
 
+  let searchDebounceTimer = null;
   container.addEventListener("input", (event) => {
     let input = event.target.closest("[data-compare-search]");
     if (!input) return;
     currentSearch = input.value;
-    let results = container.querySelector("[data-compare-results]");
-    if (results)
-      results.innerHTML = renderSearchResults(ensureTargets(), currentSearch);
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      searchDebounceTimer = null;
+      let results = container.querySelector("[data-compare-results]");
+      if (results)
+        results.innerHTML = renderSearchResults(ensureTargets(), currentSearch);
+    }, 160);
   });
 
   render();

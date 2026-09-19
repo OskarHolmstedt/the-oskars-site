@@ -312,9 +312,7 @@ function parseTable(raw, options = {}) {
         'Period row 1 must be "Director" or "Franchise".',
       );
     if (!collectionName)
-      diagnostics.metadataErrors.push(
-        "Period row 2 must name the collection.",
-      );
+      diagnostics.metadataErrors.push("Period row 2 must name the collection.");
     let nominations = [];
 
     function addCollectionNomination(definition, row, placement, filmColumn) {
@@ -330,7 +328,10 @@ function parseTable(raw, options = {}) {
           : cleanCell(row[definition.columns.detail]);
       if (isBlankOrDash(recipient)) recipient = "";
       if (isBlankOrDash(detail)) detail = "";
-      if (recipient && normalizeTitle(recipient) === normalizeTitle(sourceTitle))
+      if (
+        recipient &&
+        normalizeTitle(recipient) === normalizeTitle(sourceTitle)
+      )
         recipient = "";
       nominations.push({
         category: definition.category,
@@ -454,7 +455,10 @@ function parseTable(raw, options = {}) {
         def.columns.detail == null ? "" : cleanCell(row[def.columns.detail]);
       if (isBlankOrDash(recipient)) recipient = "";
       if (isBlankOrDash(detail)) detail = "";
-      if (recipient && normalizeTitle(recipient) === normalizeTitle(sourceTitle))
+      if (
+        recipient &&
+        normalizeTitle(recipient) === normalizeTitle(sourceTitle)
+      )
         recipient = "";
       nominations.push({
         category: def.category,

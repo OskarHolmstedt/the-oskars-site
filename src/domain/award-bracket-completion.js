@@ -77,11 +77,22 @@ function computeBracketCompletion(
           ? period.pictureCapacity
           : period.categoryCapacity;
       let awardEntries = periodAwards.byCategory.get(category) || [];
+      // A single out-of-range or duplicate placement must not inflate
+      // filledSlots past the category's declared capacity - besides
+      // overcounting, it can also make uniquePlacements.length never equal
+      // capacity again (one slot permanently "used" by junk data),
+      // permanently blocking a category that's otherwise actually full
+      // from ever reading complete.
       let uniquePlacements = [
         ...new Set(
           awardEntries
             .map((entry) => Number(entry.award.placement))
-            .filter(Number.isFinite),
+            .filter(
+              (placement) =>
+                Number.isFinite(placement) &&
+                placement >= 1 &&
+                placement <= capacity,
+            ),
         ),
       ];
       filledSlots += uniquePlacements.length;
@@ -126,7 +137,12 @@ function computeAnnualCategoryCompletion(
       let placements = new Set(
         awardEntries
           .map((entry) => Number(entry.award.placement))
-          .filter(Number.isFinite),
+          .filter(
+            (placement) =>
+              Number.isFinite(placement) &&
+              placement >= 1 &&
+              placement <= capacity,
+          ),
       );
       filledSlots += placements.size;
       if (placements.size === capacity) completePeriods += 1;

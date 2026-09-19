@@ -341,18 +341,22 @@ window.buildCommunityComparison = function (profiles) {
   };
 };
 
-// TODO: only ever builds annual ("years") ballots, and assumes every
-// scope is a 4-digit year - a real limitation once decade/century/
-// all-time joint ceremonies are built, which will need a real scope-key
-// model (periodType + scope) instead of this year-only regex. Tracked
-// as a separate follow-up, not addressed here.
-function communityAnnualBallots(profile) {
+// Generalizes across all four award period types
+// (years/decades/centuries/allTime, matching window.getAwardPeriodType's
+// normalized values) instead of assuming every joint ceremony is annual -
+// a joint decade/century/all-time ceremony is exactly the same
+// aggregation, just keyed by a different periodType/scope pair. An
+// award's own `periodType` is trusted directly (already normalized at the
+// source, public-profile-supabase.js) rather than re-derived, since a
+// community profile's award never carries the local-archive `state.years`
+// context window.getAwardPeriodType's own fallback path depends on.
+function communityBallotsForPeriod(profile, periodType) {
   let ballots = new Map();
   communityFilmMap(profile.data).forEach((film) =>
     (film.awards || []).forEach((award) => {
       if (
-        award.periodType !== "years" ||
-        !/^\d{4}$/.test(communityText(award.year)) ||
+        window.normalizeAwardPeriodType(award.periodType) !== periodType ||
+        !communityText(award.year) ||
         !communityText(award.category) ||
         Number(award.placement) < 1
       )
@@ -369,68 +373,129 @@ function communityAnnualBallots(profile) {
   return ballots;
 }
 
+// Every period type's scope key sorts newest-first by its leading digits -
+// a 4-digit year and a "1990s"-style decade/century key both parse the
+// same way; "alltime" (no digits) is always the type's sole key, so its
+// rank never matters.
+function communityPeriodKeyRank(key) {
+  let match = /^(\d+)/.exec(String(key || ""));
+  return match ? Number(match[1]) : -Infinity;
+}
+
+let COMMUNITY_PERIOD_TYPES = ["years", "decades", "centuries", "allTime"];
+
+let COMMUNITY_PERIOD_TYPE_LABELS = {
+  years: "annual",
+  decades: "decade",
+  centuries: "century",
+  allTime: "all-time",
+};
+
 /**
- * Builds equal-weight consensus results for one annual ceremony in which at
- * least two selected profiles published ballots. Every such year is
- * independently eligible - a couple catching up together often has more
- * than one to run - so callers get the full sorted list back alongside the
- * selected year and can offer the rest as choices instead of only ever
- * seeing the newest.
+ * Lists every period (year/decade/century/all-time) with ballots from at
+ * least two selected archives - spoiler-free (scope keys only, never a
+ * result) so a picker can link straight into one specific joint ceremony
+ * without revealing anything about its outcome (issue #584).
  * @param {Array<{slug: string, ownerName: string, data: Object}>} profiles Selected profiles.
- * @param {string} [requestedYear] A specific eligible year to build, e.g. from a URL param. Falls back to the newest eligible year when omitted or not eligible.
- * @returns {{year: string, years: string[], categories: Object[], participatingProfiles: number, reason?: string}} Ceremony model.
+ * @returns {{periodType: string, periodKeys: string[]}[]} Non-empty groups, in COMMUNITY_PERIOD_TYPES order.
  */
-window.buildCommunityCeremony = function (profiles, requestedYear) {
+window.buildCommunityAvailablePeriods = function (profiles) {
+  return COMMUNITY_PERIOD_TYPES.map((periodType) => {
+    let ballotsByProfile = profiles.map((profile) =>
+      communityBallotsForPeriod(profile, periodType),
+    );
+    let keys = new Set();
+    ballotsByProfile.forEach((ballots) =>
+      ballots.forEach((_entries, ballotKey) =>
+        keys.add(ballotKey.split("\n")[0]),
+      ),
+    );
+    let periodKeys = [...keys]
+      .filter(
+        (key) =>
+          ballotsByProfile.filter((ballots) =>
+            [...ballots.keys()].some((ballotKey) =>
+              ballotKey.startsWith(`${key}\n`),
+            ),
+          ).length >= 2,
+      )
+      .sort(
+        (left, right) =>
+          communityPeriodKeyRank(right) - communityPeriodKeyRank(left),
+      );
+    return { periodType, periodKeys };
+  }).filter((group) => group.periodKeys.length);
+};
+
+/**
+ * Builds equal-weight consensus results for one period (year, decade,
+ * century, or all-time) in which at least two selected profiles published
+ * ballots. Every such period is independently eligible - a couple
+ * catching up together often has more than one to run - so callers get
+ * the full sorted list of keys back alongside the selected one.
+ * @param {Array<{slug: string, ownerName: string, data: Object}>} profiles Selected profiles.
+ * @param {string} [periodType] "years" (default), "decades", "centuries", or "allTime".
+ * @param {string} [requestedKey] A specific eligible scope key to build, e.g. from a URL param. Falls back to the newest eligible key when omitted or not eligible.
+ * @returns {{periodType: string, periodKey: string, periodKeys: string[], categories: Object[], participatingProfiles: number, reason?: string}} Ceremony model.
+ */
+window.buildCommunityCeremony = function (
+  profiles,
+  periodType = "years",
+  requestedKey,
+) {
   let prepared = profiles.map((profile) => ({
     ...profile,
-    ballots: communityAnnualBallots(profile),
+    ballots: communityBallotsForPeriod(profile, periodType),
   }));
-  let years = new Set();
+  let keys = new Set();
   prepared.forEach((profile) =>
-    profile.ballots.forEach((_entries, key) => years.add(key.split("\n")[0])),
+    profile.ballots.forEach((_entries, key) => keys.add(key.split("\n")[0])),
   );
-  let eligibleYears = [...years]
+  let eligibleKeys = [...keys]
     .filter(
-      (year) =>
+      (key) =>
         prepared.filter((profile) =>
-          [...profile.ballots.keys()].some((key) =>
-            key.startsWith(`${year}\n`),
+          [...profile.ballots.keys()].some((ballotKey) =>
+            ballotKey.startsWith(`${key}\n`),
           ),
         ).length >= 2,
     )
-    .sort((left, right) => Number(right) - Number(left));
-  let year = eligibleYears.includes(requestedYear)
-    ? requestedYear
-    : eligibleYears[0] || "";
-  if (!year)
+    .sort(
+      (left, right) =>
+        communityPeriodKeyRank(right) - communityPeriodKeyRank(left),
+    );
+  let periodKey = eligibleKeys.includes(requestedKey)
+    ? requestedKey
+    : eligibleKeys[0] || "";
+  if (!periodKey)
     return {
-      year: "",
-      years: eligibleYears,
-      periodType: "years",
+      periodType,
+      periodKey: "",
+      periodKeys: eligibleKeys,
       categories: [],
       participatingProfiles: 0,
-      reason:
-        "No annual ceremony has published ballots from at least two selected archives.",
+      reason: `No ${COMMUNITY_PERIOD_TYPE_LABELS[periodType] || "shared"} ceremony has published ballots from at least two selected archives.`,
     };
   let categoryNames = new Set();
   prepared.forEach((profile) =>
     profile.ballots.forEach((_entries, key) => {
-      let [ballotYear, category] = key.split("\n");
-      if (ballotYear === year) categoryNames.add(category);
+      let [ballotKey, category] = key.split("\n");
+      if (ballotKey === periodKey) categoryNames.add(category);
     }),
   );
   let categories = [...categoryNames]
     .map((category) => {
-      let ballotKey = `${year}\n${category}`;
+      let ballotKey = `${periodKey}\n${category}`;
       let participating = prepared.filter((profile) =>
         profile.ballots.has(ballotKey),
       );
       if (participating.length < 2) return null;
       let candidates = new Map();
       // One row per participating archive, each holding that archive's own
-      // nominees in its own placement order - the pre-reveal "who
-      // nominated what" view (issue #491), built from the exact same
-      // entries as the consensus ranking below rather than a second read.
+      // nominees in alphabetical (title) order - not that archive's own
+      // placement order, which would leak that person's ranking before
+      // "Reveal ranking" is used - built from the exact same entries as
+      // the consensus ranking below rather than a second read (issue #491).
       let byPerson = [];
       participating.forEach((profile) => {
         let entries = profile.ballots.get(ballotKey) || [];
@@ -440,7 +505,9 @@ window.buildCommunityCeremony = function (profiles, requestedYear) {
         );
         byPerson.push({
           ownerName: profile.ownerName,
-          entries: [...entries].sort((left, right) => left.placement - right.placement),
+          entries: [...entries].sort((left, right) =>
+            communityTitleCompare(left.film.title, right.film.title),
+          ),
         });
         entries.forEach((entry) => {
           let key = communityFilmKey(entry.film);
@@ -485,18 +552,14 @@ window.buildCommunityCeremony = function (profiles, requestedYear) {
       communityTitleCompare(left.category, right.category),
     );
   return {
-    year,
-    years: eligibleYears,
-    // Hardcoded, not derived - communityAnnualBallots() only ever builds
-    // annual ("years") ballots today. Callers use this to decide whether
-    // a per-nominee year label is redundant (every nominee necessarily
-    // shares the ceremony's own year) - once decade/century/all-time
-    // joint ceremonies exist, this should reflect the real scope's
-    // period type instead, since nominees could then span several years.
-    periodType: "years",
+    periodType,
+    periodKey,
+    periodKeys: eligibleKeys,
     categories,
     participatingProfiles: prepared.filter((profile) =>
-      [...profile.ballots.keys()].some((key) => key.startsWith(`${year}\n`)),
+      [...profile.ballots.keys()].some((key) =>
+        key.startsWith(`${periodKey}\n`),
+      ),
     ).length,
   };
 };

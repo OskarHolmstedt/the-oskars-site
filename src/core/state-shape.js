@@ -204,8 +204,9 @@
  * One canonical category's personal-winner comparison with official winners.
  * @typedef {Object} OfficialAwardCategoryComparison
  * @property {string} category
- * @property {PeriodAwardEntry|null} personalWinner
- * @property {string[]} personalFilmIds Canonical/source ids representing the personal winner.
+ * @property {PeriodAwardEntry|null} personalWinner The first placement-1 entry, for display.
+ * @property {PeriodAwardEntry[]} personalWinners Every placement-1 entry (ties included).
+ * @property {string[]} personalFilmIds Canonical/source ids representing every personal winner (ties included).
  * @property {OfficialNomination[]} officialWinners
  * @property {OfficialNomination[]} comparableOfficialWinners Year-compatible winners with canonical film references.
  * @property {'agreement'|'disagreement'|'unresolved'} status

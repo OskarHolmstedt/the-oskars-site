@@ -37,9 +37,7 @@ window.splitDirectorsFranchisesCell = function (raw) {
  * @returns {Object[]} Parsed items with title, year, director, franchises, and tier.
  */
 window.parseDirectorsFranchisesSheet = function (input) {
-  let rows = Array.isArray(input)
-    ? input
-    : window.parseTabbedSheetRows(input);
+  let rows = Array.isArray(input) ? input : window.parseTabbedSheetRows(input);
   if (!rows.length) return [];
   let header = (rows[0] || []).map((cell) =>
     String(cell || "")

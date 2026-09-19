@@ -383,34 +383,32 @@
     },
     "film-metadata": {
       targetKeys: ["filmId"],
-      // Kept in sync with FILM_UNDO_FIELD_LABELS
-      // (src/domain/film-metadata-editing.js) - normalizeEditLogUndo()
-      // nulls out the *entire* payload if any field it contains isn't in
-      // this set, so a key present in one but not the other silently
-      // disables undo for any edit touching it. title/year added
-      // together with that file's own allowlist (issue #454) - a film's
-      // id no longer derives from them, so restoring either is now an
-      // unambiguous field write. rewatchTier was already in the other
-      // allowlist but missing here - a pre-existing instance of the same
-      // gap, fixed alongside since it's the identical bug.
-      fieldKeys: new Set([
-        "title",
-        "year",
-        "director",
-        "rating",
-        "country",
-        "primaryCountry",
-        "url",
-        "medium",
-        "screenplayType",
-        "adaptationSource",
-        "review",
-        "tags",
-        "franchises",
-        "wantToRewatch",
-        "rewatchTier",
-        "rewatchTierModifier",
-      ]),
+      // Derived from FILM_UNDO_FIELD_LABELS (src/domain/film-metadata-editing.js,
+      // issue #503) so new reversible fields cannot drift or silently lose undo.
+      get fieldKeys() {
+        return new Set(
+          window.FILM_UNDO_FIELD_LABELS
+            ? Object.keys(window.FILM_UNDO_FIELD_LABELS)
+            : [
+                "title",
+                "year",
+                "director",
+                "rating",
+                "country",
+                "primaryCountry",
+                "url",
+                "medium",
+                "screenplayType",
+                "adaptationSource",
+                "review",
+                "tags",
+                "franchises",
+                "wantToRewatch",
+                "rewatchTier",
+                "rewatchTierModifier",
+              ],
+        );
+      },
       resolve(target) {
         return (
           window.findFilmById?.(target.filmId) ||
@@ -437,22 +435,30 @@
     },
     "watchlist-metadata": {
       targetKeys: ["watchlistId"],
-      fieldKeys: new Set([
-        "tier",
-        "tierModifier",
-        "director",
-        "tags",
-        "franchises",
-        "letterboxdUrl",
-        "tmdbId",
-        "country",
-        "runtimeMinutes",
-        "medium",
-        "screenplayType",
-        "adaptationSource",
-        "swedishTitle",
-        "platform",
-      ]),
+      // Derived from WATCHLIST_UNDO_FIELD_LABELS (src/imports/watchlists.js,
+      // issue #503) so new reversible fields cannot drift or silently lose undo.
+      get fieldKeys() {
+        return new Set(
+          window.WATCHLIST_UNDO_FIELD_LABELS
+            ? Object.keys(window.WATCHLIST_UNDO_FIELD_LABELS)
+            : [
+                "tier",
+                "tierModifier",
+                "director",
+                "tags",
+                "franchises",
+                "letterboxdUrl",
+                "tmdbId",
+                "country",
+                "runtimeMinutes",
+                "medium",
+                "screenplayType",
+                "adaptationSource",
+                "swedishTitle",
+                "platform",
+              ],
+        );
+      },
       resolve(target) {
         return window.findWatchlistItemById?.(target.watchlistId) || null;
       },

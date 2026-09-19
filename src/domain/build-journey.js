@@ -4,6 +4,10 @@
  */
 
 (function () {
+  // Maps Supabase film object references created during buildJourneyYears()
+  // to their derived rating/ranking priority for buildJourneyMilestone().
+  // If films are supplied without prior registration, representativePosterFilms
+  // gracefully falls back to title ordering.
   let posterPriority = new WeakMap();
 
   function concreteYear(row) {

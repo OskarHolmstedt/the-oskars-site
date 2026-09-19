@@ -3,7 +3,9 @@
 (function () {
   /** Normalizes a supported collection-award type. @param {*} value Raw type label. @returns {'director'|'franchise'|''} Canonical type. */
   window.normalizeCollectionAwardType = function (value) {
-    let type = String(value || "").trim().toLowerCase();
+    let type = String(value || "")
+      .trim()
+      .toLowerCase();
     if (type === "director" || type === "directors") return "director";
     if (type === "franchise" || type === "franchises") return "franchise";
     return "";
@@ -13,10 +15,12 @@
   window.collectionAwardCollectionId = function (type, name) {
     let normalizedType = window.normalizeCollectionAwardType(type);
     if (normalizedType === "director") {
-      let variantId = window.normalizePersonName?.(name) || normalizeTitle(name);
+      let variantId =
+        window.normalizePersonName?.(name) || normalizeTitle(name);
       let canonicalName = window.state.peopleAliases?.[variantId] || name;
       return (
-        window.normalizePersonName?.(canonicalName) || normalizeTitle(canonicalName)
+        window.normalizePersonName?.(canonicalName) ||
+        normalizeTitle(canonicalName)
       );
     }
     if (normalizedType === "franchise")
@@ -41,7 +45,9 @@
         if (film) records.push({ film, href: window.filmPageUrl(film.id) });
       });
       (person.watchedOtherIds || []).forEach((filmId) => {
-        let film = (state.watchedOther || []).find((item) => item.id === filmId);
+        let film = (state.watchedOther || []).find(
+          (item) => item.id === filmId,
+        );
         if (film)
           records.push({
             film,
@@ -57,7 +63,9 @@
           });
       });
     } else if (type === "franchise") {
-      let franchise = (window.ensureFranchiseIndex?.() || state.franchisesById || {})[id];
+      let franchise = (window.ensureFranchiseIndex?.() ||
+        state.franchisesById ||
+        {})[id];
       if (!franchise) return records;
       (franchise.films || []).forEach((entry) => {
         let film = state.filmsById?.[entry.filmId];
@@ -84,7 +92,9 @@
     }
     let seen = new Set();
     return records.filter((record) => {
-      let key = record.film.id || `${record.film.year || ""}::${normalizeTitle(record.film.title)}`;
+      let key =
+        record.film.id ||
+        `${record.film.year || ""}::${normalizeTitle(record.film.title)}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -108,12 +118,32 @@
     let categories = new Map();
     (bracket.nominations || []).forEach((nomination) => {
       let matches = byTitle.get(normalizeTitle(nomination.sourceTitle)) || [];
-      let resolved = matches.length === 1 ? matches[0] : null;
+      // Same-title collisions (a remake/reboot sharing its predecessor's
+      // title within one director/franchise) aren't resolved by title
+      // alone. Narrow by whichever candidate already carries this exact
+      // nomination.category among its own real award entries - the same
+      // category-corroboration idea the main award-bracket flow uses to
+      // disambiguate same-title nominees (issue #471/#473), adapted here
+      // since a collection bracket has no per-period hierarchy to narrow
+      // by (nominations carry no year/periodType).
+      let resolved =
+        matches.length === 1
+          ? matches[0]
+          : matches.length > 1
+            ? (() => {
+                let withCategory = matches.filter((record) =>
+                  (record.film.awards || []).some(
+                    (award) => award.category === nomination.category,
+                  ),
+                );
+                return withCategory.length === 1 ? withCategory[0] : null;
+              })()
+            : null;
       let entry = {
         ...nomination,
         film: resolved?.film || null,
         href: resolved?.href || "",
-        ambiguous: matches.length > 1,
+        ambiguous: matches.length > 1 && !resolved,
       };
       if (!resolved) unresolved.push(entry);
       let list = categories.get(nomination.category) || [];

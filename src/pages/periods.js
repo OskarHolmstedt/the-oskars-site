@@ -22,6 +22,11 @@
 
   function periodRecords(type) {
     let records = new Map();
+    let expectedPeriodType = {
+      alltime: "allTime",
+      century: "centuries",
+      decade: "decades",
+    }[type];
     archiveFilms().forEach((film) => {
       let key = periodKeyForYear(film.year, type);
       let record = records.get(key) || {
@@ -36,8 +41,10 @@
         let awardKey = String(award.year || "").toLowerCase();
         let matches =
           type === "alltime"
-            ? awardKey === "alltime" || awardKey === "all-time"
-            : awardKey === key.toLowerCase();
+            ? (awardKey === "alltime" || awardKey === "all-time") &&
+              window.getAwardPeriodType?.(award) === expectedPeriodType
+            : awardKey === key.toLowerCase() &&
+              window.getAwardPeriodType?.(award) === expectedPeriodType;
         if (!matches) return;
         record.nominations += 1;
         if (Number(award.placement) === 1) record.winners += 1;

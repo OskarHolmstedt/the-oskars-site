@@ -71,9 +71,9 @@
           ),
       ];
     if (path === "person.html") {
-      let person = (window.ensurePeopleIndex?.() || window.state.peopleById || {})[
-        id
-      ];
+      let person = (window.ensurePeopleIndex?.() ||
+        window.state.peopleById ||
+        {})[id];
       if (!person) return [];
       return [
         ...(person.filmIds || []).map((filmId) =>
@@ -107,7 +107,8 @@
       ];
     }
     if (path === "category.html") {
-      let entries = window.awardCategoryEntries?.(params.get("name") || id) || [];
+      let entries =
+        window.awardCategoryEntries?.(params.get("name") || id) || [];
       let winners = entries
         .filter((entry) => Number(entry.award?.placement) === 1)
         .map((entry) => entry.film);

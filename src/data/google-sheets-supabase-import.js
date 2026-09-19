@@ -72,6 +72,30 @@
     return `${fuzzyTitleKey(title)}::${year ?? ""}`;
   }
 
+  /** Normalizes a nomination source key so recipient order is deterministic. @param {string} rawKey Raw source key. @returns {string} Normalized key. */
+  window.normalizeNominationSourceKey = function (rawKey) {
+    if (!rawKey || typeof rawKey !== "string") return String(rawKey || "");
+    try {
+      let parsed = JSON.parse(rawKey);
+      if (
+        Array.isArray(parsed) &&
+        parsed.length === 7 &&
+        Array.isArray(parsed[6])
+      ) {
+        let sortedRecipients = [...parsed[6]].sort((a, b) =>
+          String(a).localeCompare(String(b), undefined, {
+            sensitivity: "base",
+          }),
+        );
+        parsed[6] = sortedRecipients;
+        return JSON.stringify(parsed);
+      }
+    } catch (_e) {
+      // If not JSON array, return as is.
+    }
+    return rawKey;
+  };
+
   /** Returns [startYear, endYear] for a bracket period's decade/century label ("1990s"), or null for anything else. */
   function periodYearRange(periodHint) {
     if (!periodHint) return null;
@@ -1082,7 +1106,21 @@
           let recipients = (award.recipients || [])
             .map((recipient) => textOrNull(recipient?.name))
             .filter(Boolean);
+          let sortedRecipients = [...recipients].sort((a, b) =>
+            String(a).localeCompare(String(b), undefined, {
+              sensitivity: "base",
+            }),
+          );
           let sourceKey = JSON.stringify([
+            filmId,
+            period.periodType,
+            period.year,
+            award.category,
+            award.placement,
+            textOrNull(award.detail),
+            sortedRecipients,
+          ]);
+          let rawSourceKey = JSON.stringify([
             filmId,
             period.periodType,
             period.year,
@@ -1096,6 +1134,7 @@
             scopeType: period.periodType,
             scope: period.year,
             sourceKey,
+            rawSourceKey,
             category: award.category,
             placement: award.placement,
             filmId,
@@ -1138,14 +1177,23 @@
     // personal_nominations: source_key has a *partial* unique index, so
     // .upsert() can't target it - diff against already-fetched rows and
     // .insert() only what's missing.
-    let existingBySourceKey = new Map(
-      existingNominations
-        .filter((row) => row.source_key)
-        .map((row) => [row.source_key, row]),
-    );
+    let existingBySourceKey = new Map();
+    let existingByNormalizedSourceKey = new Map();
+    existingNominations.forEach((row) => {
+      if (!row.source_key) return;
+      existingBySourceKey.set(row.source_key, row);
+      let norm = window.normalizeNominationSourceKey(row.source_key);
+      if (norm) existingByNormalizedSourceKey.set(norm, row);
+    });
     let toInsert = [];
     for (let [sourceKey, nomination] of nominationsBySourceKey) {
-      if (existingBySourceKey.has(sourceKey)) continue;
+      if (
+        existingBySourceKey.has(sourceKey) ||
+        existingBySourceKey.has(nomination.rawSourceKey) ||
+        existingByNormalizedSourceKey.has(sourceKey)
+      ) {
+        continue;
+      }
       toInsert.push({
         personal_award_id: awardIdByScope.get(
           `${nomination.scopeType}::${nomination.scope}`,
@@ -1172,15 +1220,21 @@
         "id,personal_award_id,source_key",
       )
     ).filter((row) => allAwardIds.has(row.personal_award_id));
-    let nominationIdBySourceKey = new Map(
-      stored
-        .filter((row) => row.source_key)
-        .map((row) => [row.source_key, row.id]),
-    );
+    let nominationIdBySourceKey = new Map();
+    let nominationIdByNormalizedSourceKey = new Map();
+    stored.forEach((row) => {
+      if (!row.source_key) return;
+      nominationIdBySourceKey.set(row.source_key, row.id);
+      let norm = window.normalizeNominationSourceKey(row.source_key);
+      if (norm) nominationIdByNormalizedSourceKey.set(norm, row.id);
+    });
 
     let recipientRows = [];
     for (let [sourceKey, nomination] of nominationsBySourceKey) {
-      let nominationId = nominationIdBySourceKey.get(sourceKey);
+      let nominationId =
+        nominationIdBySourceKey.get(sourceKey) ||
+        nominationIdBySourceKey.get(nomination.rawSourceKey) ||
+        nominationIdByNormalizedSourceKey.get(sourceKey);
       if (!nominationId) continue;
       for (let name of nomination.recipients) {
         let personResolution = await resolveOrCreatePerson(

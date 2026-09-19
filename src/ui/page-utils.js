@@ -23,6 +23,9 @@ window.pageEscape = function (value) {
   );
 };
 
+/** Escapes a value for HTML text or attribute output. Shared alias for window.pageEscape. @param {*} value Value to escape. @returns {string} */
+window.escapeHtml = window.pageEscape;
+
 /** Reads and decodes one query parameter. @param {string} name Parameter name. @returns {string} */
 window.pageQueryParam = function (name) {
   let decode = (value) => {

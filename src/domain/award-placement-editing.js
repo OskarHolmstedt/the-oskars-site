@@ -97,11 +97,15 @@ window.planAwardPlacementReorder = function (
   });
   rawByFilm.forEach((entries) => {
     if (entries.length > 1)
-      errors.push(`${entries[0].film.title} has duplicate ${category} entries.`);
+      errors.push(
+        `${entries[0].film.title} has duplicate ${category} entries.`,
+      );
   });
   rawByPlacement.forEach((entries, placement) => {
     if (entries.length > 2)
-      errors.push(`Placement #${placement} is shared by ${entries.length} films.`);
+      errors.push(
+        `Placement #${placement} is shared by ${entries.length} films.`,
+      );
     else if (entries.length === 2)
       warnings.push(
         `Existing tie at #${placement}: ${entries.map((entry) => entry.film.title).join(" / ")}.`,
@@ -119,38 +123,16 @@ window.planAwardPlacementReorder = function (
     });
   }
 
-  let entriesByFilm = new Map();
-  candidateEntries.forEach((entry) => {
-    let existing = entriesByFilm.get(entry.filmKey);
-    let isDragged =
-      (filmMatchesId(entry.film, fromFilmId) &&
-        Number(entry.award.placement) === Number(fromPlacement)) ||
-      (filmMatchesId(entry.film, toFilmId) &&
-        Number(entry.award.placement) === Number(toPlacement));
-    let existingIsDragged =
-      existing &&
-      ((filmMatchesId(existing.film, fromFilmId) &&
-        Number(existing.award.placement) === Number(fromPlacement)) ||
-        (filmMatchesId(existing.film, toFilmId) &&
-          Number(existing.award.placement) === Number(toPlacement)));
-    if (
-      !existing ||
-      (isDragged && !existingIsDragged) ||
-      (isDragged === existingIsDragged &&
-        (entry.originalPlacement < existing.originalPlacement ||
-          (entry.originalPlacement === existing.originalPlacement &&
-            entry.awardIndex < existing.awardIndex)))
-    ) {
-      entriesByFilm.set(entry.filmKey, entry);
-    }
-  });
+  // No dedup-by-film pass is needed here: the rawByFilm check above already
+  // errors out on any filmKey collision, so candidateEntries is guaranteed
+  // one entry per film by the time we get here.
+  let entries = candidateEntries;
 
   nextSource.films.forEach((film) => {
     film.awards = (film.awards || []).filter(
       (award) => !awardMatchesTarget(award),
     );
   });
-  let entries = [...entriesByFilm.values()];
   entries.forEach((entry) => {
     entry.award = window.cloneRecord(entry.award);
     entry.film.awards ||= [];
@@ -306,12 +288,7 @@ window.swapAwardPlacements = function (
 };
 
 /** Builds a dry-run deletion that compacts an emptied placement and preserves ties. @param {string} year Period key. @param {string} category Category. @param {string} filmId Deleted film id. @param {number} placement Deleted placement. @returns {NominationPlacementPlan} Deletion plan. */
-window.planNominationDeletion = function (
-  year,
-  category,
-  filmId,
-  placement,
-) {
+window.planNominationDeletion = function (year, category, filmId, placement) {
   let key = String(year || "");
   let source = window.state.years?.[key];
   let targetPlacement = Number(placement);
@@ -411,8 +388,7 @@ window.planNominationDeletion = function (
     entries
       .filter(
         (entry) =>
-          entry !== target &&
-          Number(entry.award.placement) > targetPlacement,
+          entry !== target && Number(entry.award.placement) > targetPlacement,
       )
       .sort(
         (left, right) =>

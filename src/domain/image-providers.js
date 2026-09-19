@@ -20,7 +20,8 @@
 window.parseTmdbReference = function (value) {
   let raw = String(value ?? "").trim();
   let match = raw.match(/^TV:(\d+)(?:\/S(\d+)(?:E(\d+))?)?$/i);
-  if (!match) return { mediaType: "movie", id: raw, season: null, episode: null };
+  if (!match)
+    return { mediaType: "movie", id: raw, season: null, episode: null };
   return {
     mediaType: "tv",
     id: match[1],
@@ -148,10 +149,7 @@ window.tmdbMovieSearchEligible = function (film) {
 window.lookupTmdbPoster = async function (film, fetchFn) {
   if (film.tmdbId) {
     let reference = window.parseTmdbReference(film.tmdbId);
-    let details = await window.lookupTmdbMovieDetails(
-      film.tmdbId,
-      fetchFn,
-    );
+    let details = await window.lookupTmdbMovieDetails(film.tmdbId, fetchFn);
     let posterPath = details.poster_path || details.still_path || "";
     if (!posterPath) return null;
     return window.normalizePosterRecord({
@@ -185,11 +183,7 @@ window.lookupTmdbPoster = async function (film, fetchFn) {
 };
 
 /** Lists ranked TMDB poster choices for a film. @param {FilmRecord} film Film. @param {Function} fetchFn Fetch implementation. @param {Object} [options] Lookup controls. @returns {Promise<PosterRecord[]>} Posters. */
-window.lookupTmdbPosterOptions = async function (
-  film,
-  fetchFn,
-  options = {},
-) {
+window.lookupTmdbPosterOptions = async function (film, fetchFn, options = {}) {
   let apiParams = new URLSearchParams({ include_image_language: "en,null" });
   let match = film.tmdbId
     ? { id: film.tmdbId, poster_path: film.poster?.source === "tmdb" ? "" : "" }
@@ -439,9 +433,7 @@ window.lookupTmdbTvMetadataFields = async function (reference, fetchFn) {
       (season) => Number(season.season_number) >= 1,
     );
     let allRuntimes = await Promise.all(
-      realSeasons.map((season) =>
-        seasonEpisodeRuntimes(season.season_number),
-      ),
+      realSeasons.map((season) => seasonEpisodeRuntimes(season.season_number)),
     );
     let total = allRuntimes.flat().reduce((sum, minutes) => sum + minutes, 0);
     runtimeMinutes = total > 0 ? total : null;
@@ -536,8 +528,7 @@ window.lookupTmdbPersonPortrait = async function (person, fetchFn) {
       // unlinked record, but a namesake with no profile photo at all is
       // never a plausible rival to one that has one.
       let withPhoto = exact.filter((result) => result.profile_path);
-      if (new Set(withPhoto.map((result) => result.id)).size !== 1)
-        return null;
+      if (new Set(withPhoto.map((result) => result.id)).size !== 1) return null;
       exact = withPhoto;
     }
   }

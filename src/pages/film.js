@@ -864,7 +864,7 @@
       ${film.review ? `<section class="detail-note film-review-compact"><div><h2>${filmPageEscape(ui("Review"))}</h2></div><p>${filmPageEscape(film.review)}</p></section>` : ""}`,
       actionsHtml: `<a class="button-link" href="${filmPageEscape(window.comparePageUrl([film.id]))}">${filmPageEscape(ui("Compare"))}</a>${
         canEdit
-          ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Remove from watched"), escape: filmPageEscape, active: true, attributes: { "data-remove-watched-film": true, disabled: watchedBusy } })}<button type="button" data-toggle-film-rewatch>${filmPageEscape(ui(film.wantToRewatch ? "Remove from rewatchlist" : "Want to rewatch"))}</button><button type="button" data-edit-film>${filmPageEscape(ui("Edit"))}</button>`
+          ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Remove from watched"), escape: filmPageEscape, active: true, attributes: { "data-remove-watched-film": true, disabled: watchedBusy } })}${window.renderCollectionActionButton({ kind: "rewatch", label: ui(film.wantToRewatch ? "Remove from rewatchlist" : "Want to rewatch"), escape: filmPageEscape, active: film.wantToRewatch, attributes: { "data-toggle-film-rewatch": true } })}<button type="button" data-edit-film>${filmPageEscape(ui("Edit"))}</button>`
           : ""
       }`,
     })}
@@ -1074,6 +1074,9 @@
           title: watchlistItem.title,
           filmId: watchlistItem.supabaseFilmId,
           tier: watchlistItem.tier,
+          tierModifier: watchlistItem.tierModifier,
+          reason: watchlistItem.reason,
+          position: watchlistItem.position,
         };
         await window.removeFromSupabaseWatchlist(watchlistItem.id);
         watchlistItem = null;
@@ -1092,6 +1095,9 @@
       try {
         await window.addToSupabaseWatchlist(removedWatchlistSnapshot.filmId, {
           tier: removedWatchlistSnapshot.tier,
+          tierModifier: removedWatchlistSnapshot.tierModifier,
+          reason: removedWatchlistSnapshot.reason,
+          position: removedWatchlistSnapshot.position,
         });
         removedWatchlistSnapshot = null;
         // Undo recreates a watchlist row for the same film - the URL

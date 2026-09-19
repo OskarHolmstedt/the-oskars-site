@@ -150,7 +150,10 @@
   }
 
   async function restoreFilmTags(client, userId, watchedRows) {
-    for (let row of watchedRows || []) {
+    let rowsWithTags = (watchedRows || []).filter(
+      (row) => (row.films?.film_tags || []).length > 0,
+    );
+    for (let row of rowsWithTags) {
       let names = [
         ...new Set(
           (row.films?.film_tags || [])
@@ -158,6 +161,7 @@
             .filter(Boolean),
         ),
       ];
+      if (!names.length) continue;
       let { error: deleteError } = await client
         .from("film_tags")
         .delete()
@@ -180,50 +184,165 @@
     }
   }
 
-  async function restoreBackup(value, mode) {
-    if (value?.format !== "the-oskars-supabase-backup" || value.version !== 1)
+  /**
+   * Validates the structure and required row fields of a Supabase backup payload before restoration.
+   * @param {object} value - The parsed JSON backup payload.
+   */
+  function validateBackupPayload(value) {
+    if (value?.format !== "the-oskars-supabase-backup" || value.version !== 1) {
       throw new Error(ui("This is not a supported backup."));
-    let { client, user } = await readyClient();
-    let data = value.data || {};
-    if (mode === "replace") await clearPersonalArchive(client);
+    }
+    let data = value.data;
+    if (!data || typeof data !== "object") {
+      throw new Error(ui("This is not a supported backup."));
+    }
+    if (data.watched != null && !Array.isArray(data.watched)) {
+      throw new Error(ui("This is not a supported backup."));
+    }
+    if (data.watchlist != null && !Array.isArray(data.watchlist)) {
+      throw new Error(ui("This is not a supported backup."));
+    }
+    if (data.rankings != null && !Array.isArray(data.rankings)) {
+      throw new Error(ui("This is not a supported backup."));
+    }
+    if (data.personalAwards != null && !Array.isArray(data.personalAwards)) {
+      throw new Error(ui("This is not a supported backup."));
+    }
+    if (data.awardReviews != null && !Array.isArray(data.awardReviews)) {
+      throw new Error(ui("This is not a supported backup."));
+    }
+    if (data.entityNotes != null && !Array.isArray(data.entityNotes)) {
+      throw new Error(ui("This is not a supported backup."));
+    }
 
     for (let row of data.watched || []) {
-      let { error } = await client.from("watched").upsert(
-        {
-          user_id: user.id,
-          film_id: row.film_id,
-          rating: row.rating,
-          rating_modifier: row.rating_modifier,
-          date_watched: row.date_watched,
-          review: row.review,
-          want_to_rewatch: Boolean(row.want_to_rewatch),
-          rewatch_tier: row.rewatch_tier,
-          rewatch_tier_modifier: row.rewatch_tier_modifier,
-          music_score: row.music_score,
-          music_rating: row.music_rating,
-          music_rating_value: row.music_rating_value,
-          views: row.views,
-          platform: row.platform,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,film_id" },
-      );
-      if (error) throw error;
+      if (!row || typeof row !== "object" || !row.film_id) {
+        throw new Error(ui("This is not a supported backup."));
+      }
     }
     for (let row of data.watchlist || []) {
-      let { error } = await client.from("watchlist").upsert(
-        {
-          user_id: user.id,
-          film_id: row.film_id,
-          tier: row.tier,
-          tier_modifier: row.tier_modifier,
-          position: row.position,
-          reason: row.reason,
-          added_at: row.added_at,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,film_id" },
-      );
+      if (!row || typeof row !== "object" || !row.film_id) {
+        throw new Error(ui("This is not a supported backup."));
+      }
+    }
+    for (let ranking of data.rankings || []) {
+      if (
+        !ranking ||
+        typeof ranking !== "object" ||
+        !ranking.scope ||
+        !ranking.scope_type
+      ) {
+        throw new Error(ui("This is not a supported backup."));
+      }
+      if (
+        ranking.ranking_entries != null &&
+        !Array.isArray(ranking.ranking_entries)
+      ) {
+        throw new Error(ui("This is not a supported backup."));
+      }
+      for (let entry of ranking.ranking_entries || []) {
+        if (!entry || typeof entry !== "object" || !entry.film_id) {
+          throw new Error(ui("This is not a supported backup."));
+        }
+      }
+    }
+    for (let award of data.personalAwards || []) {
+      if (
+        !award ||
+        typeof award !== "object" ||
+        !award.scope ||
+        !award.scope_type
+      ) {
+        throw new Error(ui("This is not a supported backup."));
+      }
+      if (
+        award.personal_nominations != null &&
+        !Array.isArray(award.personal_nominations)
+      ) {
+        throw new Error(ui("This is not a supported backup."));
+      }
+      for (let nom of award.personal_nominations || []) {
+        if (!nom || typeof nom !== "object" || !nom.category || !nom.film_id) {
+          throw new Error(ui("This is not a supported backup."));
+        }
+      }
+    }
+    for (let review of data.awardReviews || []) {
+      if (
+        !review ||
+        typeof review !== "object" ||
+        !review.year ||
+        !review.category
+      ) {
+        throw new Error(ui("This is not a supported backup."));
+      }
+    }
+    for (let note of data.entityNotes || []) {
+      if (
+        !note ||
+        typeof note !== "object" ||
+        !note.entity_kind ||
+        !note.entity_key
+      ) {
+        throw new Error(ui("This is not a supported backup."));
+      }
+    }
+  }
+  window.validateBackupPayload = validateBackupPayload;
+
+  async function restoreBackup(value, mode) {
+    validateBackupPayload(value);
+    let { client, user } = await readyClient();
+    let data = value.data || {};
+    if (mode === "replace") {
+      let safetyBackup = await backupValue();
+      downloadJson(safetyBackup, stampedFilename("the-oskars-before-restore"));
+      await clearPersonalArchive(client);
+    }
+
+    let watchedRows = (data.watched || []).map((row) => ({
+      user_id: user.id,
+      film_id: row.film_id,
+      rating: row.rating,
+      rating_modifier: row.rating_modifier,
+      date_watched: row.date_watched,
+      review: row.review,
+      want_to_rewatch: Boolean(row.want_to_rewatch),
+      rewatch_tier: row.rewatch_tier,
+      rewatch_tier_modifier: row.rewatch_tier_modifier,
+      music_score: row.music_score,
+      music_rating: row.music_rating,
+      music_rating_value: row.music_rating_value,
+      views: row.views,
+      platform: row.platform,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const BATCH_SIZE = 200;
+    for (let from = 0; from < watchedRows.length; from += BATCH_SIZE) {
+      let batch = watchedRows.slice(from, from + BATCH_SIZE);
+      let { error } = await client
+        .from("watched")
+        .upsert(batch, { onConflict: "user_id,film_id" });
+      if (error) throw error;
+    }
+
+    let watchlistRows = (data.watchlist || []).map((row) => ({
+      user_id: user.id,
+      film_id: row.film_id,
+      tier: row.tier,
+      tier_modifier: row.tier_modifier,
+      position: row.position,
+      reason: row.reason,
+      added_at: row.added_at,
+      updated_at: new Date().toISOString(),
+    }));
+
+    for (let from = 0; from < watchlistRows.length; from += BATCH_SIZE) {
+      let batch = watchlistRows.slice(from, from + BATCH_SIZE);
+      let { error } = await client
+        .from("watchlist")
+        .upsert(batch, { onConflict: "user_id,film_id" });
       if (error) throw error;
     }
     await restoreFilmTags(client, user.id, data.watched);
@@ -383,6 +502,7 @@
             await backupValue(),
             stampedFilename("the-oskars-backup"),
           );
+          window.noteBackupTaken?.();
           status.textContent = ui("Backup downloaded.");
         } catch (error) {
           status.textContent = error.message || String(error);
@@ -396,6 +516,7 @@
           pendingBackup = JSON.parse(await event.target.files?.[0]?.text());
           if (pendingBackup?.format !== "the-oskars-supabase-backup")
             throw new Error(ui("Unsupported backup format."));
+          validateBackupPayload(pendingBackup);
           status.textContent = ui(
             "Backup from {date}: {watched} watched, {watchlist} watchlist, {rankings} ranking scope(s).",
             {
@@ -622,6 +743,7 @@
             await backupValue(),
             stampedFilename("the-oskars-before-opinion-erasure"),
           );
+          window.noteBackupTaken?.();
           await eraseOpinions();
           await refreshSource();
           status.textContent = ui(

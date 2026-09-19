@@ -38,10 +38,10 @@ function watchlistBelongsToPeriod(item, archiveFilm, filters) {
   );
 }
 
-  // Period + director/search only (not tier, not sub-period) - the stable
-  // base both the tier-toggle counts and the sub-period select counts are
-  // computed from, each further filtered by the OTHER axis so neither
-  // control's counts shift when you use itself to narrow the view.
+// Period + director/search only (not tier, not sub-period) - the stable
+// base both the tier-toggle counts and the sub-period select counts are
+// computed from, each further filtered by the OTHER axis so neither
+// control's counts shift when you use itself to narrow the view.
 /**
  * Returns watchlist entries matching the period and director/search
  * filters, before tier or sub-period narrowing - the stable base both the
@@ -50,48 +50,61 @@ function watchlistBelongsToPeriod(item, archiveFilm, filters) {
  * @returns {Object[]} `{item, index, archiveFilm}` entries.
  */
 window.periodWatchlistBaseEntries = function (filters) {
-    return (state.watchlist || [])
-      .map((item, index) => {
-        let archiveFilm = window.findWatchlistArchiveFilm(item);
-        return { item, index, archiveFilm };
-      })
-      .filter((entry) =>
-        watchlistBelongsToPeriod(entry.item, entry.archiveFilm, filters),
-      )
-      .filter((entry) => matchesWatchlistDirectorAndSearch(entry, filters))
-      .filter((entry) => matchesWatchlistRuntime(entry, filters));
+  if (
+    filters &&
+    typeof filters === "object" &&
+    filters._baseEntries &&
+    filters._baseWatchlist === state.watchlist
+  ) {
+    return filters._baseEntries;
+  }
+  let entries = (state.watchlist || [])
+    .map((item, index) => {
+      let archiveFilm = window.findWatchlistArchiveFilm(item);
+      return { item, index, archiveFilm };
+    })
+    .filter((entry) =>
+      watchlistBelongsToPeriod(entry.item, entry.archiveFilm, filters),
+    )
+    .filter((entry) => matchesWatchlistDirectorAndSearch(entry, filters))
+    .filter((entry) => matchesWatchlistRuntime(entry, filters));
+  if (filters && typeof filters === "object") {
+    filters._baseEntries = entries;
+    filters._baseWatchlist = state.watchlist;
+  }
+  return entries;
 };
 
 function matchesWatchlistRuntime(entry, filters) {
-    return window.filmMatchesFilters(entry.item, {
-      minimumRuntime: filters.minRuntime,
-      maximumRuntime: filters.maxRuntime,
-    });
-  }
+  return window.filmMatchesFilters(entry.item, {
+    minimumRuntime: filters.minRuntime,
+    maximumRuntime: filters.maxRuntime,
+  });
+}
 
 function watchlistFilterRecord(entry) {
-    return {
-      year: String(entry.item.year || entry.archiveFilm?.year || "").trim(),
-      allTimeRank: entry.archiveFilm?.allTimeRank,
-    };
-  }
+  return {
+    year: String(entry.item.year || entry.archiveFilm?.year || "").trim(),
+    allTimeRank: entry.archiveFilm?.allTimeRank,
+  };
+}
 
-  // Most specific selected sub-period wins - picking a year implies its
-  // decade/century, so those never need to be checked separately.
+// Most specific selected sub-period wins - picking a year implies its
+// decade/century, so those never need to be checked separately.
 function watchlistSubPeriodValue(filters) {
-    if (filters.subYear !== "all") return `year:${filters.subYear}`;
-    if (filters.subDecade !== "all") return `decade:${filters.subDecade}`;
-    if (filters.subCentury !== "all") return `century:${filters.subCentury}`;
-    return "";
-  }
+  if (filters.subYear !== "all") return `year:${filters.subYear}`;
+  if (filters.subDecade !== "all") return `decade:${filters.subDecade}`;
+  if (filters.subCentury !== "all") return `century:${filters.subCentury}`;
+  return "";
+}
 
 function matchesWatchlistSubPeriod(entry, filters) {
-    let value = watchlistSubPeriodValue(filters);
-    if (!value) return true;
-    return window.filmMatchesFilters(watchlistFilterRecord(entry), {
-      period: value,
-    });
-  }
+  let value = watchlistSubPeriodValue(filters);
+  if (!value) return true;
+  return window.filmMatchesFilters(watchlistFilterRecord(entry), {
+    period: value,
+  });
+}
 
 /**
  * Returns period-, tier-, sub-period-, and director/search-filtered
@@ -100,78 +113,78 @@ function matchesWatchlistSubPeriod(entry, filters) {
  * @returns {Object[]} Sorted `{item, index, archiveFilm}` entries.
  */
 window.periodWatchlistEntries = function (filters) {
-    return window.periodWatchlistBaseEntries(filters)
-      .filter((entry) => matchesWatchlistTier(entry, filters))
-      .filter((entry) => matchesWatchlistSubPeriod(entry, filters))
-      .sort((left, right) =>
-        filters.order === "shuffle"
-          ? window.compareBySeededShuffle(
-              left.item.id || window.watchlistItemId(left.item),
-              right.item.id || window.watchlistItemId(right.item),
-              filters.shuffleSeed,
+  return window
+    .periodWatchlistBaseEntries(filters)
+    .filter((entry) => matchesWatchlistTier(entry, filters))
+    .filter((entry) => matchesWatchlistSubPeriod(entry, filters))
+    .sort((left, right) =>
+      filters.order === "shuffle"
+        ? window.compareBySeededShuffle(
+            left.item.id || window.watchlistItemId(left.item),
+            right.item.id || window.watchlistItemId(right.item),
+            filters.shuffleSeed,
+          ) || left.index - right.index
+        : filters.order === "rank"
+          ? window.compareWatchlistItemsBy(
+              left.item,
+              right.item,
+              "order",
+              filters.direction,
             ) || left.index - right.index
-          : filters.order === "rank"
-            ? window.compareWatchlistItemsBy(
-                left.item,
-                right.item,
-                "order",
-                filters.direction,
-              ) ||
-              left.index - right.index
-            : window.compareFilmAxisRecords(
-                { item: left.item },
-                { item: right.item },
-                { axis: filters.order, order: filters.direction },
-              ) || left.index - right.index,
-      );
+          : window.compareFilmAxisRecords(
+              { item: left.item },
+              { item: right.item },
+              { axis: filters.order, order: filters.direction },
+            ) || left.index - right.index,
+    );
 };
 
-  // Groups base entries (period + tier/search/director, before sub-period
-  // narrowing) into century/decade/year option counts for the sub-period
-  // selects below - entries without a real year never contribute.
+// Groups base entries (period + tier/search/director, before sub-period
+// narrowing) into century/decade/year option counts for the sub-period
+// selects below - entries without a real year never contribute.
 function watchlistSubPeriodGroupCounts(entries, levelType) {
-    let counts = new Map();
-    entries.forEach((entry) => {
-      let year = watchlistFilterRecord(entry).year;
-      if (!/^\d{4}$/.test(year)) return;
-      let optionKey =
-        levelType === "year"
-          ? year
-          : levelType === "decade"
-            ? window.getDecadeKey(year)
-            : window.getCenturyKey(year);
-      counts.set(optionKey, (counts.get(optionKey) || 0) + 1);
-    });
-    return [...counts.entries()].sort(
-      (left, right) =>
-        Number(left[0].replace(/s$/, "")) - Number(right[0].replace(/s$/, "")),
-    );
-  }
+  let counts = new Map();
+  entries.forEach((entry) => {
+    let year = watchlistFilterRecord(entry).year;
+    if (!/^\d{4}$/.test(year)) return;
+    let optionKey =
+      levelType === "year"
+        ? year
+        : levelType === "decade"
+          ? window.getDecadeKey(year)
+          : window.getCenturyKey(year);
+    counts.set(optionKey, (counts.get(optionKey) || 0) + 1);
+  });
+  return [...counts.entries()].sort(
+    (left, right) =>
+      Number(left[0].replace(/s$/, "")) - Number(right[0].replace(/s$/, "")),
+  );
+}
 
 function renderWatchlistSubPeriodSelect(
   { attribute, value, allLabel, options },
   escape,
   ui,
 ) {
-    if (!options.length) return "";
-    let optionsHtml = options
-      .map(
-        ([optionKey, count]) =>
-          `<option value="${escape(optionKey)}" ${value === optionKey ? "selected" : ""}>${escape(`${optionKey} (${count})`)}</option>`,
-      )
-      .join("");
-    let label =
-      attribute === "century"
-        ? ui("Century")
-        : attribute === "decade"
-          ? ui("Decade")
-          : ui("Year");
-    return `<label>${escape(label)} <select data-period-watchlist-subperiod="${attribute}"><option value="all" ${value === "all" ? "selected" : ""}>${escape(allLabel)}</option>${optionsHtml}</select></label>`;
-  }
+  if (!options.length) return "";
+  let optionsHtml = options
+    .map(
+      ([optionKey, count]) =>
+        `<option value="${escape(optionKey)}" ${value === optionKey ? "selected" : ""}>${escape(`${optionKey} (${count})`)}</option>`,
+    )
+    .join("");
+  let label =
+    attribute === "century"
+      ? ui("Century")
+      : attribute === "decade"
+        ? ui("Decade")
+        : ui("Year");
+  return `<label>${escape(label)} <select data-period-watchlist-subperiod="${attribute}"><option value="all" ${value === "all" ? "selected" : ""}>${escape(allLabel)}</option>${optionsHtml}</select></label>`;
+}
 
-  // Cascading century -> decade -> year narrowing within the current period
-  // (issue #154): each finer select's options are scoped by any coarser
-  // selection already made, but not vice versa.
+// Cascading century -> decade -> year narrowing within the current period
+// (issue #154): each finer select's options are scoped by any coarser
+// selection already made, but not vice versa.
 /**
  * Renders the cascading century -> decade -> year sub-period narrowing
  * controls (issue #154) for the current period type; each finer select's
@@ -183,135 +196,135 @@ function renderWatchlistSubPeriodSelect(
  * @returns {string}
  */
 window.watchlistSubPeriodControls = function (filters, options = {}) {
-    let escape = options.escape || window.pageEscape;
-    let ui = options.ui || window.uiText || ((text) => text);
-    if (filters.type === "year") return "";
-    let baseEntries = window.periodWatchlistBaseEntries(filters).filter((entry) =>
-      matchesWatchlistTier(entry, filters),
-    );
-    let selects = [];
-    if (filters.type === "alltime") {
-      selects.push(
-        renderWatchlistSubPeriodSelect(
-          {
-            attribute: "century",
-            value: filters.subCentury,
-            allLabel: ui("All centuries"),
-            options: watchlistSubPeriodGroupCounts(baseEntries, "century"),
-          },
-          escape,
-          ui,
-        ),
-      );
-    }
-    if (filters.type === "century" || filters.type === "alltime") {
-      let decadeScope =
-        filters.type === "alltime" && filters.subCentury !== "all"
-          ? baseEntries.filter(
-              (entry) =>
-                window.getCenturyKey(watchlistFilterRecord(entry).year) ===
-                filters.subCentury,
-            )
-          : baseEntries;
-      selects.push(
-        renderWatchlistSubPeriodSelect(
-          {
-            attribute: "decade",
-            value: filters.subDecade,
-            allLabel: ui("All decades"),
-            options: watchlistSubPeriodGroupCounts(decadeScope, "decade"),
-          },
-          escape,
-          ui,
-        ),
-      );
-    }
-    let yearScope =
-      filters.subDecade !== "all"
-        ? baseEntries.filter(
-            (entry) =>
-              window.getDecadeKey(watchlistFilterRecord(entry).year) ===
-              filters.subDecade,
-          )
-        : filters.type === "alltime" && filters.subCentury !== "all"
-          ? baseEntries.filter(
-              (entry) =>
-                window.getCenturyKey(watchlistFilterRecord(entry).year) ===
-                filters.subCentury,
-            )
-          : baseEntries;
+  let escape = options.escape || window.pageEscape;
+  let ui = options.ui || window.uiText || ((text) => text);
+  if (filters.type === "year") return "";
+  let baseEntries = window
+    .periodWatchlistBaseEntries(filters)
+    .filter((entry) => matchesWatchlistTier(entry, filters));
+  let selects = [];
+  if (filters.type === "alltime") {
     selects.push(
       renderWatchlistSubPeriodSelect(
         {
-          attribute: "year",
-          value: filters.subYear,
-          allLabel: ui("All years"),
-          options: watchlistSubPeriodGroupCounts(yearScope, "year"),
+          attribute: "century",
+          value: filters.subCentury,
+          allLabel: ui("All centuries"),
+          options: watchlistSubPeriodGroupCounts(baseEntries, "century"),
         },
         escape,
         ui,
       ),
     );
-    if (!selects.some(Boolean)) return "";
-    return `<fieldset class="period-filter-controls period-subperiod-filter-controls"><legend>${escape(ui("Narrow period"))}</legend>${selects.join("")}</fieldset>`;
+  }
+  if (filters.type === "century" || filters.type === "alltime") {
+    let decadeScope =
+      filters.type === "alltime" && filters.subCentury !== "all"
+        ? baseEntries.filter(
+            (entry) =>
+              window.getCenturyKey(watchlistFilterRecord(entry).year) ===
+              filters.subCentury,
+          )
+        : baseEntries;
+    selects.push(
+      renderWatchlistSubPeriodSelect(
+        {
+          attribute: "decade",
+          value: filters.subDecade,
+          allLabel: ui("All decades"),
+          options: watchlistSubPeriodGroupCounts(decadeScope, "decade"),
+        },
+        escape,
+        ui,
+      ),
+    );
+  }
+  let yearScope =
+    filters.subDecade !== "all"
+      ? baseEntries.filter(
+          (entry) =>
+            window.getDecadeKey(watchlistFilterRecord(entry).year) ===
+            filters.subDecade,
+        )
+      : filters.type === "alltime" && filters.subCentury !== "all"
+        ? baseEntries.filter(
+            (entry) =>
+              window.getCenturyKey(watchlistFilterRecord(entry).year) ===
+              filters.subCentury,
+          )
+        : baseEntries;
+  selects.push(
+    renderWatchlistSubPeriodSelect(
+      {
+        attribute: "year",
+        value: filters.subYear,
+        allLabel: ui("All years"),
+        options: watchlistSubPeriodGroupCounts(yearScope, "year"),
+      },
+      escape,
+      ui,
+    ),
+  );
+  if (!selects.some(Boolean)) return "";
+  return `<fieldset class="period-filter-controls period-subperiod-filter-controls"><legend>${escape(ui("Narrow period"))}</legend>${selects.join("")}</fieldset>`;
 };
 
 function matchesWatchlistTier(entry, filters) {
-    return window.filmMatchesFilters(entry.item, {
-      watchlistTier: filters.tierFilter,
-    });
-  }
+  return window.filmMatchesFilters(entry.item, {
+    watchlistTier: filters.tierFilter,
+  });
+}
 
 function matchesWatchlistDirectorAndSearch(entry, filters) {
-    if (filters.director) {
-      let directorId =
-        window.normalizePersonName?.(filters.director) ||
-        window.normalizeTitle(filters.director);
-      let itemDirectors = String(entry.item.director || "")
-        .split(/\s*(?:,|;|\/|\s+&\s+|\s+and\s+)\s*/i)
-        .map(
-          (name) =>
-            window.normalizePersonName?.(name) || window.normalizeTitle(name),
-        );
-      if (!itemDirectors.includes(directorId)) return false;
-    }
-    if (!filters.search) return true;
-    return window.searchTextMatches(
-      filters.search,
-      entry.item.title,
-      entry.item.year,
-      entry.item.director || "",
-    );
+  if (filters.director) {
+    let directorId =
+      window.normalizePersonName?.(filters.director) ||
+      window.normalizeTitle(filters.director);
+    let itemDirectors = String(entry.item.director || "")
+      .split(/\s*(?:,|;|\/|\s+&\s+|\s+and\s+)\s*/i)
+      .map(
+        (name) =>
+          window.normalizePersonName?.(name) || window.normalizeTitle(name),
+      );
+    if (!itemDirectors.includes(directorId)) return false;
   }
+  if (!filters.search) return true;
+  return window.searchTextMatches(
+    filters.search,
+    entry.item.title,
+    entry.item.year,
+    entry.item.director || "",
+  );
+}
 
 function selectedTierSet(filters) {
-    return new Set(
-      filters.tierFilter === null
-        ? window.watchlistTierFilterValues()
-        : filters.tierFilter,
-    );
-  }
+  return new Set(
+    filters.tierFilter === null
+      ? window.watchlistTierFilterValues()
+      : filters.tierFilter,
+  );
+}
 
 function tierFilterKey(filters) {
-    if (filters.tierFilter === null) return "all";
-    return filters.tierFilter.length
-      ? filters.tierFilter.map((tier) => tier || "unset").join("-")
-      : "none";
-  }
+  if (filters.tierFilter === null) return "all";
+  return filters.tierFilter.length
+    ? filters.tierFilter.map((tier) => tier || "unset").join("-")
+    : "none";
+}
 
 function tierFilterLabel(filters, ui) {
-    if (filters.tierFilter === null) return ui("All tiers");
-    if (!filters.tierFilter.length) return ui("No tiers");
-    return filters.tierFilter.map((tier) => tier || ui("Unset")).join(", ");
-  }
+  if (filters.tierFilter === null) return ui("All tiers");
+  if (!filters.tierFilter.length) return ui("No tiers");
+  return filters.tierFilter.map((tier) => tier || ui("Unset")).join(", ");
+}
 
-  // Tier-toggle counts are scoped by sub-period/director/search but not by
-  // the tier filter itself, so picking a tier never makes the others read 0.
+// Tier-toggle counts are scoped by sub-period/director/search but not by
+// the tier filter itself, so picking a tier never makes the others read 0.
 function watchlistTierFilterEntries(filters) {
-    return window.periodWatchlistBaseEntries(filters).filter((entry) =>
-      matchesWatchlistSubPeriod(entry, filters),
-    );
-  }
+  return window
+    .periodWatchlistBaseEntries(filters)
+    .filter((entry) => matchesWatchlistSubPeriod(entry, filters));
+}
 
 /**
  * Renders the single-film "Add to watchlist" form (issue #183).
@@ -346,61 +359,61 @@ window.renderAddWatchlistForm = function (options = {}) {
 window.renderWatchlistTierFilter = function (filters, options = {}) {
   let escape = options.escape || window.pageEscape;
   let ui = options.ui || window.uiText || ((text) => text);
-    let entries = watchlistTierFilterEntries(filters);
-    let counts = new Map(
-      window.watchlistTierFilterValues().map((tier) => [tier, 0]),
-    );
-    entries.forEach((entry) => {
-      let tier = window.normalizeWatchlistTier(entry.item.tier);
-      counts.set(tier, (counts.get(tier) || 0) + 1);
-    });
-    let selected = selectedTierSet(filters);
-    let buttons = window.watchlistTierFilterValues()
-      .map((tier) => {
-        let label = tier || ui("Unset");
-        let active = selected.has(tier);
-        let cls = tier ? ` tier-${tier.toLowerCase()}` : "";
-        return `<button type="button" class="watchlist-tier-filter-button${active ? " is-active" : ""}${cls}" data-period-watchlist-tier-toggle="${escape(tier || "unset")}" aria-pressed="${active ? "true" : "false"}"><span>${escape(label)}</span><small>${escape(counts.get(tier) || 0)}</small></button>`;
-      })
-      .join("");
-    return `<fieldset class="watchlist-filter-card watchlist-tier-filter"><legend>${escape(ui("Interest"))}</legend><div>${buttons}</div></fieldset>`;
+  let entries = watchlistTierFilterEntries(filters);
+  let counts = new Map(
+    window.watchlistTierFilterValues().map((tier) => [tier, 0]),
+  );
+  entries.forEach((entry) => {
+    let tier = window.normalizeWatchlistTier(entry.item.tier);
+    counts.set(tier, (counts.get(tier) || 0) + 1);
+  });
+  let selected = selectedTierSet(filters);
+  let buttons = window
+    .watchlistTierFilterValues()
+    .map((tier) => {
+      let label = tier || ui("Unset");
+      let active = selected.has(tier);
+      let cls = tier ? ` tier-${tier.toLowerCase()}` : "";
+      return `<button type="button" class="watchlist-tier-filter-button${active ? " is-active" : ""}${cls}" data-period-watchlist-tier-toggle="${escape(tier || "unset")}" aria-pressed="${active ? "true" : "false"}"><span>${escape(label)}</span><small>${escape(counts.get(tier) || 0)}</small></button>`;
+    })
+    .join("");
+  return `<fieldset class="watchlist-filter-card watchlist-tier-filter"><legend>${escape(ui("Interest"))}</legend><div>${buttons}</div></fieldset>`;
 };
 
 function watchlistFilterSourceId(filters) {
-    return window.normalizeProjectId(
-      [
-        filters.type,
-        filters.key,
-        filters.search || "all",
-        filters.director || "all",
-        filters.minRuntime || "all",
-        filters.maxRuntime || "all",
-        tierFilterKey(filters),
-        filters.subCentury || "all",
-        filters.subDecade || "all",
-        filters.subYear || "all",
-        filters.order || "rank",
-        filters.direction || "asc",
-      ].join("-"),
-    );
-  }
+  return window.normalizeProjectId(
+    [
+      filters.type,
+      filters.key,
+      filters.search || "all",
+      filters.director || "all",
+      filters.minRuntime || "all",
+      filters.maxRuntime || "all",
+      tierFilterKey(filters),
+      filters.subCentury || "all",
+      filters.subDecade || "all",
+      filters.subYear || "all",
+      filters.order || "rank",
+      filters.direction || "asc",
+    ].join("-"),
+  );
+}
 
 function watchlistFilterLabel(filters, filteredCount, ui) {
-    let parts = [];
-    if (filters.subYear !== "all") parts.push(filters.subYear);
-    else if (filters.subDecade !== "all") parts.push(filters.subDecade);
-    else if (filters.subCentury !== "all") parts.push(filters.subCentury);
-    if (filters.search) parts.push(`${ui("search")} "${filters.search}"`);
-    if (filters.director)
-      parts.push(`${ui("Director")} ${filters.director}`);
-    if (filters.minRuntime)
-      parts.push(ui("over {minutes} min", { minutes: filters.minRuntime }));
-    if (filters.maxRuntime)
-      parts.push(ui("under {minutes} min", { minutes: filters.maxRuntime }));
-    if (filters.tierFilter !== null)
-      parts.push(`${ui("Interest")} ${tierFilterLabel(filters, ui)}`);
-    return `${parts.length ? parts.join(", ") : ui("all watchlist")} · ${window.uiCount?.(filteredCount, "film", "films") || `${filteredCount} films`}`;
-  }
+  let parts = [];
+  if (filters.subYear !== "all") parts.push(filters.subYear);
+  else if (filters.subDecade !== "all") parts.push(filters.subDecade);
+  else if (filters.subCentury !== "all") parts.push(filters.subCentury);
+  if (filters.search) parts.push(`${ui("search")} "${filters.search}"`);
+  if (filters.director) parts.push(`${ui("Director")} ${filters.director}`);
+  if (filters.minRuntime)
+    parts.push(ui("over {minutes} min", { minutes: filters.minRuntime }));
+  if (filters.maxRuntime)
+    parts.push(ui("under {minutes} min", { minutes: filters.maxRuntime }));
+  if (filters.tierFilter !== null)
+    parts.push(`${ui("Interest")} ${tierFilterLabel(filters, ui)}`);
+  return `${parts.length ? parts.join(", ") : ui("all watchlist")} · ${window.uiCount?.(filteredCount, "film", "films") || `${filteredCount} films`}`;
+}
 
 /**
  * Registers the current filtered watchlist set as a startable project
@@ -429,24 +442,24 @@ window.registerWatchlistFilterProjectSource = function (
 };
 
 function watchlistTierEditor(item, escape, ui) {
-    let normalized = window.normalizeWatchlistTier(item.tier);
-    let options = [
-      `<option value=""${normalized ? "" : " selected"}>${escape(ui("Unset"))}</option>`,
-    ]
-      .concat(
-        window.WATCHLIST_TIERS.map(
-          (tier) =>
-            `<option value="${escape(tier)}"${normalized === tier ? " selected" : ""}>${escape(tier)}</option>`,
-        ),
-      )
-      .join("");
-    let id = escape(item.id || window.watchlistItemId(item));
-    // The modifier toggle identifies its row by looking up the sibling
-    // select's own id-carrying attribute at click time (handled in
-    // wirePeriodWatchlistControls below), rather than duplicating the id
-    // onto the toggle too.
-    return `<label class="watchlist-tier-editor">${escape(ui("Interest"))} <select data-period-watchlist-tier-editor="${id}">${options}</select>${window.renderTierModifierToggle?.("tierModifier", item.tierModifier, { escape, ui }) || ""}</label>`;
-  }
+  let normalized = window.normalizeWatchlistTier(item.tier);
+  let options = [
+    `<option value=""${normalized ? "" : " selected"}>${escape(ui("Unset"))}</option>`,
+  ]
+    .concat(
+      window.WATCHLIST_TIERS.map(
+        (tier) =>
+          `<option value="${escape(tier)}"${normalized === tier ? " selected" : ""}>${escape(tier)}</option>`,
+      ),
+    )
+    .join("");
+  let id = escape(item.id || window.watchlistItemId(item));
+  // The modifier toggle identifies its row by looking up the sibling
+  // select's own id-carrying attribute at click time (handled in
+  // wirePeriodWatchlistControls below), rather than duplicating the id
+  // onto the toggle too.
+  return `<label class="watchlist-tier-editor">${escape(ui("Interest"))} <select data-period-watchlist-tier-editor="${id}">${options}</select>${window.renderTierModifierToggle?.("tierModifier", item.tierModifier, { escape, ui }) || ""}</label>`;
+}
 
 /**
  * Renders one watchlist entry as a grid card, with tier badge/editor and
@@ -467,49 +480,49 @@ window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
   let tierEditMode = Boolean(options.tierEditMode);
   let watchlistOrderEditMode = Boolean(options.watchlistOrderEditMode);
   let periodOrder = options.periodOrder;
-    let item = entry.item;
-    item.id ||= window.watchlistItemId(item);
-    let film = window.watchlistFilmLike(item, entry.archiveFilm);
-    let order = Number(item.order);
-    let orderRankLabel =
-      Number.isInteger(order) && order > 0 && periodOrder === "rank"
-        ? `${order}.`
-        : null;
-    let directorHtml = window.renderLinkedDirectors(film, {
-      escape: escape,
-    });
-    return window.renderSharedFilmCard(film, {
-      classes: [
-        "watchlist-card",
-        tierEditMode ? "watchlist-card--editing" : "",
-        watchlistOrderEditMode ? "watchlist-order-card" : "",
-      ],
-      attributes: window.orderEditItemAttributes({
-        enabled: watchlistOrderEditMode,
-        scope: "watchlist",
-        id: item.id,
-        index: visibleIndex,
-        group: window.normalizeWatchlistTier(item.tier),
-      }),
-      openFilm: false,
-      rankLabel: orderRankLabel,
-      showYear: true,
-      directorHtml: directorHtml
-        ? `<div class="film-director">${escape(ui("by"))} ${directorHtml}</div>`
-        : "",
-      escape: escape,
-      titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
-      bodyHtml: tierEditMode
-        ? watchlistTierEditor(item, escape, ui)
-        : window.renderWatchlistTierBadge(item.tier, {
-            escape: escape,
-            modifier: item.tierModifier,
-          }),
-    });
+  let item = entry.item;
+  item.id ||= window.watchlistItemId(item);
+  let film = window.watchlistFilmLike(item, entry.archiveFilm);
+  let order = Number(item.order);
+  let orderRankLabel =
+    Number.isInteger(order) && order > 0 && periodOrder === "rank"
+      ? `${order}.`
+      : null;
+  let directorHtml = window.renderLinkedDirectors(film, {
+    escape: escape,
+  });
+  return window.renderSharedFilmCard(film, {
+    classes: [
+      "watchlist-card",
+      tierEditMode ? "watchlist-card--editing" : "",
+      watchlistOrderEditMode ? "watchlist-order-card" : "",
+    ],
+    attributes: window.orderEditItemAttributes({
+      enabled: watchlistOrderEditMode,
+      scope: "watchlist",
+      id: item.id,
+      index: visibleIndex,
+      group: window.normalizeWatchlistTier(item.tier),
+    }),
+    openFilm: false,
+    rankLabel: orderRankLabel,
+    showYear: true,
+    directorHtml: directorHtml
+      ? `<div class="film-director">${escape(ui("by"))} ${directorHtml}</div>`
+      : "",
+    escape: escape,
+    titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
+    bodyHtml: tierEditMode
+      ? watchlistTierEditor(item, escape, ui)
+      : window.renderWatchlistTierBadge(item.tier, {
+          escape: escape,
+          modifier: item.tierModifier,
+        }),
+  });
 };
 
-  // Standard collection row (issue #136): Interest/order | Film | Director |
-  // Tier.
+// Standard collection row (issue #136): Interest/order | Film | Director |
+// Tier.
 /**
  * Renders one watchlist entry as a leaderboard row: Interest/order | Film |
  * Director | Tier (issue #136).
@@ -525,30 +538,30 @@ window.renderWatchlistRow = function (entry, visibleIndex = 0, options = {}) {
   let escape = options.escape || window.pageEscape;
   let tierEditMode = Boolean(options.tierEditMode);
   let watchlistOrderEditMode = Boolean(options.watchlistOrderEditMode);
-    let item = entry.item;
-    item.id ||= window.watchlistItemId(item);
-    let film = window.watchlistFilmLike(item, entry.archiveFilm);
-    let directorHtml = window.renderLinkedDirectors(film, {
+  let item = entry.item;
+  item.id ||= window.watchlistItemId(item);
+  let film = window.watchlistFilmLike(item, entry.archiveFilm);
+  let directorHtml = window.renderLinkedDirectors(film, {
+    escape: escape,
+  });
+  let attributes = window.renderOrderEditItemAttributes(
+    {
+      enabled: watchlistOrderEditMode,
+      scope: "watchlist",
+      id: item.id,
+      index: visibleIndex,
+      group: window.normalizeWatchlistTier(item.tier),
+    },
+    escape,
+  );
+  return `<tr${attributes}><td class="leaderboard-position">${escape(item.order || "—")}</td>${window.renderFilmIdentityCell(
+    film,
+    {
       escape: escape,
-    });
-    let attributes = window.renderOrderEditItemAttributes(
-      {
-        enabled: watchlistOrderEditMode,
-        scope: "watchlist",
-        id: item.id,
-        index: visibleIndex,
-        group: window.normalizeWatchlistTier(item.tier),
-      },
-      escape,
-    );
-    return `<tr${attributes}><td class="leaderboard-position">${escape(item.order || "—")}</td>${window.renderFilmIdentityCell(
-      film,
-      {
-        escape: escape,
-        href: window.filmPageUrl(item.supabaseFilmId),
-        year: true,
-      },
-    )}<td class="film-people-cell">${directorHtml}</td>${window.renderRatingTierCell({ item }, { escape: escape, editHtml: tierEditMode ? watchlistTierEditor(item, escape, window.uiText || ((text) => text)) : "" })}</tr>`;
+      href: window.filmPageUrl(item.supabaseFilmId),
+      year: true,
+    },
+  )}<td class="film-people-cell">${directorHtml}</td>${window.renderRatingTierCell({ item }, { escape: escape, editHtml: tierEditMode ? watchlistTierEditor(item, escape, window.uiText || ((text) => text)) : "" })}</tr>`;
 };
 
 /**
@@ -572,13 +585,13 @@ window.watchlistFilterControls = function (filters, options = {}) {
   let projectSourceId = options.projectSourceId || "";
   let bulkTierValue = options.bulkTierValue;
   let queueVisible = Boolean(options.queueVisible);
-    return `<fieldset class="period-filter-controls"><legend>${escape(ui("Watchlist filters"))}</legend>${filters.director ? `<div class="active-filter-chip">${escape(ui("Director"))}: <strong>${escape(filters.director)}</strong> <button type="button" data-clear-period-watchlist-director aria-label="${escape(ui("Clear director filter"))}">×</button></div>` : ""}<label>${escape(ui("Search"))} <input type="search" data-period-watchlist-search value="${escape(filters.search)}"></label><label>${escape(ui("Minimum runtime (minutes)"))} <input type="number" min="1" max="2000" data-period-watchlist-min-runtime value="${filters.minRuntime ? escape(String(filters.minRuntime)) : ""}"></label><label>${escape(ui("Maximum runtime (minutes)"))} <input type="number" min="1" max="2000" data-period-watchlist-max-runtime value="${filters.maxRuntime ? escape(String(filters.maxRuntime)) : ""}"></label>${window.renderWatchlistBulkTierControl({ escape, count: filteredCount, value: bulkTierValue })}<button type="button" class="sort-order-button" data-period-watchlist-queue-toggle ${filteredCount ? "" : "disabled"}>${escape(ui(queueVisible ? "Hide queue" : "Show queue"))}</button><button type="button" class="sort-order-button" data-start-project-source="watchlist-filter" data-project-source-id="${escape(projectSourceId)}" ${filteredCount ? "" : "disabled"}>${escape(ui("Start project"))}</button></fieldset>`;
+  return `<fieldset class="period-filter-controls"><legend>${escape(ui("Watchlist filters"))}</legend>${filters.director ? `<div class="active-filter-chip">${escape(ui("Director"))}: <strong>${escape(filters.director)}</strong> <button type="button" data-clear-period-watchlist-director aria-label="${escape(ui("Clear director filter"))}">×</button></div>` : ""}<label>${escape(ui("Search"))} <input type="search" data-period-watchlist-search value="${escape(filters.search)}"></label><label>${escape(ui("Minimum runtime (minutes)"))} <input type="number" min="1" max="2000" data-period-watchlist-min-runtime value="${filters.minRuntime ? escape(String(filters.minRuntime)) : ""}"></label><label>${escape(ui("Maximum runtime (minutes)"))} <input type="number" min="1" max="2000" data-period-watchlist-max-runtime value="${filters.maxRuntime ? escape(String(filters.maxRuntime)) : ""}"></label>${window.renderWatchlistBulkTierControl({ escape, count: filteredCount, value: bulkTierValue })}<button type="button" class="sort-order-button" data-period-watchlist-queue-toggle ${filteredCount ? "" : "disabled"}>${escape(ui(queueVisible ? "Hide queue" : "Show queue"))}</button><button type="button" class="sort-order-button" data-start-project-source="watchlist-filter" data-project-source-id="${escape(projectSourceId)}" ${filteredCount ? "" : "disabled"}>${escape(ui("Start project"))}</button></fieldset>`;
 };
 
-  // A disposable queue: recomputed from the current filtered entries every
-  // render, never registered as a project source or saved. Reuses
-  // the same pick/reason operation as Discover's watchlist picker (issue
-  // #161) instead of a separate mechanism.
+// A disposable queue: recomputed from the current filtered entries every
+// render, never registered as a project source or saved. Reuses
+// the same pick/reason operation as Discover's watchlist picker (issue
+// #161) instead of a separate mechanism.
 /**
  * Renders a disposable pick queue (issue #163) recomputed from the current
  * filtered entries every render - a lighter, never-persisted sibling to
@@ -592,20 +605,20 @@ window.watchlistFilterControls = function (filters, options = {}) {
 window.renderWatchlistQueue = function (entries, options = {}) {
   let escape = options.escape || window.pageEscape;
   let ui = options.ui || window.uiText || ((text) => text);
-    let picks = window.pickWatchQueueItems(
-      entries.map((entry) => entry.item),
-      { count: WATCHLIST_QUEUE_SIZE },
-    );
-    if (!picks.length)
-      return `<div class="watchlist-queue-panel"><p>${escape(ui("No watchlist films match these filters."))}</p></div>`;
-    let rows = picks
-      .map((pick, index) => {
-        let item = pick.item;
-        let title = window.localizedFilmTitle?.(item) || item.title;
-        return `<li><span class="watchlist-queue-position">${index + 1}</span><div><a href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(title)}</a>${window.renderWatchlistTierBadge(item.tier, { escape, modifier: item.tierModifier })}<p class="discovery-reason">${escape(window.watchQueueReasonText(pick.reason))}</p></div></li>`;
-      })
-      .join("");
-    return `<div class="watchlist-queue-panel"><p>${escape(ui("A disposable queue recomputed from the current filters every time - nothing here is saved."))}</p><ol class="watchlist-queue-list">${rows}</ol></div>`;
+  let picks = window.pickWatchQueueItems(
+    entries.map((entry) => entry.item),
+    { count: WATCHLIST_QUEUE_SIZE },
+  );
+  if (!picks.length)
+    return `<div class="watchlist-queue-panel"><p>${escape(ui("No watchlist films match these filters."))}</p></div>`;
+  let rows = picks
+    .map((pick, index) => {
+      let item = pick.item;
+      let title = window.localizedFilmTitle?.(item) || item.title;
+      return `<li><span class="watchlist-queue-position">${index + 1}</span><div><a href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(title)}</a>${window.renderWatchlistTierBadge(item.tier, { escape, modifier: item.tierModifier })}<p class="discovery-reason">${escape(window.watchQueueReasonText(pick.reason))}</p></div></li>`;
+    })
+    .join("");
+  return `<div class="watchlist-queue-panel"><p>${escape(ui("A disposable queue recomputed from the current filters every time - nothing here is saved."))}</p><ol class="watchlist-queue-list">${rows}</ol></div>`;
 };
 
 /**

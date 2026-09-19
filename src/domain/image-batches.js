@@ -149,7 +149,9 @@ window.runBoundedLookupBatch = async function (rawItems, config, options = {}) {
           }
         } else {
           result.failed += 1;
-          result.failures.push(config.failureRecord(item, config.notFoundReason));
+          result.failures.push(
+            config.failureRecord(item, config.notFoundReason),
+          );
           window.recordMetadataSessionFailure(
             config.failureType,
             config.failureRecord(item, config.notFoundReason),
@@ -164,7 +166,11 @@ window.runBoundedLookupBatch = async function (rawItems, config, options = {}) {
           config.failureRecord(item, err.message || err),
         );
       }
-      options.onProgress?.(result.found + result.failed, candidates.length, item);
+      options.onProgress?.(
+        result.found + result.failed,
+        candidates.length,
+        item,
+      );
     }
   }
 
@@ -220,8 +226,7 @@ window.recordImageImportFailure = function (type, count = 1) {
 /** Tests whether a film needs a poster or TMDB upgrade. @param {FilmRecord} film Film. @returns {boolean} Whether lookup is needed. */
 window.filmNeedsPosterLookup = function (film) {
   return (
-    Boolean(film?.id) &&
-    (!film.poster || film.poster.source === "wikimedia")
+    Boolean(film?.id) && (!film.poster || film.poster.source === "wikimedia")
   );
 };
 

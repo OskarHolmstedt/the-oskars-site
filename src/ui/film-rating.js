@@ -28,14 +28,11 @@ window.parseFilmRating = function (value) {
   let rawText = String(value || "").trim();
   let normalizedText = rawText.normalize("NFKC");
   let starCount = (rawText.match(/★/g) || []).length;
-  let rating =
-    starCount + (/[½]|1\s*[\u2044/]\s*2/.test(rawText) ? 0.5 : 0);
+  let rating = starCount + (/[½]|1\s*[\u2044/]\s*2/.test(rawText) ? 0.5 : 0);
   if (!starCount) {
     // Typed shorthand ("4.5-", "4+", "3."): a plain decimal number,
     // optionally followed by a modifier glyph, instead of literal stars.
-    let shorthand = normalizedText.match(
-      /^(\d+(?:[.,]\d+)?)\s*[+＋\-–—•·.]?$/,
-    );
+    let shorthand = normalizedText.match(/^(\d+(?:[.,]\d+)?)\s*[+＋\-–—•·.]?$/);
     let numeric = shorthand ? Number(shorthand[1].replace(",", ".")) : NaN;
     if (Number.isFinite(numeric) && numeric > 0)
       rating = Math.round(numeric * 2) / 2;
@@ -58,11 +55,7 @@ window.renderFilmRating = function (value) {
   let fullStars = Math.floor(parsed.value);
   let halfStar = parsed.value % 1 ? "½" : "";
   let modifier =
-    parsed.modifier === "plus"
-      ? "＋"
-      : parsed.modifier === "minus"
-        ? "—"
-        : "";
+    parsed.modifier === "plus" ? "＋" : parsed.modifier === "minus" ? "—" : "";
   return `${"★".repeat(fullStars)}${halfStar}${modifier}`;
 };
 
@@ -90,7 +83,8 @@ window.renderRatingInput = function (options = {}) {
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
   let name = options.name || "rating";
-  let id = options.id || `rating-input-${Math.random().toString(36).slice(2, 9)}`;
+  let id =
+    options.id || `rating-input-${Math.random().toString(36).slice(2, 9)}`;
   let stars = [1, 2, 3, 4, 5]
     .map(
       (n) =>
@@ -128,7 +122,9 @@ window.enhanceRatingInputs = function (container) {
       widget.dataset.ratingInputReady = "1";
       let input = widget.querySelector(".rating-input-text");
       let starsRow = widget.querySelector(".rating-input-stars");
-      let starButtons = Array.from(widget.querySelectorAll("[data-rating-star]"));
+      let starButtons = Array.from(
+        widget.querySelectorAll("[data-rating-star]"),
+      );
       let modButtons = Array.from(widget.querySelectorAll("[data-rating-mod]"));
 
       function currentParsed() {
@@ -147,7 +143,8 @@ window.enhanceRatingInputs = function (container) {
 
       function paint(previewValue) {
         let parsed = currentParsed();
-        let displayValue = previewValue === undefined ? parsed.value : previewValue;
+        let displayValue =
+          previewValue === undefined ? parsed.value : previewValue;
         starButtons.forEach((button) => {
           let n = Number(button.dataset.ratingStar);
           let fill = Math.min(1, Math.max(0, displayValue - (n - 1)));

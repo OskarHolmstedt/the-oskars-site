@@ -4,21 +4,25 @@
  */
 
 function dataHealthEscape(value) {
-  return String(value ?? "").replace(
-    /[&<>"']/g,
-    (character) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      })[character],
-  );
+  return (window.escapeHtml || window.pageEscape || String)(value ?? "");
 }
 
 function dataHealthText(value, values) {
   return window.uiText ? window.uiText(value, values) : String(value || "");
+}
+
+function dataHealthQueueLabel(type) {
+  return dataHealthText(
+    {
+      "film-metadata": "watched film metadata",
+      "watchlist-metadata": "watchlist metadata",
+      "film-posters": "watched film posters",
+      "watchlist-posters": "watchlist posters",
+      "non-archive-metadata": "not-watched film metadata",
+      "non-archive-posters": "not-watched film posters",
+      "person-portraits": "person portraits",
+    }[type] || type,
+  );
 }
 
 let lastDataHealthReport = null;
@@ -251,7 +255,7 @@ window.renderDataHealth = function (
               `${dataHealthEscape(failure.title)}${failure.year ? ` (${dataHealthEscape(failure.year)})` : ""} — ${dataHealthEscape(dataHealthText(failure.reason))}`,
           )
           .join(", ");
-        return `<tr><td><strong>${dataHealthEscape(window.metadataBatchLabel?.(type) || type)}</strong></td><td>${attempted}</td><td>${failures.length}</td><td>${samples || dataHealthEscape(dataHealthText("None"))}</td><td>${failures.length ? `<button type="button" data-retry-session-queue="${dataHealthEscape(type)}">${dataHealthEscape(dataHealthText("Retry {count} failed", { count: failures.length }))}</button>` : ""}</td></tr>`;
+        return `<tr><td><strong>${dataHealthEscape(dataHealthQueueLabel(type))}</strong></td><td>${attempted}</td><td>${failures.length}</td><td>${samples || dataHealthEscape(dataHealthText("None"))}</td><td>${failures.length ? `<button type="button" data-retry-session-queue="${dataHealthEscape(type)}">${dataHealthEscape(dataHealthText("Retry {count} failed", { count: failures.length }))}</button>` : ""}</td></tr>`;
       })
       .join("");
   }

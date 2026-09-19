@@ -324,10 +324,7 @@ function canonicalNormalizeLegacyMusicScoreFields(document) {
   if (!canonicalIsRecord(document)) return;
   Object.values(document.years || {}).forEach((period) => {
     (period?.films || []).forEach((film) => {
-      if (
-        film &&
-        Object.prototype.hasOwnProperty.call(film, "personalScore")
-      ) {
+      if (film && Object.prototype.hasOwnProperty.call(film, "personalScore")) {
         if (film.musicScore === undefined) {
           film.musicScore = film.personalScore;
         }
@@ -336,10 +333,7 @@ function canonicalNormalizeLegacyMusicScoreFields(document) {
     });
   });
   (document.watchedFilms || []).forEach((film) => {
-    if (
-      film &&
-      Object.prototype.hasOwnProperty.call(film, "personalScore")
-    ) {
+    if (film && Object.prototype.hasOwnProperty.call(film, "personalScore")) {
       if (film.musicScore === undefined) {
         film.musicScore = film.personalScore;
       }
@@ -366,7 +360,11 @@ function canonicalCheckArray(errors, value, path) {
 
 function canonicalCheckString(errors, value, path, required = false) {
   if (typeof value === "string" && (!required || value.trim())) return true;
-  canonicalError(errors, path, required ? "must be a non-empty string" : "must be a string");
+  canonicalError(
+    errors,
+    path,
+    required ? "must be a non-empty string" : "must be a string",
+  );
   return false;
 }
 
@@ -382,13 +380,17 @@ function canonicalCheckAllowedFields(errors, value, path, allowed) {
 }
 
 function canonicalCheckJson(errors, value, path) {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return;
+  if (value === null || typeof value === "string" || typeof value === "boolean")
+    return;
   if (typeof value === "number") {
-    if (!Number.isFinite(value)) canonicalError(errors, path, "must be a finite number");
+    if (!Number.isFinite(value))
+      canonicalError(errors, path, "must be a finite number");
     return;
   }
   if (Array.isArray(value)) {
-    value.forEach((item, index) => canonicalCheckJson(errors, item, `${path}[${index}]`));
+    value.forEach((item, index) =>
+      canonicalCheckJson(errors, item, `${path}[${index}]`),
+    );
     return;
   }
   if (canonicalIsRecord(value)) {
@@ -409,7 +411,13 @@ function canonicalCheckJson(errors, value, path) {
 function canonicalValidatePoster(errors, poster, path) {
   if (poster === null || poster === undefined) return;
   if (!canonicalCheckRecord(errors, poster, path)) return;
-  let allowed = new Set(["fetchedAt", "providerId", "source", "sourceUrl", "url"]);
+  let allowed = new Set([
+    "fetchedAt",
+    "providerId",
+    "source",
+    "sourceUrl",
+    "url",
+  ]);
   canonicalCheckAllowedFields(errors, poster, path, allowed);
   Object.entries(poster).forEach(([key, value]) =>
     canonicalCheckString(errors, value, `${path}.${key}`),
@@ -458,7 +466,11 @@ function canonicalValidateAwards(errors, awards, path) {
     canonicalCheckString(errors, award.category, `${itemPath}.category`, true);
     canonicalCheckString(errors, award.year, `${itemPath}.year`, true);
     if (!Number.isInteger(award.placement) || award.placement < 1)
-      canonicalError(errors, `${itemPath}.placement`, "must be a positive integer");
+      canonicalError(
+        errors,
+        `${itemPath}.placement`,
+        "must be a positive integer",
+      );
     if (
       award.recipients !== undefined &&
       canonicalCheckArray(errors, award.recipients, `${itemPath}.recipients`)
@@ -472,8 +484,17 @@ function canonicalValidateAwards(errors, awards, path) {
           recipientPath,
           new Set(["name", "personId"]),
         );
-        canonicalCheckString(errors, recipient.name, `${recipientPath}.name`, true);
-        canonicalCheckString(errors, recipient.personId, `${recipientPath}.personId`);
+        canonicalCheckString(
+          errors,
+          recipient.name,
+          `${recipientPath}.name`,
+          true,
+        );
+        canonicalCheckString(
+          errors,
+          recipient.personId,
+          `${recipientPath}.personId`,
+        );
       });
     }
   });
@@ -561,7 +582,10 @@ function canonicalValidateFilm(errors, film, path, allowed) {
     )
   ) {
     Object.entries(film.rankConfirmedByScope).forEach(([scope, value]) => {
-      if (!CANONICAL_RANKING_SCOPES.includes(scope) || typeof value !== "boolean")
+      if (
+        !CANONICAL_RANKING_SCOPES.includes(scope) ||
+        typeof value !== "boolean"
+      )
         canonicalError(
           errors,
           `${path}.rankConfirmedByScope.${scope}`,
@@ -611,7 +635,10 @@ function canonicalValidateFilm(errors, film, path, allowed) {
       );
     });
   });
-  if (film.canonicalComposite !== undefined && film.canonicalComposite !== null) {
+  if (
+    film.canonicalComposite !== undefined &&
+    film.canonicalComposite !== null
+  ) {
     let referencePath = `${path}.canonicalComposite`;
     if (canonicalCheckRecord(errors, film.canonicalComposite, referencePath)) {
       canonicalCheckAllowedFields(
@@ -644,7 +671,12 @@ function canonicalValidateProjects(errors, projects) {
   projects.forEach((project, index) => {
     let path = `$.projects[${index}]`;
     if (!canonicalCheckRecord(errors, project, path)) return;
-    canonicalCheckAllowedFields(errors, project, path, CANONICAL_PROJECT_FIELDS);
+    canonicalCheckAllowedFields(
+      errors,
+      project,
+      path,
+      CANONICAL_PROJECT_FIELDS,
+    );
     canonicalCheckString(errors, project.id, `${path}.id`, true);
     canonicalCheckString(errors, project.name, `${path}.name`, true);
     ["filmRefs", "dismissedRefs"].forEach((field) => {
@@ -661,9 +693,7 @@ function canonicalValidateProjects(errors, projects) {
           new Set(["id", "projectOrder", "rank", "sourceId", "type"]),
         );
         canonicalCheckString(errors, ref.id, `${refPath}.id`, true);
-        if (
-          !["archive", "watchlist", "watched", "official"].includes(ref.type)
-        )
+        if (!["archive", "watchlist", "watched", "official"].includes(ref.type))
           canonicalError(
             errors,
             `${refPath}.type`,
@@ -686,8 +716,7 @@ function canonicalValidateProjects(errors, projects) {
  * @param {Object} session Candidate opinion-rebuild session.
  */
 function canonicalValidateOpinionRebuildSession(errors, session) {
-  if (!canonicalCheckRecord(errors, session, "$.opinionRebuildSession"))
-    return;
+  if (!canonicalCheckRecord(errors, session, "$.opinionRebuildSession")) return;
   canonicalCheckAllowedFields(
     errors,
     session,
@@ -695,7 +724,11 @@ function canonicalValidateOpinionRebuildSession(errors, session) {
     CANONICAL_OPINION_REBUILD_FIELDS,
   );
   if (session.schemaVersion !== 1)
-    canonicalError(errors, "$.opinionRebuildSession.schemaVersion", "must be 1");
+    canonicalError(
+      errors,
+      "$.opinionRebuildSession.schemaVersion",
+      "must be 1",
+    );
   if (!["active", "complete"].includes(session.status))
     canonicalError(
       errors,
@@ -726,7 +759,11 @@ function canonicalValidateOpinionRebuildSession(errors, session) {
     "rankingReviews",
     "awardReviews",
   ].forEach((key) =>
-    canonicalCheckRecord(errors, session[key], `$.opinionRebuildSession.${key}`),
+    canonicalCheckRecord(
+      errors,
+      session[key],
+      `$.opinionRebuildSession.${key}`,
+    ),
   );
   canonicalCheckArray(
     errors,
@@ -805,8 +842,19 @@ function canonicalValidateOfficialResults(errors, sources) {
         );
       canonicalCheckString(errors, period.sourceUrl, `${periodPath}.sourceUrl`);
       if (period.ceremony !== undefined)
-        canonicalCheckString(errors, period.ceremony, `${periodPath}.ceremony`, true);
-      if (!canonicalCheckArray(errors, period.nominations, `${periodPath}.nominations`))
+        canonicalCheckString(
+          errors,
+          period.ceremony,
+          `${periodPath}.ceremony`,
+          true,
+        );
+      if (
+        !canonicalCheckArray(
+          errors,
+          period.nominations,
+          `${periodPath}.nominations`,
+        )
+      )
         return;
       let nominationIds = new Set();
       let categoryWinners = new Map();
@@ -840,7 +888,14 @@ function canonicalValidateOfficialResults(errors, sources) {
             true,
           ),
         );
-        ["recipient", "detail", "sourceCategory", "country", "originalTitle", "tmdbId"].forEach((field) => {
+        [
+          "recipient",
+          "detail",
+          "sourceCategory",
+          "country",
+          "originalTitle",
+          "tmdbId",
+        ].forEach((field) => {
           if (nomination[field] !== undefined)
             canonicalCheckString(
               errors,
@@ -849,7 +904,11 @@ function canonicalValidateOfficialResults(errors, sources) {
             );
         });
         if (typeof nomination.winner !== "boolean")
-          canonicalError(errors, `${nominationPath}.winner`, "must be a boolean");
+          canonicalError(
+            errors,
+            `${nominationPath}.winner`,
+            "must be a boolean",
+          );
         if (typeof nomination.category === "string") {
           populatedCategories.add(nomination.category);
           if (nomination.winner === true)
@@ -859,7 +918,11 @@ function canonicalValidateOfficialResults(errors, sources) {
             );
         }
         if (nominationIds.has(nomination.id))
-          canonicalError(errors, `${nominationPath}.id`, "must be unique in its period");
+          canonicalError(
+            errors,
+            `${nominationPath}.id`,
+            "must be unique in its period",
+          );
         nominationIds.add(nomination.id);
         if (nomination.filmRef !== undefined) {
           let refPath = `${nominationPath}.filmRef`;
@@ -920,12 +983,27 @@ function canonicalValidateCollectionAwards(errors, collections) {
         ]),
       );
       if (bracket.collectionType !== type)
-        canonicalError(errors, `${path}.collectionType`, "must match its type key");
+        canonicalError(
+          errors,
+          `${path}.collectionType`,
+          "must match its type key",
+        );
       if (bracket.collectionId !== id)
-        canonicalError(errors, `${path}.collectionId`, "must match its collection key");
-      canonicalCheckString(errors, bracket.collectionName, `${path}.collectionName`, true);
+        canonicalError(
+          errors,
+          `${path}.collectionId`,
+          "must match its collection key",
+        );
+      canonicalCheckString(
+        errors,
+        bracket.collectionName,
+        `${path}.collectionName`,
+        true,
+      );
       canonicalCheckString(errors, bracket.sourceUrl, `${path}.sourceUrl`);
-      if (!canonicalCheckArray(errors, bracket.nominations, `${path}.nominations`))
+      if (
+        !canonicalCheckArray(errors, bracket.nominations, `${path}.nominations`)
+      )
         return;
       bracket.nominations.forEach((nomination, index) => {
         let nominationPath = `${path}.nominations[${index}]`;
@@ -934,20 +1012,48 @@ function canonicalValidateCollectionAwards(errors, collections) {
           errors,
           nomination,
           nominationPath,
-          new Set(["category", "detail", "placement", "recipient", "sourceTitle"]),
+          new Set([
+            "category",
+            "detail",
+            "placement",
+            "recipient",
+            "sourceTitle",
+          ]),
         );
-        canonicalCheckString(errors, nomination.category, `${nominationPath}.category`, true);
-        canonicalCheckString(errors, nomination.sourceTitle, `${nominationPath}.sourceTitle`, true);
+        canonicalCheckString(
+          errors,
+          nomination.category,
+          `${nominationPath}.category`,
+          true,
+        );
+        canonicalCheckString(
+          errors,
+          nomination.sourceTitle,
+          `${nominationPath}.sourceTitle`,
+          true,
+        );
         if (
           !Number.isInteger(nomination.placement) ||
           nomination.placement < 1 ||
           nomination.placement > 10
         )
-          canonicalError(errors, `${nominationPath}.placement`, "must be an integer from 1 to 10");
+          canonicalError(
+            errors,
+            `${nominationPath}.placement`,
+            "must be an integer from 1 to 10",
+          );
         if (nomination.recipient !== undefined)
-          canonicalCheckString(errors, nomination.recipient, `${nominationPath}.recipient`);
+          canonicalCheckString(
+            errors,
+            nomination.recipient,
+            `${nominationPath}.recipient`,
+          );
         if (nomination.detail !== undefined)
-          canonicalCheckString(errors, nomination.detail, `${nominationPath}.detail`);
+          canonicalCheckString(
+            errors,
+            nomination.detail,
+            `${nominationPath}.detail`,
+          );
       });
     });
   });
@@ -958,23 +1064,45 @@ function canonicalValidateWorkflows(errors, workflows) {
   workflows.forEach((workflow, index) => {
     let path = `$.intakeWorkflows[${index}]`;
     if (!canonicalCheckRecord(errors, workflow, path)) return;
-    canonicalCheckAllowedFields(errors, workflow, path, CANONICAL_WORKFLOW_FIELDS);
+    canonicalCheckAllowedFields(
+      errors,
+      workflow,
+      path,
+      CANONICAL_WORKFLOW_FIELDS,
+    );
     canonicalCheckString(errors, workflow.id, `${path}.id`, true);
     canonicalCheckString(errors, workflow.filmId, `${path}.filmId`, true);
     canonicalCheckString(errors, workflow.createdAt, `${path}.createdAt`, true);
-    canonicalCheckString(errors, workflow.baseRevision, `${path}.baseRevision`, true);
+    canonicalCheckString(
+      errors,
+      workflow.baseRevision,
+      `${path}.baseRevision`,
+      true,
+    );
     if (workflow.schemaVersion !== 1)
       canonicalError(errors, `${path}.schemaVersion`, "must be 1");
     if (!["watchlist-transition", "fresh"].includes(workflow.source))
-      canonicalError(errors, `${path}.source`, "must be watchlist-transition or fresh");
-    ["sourceRecordId", "completedAt", "reopenedAt", "summary", "auditEntryId"].forEach(
-      (field) => {
-        if (workflow[field] !== undefined)
-          canonicalCheckString(errors, workflow[field], `${path}.${field}`);
-      },
-    );
+      canonicalError(
+        errors,
+        `${path}.source`,
+        "must be watchlist-transition or fresh",
+      );
+    [
+      "sourceRecordId",
+      "completedAt",
+      "reopenedAt",
+      "summary",
+      "auditEntryId",
+    ].forEach((field) => {
+      if (workflow[field] !== undefined)
+        canonicalCheckString(errors, workflow[field], `${path}.${field}`);
+    });
     if (String(workflow.summary || "").length > 1000)
-      canonicalError(errors, `${path}.summary`, "must be at most 1000 characters");
+      canonicalError(
+        errors,
+        `${path}.summary`,
+        "must be at most 1000 characters",
+      );
     if (
       workflow.source === "watchlist-transition" &&
       !String(workflow.sourceRecordId || "").trim()
@@ -1014,7 +1142,11 @@ function canonicalValidateWorkflows(errors, workflows) {
             ? ["pending", "complete"]
             : ["pending", "complete", "not-applicable"];
         if (!statuses.includes(step.status))
-          canonicalError(errors, `${stepPath}.status`, "has an unsupported status");
+          canonicalError(
+            errors,
+            `${stepPath}.status`,
+            "has an unsupported status",
+          );
         ["completedAt", "decisionRef", "resultRef"].forEach((field) => {
           if (step[field] !== undefined)
             canonicalCheckString(errors, step[field], `${stepPath}.${field}`);
@@ -1045,8 +1177,16 @@ function canonicalValidateWorkflows(errors, workflows) {
             stepPath,
             new Set(["completedAt", "decisionRef", "resultRef", "status"]),
           );
-          if (!["pending", "complete", "none", "not-applicable"].includes(step.status))
-            canonicalError(errors, `${stepPath}.status`, "has an unsupported status");
+          if (
+            !["pending", "complete", "none", "not-applicable"].includes(
+              step.status,
+            )
+          )
+            canonicalError(
+              errors,
+              `${stepPath}.status`,
+              "has an unsupported status",
+            );
           ["completedAt", "decisionRef", "resultRef"].forEach((field) => {
             if (step[field] !== undefined)
               canonicalCheckString(errors, step[field], `${stepPath}.${field}`);
@@ -1064,8 +1204,14 @@ function canonicalValidateWorkflows(errors, workflows) {
  */
 window.validateCanonicalData = function (source) {
   let errors = [];
-  if (!canonicalCheckRecord(errors, source, "$")) return { valid: false, errors };
-  canonicalCheckAllowedFields(errors, source, "$", new Set(CANONICAL_TOP_LEVEL_KEYS));
+  if (!canonicalCheckRecord(errors, source, "$"))
+    return { valid: false, errors };
+  canonicalCheckAllowedFields(
+    errors,
+    source,
+    "$",
+    new Set(CANONICAL_TOP_LEVEL_KEYS),
+  );
   if (source.canonicalSchemaVersion !== window.OSKARS_CANONICAL_SCHEMA_VERSION)
     canonicalError(
       errors,
@@ -1152,7 +1298,11 @@ window.validateCanonicalData = function (source) {
     ) &&
     source.rejectedPersonAliases.some((value) => typeof value !== "string")
   )
-    canonicalError(errors, "$.rejectedPersonAliases", "must contain only strings");
+    canonicalError(
+      errors,
+      "$.rejectedPersonAliases",
+      "must contain only strings",
+    );
   if (
     canonicalCheckArray(
       errors,
@@ -1230,7 +1380,8 @@ window.getCanonicalData = function (source = window.state, options = {}) {
     watchlist: source.watchlist || [],
     watchedFilms: source.watchedFilms || source.watchedOther || [],
     intakeWorkflows: source.intakeWorkflows || [],
-    rankingReviews: source.rankingReviews || canonicalEmptyDocument().rankingReviews,
+    rankingReviews:
+      source.rankingReviews || canonicalEmptyDocument().rankingReviews,
     awardReviews: source.awardReviews || canonicalEmptyDocument().awardReviews,
     opinionRebuildSession: source.opinionRebuildSession || null,
     projects: source.projects || [],
@@ -1244,7 +1395,9 @@ window.getCanonicalData = function (source = window.state, options = {}) {
     localRanks: source.localRanks || canonicalEmptyDocument().localRanks,
     editLog: source.editLog || [],
   };
-  return options.clone === false ? canonical : window.migrateCanonicalData(canonical);
+  return options.clone === false
+    ? canonical
+    : window.migrateCanonicalData(canonical);
 };
 
 function canonicalNormalize(value) {
@@ -1255,9 +1408,12 @@ function canonicalNormalize(value) {
     return value;
   }
   let normalized = {};
-  Object.keys(value).sort().forEach((key) => {
-    if (value[key] !== undefined) normalized[key] = canonicalNormalize(value[key]);
-  });
+  Object.keys(value)
+    .sort()
+    .forEach((key) => {
+      if (value[key] !== undefined)
+        normalized[key] = canonicalNormalize(value[key]);
+    });
   return normalized;
 }
 
@@ -1267,9 +1423,10 @@ function canonicalNormalize(value) {
  * @returns {string} Deterministically formatted canonical JSON.
  */
 window.serializeCanonicalData = function (source = window.state) {
-  let canonical = source.canonicalSchemaVersion !== undefined
-    ? window.migrateCanonicalData(source)
-    : window.getCanonicalData(source);
+  let canonical =
+    source.canonicalSchemaVersion !== undefined
+      ? window.migrateCanonicalData(source)
+      : window.getCanonicalData(source);
   window.assertCanonicalData(canonical);
   return `${JSON.stringify(canonicalNormalize(canonical), null, 2)}\n`;
 };
@@ -1290,8 +1447,7 @@ window.canonicalRecordEntries = function (value) {
   if (Array.isArray(value))
     return value.map((record, index) => [
       String(
-        record?.id ||
-          `${record?.title || "record"}:${record?.year || index}`,
+        record?.id || `${record?.title || "record"}:${record?.year || index}`,
       ),
       record,
     ]);
@@ -1358,7 +1514,9 @@ window.parseCanonicalData = function (text) {
  * @returns {Object} Runtime source state without derived indexes.
  */
 window.canonicalDataToRuntimeState = function (source) {
-  let canonical = window.assertCanonicalData(window.migrateCanonicalData(source));
+  let canonical = window.assertCanonicalData(
+    window.migrateCanonicalData(source),
+  );
   return {
     dataVersion: window.OSKARS_BUNDLED_DATA_VERSION || 0,
     creditSchemaVersion: 3,
@@ -1562,7 +1720,8 @@ function stripToAllowedFields(record, allowed) {
 function filterUrlOnlyRecord(record) {
   let filtered = {};
   Object.entries(record || {}).forEach(([key, value]) => {
-    if (typeof value === "string" && /^https?:\/\//i.test(value)) filtered[key] = value;
+    if (typeof value === "string" && /^https?:\/\//i.test(value))
+      filtered[key] = value;
   });
   return filtered;
 }
@@ -1583,7 +1742,8 @@ function yearsFilmCount(years) {
 function entityScopedCount(scoped) {
   if (!canonicalIsRecord(scoped)) return 0;
   return Object.values(scoped).reduce(
-    (sum, bucket) => sum + (canonicalIsRecord(bucket) ? Object.keys(bucket).length : 0),
+    (sum, bucket) =>
+      sum + (canonicalIsRecord(bucket) ? Object.keys(bucket).length : 0),
     0,
   );
 }
@@ -1597,12 +1757,17 @@ function entityScopedCount(scoped) {
  * @returns {Object} Public-profile document.
  */
 window.buildPublicProjection = function (canonical, options = {}) {
-  let optIn = options.optIn instanceof Set ? options.optIn : new Set(options.optIn || []);
+  let optIn =
+    options.optIn instanceof Set ? options.optIn : new Set(options.optIn || []);
   let years = {};
   Object.entries(canonical.years || {}).forEach(([key, period]) => {
     years[key] = {
-      ...(period?.periodType !== undefined ? { periodType: period.periodType } : {}),
-      ...(period?.sourceUrl !== undefined ? { sourceUrl: period.sourceUrl } : {}),
+      ...(period?.periodType !== undefined
+        ? { periodType: period.periodType }
+        : {}),
+      ...(period?.sourceUrl !== undefined
+        ? { sourceUrl: period.sourceUrl }
+        : {}),
       films: (period?.films || []).map((film) =>
         stripToAllowedFields(film, CANONICAL_PUBLIC_FILM_FIELDS),
       ),
@@ -1612,10 +1777,12 @@ window.buildPublicProjection = function (canonical, options = {}) {
     publicSchemaVersion: window.OSKARS_PUBLIC_SCHEMA_VERSION,
     years,
     officialResults: canonicalClone(canonical.officialResults || {}),
-    collectionAwards: canonicalClone(canonical.collectionAwards || {
-      director: {},
-      franchise: {},
-    }),
+    collectionAwards: canonicalClone(
+      canonical.collectionAwards || {
+        director: {},
+        franchise: {},
+      },
+    ),
     watchedFilms: (canonical.watchedFilms || []).map((film) =>
       stripToAllowedFields(film, CANONICAL_PUBLIC_FILM_FIELDS),
     ),
@@ -1639,8 +1806,14 @@ window.buildPublicProjection = function (canonical, options = {}) {
  */
 window.validatePublicData = function (source) {
   let errors = [];
-  if (!canonicalCheckRecord(errors, source, "$")) return { valid: false, errors };
-  canonicalCheckAllowedFields(errors, source, "$", new Set(CANONICAL_PUBLIC_TOP_LEVEL_KEYS));
+  if (!canonicalCheckRecord(errors, source, "$"))
+    return { valid: false, errors };
+  canonicalCheckAllowedFields(
+    errors,
+    source,
+    "$",
+    new Set(CANONICAL_PUBLIC_TOP_LEVEL_KEYS),
+  );
   if (source.publicSchemaVersion !== window.OSKARS_PUBLIC_SCHEMA_VERSION)
     canonicalError(
       errors,
@@ -1680,9 +1853,12 @@ window.validatePublicData = function (source) {
         CANONICAL_PUBLIC_FILM_FIELDS,
       ),
     );
-  ["peopleAliases", "personPortraits", "franchiseLinks", "directorLinks"].forEach(
-    (key) => canonicalCheckRecord(errors, source[key], `$.${key}`),
-  );
+  [
+    "peopleAliases",
+    "personPortraits",
+    "franchiseLinks",
+    "directorLinks",
+  ].forEach((key) => canonicalCheckRecord(errors, source[key], `$.${key}`));
   if (source.localRanks !== undefined)
     canonicalCheckRecord(errors, source.localRanks, "$.localRanks");
   canonicalCheckJson(errors, source, "$");
@@ -1716,7 +1892,8 @@ window.assertPublicData = function (source) {
  * @returns {{projection: Object, sections: Array<Object>, valid: boolean, errors: Array}} Preview.
  */
 window.publicProjectionPreview = function (canonical, options = {}) {
-  let optIn = options.optIn instanceof Set ? options.optIn : new Set(options.optIn || []);
+  let optIn =
+    options.optIn instanceof Set ? options.optIn : new Set(options.optIn || []);
   let projection = window.buildPublicProjection(canonical, options);
   let sections = [
     {
@@ -1734,7 +1911,9 @@ window.publicProjectionPreview = function (canonical, options = {}) {
     {
       section: "collectionAwards",
       disclosure: "public",
-      includedRecordCount: publicSectionRecordCount(projection.collectionAwards),
+      includedRecordCount: publicSectionRecordCount(
+        projection.collectionAwards,
+      ),
       totalRecordCount: publicSectionRecordCount(canonical.collectionAwards),
     },
     {
@@ -1769,7 +1948,9 @@ window.publicProjectionPreview = function (canonical, options = {}) {
     },
     {
       section: "localRanks",
-      disclosure: optIn.has("localRanks") ? "opt-in (included)" : "opt-in (excluded)",
+      disclosure: optIn.has("localRanks")
+        ? "opt-in (included)"
+        : "opt-in (excluded)",
       includedRecordCount: optIn.has("localRanks")
         ? entityScopedCount(projection.localRanks)
         : 0,
@@ -1813,7 +1994,12 @@ window.publicProjectionPreview = function (canonical, options = {}) {
     },
   ];
   let validation = window.validatePublicData(projection);
-  return { projection, sections, valid: validation.valid, errors: validation.errors };
+  return {
+    projection,
+    sections,
+    valid: validation.valid,
+    errors: validation.errors,
+  };
 };
 
 /**

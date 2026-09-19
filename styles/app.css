@@ -10809,30 +10809,24 @@ a.rate-watched-year-arrow:hover {
 }
 .ceremony-stage-nominees {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 12px;
   margin: 0 0 16px;
   padding: 0;
   list-style: none;
 }
-.ceremony-stage-nominee {
+/* Nominees render with the shared .film-card class (full-width "card"
+   poster, title below) so a ceremony's cards match the grid film cards
+   used elsewhere in the app (films.html, person.html) instead of a
+   bespoke small-thumb layout - this rule only adds the left-aligned text
+   .film-card itself doesn't assume. */
+.ceremony-stage-nominee.film-card {
+  text-align: left;
+}
+.ceremony-stage-nominee .film-title {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--page);
-}
-.ceremony-stage-nominee .film-poster {
-  margin: 0;
-}
-.ceremony-stage-nominee-body {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  text-align: center;
 }
 .ceremony-placement {
   display: none;
@@ -10865,33 +10859,55 @@ a.rate-watched-year-arrow:hover {
    reveal rules above - the same mechanic, just reached by more rows.
    The cross-archive consensus (.ceremony-stage-by-position below)
    becomes an *additional* section shown underneath once revealed,
-   not a replacement. */
+   not a replacement. Two archives sit side by side as their own
+   bordered box rather than stacked full-width rows - paired with the
+   5-column nominee grid below, that lines up ten posters across the
+   full row: a 5-nominee category fills exactly one row per archive, a
+   10-nominee category needs two. A third (or lone) archive wraps to its
+   own row instead of stretching to the full width, so poster size stays
+   consistent across every box. */
 .ceremony-stage-by-person {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(520px, 100%), 1fr));
   gap: 18px;
   margin: 0 0 16px;
   text-align: left;
 }
+.ceremony-stage-person-row {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--page);
+}
 .ceremony-stage-person-name {
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   font-size: 14px;
 }
-/* community.js's own rows use the larger "winner"-size poster (88px)
-   via candidateVisualHtml, unlike presentation.js's single-archive
-   ceremony stage (still "thumb", 38px) which shares the base
-   .ceremony-stage-nominees/.ceremony-stage-nominee rules above - scoped
-   here so presentation.js's cards are unaffected. Fixed flex-basis
-   instead of the base rule's stretchy grid track, sized to the poster's
-   88px plus this card's own 10px padding and 1px border on each side
-   (matching .film-poster--thumb's own flex:0 0 38px guard elsewhere). */
+/* Five columns per archive box - community.js's own rows never stretch
+   to a fixed pixel column count like presentation.js's single-archive
+   ceremony stage does with the base .ceremony-stage-nominees grid above
+   (scoped here so that stays unaffected), they scale with the box.
+   Denser card chrome than the base .film-card, matching the pattern
+   .person-film-grid already uses for a tighter 5-across grid, just
+   sized down further since this grid is half the page width. */
 .ceremony-stage-by-person .ceremony-stage-nominees {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
 }
 .ceremony-stage-by-person .ceremony-stage-nominee {
-  box-sizing: border-box;
-  flex: 0 0 110px;
-  width: 110px;
+  padding: 6px;
+}
+.ceremony-stage-by-person .ceremony-stage-nominee .film-poster--card {
+  width: calc(100% + 12px);
+  margin: -6px -6px 6px;
+}
+.ceremony-stage-by-person .ceremony-stage-nominee .film-title {
+  display: block;
+  font-size: 11px;
+}
+.ceremony-stage-by-person .ceremony-stage-nominee .ceremony-recipient-credit {
+  font-size: 10px;
 }
 .ceremony-stage-consensus-heading {
   margin: 4px 0 8px;
@@ -11063,7 +11079,7 @@ a.rate-watched-year-arrow:hover {
 
 /* Community -------------------------------------------------------------- */
 .community-page {
-  width: min(1180px, calc(100% - 32px));
+  width: min(var(--content-width), calc(100% - 32px));
   margin: 0 auto;
   padding: 42px 0 72px;
 }
@@ -11081,12 +11097,57 @@ a.rate-watched-year-arrow:hover {
   font-size: 18px;
   line-height: 1.55;
 }
-.ceremony-year-picker {
+/* The ceremony run's own title ("2025 Community Awards", "All-time
+   Community Awards", ...) is meant to read as one line, not wrap like
+   the directory's short "Community" - a smaller clamp than the base
+   .community-hero h1 keeps even the longest label (all-time) on one row
+   at ordinary desktop widths. */
+.community-ceremony-hero h1 {
+  font-size: clamp(28px, 4.5vw, 40px);
+}
+/* The spoiler-free joint-ceremony picker (issue #584): every eligible
+   year/decade/century/all-time bracket as a "pop"-ish pill link - solid
+   accent fill (the same background:var(--accent);color:#fff pattern used
+   elsewhere for a deliberately eye-catching control, e.g. ::selection and
+   .primary-nav-item's badge) with a small hover lift, never a result. */
+.community-period-group {
+  margin: 0 0 28px;
+}
+.community-period-group h2 {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.community-period-pills {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 10px 0;
-  font-weight: 600;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.community-period-pill {
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: var(--shadow);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.community-period-pill:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 7px 18px rgba(51, 42, 34, 0.18);
+}
+/* Landing straight in the staged reveal (issue #584) rather than an
+   always-revealed board first - a slightly larger category title keeps
+   the immersive, presentation.html-like feel without inventing a second
+   full-screen system. */
+.ceremony-stage--immersive .ceremony-stage-category {
+  font-size: 30px;
 }
 .community-grid {
   display: grid;
@@ -11241,68 +11302,10 @@ a.rate-watched-year-arrow:hover {
   flex-wrap: wrap;
   gap: 4px 10px;
 }
-.community-ceremony-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 16px;
-}
-/* Same same-origin-vs-UA-stylesheet override this codebase already needs
-   for .ceremony-board/.ceremony-stage and .data-tool-group: a plain
-   `display` class rule outranks the UA stylesheet's default
-   `[hidden] { display: none }`, so toggling `hidden` on the joint-ceremony
-   board (Run ceremony, issue #483) needs its own override here too. */
-.community-ceremony-grid[hidden] {
-  display: none;
-}
-.community-ceremony-category {
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--surface);
-}
-.community-ceremony-category > header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-.community-ceremony-category h2 {
-  margin: 0;
-  font-size: 20px;
-}
-.community-ceremony-category header span,
-.community-ceremony-category small {
-  color: var(--muted);
-}
-.community-ceremony-category ol {
-  display: grid;
-  gap: 8px;
-  margin: 16px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.community-ceremony-category li {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px;
-  border-radius: 10px;
-  background: var(--surface-soft);
-}
 /* The fixed 88px .film-poster--winner (issue #493) shouldn't shrink
-   against a multi-line text block in these flex rows - the shared base
-   rule stays unscoped since other .film-poster--winner usages
-   (category winner callouts) aren't flex children needing this guard. */
-.community-ceremony-category .film-poster--winner,
+   against a multi-line text block in the revealed Consensus rows. */
 .ceremony-stage-position-row .film-poster--winner {
   flex-shrink: 0;
-}
-.community-ceremony-category li div,
-.community-ceremony-category small {
-  display: block;
-}
-.community-medal {
-  font-size: 24px;
 }
 .community-ceremony-support {
   display: flex;
@@ -11327,12 +11330,6 @@ a.rate-watched-year-arrow:hover {
   font-size: 11px;
   font-weight: 600;
 }
-.community-ceremony-stage-meta {
-  margin: 0 0 12px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.community-method,
 .community-sources {
   max-width: 760px;
   margin-top: 42px;
@@ -11340,9 +11337,6 @@ a.rate-watched-year-arrow:hover {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface-soft);
-}
-.community-method h2 {
-  margin-top: 0;
 }
 .community-sources code {
   overflow-wrap: anywhere;

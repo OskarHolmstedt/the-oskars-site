@@ -49,6 +49,10 @@ window.periodTypeKeyContainsYear = function (periodType, periodKey, year) {
   if (type === "years") return key === concreteYear;
   if (type === "decades") return window.getDecadeKey(concreteYear) === key;
   if (type === "centuries") return window.getCenturyKey(concreteYear) === key;
+  if (type === "allTime") {
+    let lower = key.toLowerCase();
+    return lower === "alltime" || lower === "all";
+  }
   return window.periodKeyContainsYear(key, concreteYear);
 };
 
@@ -105,11 +109,18 @@ window.filmMatchesId = function (film, id, options = {}) {
   let periodType =
     window.normalizeAwardPeriodType?.(options.periodType) || options.periodType;
   let periodKey = String(options.periodKey || "").trim();
-  if (filmPeriod)
-    return periodType && periodKey
-      ? window.periodTypeKeyContainsYear(periodType, periodKey, canonicalYear)
-      : window.periodKeyContainsYear(filmPeriod, canonicalYear);
-  return true;
+  let candidatePeriod = periodKey || filmPeriod;
+  if (candidatePeriod) {
+    return periodType
+      ? window.periodTypeKeyContainsYear(
+          periodType,
+          candidatePeriod,
+          canonicalYear,
+        )
+      : window.periodKeyContainsYear(candidatePeriod, canonicalYear) ||
+          candidatePeriod === canonicalYear;
+  }
+  return !film.year;
 };
 
 /** Finds a film by normalized title and optional concrete year. @param {FilmRecord} film Identity query. @param {FilmRecord[]} [films] Candidates. @returns {FilmRecord|null} Match. */
@@ -172,13 +183,18 @@ window.findExistingFilmStoreRecord = function (
     candidates.find((candidate) => {
       if (!concreteYear) return true;
       let existingYear = String(candidate.year || "").trim();
+      let lower = existingYear.toLowerCase();
       return (
         existingYear === concreteYear ||
-        window.periodTypeKeyContainsYear(
-          options.periodType,
-          existingYear,
-          concreteYear,
-        )
+        window.periodKeyContainsYear(existingYear, concreteYear) ||
+        lower === "alltime" ||
+        lower === "all" ||
+        (options.periodType &&
+          window.periodTypeKeyContainsYear(
+            options.periodType,
+            existingYear,
+            concreteYear,
+          ))
       );
     }) || null
   );

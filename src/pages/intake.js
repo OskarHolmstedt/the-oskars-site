@@ -182,6 +182,8 @@
 
   function wireFreshFormLookup(form) {
     form.querySelector("[data-intake-title]")?.addEventListener("input", () => {
+      let tmdbInput = form.querySelector("[data-intake-tmdbid]");
+      if (tmdbInput) tmdbInput.value = "";
       clearTimeout(freshSearchTimer);
       freshSearchTimer = setTimeout(() => runCatalogSearch(form), 250);
     });
@@ -513,7 +515,10 @@
         let steps = window.supabaseIntakeRecordRanking(
           selected.steps,
           rankingGuide.level,
-          { targetFilmId: targetFilmId || null, position },
+          {
+            targetFilmId: placementTargetFilmId || null,
+            position: placementPosition,
+          },
         );
         await refreshAfter(
           await window.updateSupabaseIntakeWorkflow(selected, { steps }),
@@ -625,8 +630,11 @@
     }
     renderHeaderAuthStatus(access.user);
     try {
-      await window.loadSupabaseWorkspace();
-      workflows = await window.loadSupabaseIntakeWorkflows();
+      let [, loadedWorkflows] = await Promise.all([
+        window.loadSupabaseWorkspace(),
+        window.loadSupabaseIntakeWorkflows(),
+      ]);
+      workflows = loadedWorkflows;
       let requested = window.pageQueryParam?.("intake") || "";
       selected =
         workflows.find((workflow) => workflow.id === requested) ||

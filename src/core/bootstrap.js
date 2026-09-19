@@ -65,6 +65,8 @@ async function ensurePublicProfileData(slug) {
   window.showPublicProfileStatus?.(message, "error", [
     { label: "Retry", run: () => window.location.reload() },
   ]);
+  window.state ||= window.createEmptyState?.() || {};
+  window.state.isPublicProfileView = true;
   return false;
 }
 

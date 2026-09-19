@@ -97,6 +97,7 @@ let FILM_UNDO_FIELD_LABELS = {
   rewatchTier: "rewatch tier",
   rewatchTierModifier: "rewatch tier refinement",
 };
+window.FILM_UNDO_FIELD_LABELS = FILM_UNDO_FIELD_LABELS;
 
 function filmUndoSnapshot(source) {
   let snapshot = {};
@@ -113,11 +114,8 @@ function filmUndoSnapshot(source) {
   return snapshot;
 }
 
-/** Updates metadata on every source copy of a film. @param {string} id Film id. @param {Object} values Metadata values. @param {Object} [options] Logging options. @returns {FilmRecord|null} Updated canonical film. */
-window.updateFilmMetadata = function (id, values, options = {}) {
-  let film = window.findFilmById(id) || window.findWatchedFilmById?.(id);
-  if (!film) throw new Error("Film not found.");
-  let beforeLog = {
+function filmMetadataLogSnapshot(film) {
+  return {
     title: film.title,
     year: film.year,
     director: film.director,
@@ -140,6 +138,13 @@ window.updateFilmMetadata = function (id, values, options = {}) {
     yearRank: film.yearRank,
     posterUrl: film.poster?.url || "",
   };
+}
+
+/** Updates metadata on every source copy of a film. @param {string} id Film id. @param {Object} values Metadata values. @param {Object} [options] Logging options. @returns {FilmRecord|null} Updated canonical film. */
+window.updateFilmMetadata = function (id, values, options = {}) {
+  let film = window.findFilmById(id) || window.findWatchedFilmById?.(id);
+  if (!film) throw new Error("Film not found.");
+  let beforeLog = filmMetadataLogSnapshot(film);
   let title = String(values.title || "").trim();
   let year = String(values.year || "").trim();
   if (!title) throw new Error("Title is required.");
@@ -148,12 +153,15 @@ window.updateFilmMetadata = function (id, values, options = {}) {
   // (issue #454): once state.filmsById is keyed by the real Supabase
   // films.id, no freshly-computed id could ever match an existing key,
   // which would silently disable this guard entirely.
-  let duplicate = Object.values(state.filmsById || {}).find(
-    (candidate) =>
-      candidate.id !== film.id &&
-      window.normalizeTitle(candidate.title) === window.normalizeTitle(title) &&
-      String(candidate.year) === year,
-  );
+  let duplicate = Object.values(state.filmsById || {})
+    .concat(state.watchedOther || [])
+    .find(
+      (candidate) =>
+        candidate.id !== film.id &&
+        window.normalizeTitle(candidate.title) ===
+          window.normalizeTitle(title) &&
+        String(candidate.year) === year,
+    );
   if (duplicate)
     throw new Error(`${duplicate.title} (${year}) already exists.`);
 
@@ -166,10 +174,9 @@ window.updateFilmMetadata = function (id, values, options = {}) {
   let rankFields = ["allTimeRank", "centuryRank", "decadeRank", "yearRank"];
 
   sources.forEach((source) => {
-    let sourceUsesActualYear = /^\d{4}$/.test(String(source.year || ""));
     source.title = title;
     source.normalizedTitle = window.normalizeTitle(title);
-    if (sourceUsesActualYear) source.year = year;
+    source.year = year;
     source.director = String(values.director || "").trim();
     source.directors = directors;
     // Drop the parsed rating fields so normalizeFilmMetadata re-derives them
@@ -249,29 +256,7 @@ window.updateFilmMetadata = function (id, values, options = {}) {
         String(candidate.year) === year,
     );
   if (options.log !== false && updatedFilm && window.recordEdit) {
-    let afterLog = {
-      title: updatedFilm.title,
-      year: updatedFilm.year,
-      director: updatedFilm.director,
-      rating: updatedFilm.rating,
-      country: updatedFilm.country,
-      primaryCountry: updatedFilm.primaryCountry,
-      url: updatedFilm.url,
-      medium: updatedFilm.medium,
-      screenplayType: updatedFilm.screenplayType,
-      adaptationSource: updatedFilm.adaptationSource,
-      franchises: updatedFilm.franchises,
-      tags: updatedFilm.tags,
-      review: updatedFilm.review,
-      wantToRewatch: Boolean(updatedFilm.wantToRewatch),
-      rewatchTier: updatedFilm.rewatchTier || "",
-      rewatchTierModifier: updatedFilm.rewatchTierModifier || "",
-      allTimeRank: updatedFilm.allTimeRank,
-      centuryRank: updatedFilm.centuryRank,
-      decadeRank: updatedFilm.decadeRank,
-      yearRank: updatedFilm.yearRank,
-      posterUrl: updatedFilm.poster?.url || "",
-    };
+    let afterLog = filmMetadataLogSnapshot(updatedFilm);
     let changes = window.editLogChanges(beforeLog, afterLog, [
       "title",
       "year",

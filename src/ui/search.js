@@ -148,7 +148,10 @@
           .filter(Boolean)
           .join(" "),
         year,
-        target: { type: "shared-film", id: String(film.id || film.tmdbId || "") },
+        target: {
+          type: "shared-film",
+          id: String(film.id || film.tmdbId || ""),
+        },
         href: film.id
           ? window.filmPageUrl(film.id)
           : window.sharedFilmPreviewUrl(film.tmdbId),

@@ -109,8 +109,7 @@
           leftCompletion.percent - rightCompletion.percent ||
           leftCompletion.total - rightCompletion.total;
       else if (controls.sort === "subfranchises")
-        result =
-          (left.childIds || []).length - (right.childIds || []).length;
+        result = (left.childIds || []).length - (right.childIds || []).length;
       else result = leftCompletion.total - rightCompletion.total;
       if (controls.order === "desc") result = -result;
       return result || left.name.localeCompare(right.name);
@@ -172,9 +171,8 @@
       .concat(
         (franchise.otherFilms || []).map(
           (entry) =>
-            (state.watchedOther || []).find(
-              (film) => film.id === entry.filmId,
-            )?.year,
+            (state.watchedOther || []).find((film) => film.id === entry.filmId)
+              ?.year,
         ),
       )
       .concat(

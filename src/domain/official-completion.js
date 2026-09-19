@@ -45,19 +45,26 @@
   };
 
   /** Resolves one official nomination to at most one unambiguous canonical film for the given period. A resolved tmdbId (a canon fact, language/year-invariant) is checked first and wins outright when it matches exactly one candidate; otherwise falls back to the existing normalized-title + represented-year matching unchanged. @param {Object[]} candidates Result of officialResultsFilmCandidates(). @param {{sourceTitle: string, tmdbId?: string}} nomination Official nomination (or nomination-shaped object) carrying at least sourceTitle. @param {string} periodKey Official period key. @returns {{film: Object|null, ambiguous: boolean}} Match result. */
-  window.officialResultsFilmMatch = function (candidates, nomination, periodKey) {
+  window.officialResultsFilmMatch = function (
+    candidates,
+    nomination,
+    periodKey,
+  ) {
     let tmdbId = String(nomination?.tmdbId || "").trim();
     if (tmdbId) {
-      let tmdbMatches = candidates.filter((film) => String(film.tmdbId || "") === tmdbId);
-      if (tmdbMatches.length === 1) return { film: tmdbMatches[0], ambiguous: false };
+      let tmdbMatches = candidates.filter(
+        (film) => String(film.tmdbId || "") === tmdbId,
+      );
+      if (tmdbMatches.length === 1)
+        return { film: tmdbMatches[0], ambiguous: false };
       if (tmdbMatches.length > 1) return { film: null, ambiguous: true };
     }
     let normalized = window.normalizeTitle(nomination?.sourceTitle || "");
     let representedYears = new Set(window.officialResultPeriodYears(periodKey));
     let matches = candidates.filter(
       (film) =>
-        window.normalizeTitle(film.normalizedTitle || film.title) === normalized &&
-        representedYears.has(String(film.year || "")),
+        window.normalizeTitle(film.normalizedTitle || film.title) ===
+          normalized && representedYears.has(String(film.year || "")),
     );
     return matches.length === 1
       ? { film: matches[0], ambiguous: false }
@@ -77,7 +84,8 @@
       let key = window.normalizeTitle(record?.title || "");
       if (!key) return;
       let entries = result.get(key) || [];
-      if (!entries.some((entry) => entry.id === record.id)) entries.push(record);
+      if (!entries.some((entry) => entry.id === record.id))
+        entries.push(record);
       result.set(key, entries);
     });
     return result;
@@ -114,7 +122,9 @@
       unseen: films.filter((film) => !film.watched),
       watchedCount,
       total: films.length,
-      percent: films.length ? Math.round((watchedCount / films.length) * 100) : 0,
+      percent: films.length
+        ? Math.round((watchedCount / films.length) * 100)
+        : 0,
     };
   }
 
@@ -134,7 +144,9 @@
   }
 
   /** Builds the current overall and per-category film-completion model for one official-results source. @param {string} [sourceId] Official source id, defaults to Academy Awards. @returns {OfficialCollectionCompletion} Completion model. */
-  window.officialCollectionCompletion = function (sourceId = DEFAULT_SOURCE_ID) {
+  window.officialCollectionCompletion = function (
+    sourceId = DEFAULT_SOURCE_ID,
+  ) {
     let source = window.state?.officialResults?.[sourceId];
     let watchedByTitle = recordsByTitle(watchedRecords());
     let watchlistByTitle = recordsByTitle(window.state?.watchlist || []);
@@ -330,9 +342,9 @@
     let category = "";
     let period = "";
     if (rest.startsWith("category:"))
-      category = rest.slice("category:".length, -(`:${scope}`.length));
+      category = rest.slice("category:".length, -`:${scope}`.length);
     if (rest.startsWith("period:"))
-      period = rest.slice("period:".length, -(`:${scope}`.length));
+      period = rest.slice("period:".length, -`:${scope}`.length);
     let periodGroup = period
       ? model.periods.find((entry) => entry.period === period)
       : null;
@@ -347,9 +359,9 @@
       ? `${category} ${scope}`
       : period
         ? `${period} ${displayName} ${scope}`
-      : scope === "winners"
-        ? `${displayName} winners`
-        : `${displayName}-nominated films`;
+        : scope === "winners"
+          ? `${displayName} winners`
+          : `${displayName}-nominated films`;
     return {
       name: label,
       sourceLabel: label,
@@ -534,7 +546,10 @@
     if (window.oskarsCapabilities && !window.oskarsCapabilities().canEdit)
       return { ok: false, reason: "Watchlist editing is unavailable." };
     let tag = window.normalizeTitle(
-      officialWatchlistTag(sourceId, window.officialCollectionCompletion(sourceId)),
+      officialWatchlistTag(
+        sourceId,
+        window.officialCollectionCompletion(sourceId),
+      ),
     );
     let targets = new Set((ids || []).map(String));
     let removed = [];
@@ -547,8 +562,7 @@
       removed.push(item);
       return false;
     });
-    if (!removed.length)
-      return { ok: true, removed, persisted: null };
+    if (!removed.length) return { ok: true, removed, persisted: null };
     window.recomputeWatchlistOrder?.();
     window.markAggregatesDirty?.("official watchlist addition undone");
     window.recordEdit?.({

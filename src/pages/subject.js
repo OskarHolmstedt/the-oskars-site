@@ -5,9 +5,9 @@
   let ui = window.uiText || ((text) => text);
 
   window.load();
-  let subject = (window.ensureCreditSubjects?.() ||
-    state.creditSubjectsById ||
-    {})[window.pageQueryParam("id")];
+  let subject = (window.ensureCreditSubjects?.() || {})[
+    window.pageQueryParam("id")
+  ];
   let container = document.getElementById("subjectPage");
 
   if (!subject) {

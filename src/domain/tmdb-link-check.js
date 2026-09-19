@@ -37,14 +37,15 @@ window.fetchTmdbResource = async function fetchTmdbResource(kind, id, fetchFn) {
     alternativeTitles: (data.alternative_titles?.titles || [])
       .map((entry) => String(entry?.title || ""))
       .filter(Boolean),
-    releaseYear: String(data.release_date || data.first_air_date || "").match(
-      /^\d{4}/,
-    )?.[0] || "",
+    releaseYear:
+      String(data.release_date || data.first_air_date || "").match(
+        /^\d{4}/,
+      )?.[0] || "",
     releaseYearOptions,
     runtimeMinutes: Number(data.runtime) || 0,
     runtimeOptions,
   };
-}
+};
 
 /**
  * Returns distinct positive runtime values in source order.
@@ -139,8 +140,8 @@ window.classifyTmdbMediaCheck = function (movieResult, tvResult, film) {
     );
     let runtimeDiffers = Boolean(
       localRuntime &&
-        remoteRuntimes.length &&
-        !remoteRuntimes.includes(localRuntime),
+      remoteRuntimes.length &&
+      !remoteRuntimes.includes(localRuntime),
     );
     let differences = [];
     if (!titleMatches)
@@ -220,11 +221,7 @@ window.checkTmdbMediaTypes = async function (options = {}) {
         );
         let tv = movie.exists
           ? null
-          : await window.fetchTmdbResource(
-              "tv",
-              film.tmdbId,
-              fetchFn,
-            );
+          : await window.fetchTmdbResource("tv", film.tmdbId, fetchFn);
         let verdict = window.classifyTmdbMediaCheck(movie, tv, film);
         session.checked += 1;
         if (verdict.status === "ok") result.ok += 1;
@@ -351,7 +348,11 @@ window.checkSupabaseFilmTmdbLinks = async function (films, options = {}) {
           result.ok += 1;
           result.okFilms.push(film);
         } else {
-          result.issues.push({ film, status: verdict.status, detail: verdict.detail });
+          result.issues.push({
+            film,
+            status: verdict.status,
+            detail: verdict.detail,
+          });
         }
       } catch (err) {
         result.failed += 1;

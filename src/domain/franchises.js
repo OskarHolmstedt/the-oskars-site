@@ -16,101 +16,104 @@ function isBlankFranchiseValue(value) {
 /** Normalizes and merges franchise memberships. @param {*} value Membership input. @returns {FranchiseMembership[]} Memberships. */
 window.normalizeFranchiseMemberships = function (value) {
   let source = Array.isArray(value) ? value : [];
-  let seen = new Set();
-  return source
-    .map((entry) => {
-      let record = typeof entry === "string" ? { name: entry } : entry || {};
-      let name = String(record.name || "").trim();
-      if (isBlankFranchiseValue(name)) name = "";
-      let id = window.normalizeFranchiseId(name);
+  let byKey = new Map();
+  source.forEach((entry) => {
+    let record = typeof entry === "string" ? { name: entry } : entry || {};
+    let name = String(record.name || "").trim();
+    if (isBlankFranchiseValue(name)) name = "";
+    let id = window.normalizeFranchiseId(name);
 
-      // parentChain is the full ancestor lineage (outermost to innermost,
-      // last link = direct parent), e.g. ['Marvel','MCU','Infinity Saga'] for
-      // a 'Phase 1' entry. This function must stay idempotent (it's re-run on
-      // its own already-normalized output, e.g. by normalizeFilmMetadata and
-      // by every rebuildFranchiseIndex call), so a second pass falls back to
-      // the previous pass's parentChainNames before falling further back to a
-      // single-link chain from the legacy parentName/parentNames shape (for
-      // callers that don't know about chains, or a plain direct membership).
-      let rawChain =
-        Array.isArray(record.parentChain) && record.parentChain.length
-          ? record.parentChain
-          : Array.isArray(record.parentChainNames) &&
-              record.parentChainNames.length
-            ? record.parentChainNames
-            : record.parentName || record.parent || record.parentNames?.[0]
-              ? [
-                  String(
-                    record.parentName || record.parent || record.parentNames[0],
-                  ).trim(),
-                ]
-              : [];
-      let parentChainIds = [];
-      let parentChainNames = [];
-      let chainSeen = new Set([id]);
-      rawChain
-        .map((link) => String(link || "").trim())
-        .filter((link) => link && !isBlankFranchiseValue(link))
-        .forEach((link) => {
-          let linkId = window.normalizeFranchiseId(link);
-          if (!linkId || chainSeen.has(linkId)) return;
-          chainSeen.add(linkId);
-          parentChainIds.push(linkId);
-          parentChainNames.push(link);
-        });
-
-      let parentNames = Array.isArray(record.parentNames)
-        ? record.parentNames
-            .map((name) => String(name || "").trim())
-            .filter(Boolean)
-        : [];
-      parentNames = parentNames.filter(
-        (parent) => parent && !isBlankFranchiseValue(parent),
-      );
-      parentNames = parentNames.filter((parent) => {
-        let parentId = window.normalizeFranchiseId(parent);
-        return parentId && parentId !== id;
+    // parentChain is the full ancestor lineage (outermost to innermost,
+    // last link = direct parent), e.g. ['Marvel','MCU','Infinity Saga'] for
+    // a 'Phase 1' entry. This function must stay idempotent (it's re-run on
+    // its own already-normalized output, e.g. by normalizeFilmMetadata and
+    // by every rebuildFranchiseIndex call), so a second pass falls back to
+    // the previous pass's parentChainNames before falling further back to a
+    // single-link chain from the legacy parentName/parentNames shape (for
+    // callers that don't know about chains, or a plain direct membership).
+    let rawChain =
+      Array.isArray(record.parentChain) && record.parentChain.length
+        ? record.parentChain
+        : Array.isArray(record.parentChainNames) &&
+            record.parentChainNames.length
+          ? record.parentChainNames
+          : record.parentName || record.parent || record.parentNames?.[0]
+            ? [
+                String(
+                  record.parentName || record.parent || record.parentNames[0],
+                ).trim(),
+              ]
+            : [];
+    let parentChainIds = [];
+    let parentChainNames = [];
+    let chainSeen = new Set([id]);
+    rawChain
+      .map((link) => String(link || "").trim())
+      .filter((link) => link && !isBlankFranchiseValue(link))
+      .forEach((link) => {
+        let linkId = window.normalizeFranchiseId(link);
+        if (!linkId || chainSeen.has(linkId)) return;
+        chainSeen.add(linkId);
+        parentChainIds.push(linkId);
+        parentChainNames.push(link);
       });
-      let parentIds = [
-        ...new Set(
-          parentNames.map((parent) => window.normalizeFranchiseId(parent)),
-        ),
-      ];
-      parentNames = parentIds.map(
-        (parentId) =>
-          parentNames.find(
-            (parent) => window.normalizeFranchiseId(parent) === parentId,
-          ) || parentId,
-      );
-      // The chain's own direct parent (its last link) takes precedence as
-      // *the* direct parent, folded into the plural parentIds/parentNames
-      // crossover list so every single-hop parent lookup keeps working.
-      if (parentChainIds.length) {
-        let directId = parentChainIds[parentChainIds.length - 1];
-        let directName = parentChainNames[parentChainNames.length - 1];
-        if (!parentIds.includes(directId)) {
-          parentIds = [directId, ...parentIds];
-          parentNames = [directName, ...parentNames];
-        }
-      }
-      let parentId = parentIds[0] || "";
-      let rank = Number(record.rank);
-      return {
-        id,
-        name,
-        parentId,
-        parentName: parentId ? parentNames[0] : "",
-        parentIds,
-        parentNames,
-        parentChainIds,
-        parentChainNames,
-        rank: Number.isInteger(rank) && rank > 0 ? rank : null,
-      };
-    })
-    .filter((entry) => {
-      let key = `${entry.id}::${entry.parentIds.join("|")}`;
-      return entry.id && !seen.has(key) && seen.add(key);
+
+    let parentNames = Array.isArray(record.parentNames)
+      ? record.parentNames
+          .map((name) => String(name || "").trim())
+          .filter(Boolean)
+      : [];
+    parentNames = parentNames.filter(
+      (parent) => parent && !isBlankFranchiseValue(parent),
+    );
+    parentNames = parentNames.filter((parent) => {
+      let parentId = window.normalizeFranchiseId(parent);
+      return parentId && parentId !== id;
     });
+    let parentIds = [
+      ...new Set(
+        parentNames.map((parent) => window.normalizeFranchiseId(parent)),
+      ),
+    ];
+    parentNames = parentIds.map(
+      (parentId) =>
+        parentNames.find(
+          (parent) => window.normalizeFranchiseId(parent) === parentId,
+        ) || parentId,
+    );
+    // The chain's own direct parent (its last link) takes precedence as
+    // *the* direct parent, folded into the plural parentIds/parentNames
+    // crossover list so every single-hop parent lookup keeps working.
+    if (parentChainIds.length) {
+      let directId = parentChainIds[parentChainIds.length - 1];
+      let directName = parentChainNames[parentChainNames.length - 1];
+      if (!parentIds.includes(directId)) {
+        parentIds = [directId, ...parentIds];
+        parentNames = [directName, ...parentNames];
+      }
+    }
+    let parentId = parentIds[0] || "";
+    let rank = Number(record.rank);
+    let item = {
+      id,
+      name,
+      parentId,
+      parentName: parentId ? parentNames[0] : "",
+      parentIds,
+      parentNames,
+      parentChainIds,
+      parentChainNames,
+      rank: Number.isInteger(rank) && rank > 0 ? rank : null,
+    };
+    let key = `${item.id}::${item.parentIds.join("|")}`;
+    let existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, item);
+    } else if (!existing.rank && item.rank) {
+      existing.rank = item.rank;
+    }
+  });
+  return [...byKey.values()];
 };
 
 // A film can end up tagged with both an ancestor (e.g. a simple "MCU" tag
@@ -275,9 +278,7 @@ window.franchiseRepresentativeFilm = function (franchise) {
     .filter(posterReady)
     .sort(releaseOrder)[0];
   if (firstWithPoster) return firstWithPoster;
-  let otherWithPoster = otherEntries
-    .filter(posterReady)
-    .sort(releaseOrder)[0];
+  let otherWithPoster = otherEntries.filter(posterReady).sort(releaseOrder)[0];
   if (otherWithPoster) return otherWithPoster;
   let watchlistWithPoster = watchlistEntries
     .filter(posterReady)
@@ -299,7 +300,22 @@ window.rebuildFranchiseIndex = function () {
     (state.watchedOther || []).map((film) => [film.id, film]),
   );
   function ensure(id, name) {
-    return (franchises[id] ||= {
+    let existing = franchises[id];
+    if (existing) {
+      if (name && name !== id) {
+        let existingCaps = (existing.name.match(/[A-Z]/g) || []).length;
+        let incomingCaps = (name.match(/[A-Z]/g) || []).length;
+        if (
+          !existing.name ||
+          existing.name === id ||
+          incomingCaps > existingCaps
+        ) {
+          existing.name = name;
+        }
+      }
+      return existing;
+    }
+    return (franchises[id] = {
       id,
       name: name || id,
       parentId: "",
@@ -372,8 +388,7 @@ window.rebuildFranchiseIndex = function () {
       if (!parent) continue;
       if (kind === "watchlist")
         addWatchlistFilm(parent, filmOrItem, null, false);
-      else if (kind === "other")
-        addOtherFilm(parent, filmOrItem, null, false);
+      else if (kind === "other") addOtherFilm(parent, filmOrItem, null, false);
       else addFilm(parent, filmOrItem, null, false);
       queue.push(...parent.parentIds);
     }

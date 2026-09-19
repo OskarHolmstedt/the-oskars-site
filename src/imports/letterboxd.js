@@ -34,16 +34,22 @@
         cell = "";
       } else cell += character;
     }
-    if (quoted) throw new Error(`${filename} contains an unterminated quoted cell.`);
+    if (quoted)
+      throw new Error(`${filename} contains an unterminated quoted cell.`);
     row.push(cell);
     if (row.some((value) => value !== "")) rows.push(row);
     if (!rows.length) throw new Error(`${filename} is empty.`);
     let headers = rows.shift().map((value) => String(value).trim());
     let headerKeys = headers.map((value) => value.toLocaleLowerCase());
-    let required = filename === "ratings.csv" ? ["name", "year", "rating"] : ["name", "year"];
+    let required =
+      filename === "ratings.csv"
+        ? ["name", "year", "rating"]
+        : ["name", "year"];
     let missing = required.filter((name) => !headerKeys.includes(name));
     if (missing.length)
-      throw new Error(`${filename} is missing required column(s): ${missing.join(", ")}.`);
+      throw new Error(
+        `${filename} is missing required column(s): ${missing.join(", ")}.`,
+      );
     return rows.map((values, rowIndex) => {
       let result = { _rowNumber: rowIndex + 2 };
       headers.forEach((header, index) => {
@@ -54,7 +60,10 @@
   }
 
   function normalizedUri(value) {
-    return String(value || "").trim().replace(/\/+$/, "").toLocaleLowerCase();
+    return String(value || "")
+      .trim()
+      .replace(/\/+$/, "")
+      .toLocaleLowerCase();
   }
 
   function fallbackKey(value) {
@@ -63,13 +72,15 @@
 
   function keysFor(value) {
     let uri = normalizedUri(value?.["letterboxd uri"] || value?.letterboxdUrl);
-    return [uri ? `uri:${uri}` : "", `film:${fallbackKey(value)}`].filter(Boolean);
+    return [uri ? `uri:${uri}` : "", `film:${fallbackKey(value)}`].filter(
+      Boolean,
+    );
   }
 
   function validFilmRow(row) {
     return Boolean(
       row.name &&
-        (/^\d{4}$/.test(row.year) || normalizedUri(row["letterboxd uri"])),
+      (/^\d{4}$/.test(row.year) || normalizedUri(row["letterboxd uri"])),
     );
   }
 
@@ -95,19 +106,23 @@
   }
 
   function latestDate(left, right) {
-    let valid = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? value : "");
+    let valid = (value) =>
+      /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? value : "";
     return [valid(left), valid(right)].sort().pop() || "";
   }
 
   function ratingFor(row) {
     let value = Number(String(row?.rating || "").replace(",", "."));
-    if (!Number.isFinite(value) || value < 0.5 || value > 5 || value * 2 % 1)
+    if (!Number.isFinite(value) || value < 0.5 || value > 5 || (value * 2) % 1)
       return null;
     // Letterboxd only has plain half-star ratings, no minus/plus concept
     // of its own - imported as unmodified (no "dot"; that value was
     // removed as a distinct modifier, always redundant with "").
     return {
-      rating: window.renderFilmRating({ ratingValue: value, ratingModifier: "" }),
+      rating: window.renderFilmRating({
+        ratingValue: value,
+        ratingModifier: "",
+      }),
       ratingValue: value,
       ratingModifier: "",
     };
@@ -156,21 +171,26 @@
       };
       group.views += 1;
       group.rewatch ||= /^yes$/i.test(entry.rewatch);
-      group.dateWatched = latestDate(group.dateWatched, entry["watched date"] || entry.date);
-      group.tags = mergeTags(group.tags, window.parseFilmTags?.(entry.tags) || []);
+      group.dateWatched = latestDate(
+        group.dateWatched,
+        entry["watched date"] || entry.date,
+      );
+      group.tags = mergeTags(
+        group.tags,
+        window.parseFilmTags?.(entry.tags) || [],
+      );
       diaryGroups.set(key, group);
       keysFor(entry).forEach((identity) => diaryGroups.set(identity, group));
     });
     let result = new Map();
     rows.forEach((row) => {
       let ratingRow = findRecord(ratingLookup, row);
-      let diaryGroup = keysFor(row).map((key) => diaryGroups.get(key)).find(Boolean);
+      let diaryGroup = keysFor(row)
+        .map((key) => diaryGroups.get(key))
+        .find(Boolean);
       result.set(row, {
         rating: ratingFor(ratingRow),
-        views: Math.max(
-          diaryGroup?.views || 1,
-          diaryGroup?.rewatch ? 2 : 1,
-        ),
+        views: Math.max(diaryGroup?.views || 1, diaryGroup?.rewatch ? 2 : 1),
         dateWatched: diaryGroup?.dateWatched || "",
         tags: diaryGroup?.tags || [],
       });
@@ -188,7 +208,9 @@
       else {
         parsed[filename] = [];
         if (filename !== "watched.csv")
-          warnings.push(`${filename} was not present; that optional data was skipped.`);
+          warnings.push(
+            `${filename} was not present; that optional data was skipped.`,
+          );
       }
     });
     return parsed;
@@ -221,7 +243,8 @@
         report.skippedDetails.push({
           source: "watched.csv",
           rowNumber: row._rowNumber,
-          reason: "A title plus a Letterboxd URI or four-digit release year is required.",
+          reason:
+            "A title plus a Letterboxd URI or four-digit release year is required.",
           values: [row.name, row.year],
         });
         return;
@@ -236,7 +259,9 @@
       if (archive) {
         let targetKeys = new Set(keysFor(archive));
         archiveRecords
-          .filter((record) => keysFor(record).some((key) => targetKeys.has(key)))
+          .filter((record) =>
+            keysFor(record).some((key) => targetKeys.has(key)),
+          )
           .forEach((record) => {
             applyViewingFacts(record, row, facts);
             window.enrichPersonalRecordFromSharedArchive?.(record, "film");
@@ -288,7 +313,10 @@
   function importWatchlist(rows, importedWatchedKeys, report) {
     let current = window.state.watchlist || [];
     let lookup = buildLookup(current);
-    let maximumOrder = current.reduce((maximum, item) => Math.max(maximum, Number(item.order) || 0), 0);
+    let maximumOrder = current.reduce(
+      (maximum, item) => Math.max(maximum, Number(item.order) || 0),
+      0,
+    );
     rows.forEach((row) => {
       if (!validFilmRow(row)) {
         report.skipped += 1;
@@ -297,8 +325,10 @@
       if (keysFor(row).some((key) => importedWatchedKeys.has(key))) return;
       let existing = findRecord(lookup, row);
       if (existing) {
-        if (!existing.letterboxdUrl) existing.letterboxdUrl = row["letterboxd uri"] || "";
-        if (!existing.added && /^\d{4}-\d{2}-\d{2}$/.test(row.date)) existing.added = row.date;
+        if (!existing.letterboxdUrl)
+          existing.letterboxdUrl = row["letterboxd uri"] || "";
+        if (!existing.added && /^\d{4}-\d{2}-\d{2}$/.test(row.date))
+          existing.added = row.date;
         window.enrichPersonalRecordFromSharedArchive?.(existing, "watchlist");
         report.watchlistMerged += 1;
         return;
@@ -376,7 +406,9 @@
       report.filmsAdded =
         report.archiveAdded + report.watchedOtherAdded + report.watchlistAdded;
       report.filmsMerged =
-        report.watchedArchiveMerged + report.watchedOtherMerged + report.watchlistMerged;
+        report.watchedArchiveMerged +
+        report.watchedOtherMerged +
+        report.watchlistMerged;
       window.rebuildAggregates?.();
       return window.createImportProposal({
         sourceKind: "letterboxd",
@@ -426,7 +458,8 @@
     if (match.country) film.country = String(match.country).trim();
     if (match.primaryCountry)
       film.primaryCountry = String(match.primaryCountry).trim();
-    if (match.swedishTitle) film.swedishTitle = String(match.swedishTitle).trim();
+    if (match.swedishTitle)
+      film.swedishTitle = String(match.swedishTitle).trim();
     if (match.runtimeMinutes) film.runtimeMinutes = match.runtimeMinutes;
     if (match.poster) film.poster = match.poster;
     if (match.type) film.type = match.type;

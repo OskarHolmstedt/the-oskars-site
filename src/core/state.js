@@ -41,6 +41,25 @@ window.getCenturyKey = function (year) {
 };
 
 /**
+ * Parses a decade or century key into its inclusive [startYear, endYear] span.
+ * @param {'decades'|'centuries'|'decade'|'century'} periodType Period type.
+ * @param {string|number} key Range key like "1990s" or "1900s".
+ * @returns {[number, number]|null} Inclusive year span or null.
+ */
+window.getPeriodKeyYearSpan = function (periodType, key) {
+  let start = parseInt(String(key || ""), 10);
+  if (!Number.isFinite(start)) return null;
+  let normalized = String(periodType || "").toLowerCase();
+  if (normalized === "decades" || normalized === "decade") {
+    return [start, start + 9];
+  }
+  if (normalized === "centuries" || normalized === "century") {
+    return [start, start + 99];
+  }
+  return null;
+};
+
+/**
  * Derives a public-profile URL slug from an owner-chosen display name
  * (issue #253) - the display name is the single source of truth, so the
  * publish panel never needs a separately-typed, driftable slug field.
@@ -313,15 +332,16 @@ window.addFilmToStore = function (year, film, options = {}) {
       existing.poster ||
       window.normalizePosterRecord?.(film.poster) ||
       film.poster;
-    existing.tags = existing.tags?.length || film.tags?.length
-      ? window.parseFilmTags?.([
-          ...(existing.tags || []),
-          ...(film.tags || []),
-        ]) ||
-        existing.tags ||
-        film.tags ||
-        []
-      : existing.tags || film.tags || [];
+    existing.tags =
+      existing.tags?.length || film.tags?.length
+        ? window.parseFilmTags?.([
+            ...(existing.tags || []),
+            ...(film.tags || []),
+          ]) ||
+          existing.tags ||
+          film.tags ||
+          []
+        : existing.tags || film.tags || [];
     existing.review = existing.review || film.review || "";
     if (effectiveYear && !/^\d{4}$/.test(String(existing.year || ""))) {
       existing.year = effectiveYear;
@@ -425,7 +445,8 @@ window.sameAward = function (a, b) {
   // placed" awards (NaN === NaN is false) - both-NaN counts as a match so
   // two structurally-identical not-placed entries still de-dupe.
   let samePlacement =
-    placementA === placementB || (Number.isNaN(placementA) && Number.isNaN(placementB));
+    placementA === placementB ||
+    (Number.isNaN(placementA) && Number.isNaN(placementB));
   return (
     a.category === b.category &&
     samePlacement &&
@@ -453,7 +474,10 @@ window.findFilmById = function (id) {
  * @returns {boolean} Whether the rank is deliberately confirmed.
  */
 window.isFilmRankConfirmed = function (film, scopeType) {
-  if (film?.rankConfirmedByScope)
-    return film.rankConfirmedByScope[scopeType] === true;
+  if (
+    film?.rankConfirmedByScope &&
+    typeof film.rankConfirmedByScope[scopeType] === "boolean"
+  )
+    return film.rankConfirmedByScope[scopeType];
   return film?.rankConfirmed !== false;
 };

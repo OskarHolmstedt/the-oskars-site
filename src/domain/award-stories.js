@@ -103,7 +103,11 @@ window.periodAwardStories = function (awards) {
     (film) => film.wins * 1000 + film.nominations,
   );
   if (sweep) {
-    stories.push({ type: "sweep", films: [sweep], categories: sweep.categories });
+    stories.push({
+      type: "sweep",
+      films: [sweep],
+      categories: sweep.categories,
+    });
   }
   let nearSweepCandidates = films.filter(
     (film) =>
@@ -174,8 +178,10 @@ window.periodAwardStories = function (awards) {
         films: rivalryFilms,
         categories: sharedCategories,
         sharedCount: sharedCategories.length,
-        wins: rivalryFilms.map((film) =>
-          film.winCategories.filter((category) => shared.has(category)).length,
+        wins: rivalryFilms.map(
+          (film) =>
+            film.winCategories.filter((category) => shared.has(category))
+              .length,
         ),
       });
     }

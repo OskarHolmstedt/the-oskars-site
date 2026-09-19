@@ -342,7 +342,12 @@
     (source.personalAwards || []).forEach((award) => {
       (award.personal_nominations || []).forEach((nomination) => {
         let film = filmsBySupabaseId.get(nomination.film_id);
-        if (!film) return;
+        if (!film) {
+          console.warn?.(
+            `Personal nomination ${nomination.id || nomination.category} dropped: film_id "${nomination.film_id}" not found in watched records.`,
+          );
+          return;
+        }
         let recipients = (nomination.personal_nomination_recipients || []).map(
           (recipient) => ({
             name: recipient.recipient_name,

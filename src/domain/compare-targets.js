@@ -83,12 +83,15 @@
               : null;
     if (!period) return null;
     let films = (period.films || []).map(periodEntryFilm).filter(Boolean);
-    let stats = window.calculateAwardStats(
-      films.flatMap((film) => film.awards || []),
-    );
+    let periodTargetId = `${pageType}:${pageType === "alltime" ? "alltime" : key}`;
+    let targetStub = { id: periodTargetId };
+    let filteredAwards = films
+      .flatMap((film) => film.awards || [])
+      .filter((award) => awardBelongsToPeriodTarget(award, targetStub));
+    let stats = window.calculateAwardStats(filteredAwards);
     return withRatingStatistics({
       type: "period",
-      id: `${pageType}:${pageType === "alltime" ? "alltime" : key}`,
+      id: periodTargetId,
       displayName: pageType === "alltime" ? label("All-time") : key,
       url: window.periodPageUrl(pageType, key),
       record: period,
@@ -109,9 +112,11 @@
    * deduplicated non-empty ids, `metrics` are display key/value pairs, and
    * `record` is the underlying canonical record.
    * @param {{type: string, id: string}} target Typed reference to resolve.
+   * @param {Object} [options] Resolution options.
+   * @param {string} [options.scoreScope] Award score scope ('year'|'decade'|'century'|'allTime').
    * @returns {CompareTarget|null} Resolved target, or null when unknown.
    */
-  window.resolveCompareTarget = function (target) {
+  window.resolveCompareTarget = function (target, options = {}) {
     let type = String(target?.type || "").trim();
     let id = String(target?.id || "").trim();
     if (!type || !id) return null;
@@ -140,6 +145,8 @@
     if (type === "person") {
       let person = (window.ensurePeopleIndex?.() || state.peopleById || {})[id];
       if (!person) return null;
+      let rawScope = options.scoreScope || options.scope || "year";
+      let scoreScope = rawScope === "alltime" ? "allTime" : rawScope;
       return withRatingStatistics({
         type,
         id: person.id,
@@ -158,7 +165,8 @@
           films: person.filmIds?.length || 0,
           wins: person.stats?.wins || 0,
           nominations: person.stats?.nominations || 0,
-          score: person.awardScores?.year || 0,
+          score:
+            person.awardScores?.[scoreScope] ?? person.awardScores?.year ?? 0,
           professions: (person.professions || [])
             .map((profession) => label(profession))
             .join(", "),
@@ -240,7 +248,9 @@
       if (!categories.includes(id)) return null;
       let films = window.filmsForAwardCategory(id);
       let entries = window.awardCategoryEntries(id);
-      let stats = window.calculateAwardStats(entries.map((entry) => entry.award));
+      let stats = window.calculateAwardStats(
+        entries.map((entry) => entry.award),
+      );
       return withRatingStatistics({
         type,
         id,
@@ -259,7 +269,8 @@
     }
     if (type === "song" || type === "role") {
       let subject = (window.ensureCreditSubjects?.() ||
-        state.creditSubjectsById || {})[id];
+        state.creditSubjectsById ||
+        {})[id];
       if (!subject || subject.type !== type) return null;
       return withRatingStatistics({
         type,
@@ -291,8 +302,16 @@
    */
   window.normalizeCompareTargets = function (targets, limit = 4) {
     let seen = new Set();
+    let periodTarget = (targets || []).find((t) => t?.type === "period");
+    let scoreScope = "year";
+    if (periodTarget) {
+      let { type } = window.comparePeriodIdentity?.(periodTarget) || {};
+      if (type === "decade" || type === "century" || type === "alltime") {
+        scoreScope = type === "alltime" ? "allTime" : type;
+      }
+    }
     return (targets || [])
-      .map(window.resolveCompareTarget)
+      .map((target) => window.resolveCompareTarget(target, { scoreScope }))
       .filter((target) => {
         let key =
           window.compareTargetKey?.(target) ||

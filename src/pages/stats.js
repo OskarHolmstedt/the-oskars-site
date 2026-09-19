@@ -2,7 +2,14 @@
 
 (function () {
   let escape = window.pageEscape;
-  let ui = window.uiText || ((text) => text);
+  let ui =
+    window.uiText ||
+    ((text, values) =>
+      values
+        ? String(text || "").replace(/\{([^}]+)\}/g, (m, k) =>
+            k in values ? values[k] : m,
+          )
+        : text);
   window.load();
   let container = document.getElementById("statsPage");
   document.title = `${ui("Statistics")} · The Oskars`;
@@ -135,9 +142,7 @@
     let scoreContext = ui("{matches} of {total} comparable category-periods", {
       matches: awardAgreement.matches,
       total: awardAgreement.comparedCount,
-    })
-      .replace("{matches}", awardAgreement.matches)
-      .replace("{total}", awardAgreement.comparedCount);
+    });
     return `<div class="stats-awards-overview">
       <div class="stats-awards-score"><strong>${awardAgreement.agreementPercent}%</strong><span>${escape(ui("Overall agreement"))}</span><small>${escape(scoreContext)}</small></div>
       <div class="stats-facts stats-awards-facts">
@@ -227,5 +232,5 @@ ${section(
     );
   }
   renderStatsPage();
-  window.hydrateOfficialResultsFromSupabase?.().then(renderStatsPage);
+  window.hydrateOfficialResultsFromSupabase?.().then(renderStatsPage, () => {});
 })();

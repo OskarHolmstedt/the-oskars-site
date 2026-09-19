@@ -66,6 +66,23 @@ function syncWorkspaceAccount(userId) {
   workspaceLoadPromise = null;
 }
 
+function beginWorkspaceMutation() {
+  let generation = workspaceGeneration;
+  let ownerId = window.getSupabaseCurrentUser?.()?.id || null;
+  return function isCurrent() {
+    let currentOwnerId = window.getSupabaseCurrentUser?.()?.id || null;
+    return generation === workspaceGeneration && ownerId === currentOwnerId;
+  };
+}
+
+function assertCurrentWorkspaceMutation(isCurrent) {
+  if (typeof isCurrent === "function" && !isCurrent()) {
+    let err = new Error("Account changed while performing operation.");
+    err.code = "OSKARS_ACCOUNT_CHANGED";
+    throw err;
+  }
+}
+
 // Account changes invalidate pending reads as well as cached rows. Token
 // refreshes for the same account preserve both.
 window.onSupabaseAuthChange?.((user) => syncWorkspaceAccount(user?.id || null));
@@ -186,20 +203,32 @@ window.loadSupabaseIntakeWorkflows = async function () {
 window.createSupabaseFreshWatchedIntake = async function (values) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
-  let directors = String(values.director || "")
+  let title = String(values?.title || "").trim();
+  if (!title) throw new Error("Title is required.");
+  let rawYear = values?.year;
+  let year =
+    rawYear !== null && rawYear !== undefined && String(rawYear).trim() !== ""
+      ? Number(rawYear)
+      : NaN;
+  if (!Number.isInteger(year) || year < 1888 || year > 2100) {
+    throw new Error(
+      "Release year must be a valid integer between 1888 and 2100.",
+    );
+  }
+  let directors = String(values?.director || "")
     .split(/\s*(?:,|\band\b|&)\s*/i)
     .map((name) => name.trim())
     .filter(Boolean);
   let { data, error } = await ready.client.rpc("create_fresh_watched_intake", {
-    p_title: String(values.title || "").trim(),
-    p_year: Number(values.year),
-    p_tmdb_id: values.tmdbId ? Number(values.tmdbId) : null,
+    p_title: title,
+    p_year: year,
+    p_tmdb_id: values?.tmdbId ? Number(values.tmdbId) : null,
     p_directors: directors,
-    p_rating: values.rating ? Number(values.rating) : null,
-    p_rating_modifier: values.ratingModifier || null,
-    p_date_watched: values.dateWatched || null,
-    p_platform: values.platform || null,
-    p_views: values.views ? Number(values.views) : 1,
+    p_rating: values?.rating ? Number(values.rating) : null,
+    p_rating_modifier: values?.ratingModifier || null,
+    p_date_watched: values?.dateWatched || null,
+    p_platform: values?.platform || null,
+    p_views: values?.views ? Number(values.views) : 1,
   });
   if (error) throw error;
   let { data: joined, error: selectError } = await ready.client
@@ -242,6 +271,7 @@ window.updateSupabaseIntakeWorkflow = async function (workflow, changes) {
 window.setSupabaseIntakeWatchedFacts = async function (watched, values) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
+  let isCurrent = beginWorkspaceMutation();
   let { data, error } = await ready.client
     .from("watched")
     .update({
@@ -264,6 +294,7 @@ window.setSupabaseIntakeWatchedFacts = async function (watched, values) {
     conflict.code = "OSKARS_STALE_WRITE";
     throw conflict;
   }
+  assertCurrentWorkspaceMutation(isCurrent);
   if (workspaceState) {
     let index = workspaceState.watched.findIndex((row) => row.id === data.id);
     if (index >= 0) workspaceState.watched[index] = data;
@@ -293,6 +324,7 @@ window.setSupabaseWatchedRating = async function (
 ) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
+  let isCurrent = beginWorkspaceMutation();
 
   let cached = workspaceState?.watched?.find((row) => row.id === watchedId);
   let staleUpdatedAt = cached?.updated_at;
@@ -317,6 +349,7 @@ window.setSupabaseWatchedRating = async function (
     throw conflictErr;
   }
 
+  assertCurrentWorkspaceMutation(isCurrent);
   if (workspaceState) {
     let idx = workspaceState.watched.findIndex((row) => row.id === watchedId);
     if (idx >= 0) workspaceState.watched[idx] = data;
@@ -331,12 +364,13 @@ window.setSupabaseWatchedRating = async function (
  * new adds sort to the end - no fractional-index reordering scheme is
  * implemented here (issue #416 is add/remove/move, not drag/drop).
  * @param {string} filmId Shared catalog film id.
- * @param {{tier?: string, reason?: string}} [options]
+ * @param {{tier?: string, tierModifier?: string, reason?: string, position?: string}} [options]
  * @returns {Promise<Object>} The new, cache-shaped watchlist row.
  */
 window.addToSupabaseWatchlist = async function (filmId, options = {}) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
+  let isCurrent = beginWorkspaceMutation();
 
   let { data, error } = await ready.client
     .from("watchlist")
@@ -345,12 +379,13 @@ window.addToSupabaseWatchlist = async function (filmId, options = {}) {
       tier: options.tier || null,
       tier_modifier: options.tierModifier || null,
       reason: options.reason || null,
-      position: Date.now().toString(36),
+      position: options.position || Date.now().toString(36),
     })
     .select(WATCHLIST_SELECT)
     .single();
   if (error) throw error;
 
+  assertCurrentWorkspaceMutation(isCurrent);
   if (workspaceState) workspaceState.watchlist.push(data);
   return data;
 };
@@ -363,6 +398,7 @@ window.addToSupabaseWatchlist = async function (filmId, options = {}) {
 window.removeFromSupabaseWatchlist = async function (watchlistId) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
+  let isCurrent = beginWorkspaceMutation();
 
   let { error } = await ready.client
     .from("watchlist")
@@ -370,6 +406,7 @@ window.removeFromSupabaseWatchlist = async function (watchlistId) {
     .eq("id", watchlistId);
   if (error) throw error;
 
+  assertCurrentWorkspaceMutation(isCurrent);
   if (workspaceState) {
     workspaceState.watchlist = workspaceState.watchlist.filter(
       (row) => row.id !== watchlistId,
@@ -388,6 +425,7 @@ window.removeFromSupabaseWatchlist = async function (watchlistId) {
 window.removeFromSupabaseWatched = async function (watchedId) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
+  let isCurrent = beginWorkspaceMutation();
 
   let { error } = await ready.client
     .from("watched")
@@ -395,6 +433,7 @@ window.removeFromSupabaseWatched = async function (watchedId) {
     .eq("id", watchedId);
   if (error) throw error;
 
+  assertCurrentWorkspaceMutation(isCurrent);
   if (workspaceState) {
     workspaceState.watched = workspaceState.watched.filter(
       (row) => row.id !== watchedId,
@@ -416,6 +455,7 @@ window.removeFromSupabaseWatched = async function (watchedId) {
 window.moveSupabaseWatchlistToWatched = async function (filmId, options = {}) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
+  let isCurrent = beginWorkspaceMutation();
 
   let watchlistEntry = workspaceState?.watchlist?.find(
     (row) => row.film_id === filmId,
@@ -429,12 +469,30 @@ window.moveSupabaseWatchlistToWatched = async function (filmId, options = {}) {
   });
   if (error) throw error;
 
-  let watchedRow = { ...data, films: watchlistEntry?.films };
+  let films = watchlistEntry?.films;
+  if (!films) {
+    let { data: filmRow, error: filmError } = await ready.client
+      .from("films")
+      .select(
+        "id, tmdb_id, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type",
+      )
+      .eq("id", filmId)
+      .maybeSingle();
+    if (filmError) throw filmError;
+    films = filmRow || null;
+  }
+
+  assertCurrentWorkspaceMutation(isCurrent);
+  let watchedRow = { ...data, films };
   if (workspaceState) {
-    workspaceState.watchlist = workspaceState.watchlist.filter(
-      (row) => row.film_id !== filmId,
-    );
-    workspaceState.watched.push(watchedRow);
+    if (Array.isArray(workspaceState.watchlist)) {
+      workspaceState.watchlist = workspaceState.watchlist.filter(
+        (row) => row.film_id !== filmId,
+      );
+    }
+    if (Array.isArray(workspaceState.watched)) {
+      workspaceState.watched.push(watchedRow);
+    }
   }
   return watchedRow;
 };
@@ -463,7 +521,7 @@ window.searchSupabaseFilmsByTitle = async function (query) {
 };
 
 const RANKING_ENTRY_SELECT =
-  "film_id, position, rank_confirmed, films(id, tmdb_id, title, year, poster_url)";
+  "film_id, position, rank_confirmed, tie_group_id, films(id, tmdb_id, title, year, poster_url)";
 
 /**
  * Finds or creates the signed-in user's ranking row for a (scopeType,
@@ -496,7 +554,19 @@ async function getOrCreateSupabaseRankingId(client, scope, scopeType) {
     .insert({ scope, scope_type: scopeType })
     .select("id")
     .single();
-  if (insertError) throw insertError;
+  if (insertError) {
+    if (insertError.code === "23505") {
+      let { data: retryExisting, error: retryError } = await client
+        .from("rankings")
+        .select("id")
+        .eq("scope", scope)
+        .eq("scope_type", scopeType)
+        .single();
+      if (retryError) throw retryError;
+      return retryExisting.id;
+    }
+    throw insertError;
+  }
   return created.id;
 }
 
@@ -887,7 +957,19 @@ async function getOrCreateSupabasePersonalAwardId(client, scope, scopeType) {
     .insert({ scope, scope_type: scopeType })
     .select("id")
     .single();
-  if (insertError) throw insertError;
+  if (insertError) {
+    if (insertError.code === "23505") {
+      let { data: retryExisting, error: retryError } = await client
+        .from("personal_awards")
+        .select("id")
+        .eq("scope", scope)
+        .eq("scope_type", scopeType)
+        .single();
+      if (retryError) throw retryError;
+      return retryExisting.id;
+    }
+    throw insertError;
+  }
   return created.id;
 }
 
@@ -1004,7 +1086,8 @@ window.persistSupabaseFilmCredits = async function (filmId, role, people) {
           : null,
       },
     );
-    if (personError || !personId) continue;
+    if (personError) throw personError;
+    if (!personId) continue;
     let { error: creditError } = await ready.client.from("credits").insert({
       film_id: filmId,
       person_id: personId,
@@ -1013,43 +1096,6 @@ window.persistSupabaseFilmCredits = async function (filmId, role, people) {
     });
     if (creditError && creditError.code !== "23505") throw creditError;
   }
-};
-
-/**
- * Nominates a film in a scope/category at a placement, straight through
- * to Supabase. No recipients (personal_nomination_recipients) - a
- * separate, more complex sub-concept (matching/creating people rows),
- * deliberately out of scope for this wiring PoC.
- * @param {string} scope
- * @param {string} category
- * @param {string} filmId
- * @param {number} placement
- * @param {string} [detail]
- * @param {'years'|'decades'|'centuries'|'allTime'} scopeType
- */
-window.addSupabasePersonalNomination = async function (
-  scope,
-  category,
-  filmId,
-  placement,
-  detail,
-  scopeType,
-) {
-  let ready = await window.ensureSupabaseClient();
-  if (!ready) throw new Error("Supabase not configured.");
-  let personalAwardId = await getOrCreateSupabasePersonalAwardId(
-    ready.client,
-    scope,
-    scopeType,
-  );
-  let { error } = await ready.client.from("personal_nominations").insert({
-    personal_award_id: personalAwardId,
-    category,
-    placement,
-    film_id: filmId,
-    detail: detail || null,
-  });
-  if (error) throw error;
 };
 
 /**
@@ -1087,6 +1133,7 @@ window.applySupabaseWatchlistTierMergeOrder = async function (
 ) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
+  let isCurrent = beginWorkspaceMutation();
 
   let ids = (orderedFilmIds || []).map(String).filter(Boolean);
   let idSet = new Set(ids);
@@ -1123,6 +1170,7 @@ window.applySupabaseWatchlistTierMergeOrder = async function (
   );
   let failed = results.find((result) => result.error);
   if (failed) throw failed.error;
+  assertCurrentWorkspaceMutation(isCurrent);
   updates.forEach(({ row, newPosition }) => {
     row.position = newPosition;
   });
@@ -1859,23 +1907,48 @@ window.updateSupabaseNominationRecipients = async function (
 ) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
-  let { error: deleteError } = await ready.client
-    .from("personal_nomination_recipients")
-    .delete()
-    .eq("nomination_id", nominationId);
-  if (deleteError) throw deleteError;
+  let isCurrent = beginWorkspaceMutation();
 
-  let names = (recipients || []).map((name) => name.trim()).filter(Boolean);
-  if (!names.length) return;
-  let { error: insertError } = await ready.client
+  let names = Array.from(
+    new Set((recipients || []).map((name) => name.trim()).filter(Boolean)),
+  );
+
+  let { data: existingRows, error: selectError } = await ready.client
     .from("personal_nomination_recipients")
-    .insert(
-      names.map((recipient_name) => ({
-        nomination_id: nominationId,
-        recipient_name,
-      })),
-    );
-  if (insertError) throw insertError;
+    .select("id, recipient_name")
+    .eq("nomination_id", nominationId);
+  if (selectError) throw selectError;
+
+  let existingNames = new Set(
+    (existingRows || []).map((r) => r.recipient_name),
+  );
+  let toAdd = names.filter((name) => !existingNames.has(name));
+  let toDelete = (existingRows || []).filter(
+    (r) => !names.includes(r.recipient_name),
+  );
+
+  if (toAdd.length) {
+    let { error: insertError } = await ready.client
+      .from("personal_nomination_recipients")
+      .insert(
+        toAdd.map((recipient_name) => ({
+          nomination_id: nominationId,
+          recipient_name,
+        })),
+      );
+    if (insertError) throw insertError;
+  }
+
+  if (toDelete.length) {
+    let deleteIds = toDelete.map((r) => r.id);
+    let { error: deleteError } = await ready.client
+      .from("personal_nomination_recipients")
+      .delete()
+      .in("id", deleteIds);
+    if (deleteError) throw deleteError;
+  }
+
+  assertCurrentWorkspaceMutation(isCurrent);
 };
 
 // PostgREST's stock max_rows cap (supabase/config.toml). Several shared,
@@ -2219,7 +2292,12 @@ window.createSupabaseWatchlistWatchedIntake = async function (
 window.setSupabaseWatchlistTier = async function (watchlistId, tier, modifier) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
-  let { error } = await ready.client
+  let isCurrent = beginWorkspaceMutation();
+
+  let cached = workspaceState?.watchlist?.find((row) => row.id === watchlistId);
+  let staleUpdatedAt = cached?.updated_at;
+
+  let query = ready.client
     .from("watchlist")
     .update({
       tier: tier || null,
@@ -2227,7 +2305,29 @@ window.setSupabaseWatchlistTier = async function (watchlistId, tier, modifier) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", watchlistId);
+
+  if (staleUpdatedAt) {
+    query = query.eq("updated_at", staleUpdatedAt);
+  }
+
+  let { data, error } = await query.select(WATCHLIST_SELECT).maybeSingle();
   if (error) throw error;
+
+  if (staleUpdatedAt && !data) {
+    let conflictErr = new Error(
+      "Watchlist item was modified in another session. Refreshing before retrying.",
+    );
+    conflictErr.code = "OSKARS_STALE_WRITE";
+    throw conflictErr;
+  }
+
+  assertCurrentWorkspaceMutation(isCurrent);
+  if (workspaceState && data) {
+    let idx = workspaceState.watchlist.findIndex(
+      (row) => row.id === watchlistId,
+    );
+    if (idx >= 0) workspaceState.watchlist[idx] = data;
+  }
 };
 
 /**
@@ -2251,7 +2351,18 @@ async function getOrCreateSupabaseTagId(client, name) {
     .insert({ name })
     .select("id")
     .single();
-  if (insertError) throw insertError;
+  if (insertError) {
+    if (insertError.code === "23505") {
+      let { data: retryExisting, error: retryError } = await client
+        .from("tags")
+        .select("id")
+        .eq("name", name)
+        .single();
+      if (retryError) throw retryError;
+      return retryExisting.id;
+    }
+    throw insertError;
+  }
   return created.id;
 }
 
@@ -2781,7 +2892,12 @@ window.loadSupabaseProject = async function (projectId) {
         Object.assign({}, watchedRow, { films: row.films }),
         chains,
       );
-      return { position: row.position, status: "watched", film };
+      return {
+        position: row.position,
+        status: "watched",
+        rewatch: Boolean(film.wantToRewatch),
+        film,
+      };
     }
     if (watchlistRow) {
       let item = window.supabaseLegacyHydrationWatchlistItem(
@@ -3086,6 +3202,28 @@ window.removeSupabaseCollectionItem = async function (collectionId, filmId) {
   if (error) throw error;
 };
 
+/** Adds a film to the end of a collection's ordered item list. @param {string} collectionId Collection id. @param {string} filmId Shared film id. @returns {Promise<void>} Resolves after the item is inserted. */
+window.addSupabaseCollectionItem = async function (collectionId, filmId) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { data: existingItems, error: existingError } = await ready.client
+    .from("collection_items")
+    .select("film_id, position")
+    .eq("collection_id", collectionId)
+    .order("position");
+  if (existingError) throw existingError;
+  if ((existingItems || []).some((item) => item.film_id === filmId))
+    throw new Error("This film is already in the collection.");
+  let lastPosition =
+    existingItems?.[existingItems.length - 1]?.position || null;
+  let { error } = await ready.client.from("collection_items").insert({
+    collection_id: collectionId,
+    film_id: filmId,
+    position: window.fractionalPositionBetween(lastPosition, null),
+  });
+  if (error) throw error;
+};
+
 /**
  * Moves one collection item to an arbitrary position in the queue
  * (issue #439/#459 - renamed from moveSupabaseProjectItem, which already
@@ -3196,7 +3334,10 @@ window.loadSupabasePersonCreditFilmTmdbIds = async function (personIds) {
     let rows = await fetchAllSupabaseRows((withCount) =>
       ready.client
         .from("credits")
-        .select("person_id, films(tmdb_id)", withCount ? { count: "exact" } : undefined)
+        .select(
+          "person_id, films(tmdb_id)",
+          withCount ? { count: "exact" } : undefined,
+        )
         .in("person_id", chunk),
     );
     rows.forEach((row) => {

@@ -23,7 +23,9 @@ function resolveProjectPackScope(id) {
   return {
     name: project.name,
     pageUrl: window.projectPageUrl(project.id),
-    films: (progress.watched || []).map((record) => record.film).filter(Boolean),
+    films: (progress.watched || [])
+      .map((record) => record.film)
+      .filter(Boolean),
     watchlist: (progress.watchlist || [])
       .map((record) => record.item)
       .filter(Boolean),
@@ -35,8 +37,14 @@ function resolveFranchisePackScope(id) {
     window.ensureFranchiseIndex?.() || window.state.franchisesById || {};
   let franchise = franchiseIndex[id];
   if (!franchise) return null;
+  let otherById = new Map(
+    (window.state.watchedOther || []).map((film) => [film.id, film]),
+  );
   let films = (franchise.films || [])
-    .map((entry) => window.state.filmsById?.[entry.filmId])
+    .map(
+      (entry) =>
+        window.state.filmsById?.[entry.filmId] || otherById.get(entry.filmId),
+    )
     .filter(Boolean);
   let watchlist = (franchise.watchlistFilms || [])
     .map((entry) => window.findWatchlistItemById?.(entry.itemId))
@@ -53,9 +61,16 @@ function resolvePersonPackScope(id) {
   let people = window.ensurePeopleIndex?.() || window.state.peopleById || {};
   let person = people[id];
   if (!person) return null;
+  let otherById = new Map(
+    (window.state.watchedOther || []).map((film) => [film.id, film]),
+  );
   let films = (person.filmIds || [])
-    .map((filmId) => window.findFilmById?.(filmId))
+    .map((filmId) => window.findFilmById?.(filmId) || otherById.get(filmId))
     .filter(Boolean);
+  (person.watchedOtherIds || []).forEach((filmId) => {
+    let film = otherById.get(filmId);
+    if (film && !films.includes(film)) films.push(film);
+  });
   return {
     name: person.name,
     pageUrl: window.personPageUrl(person.id),
@@ -127,7 +142,10 @@ function resolvePeriodPackScope(id) {
  */
 window.watchedRecapYears = function () {
   let years = new Set();
-  Object.values(window.state.filmsById || {}).forEach((film) => {
+  let allFilms = Object.values(window.state.filmsById || {}).concat(
+    window.state.watchedOther || [],
+  );
+  allFilms.forEach((film) => {
     let date = window.parseWatchedDate?.(film.dateWatched);
     if (date) years.add(date.slice(0, 4));
   });
@@ -136,7 +154,10 @@ window.watchedRecapYears = function () {
 
 function resolveYearRecapPackScope(id) {
   if (!/^\d{4}$/.test(String(id || ""))) return null;
-  let films = Object.values(window.state.filmsById || {}).filter((film) => {
+  let allFilms = Object.values(window.state.filmsById || {}).concat(
+    window.state.watchedOther || [],
+  );
+  let films = allFilms.filter((film) => {
     let date = window.parseWatchedDate?.(film.dateWatched);
     return date && date.slice(0, 4) === id;
   });

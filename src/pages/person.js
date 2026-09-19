@@ -11,9 +11,8 @@
  * directly, via the shared UI helpers tag.js/franchise.js already built
  * (supabase-entity-note.js, supabase-watchlist-bulk-tier.js).
  *
- * Real, flagged scope reductions (matching every other #439 cutover):
- * "Start project" is dropped (Supabase's projects schema isn't built yet).
- * Portrait finding/refreshing is dropped entirely, not half-ported - people
+ * Person-backed projects use the shared Supabase project action. Portrait
+ * finding/refreshing is dropped entirely, not half-ported - people
  * is a create-only shared catalog table by RLS design (no UPDATE policy),
  * same architecture decision already made for watchlist-film.html's shared
  * film metadata, so there's no Supabase-side place a found portrait could
@@ -37,6 +36,7 @@
   let personPageEscape = window.pageEscape;
   let personPagePlacement = window.pagePlacement;
   let ui = window.uiText || ((text) => text);
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let container = document.getElementById("personPage");
 
   function personPagePeriodOrder(period) {
@@ -66,6 +66,7 @@
     window.pageQueryParam("order") === "desc" ? "desc" : "asc";
   let sections = window.sectionsViewMode();
   let watchlistOrderEditMode =
+    canEdit &&
     sections !== "combined" &&
     window.pageQueryParam("edit") === "watchlist-order";
 
@@ -197,6 +198,7 @@
       ),
     );
     localRankEditMode =
+      canEdit &&
       isDirector &&
       sections !== "combined" &&
       filmographySort === "local-rank" &&
@@ -755,7 +757,9 @@
     // films" fallback below), not just the metadata row's original use.
     // directorCompletion() computes its own watchlist lookup internally,
     // so this stays cheap either way.
-    let directorProgress = isDirector ? window.directorCompletion?.(person) : null;
+    let directorProgress = isDirector
+      ? window.directorCompletion?.(person)
+      : null;
     let stats = person.stats || {};
     let awardScores =
       person.awardScores ||
@@ -810,7 +814,8 @@
           href: window.filmPageUrl(directorProgress.nextItem.supabaseFilmId),
         }
       : null;
-    let hasWatchedAnything = unsortedFilms.length > 0 || otherWatched.length > 0;
+    let hasWatchedAnything =
+      unsortedFilms.length > 0 || otherWatched.length > 0;
     let primaryAction = nextWatch
       ? {
           href: nextWatch.href,
@@ -888,7 +893,7 @@
         .map((film, index) => personFilmCard(film, index))
         .join("");
       let localRankControls =
-        filmographySort === "local-rank" && films.length > 1
+        canEdit && filmographySort === "local-rank" && films.length > 1
           ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-person-local-rank-edit-toggle${busy ? " disabled" : ""}>${personPageEscape(ui(localRankEditMode ? "Finish order" : "Reorder"))}</button>${localRankEditMode ? `<span>${personPageEscape(ui("Drag to set this collection's independent local order."))}</span>` : `<a class="sort-order-button" href="${personPageEscape(window.localRankMergePageUrl("people", person.id, personViewUrl()))}">${personPageEscape(ui("Merge-sort tool"))}</a>`}</div>`
           : "";
       return `${localRankControls}<div data-person-filmography="list" ${filmographyView === "list" ? "" : "hidden"}><div class="leaderboard-wrap"><table class="leaderboard"><thead><tr>${filmographySort === "director-rank" ? `<th>${personPageEscape(ui("Rank"))}</th>` : ""}${filmographySort === "local-rank" ? `<th>${personPageEscape(ui("Rank"))}</th>` : ""}<th>${personPageEscape(ui("Year"))}</th><th>${personPageEscape(ui("Film"))}</th><th>${personPageEscape(ui("Credit"))}</th><th>${combinedView ? `${personPageEscape(ui("Rating"))} / ${personPageEscape(ui("Tier"))}` : personPageEscape(ui("Rating"))}</th></tr></thead><tbody>${combinedView ? combinedRows : filmRows}</tbody></table></div></div><div data-person-filmography="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${(combinedView ? combinedCards : filmCards) || `<p>${personPageEscape(ui("No films"))}</p>`}</div></div>`;
@@ -909,8 +914,12 @@
       let cards = watchlistItems
         .map((item, index) => personWatchlistCard(item, index))
         .join("");
-      let orderControls = `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-person-watchlist-order-edit-toggle${busy ? " disabled" : ""}>${personPageEscape(ui(watchlistOrderEditMode ? "Finish order" : "Reorder"))}</button>${watchlistOrderEditMode ? `<span>${personPageEscape(ui("Edits global watchlist order inside the same interest tier only."))}</span>` : ""}</div>`;
-      let bulkTierControls = `<div class="period-edit-controls">${window.renderSupabaseWatchlistBulkTierControl({ count: watchlistItems.length, busy, escape: personPageEscape })}</div>`;
+      let orderControls = canEdit
+        ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-person-watchlist-order-edit-toggle${busy ? " disabled" : ""}>${personPageEscape(ui(watchlistOrderEditMode ? "Finish order" : "Reorder"))}</button>${watchlistOrderEditMode ? `<span>${personPageEscape(ui("Edits global watchlist order inside the same interest tier only."))}</span>` : ""}</div>`
+        : "";
+      let bulkTierControls = canEdit
+        ? `<div class="period-edit-controls">${window.renderSupabaseWatchlistBulkTierControl({ count: watchlistItems.length, busy, escape: personPageEscape })}</div>`
+        : "";
       let html = `<h3 id="person-watchlist" class="person-filmography-subheading">${personPageEscape(ui("Watchlist"))}</h3>${window.renderDetailStats({ itemsHtml: `<span><b>${watchlistItems.length}</b> ${personPageEscape(ui("Unwatched"))}</span>${directorProgress ? `<span><b>${directorProgress.percent}%</b> ${personPageEscape(ui("Complete (known films)"))}</span>` : ""}` })}${directorProgress ? `<div class="project-progress-meter project-progress-meter--detail" aria-label="${personPageEscape(ui("{percent} percent complete", { percent: directorProgress.percent }))}"><span style="width:${personPageEscape(directorProgress.percent)}%"></span></div>` : ""}${bulkTierControls}${orderControls}<div data-person-watchlist="list" ${filmographyView === "list" ? "" : "hidden"}><div class="leaderboard-wrap"><table class="leaderboard"><thead><tr>${filmographySort === "director-rank" ? `<th>${personPageEscape(ui("Rank"))}</th>` : ""}<th>${personPageEscape(ui("Year"))}</th><th>${personPageEscape(ui("Film"))}</th><th>${personPageEscape(ui("Credit"))}</th><th>${personPageEscape(ui("Tier"))}</th></tr></thead><tbody>${rows}</tbody></table></div></div><div data-person-watchlist="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${cards}</div></div>`;
       finishWatchlistRender?.(
         `${watchlistItems.length} items, ${filmographyView}, ${watchlistOrderEditMode ? "editing" : "read-only"}`,
@@ -936,9 +945,17 @@
       <div class="person-hero-metrics">${personMetadataHtml ? `<dl class="film-metadata">${personMetadataHtml}</dl>` : ""}
       ${personStatsHtml}</div>
       ${window.renderSupabaseEntityNote({ entityKind: "person", entityKey: person.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Person note"), escape: personPageEscape })}`,
-      actionsHtml: primaryAction
-        ? `<a class="button-link person-hero-primary-action" href="${personPageEscape(primaryAction.href)}">${personPageEscape(primaryAction.label)}</a>`
-        : "",
+      actionsHtml: [
+        window.renderSourceProjectAction("person", person.id, {
+          escape: personPageEscape,
+          buttonClass: "button-link",
+        }),
+        primaryAction
+          ? `<a class="button-link person-hero-primary-action" href="${personPageEscape(primaryAction.href)}">${personPageEscape(primaryAction.label)}</a>`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(""),
     })}
   ${isDirector ? window.renderCollectionViewController({ view: collectionPageView, overviewUrl: window.personPageUrl(person.id), awardsUrl: `${window.personPageUrl(person.id)}&collection-view=awards`, escape: personPageEscape, ui }) : ""}
   <div data-collection-page-view="films" ${collectionPageView === "films" ? "" : "hidden"}>
@@ -967,6 +984,19 @@
     window.enhanceCollapsibles?.(container);
 
     container
+      .querySelectorAll("[data-start-project-source]")
+      .forEach((button) => {
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          await window.startProjectFromSourceAndOpen(
+            button.dataset.startProjectSource,
+            button.dataset.projectSourceId,
+          );
+          button.disabled = false;
+        });
+      });
+
+    container
       .querySelector("[data-person-filmography-sort]")
       ?.addEventListener("change", (event) => {
         window.location.href = personViewUrl(
@@ -989,6 +1019,7 @@
       .querySelector("[data-person-watchlist-order-edit-toggle]")
       ?.addEventListener("click", (event) => {
         event.preventDefault();
+        if (!canEdit || busy) return;
         watchlistOrderEditMode = !watchlistOrderEditMode;
         renderPersonWatchlistSection();
         updatePersonViewUrl();
@@ -997,6 +1028,7 @@
       .querySelector("[data-person-local-rank-edit-toggle]")
       ?.addEventListener("click", (event) => {
         event.preventDefault();
+        if (!canEdit || busy) return;
         localRankEditMode = !localRankEditMode;
         renderPersonFilmographyFilms();
         updatePersonViewUrl();
@@ -1004,7 +1036,7 @@
     window.createOrderEditController({
       container,
       scope: "watchlist",
-      enabled: () => watchlistOrderEditMode,
+      enabled: () => canEdit && watchlistOrderEditMode,
       rejectedMessage: ui(
         "Watchlist ordering moves are limited to the same interest tier.",
       ),
@@ -1049,7 +1081,7 @@
     window.createOrderEditController({
       container,
       scope: "local-rank",
-      enabled: () => localRankEditMode,
+      enabled: () => canEdit && localRankEditMode,
       commit: async (from, target, position) => {
         let ok = await window.moveSupabaseLocalRankFilm(
           "person",

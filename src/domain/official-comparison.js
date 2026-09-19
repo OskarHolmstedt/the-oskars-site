@@ -28,9 +28,12 @@
     personalEntries,
     officialPeriod,
   }) {
-    let representedYears = new Set(
-      window.officialResultPeriodYears(periodKey),
-    );
+    let representedYears = new Set(window.officialResultPeriodYears(periodKey));
+    // Keeps every placement-1 entry per category, not just the first after
+    // sorting - two personal films can legitimately tie for first place, and
+    // dropping all but one meant a category could be wrongly reported as a
+    // "disagreement" whenever the official winner matched the dropped tied
+    // film instead of the retained one.
     let personalWinnersByCategory = new Map();
     (personalEntries || [])
       .filter((entry) => Number(entry?.award?.placement) === 1)
@@ -42,16 +45,16 @@
           ),
       )
       .forEach((entry) => {
-        if (!personalWinnersByCategory.has(entry.award.category))
-          personalWinnersByCategory.set(entry.award.category, entry);
+        let existing = personalWinnersByCategory.get(entry.award.category);
+        if (existing) existing.push(entry);
+        else personalWinnersByCategory.set(entry.award.category, [entry]);
       });
 
     let officialWinnersByCategory = new Map();
     (officialPeriod?.nominations || [])
       .filter((nomination) => nomination.winner)
       .forEach((nomination) => {
-        let entries =
-          officialWinnersByCategory.get(nomination.category) || [];
+        let entries = officialWinnersByCategory.get(nomination.category) || [];
         entries.push(nomination);
         officialWinnersByCategory.set(nomination.category, entries);
       });
@@ -63,14 +66,14 @@
       ]),
     ].sort(categoryOrder);
     let categories = categoryNames.map((category) => {
-      let personalWinner = personalWinnersByCategory.get(category) || null;
-      let personalFilmIds = personalWinner
-        ? [personalWinner.film?.id, personalWinner.award?.sourceFilmId]
-            .map((value) => String(value || ""))
-            .filter((value, index, values) =>
-              value ? values.indexOf(value) === index : false,
-            )
-        : [];
+      let personalWinners = personalWinnersByCategory.get(category) || [];
+      let personalWinner = personalWinners[0] || null;
+      let personalFilmIds = personalWinners
+        .flatMap((winner) => [winner.film?.id, winner.award?.sourceFilmId])
+        .map((value) => String(value || ""))
+        .filter((value, index, values) =>
+          value ? values.indexOf(value) === index : false,
+        );
       let officialWinners = officialWinnersByCategory.get(category) || [];
       let comparableOfficialWinners = officialWinners.filter((nomination) =>
         Boolean(compatibleFilmId(nomination, representedYears)),
@@ -87,6 +90,7 @@
       return {
         category,
         personalWinner,
+        personalWinners,
         personalFilmIds,
         officialWinners,
         comparableOfficialWinners,
@@ -162,15 +166,17 @@
             nominations: officialNominations,
           }),
         });
-        let categoryComparison =
-          periodComparison.categoriesByName.get(category) || {
-            category,
-            personalWinner: null,
-            personalFilmIds: [],
-            officialWinners: [],
-            comparableOfficialWinners: [],
-            status: "unresolved",
-          };
+        let categoryComparison = periodComparison.categoriesByName.get(
+          category,
+        ) || {
+          category,
+          personalWinner: null,
+          personalWinners: [],
+          personalFilmIds: [],
+          officialWinners: [],
+          comparableOfficialWinners: [],
+          status: "unresolved",
+        };
         return {
           periodKey,
           representedYears: periodComparison.representedYears,
@@ -188,7 +194,9 @@
     return {
       category,
       periods,
-      periodsByKey: new Map(periods.map((period) => [period.periodKey, period])),
+      periodsByKey: new Map(
+        periods.map((period) => [period.periodKey, period]),
+      ),
       matches,
       differences: comparedPeriods.length - matches,
       comparedCount: comparedPeriods.length,
@@ -217,9 +225,7 @@
     });
     return [...grouped.values()].map((row) =>
       Object.assign(row, {
-        agreementPercent: Math.round(
-          (row.matches / row.comparedCount) * 100,
-        ),
+        agreementPercent: Math.round((row.matches / row.comparedCount) * 100),
       }),
     );
   }
@@ -309,10 +315,7 @@
    * @param {OfficialAwardPeriodComparison|null} comparison Annual comparison model.
    * @returns {boolean} Whether the canonical, year-compatible film ids match.
    */
-  window.officialNominationIsPersonalPick = function (
-    nomination,
-    comparison,
-  ) {
+  window.officialNominationIsPersonalPick = function (nomination, comparison) {
     let category = comparison?.categoriesByName?.get(nomination?.category);
     if (!category?.personalFilmIds?.length) return false;
     let filmId = compatibleFilmId(

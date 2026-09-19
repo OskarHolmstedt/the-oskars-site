@@ -132,11 +132,7 @@
   function personRatingStatistics(person) {
     return (
       person.ratingStatistics ||
-      window.collectionRatingStatistics(
-        (person.filmIds || [])
-          .map((filmId) => state.filmsById?.[filmId])
-          .filter(Boolean),
-      )
+      window.collectionRatingStatistics(personWatchedFilms(person))
     );
   }
 
@@ -291,21 +287,37 @@
     let score = Number(person.awardScores?.year) || 0;
     let items = [];
     if (watchedCount)
-      items.push(`<span class="people-hub-main-stat"><b>${watchedCount}</b> ${escape(ui("films watched"))}</span>`);
+      items.push(
+        `<span class="people-hub-main-stat"><b>${watchedCount}</b> ${escape(ui("films watched"))}</span>`,
+      );
     if (ratings.ratedCount)
-      items.push(`<span class="people-hub-main-stat"><b>${escape(window.formatAverageRating(ratings.mean))}</b> ${escape(ui("average rating"))}<small>${escape(ratings.ratedCount)} ${escape(ui("rated"))}</small></span>`);
+      items.push(
+        `<span class="people-hub-main-stat"><b>${escape(window.formatAverageRating(ratings.mean))}</b> ${escape(ui("average rating"))}<small>${escape(ratings.ratedCount)} ${escape(ui("rated"))}</small></span>`,
+      );
     if (wins)
-      items.push(`<span class="people-hub-award-stat"><b>${wins}</b> ${escape(ui("wins"))}</span>`);
+      items.push(
+        `<span class="people-hub-award-stat"><b>${wins}</b> ${escape(ui("wins"))}</span>`,
+      );
     if (nominations)
-      items.push(`<span class="people-hub-award-stat"><b>${nominations}</b> ${escape(ui("nominations"))}</span>`);
+      items.push(
+        `<span class="people-hub-award-stat"><b>${nominations}</b> ${escape(ui("nominations"))}</span>`,
+      );
     if (score)
-      items.push(`<span class="people-hub-award-stat" title="${escape(ui("Annual award score"))}"><b>${score}</b> ${escape(ui("score"))}</span>`);
+      items.push(
+        `<span class="people-hub-award-stat" title="${escape(ui("Annual award score"))}"><b>${score}</b> ${escape(ui("score"))}</span>`,
+      );
     if (!items.length && person.watchlistIds?.length)
-      items.push(`<span class="people-hub-main-stat"><b>${person.watchlistIds.length}</b> ${escape(ui("films on your watchlist"))}</span>`);
+      items.push(
+        `<span class="people-hub-main-stat"><b>${person.watchlistIds.length}</b> ${escape(ui("films on your watchlist"))}</span>`,
+      );
     if (!items.length && person.catalogIds?.length)
-      items.push(`<span class="people-hub-sparse-stat">${escape(ui(person.catalogIds.length === 1 ? "Known from 1 unseen film credit" : "Known from {count} unseen film credits", { count: person.catalogIds.length }))}</span>`);
+      items.push(
+        `<span class="people-hub-sparse-stat">${escape(ui(person.catalogIds.length === 1 ? "Known from 1 unseen film credit" : "Known from {count} unseen film credits", { count: person.catalogIds.length }))}</span>`,
+      );
     if (!items.length)
-      items.push(`<span class="people-hub-sparse-stat">${escape(ui("No personal history yet"))}</span>`);
+      items.push(
+        `<span class="people-hub-sparse-stat">${escape(ui("No personal history yet"))}</span>`,
+      );
     return `<div class="people-hub-stats">${items.join("")}</div>`;
   }
 

@@ -3,8 +3,7 @@
 // Every TMDB request uses the Cloudflare Worker, which authenticates upstream
 // server-side (issues #347 and #356). Browser configuration cannot bypass or
 // replace this boundary.
-window.TMDB_API_BASE =
-  "https://oskars-tmdb-proxy.oskarholmstedt.workers.dev/3";
+window.TMDB_API_BASE = "https://oskars-tmdb-proxy.oskarholmstedt.workers.dev/3";
 
 /** Validates and normalizes an image reference. @param {PosterRecord|Object|null} poster Image input. @returns {PosterRecord|null} Image record. */
 window.normalizePosterRecord = function (poster) {
@@ -82,8 +81,7 @@ window.lookupTmdbMovieMetadata = async function (film, options = {}) {
   if (!match?.id) return null;
   let reference = window.parseTmdbReference(match.id);
   let details =
-    match._details ||
-    (await window.lookupTmdbMovieDetails(match.id, fetchFn));
+    match._details || (await window.lookupTmdbMovieDetails(match.id, fetchFn));
   // An episode's crew/guest_stars are native root fields, not nested under
   // an appended "credits" resource the way movie/series/season credits are.
   let directors = (details.credits?.crew || details.crew || [])
@@ -158,7 +156,10 @@ window.tmdbTranslatedTitle = function (
   let match = exact || languageOnly;
   let title = String(match?.data?.title || match?.data?.name || "").trim();
   let originalTitle = String(details?.title || details?.name || "");
-  if (!title || window.normalizeTitle(title) === window.normalizeTitle(originalTitle))
+  if (
+    !title ||
+    window.normalizeTitle(title) === window.normalizeTitle(originalTitle)
+  )
     return "";
   return title;
 };
@@ -212,7 +213,10 @@ window.setFilmTmdbMetadata = function (filmId, metadata, options = {}) {
       target.primaryCountry = String(metadata.primaryCountry).trim();
     if (metadata.swedishTitle && (!target.swedishTitle || options.overwrite))
       target.swedishTitle = String(metadata.swedishTitle).trim();
-    if (metadata.runtimeMinutes && (!target.runtimeMinutes || options.overwrite))
+    if (
+      metadata.runtimeMinutes &&
+      (!target.runtimeMinutes || options.overwrite)
+    )
       target.runtimeMinutes = metadata.runtimeMinutes;
     if (metadata.poster && (!target.poster || options.overwritePoster))
       target.poster = metadata.poster;

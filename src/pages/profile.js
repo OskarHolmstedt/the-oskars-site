@@ -215,26 +215,30 @@
           if (status) status.textContent = error.message || String(error);
         }
       });
-    document
-      .getElementById("publishProfileBtn")
-      ?.addEventListener("click", async () => {
-        try {
-          await setPublication(true);
-          render(user);
-        } catch (error) {
-          window.alert(error.message || String(error));
-        }
-      });
-    document
-      .getElementById("unpublishProfileBtn")
-      ?.addEventListener("click", async () => {
-        try {
-          await setPublication(false);
-          render(user);
-        } catch (error) {
-          window.alert(error.message || String(error));
-        }
-      });
+    let publishBtn = document.getElementById("publishProfileBtn");
+    publishBtn?.addEventListener("click", async () => {
+      if (publishBtn.disabled) return;
+      publishBtn.disabled = true;
+      try {
+        await setPublication(true);
+        render(user);
+      } catch (error) {
+        publishBtn.disabled = false;
+        window.alert(error.message || String(error));
+      }
+    });
+    let unpublishBtn = document.getElementById("unpublishProfileBtn");
+    unpublishBtn?.addEventListener("click", async () => {
+      if (unpublishBtn.disabled) return;
+      unpublishBtn.disabled = true;
+      try {
+        await setPublication(false);
+        render(user);
+      } catch (error) {
+        unpublishBtn.disabled = false;
+        window.alert(error.message || String(error));
+      }
+    });
   }
 
   function renderHeaderAuthStatus(user, profileRecord) {

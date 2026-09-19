@@ -18,6 +18,7 @@
   let currentPair = null;
   let lastSwap = null;
   let feedback = "";
+  let busy = false;
 
   function loadNextPair() {
     pairs = window.supabaseRankingConsistencyPairs(
@@ -158,6 +159,8 @@
   }
 
   async function pick(side) {
+    if (busy || !currentPair) return;
+    busy = true;
     feedback = "";
     lastSwap = null;
     try {
@@ -177,6 +180,8 @@
       }
     } catch (error) {
       alert(error.message || String(error));
+    } finally {
+      busy = false;
     }
   }
 
@@ -197,7 +202,8 @@
   }
 
   async function undoSwap() {
-    if (!lastSwap) return;
+    if (!lastSwap || busy) return;
+    busy = true;
     let pair = lastSwap;
     try {
       await swapAdjacentEntries(pair.above.film_id);
@@ -214,10 +220,13 @@
       render();
     } catch (error) {
       alert(error.message || String(error));
+    } finally {
+      busy = false;
     }
   }
 
   function skip() {
+    if (busy || !currentPair) return;
     feedback = "";
     lastSwap = null;
     sessionExcludedKeys.add(currentPair.key);

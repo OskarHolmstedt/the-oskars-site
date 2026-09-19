@@ -48,8 +48,10 @@ window.planNominationInsertion = function (values = {}) {
   let limits = window.PERIOD_LIMITS[periodType];
   if (!limits) errors.push("Unknown period type.");
   if (!category) errors.push("Select a category.");
-  let capacity =
-    category === "Best Picture" ? limits?.picture : limits?.category;
+  let isRankTrackedCategory = (cat) => cat === "Best Picture";
+  let capacity = isRankTrackedCategory(category)
+    ? limits?.picture
+    : limits?.category;
   let placement = Number(values.placement);
   if (
     capacity &&
@@ -96,7 +98,9 @@ window.planNominationInsertion = function (values = {}) {
         (!multiNominee || window.awardRecipientKey(award) === recipientKey),
     )
   ) {
-    errors.push(`${film.title} is already nominated for ${category} in ${key}.`);
+    errors.push(
+      `${film.title} is already nominated for ${category} in ${key}.`,
+    );
   }
 
   let award = window.setAwardRecipients(
@@ -123,7 +127,9 @@ window.planNominationInsertion = function (values = {}) {
     ),
   );
   if (tie && occupants.length >= 2)
-    errors.push(`Placement #${placement} already has ${occupants.length} films.`);
+    errors.push(
+      `Placement #${placement} already has ${occupants.length} films.`,
+    );
   if (tie && occupants.length === 1)
     warnings.push(
       `${film.title} will share #${placement} with ${occupants[0].title}.`,
@@ -172,7 +178,7 @@ window.planNominationInsertion = function (values = {}) {
             after: null,
             kind: "removed",
           });
-          if (category === "Best Picture" && rankField) {
+          if (isRankTrackedCategory(category) && rankField) {
             candidate[rankField] = null;
             candidate.rank = null;
           }
@@ -186,7 +192,7 @@ window.planNominationInsertion = function (values = {}) {
             after: existing.placement,
             kind: "moved",
           });
-          if (category === "Best Picture" && rankField) {
+          if (isRankTrackedCategory(category) && rankField) {
             candidate[rankField] = existing.placement;
             candidate.rank = existing.placement;
           }
@@ -203,7 +209,7 @@ window.planNominationInsertion = function (values = {}) {
     after: placement,
     kind: "added",
   });
-  if (category === "Best Picture" && rankField) {
+  if (isRankTrackedCategory(category) && rankField) {
     sourceFilm[rankField] = placement;
     sourceFilm.rank = placement;
   }
@@ -324,7 +330,9 @@ window.clearOpinionData = function (options = {}) {
       // Rank fields aren't deleted here - they're derived projections of
       // one global all-time order, so they get reset (not blanked) below
       // via resetRankingToDefaultOrder, after ratings/awards are cleared.
-      if (RANK_FIELDS.some((field) => film[field] != null && film[field] !== ""))
+      if (
+        RANK_FIELDS.some((field) => film[field] != null && film[field] !== "")
+      )
         touched = true;
       if (film.suppressAllTimeRank !== undefined) {
         delete film.suppressAllTimeRank;
@@ -458,12 +466,7 @@ window.clearAwardsInScope = function (options = {}) {
       let year = Number(key);
       return Number.isFinite(year) ? [year, year] : null;
     }
-    if (periodType === "decades" || periodType === "centuries") {
-      let year = parseInt(key, 10);
-      if (!Number.isFinite(year)) return null;
-      return [year, year + (periodType === "decades" ? 9 : 99)];
-    }
-    return null;
+    return window.getPeriodKeyYearSpan?.(periodType, key) || null;
   }
 
   function matchesScope(award) {

@@ -6,6 +6,7 @@
 
 (function () {
   let escape = window.pageEscape;
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let container = document.getElementById("rankYearPage");
   let year = String(window.pageQueryParam?.("year") || "").trim();
   let valid = /^\d{4}$/.test(year);
@@ -15,6 +16,7 @@
   let watchedByFilmId = new Map();
   let expandedRatingBucket;
   let dragPayload = null;
+  let isMutating = false;
 
   function yearEntries() {
     return allEntries.filter((entry) => String(entry.films?.year) === year);
@@ -35,7 +37,7 @@
 
   function renderRankCard(entry, bucketIndex) {
     let film = entry.films || {};
-    return `<article class="film-card ranking-edit-card" draggable="true" data-setup-rank-film-id="${escape(entry.film_id)}" data-setup-rank-index="${escape(bucketIndex)}">
+    return `<article class="film-card ranking-edit-card"${canEdit ? ' draggable="true"' : ""} data-setup-rank-film-id="${escape(entry.film_id)}" data-setup-rank-index="${escape(bucketIndex)}">
       ${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" class="rate-watched-poster-thumb">` : ""}
       <span class="table-film-link">${escape(film.title || "Unknown film")}</span>
       ${entry.rank_confirmed === false ? `<span class="film-rank">${escape("NR")}</span>` : ""}
@@ -61,7 +63,7 @@
     let header = `<div class="setup-year-category-header">
       <span class="setup-year-rank-bucket-label">${escape(label)} <small>(${escape(bucketEntries.length)})</small></span>
       <span class="setup-ranking-state ${reviewed ? "is-reviewed" : "is-mechanical"}">${escape(reviewed ? "Reviewed" : "Mechanical order")}</span>
-      <button type="button" class="sort-order-button" data-setup-rank-bucket-toggle="${escape(key)}">${escape(isExpanded ? "Collapse" : "Reorder")}</button>
+      ${canEdit ? `<button type="button" class="sort-order-button" data-setup-rank-bucket-toggle="${escape(key)}">${escape(isExpanded ? "Collapse" : "Reorder")}</button>` : ""}
     </div>`;
     if (!isExpanded)
       return `<div class="setup-year-category-row">${header}</div>`;
@@ -71,7 +73,7 @@
     return `<div class="setup-year-category-row is-expanded">
       ${header}
       <div class="film-grid setup-year-pool-grid">${cards}</div>
-      <div class="setup-ranking-actions"><button type="button" data-setup-rank-confirm="${escape(key)}">Keep this order</button><a class="button-link" href="ranking-review.html?type=years&amp;key=${escape(year)}">Compare two at a time</a></div>
+      <div class="setup-ranking-actions">${canEdit ? `<button type="button" data-setup-rank-confirm="${escape(key)}">Keep this order</button>` : ""}<a class="button-link" href="ranking-review.html?type=years&amp;key=${escape(year)}">Compare two at a time</a></div>
     </div>`;
   }
 
@@ -118,6 +120,7 @@
   container.addEventListener("click", async (event) => {
     let toggle = event.target.closest("[data-setup-rank-bucket-toggle]");
     if (toggle) {
+      if (!canEdit || isMutating) return;
       let key = toggle.dataset.setupRankBucketToggle;
       expandedRatingBucket = expandedRatingBucket === key ? null : key;
       render();
@@ -125,7 +128,9 @@
     }
     let confirm = event.target.closest("[data-setup-rank-confirm]");
     if (!confirm) return;
+    if (!canEdit || confirm.disabled || isMutating) return;
     confirm.disabled = true;
+    isMutating = true;
     try {
       let key = confirm.dataset.setupRankConfirm;
       let bucketEntries = ratingBuckets().get(key) || [];
@@ -140,10 +145,16 @@
     } catch (error) {
       confirm.disabled = false;
       alert(error.message || String(error));
+    } finally {
+      isMutating = false;
     }
   });
 
   container.addEventListener("dragstart", (event) => {
+    if (!canEdit || isMutating) {
+      event.preventDefault();
+      return;
+    }
     let card = event.target.closest("[data-setup-rank-film-id]");
     if (!card) return;
     dragPayload = {
@@ -160,6 +171,7 @@
     dragPayload = null;
   });
   container.addEventListener("dragover", (event) => {
+    if (!canEdit || isMutating) return;
     let target = event.target.closest("[data-setup-rank-film-id]");
     if (!dragPayload || !target) return;
     event.preventDefault();
@@ -190,6 +202,8 @@
   container.addEventListener("drop", async (event) => {
     let target = event.target.closest("[data-setup-rank-film-id]");
     if (
+      !canEdit ||
+      isMutating ||
       !dragPayload ||
       !target ||
       target.dataset.setupRankFilmId === dragPayload.filmId
@@ -197,6 +211,7 @@
       return;
     event.preventDefault();
     target.classList.remove("drop-target");
+    isMutating = true;
     // Drag-and-drop only ever operates within the one currently-expanded
     // bucket - only one bucket can be expanded at a time.
     let bucketEntries = ratingBuckets().get(expandedRatingBucket) || [];
@@ -227,6 +242,8 @@
       render();
     } catch (error) {
       alert(error.message || String(error));
+    } finally {
+      isMutating = false;
     }
   });
 

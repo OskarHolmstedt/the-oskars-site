@@ -78,8 +78,10 @@ function supabasePairCrossesNarrowerScope(scopeType, above, below) {
 
 /**
  * Lists unresolved, overall-adjacent, same-rating comparisons for one
- * heat/final, excluding decisions already settled at a narrower scope
- * and any extra session-only exclusions (skips).
+ * heat/final, excluding decisions already settled at a narrower scope,
+ * pairs deliberately tied together (a shared tie_group_id - the legacy
+ * rankingGroupId's Supabase counterpart), and any extra session-only
+ * exclusions (skips).
  * @param {'years'|'decades'|'centuries'|'allTime'} scopeType
  * @param {string} scopeKey
  * @param {Object[]} allEntries The selected ranking’s position-ordered entries.
@@ -112,6 +114,8 @@ window.supabaseRankingConsistencyPairs = function (
       watchedByFilmId.get(below.film_id),
     );
     if (!aboveKey || aboveKey !== belowKey) continue;
+    if (above.tie_group_id && above.tie_group_id === below.tie_group_id)
+      continue;
     if (!supabasePairCrossesNarrowerScope(scopeType, above, below)) continue;
     let key = window.supabaseRankingConsistencyPairKey(
       above.film_id,

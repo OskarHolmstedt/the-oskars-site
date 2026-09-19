@@ -190,12 +190,11 @@
         )
         .sort(
           (left, right) =>
-            (Number(left.allTimeRank) > 0
-              ? Number(left.allTimeRank)
-              : 999999) -
+            (Number(left.allTimeRank) > 0 ? Number(left.allTimeRank) : 999999) -
               (Number(right.allTimeRank) > 0
                 ? Number(right.allTimeRank)
-                : 999999) || window.compareEnglishTitles(left.title, right.title),
+                : 999999) ||
+            window.compareEnglishTitles(left.title, right.title),
         )
     : [];
   let recapWinnersHtml = recapWinners.length
@@ -277,7 +276,7 @@
           window.compareEnglishTitles(left.film.title, right.film.title),
         );
         return { category, winner, nominees };
-    });
+      });
     return categories.length
       ? { key: periodKey, periodType: forcedPeriodType || "years", categories }
       : null;
@@ -297,7 +296,8 @@
 
   function renderCeremonyBoardCard({ category, winner, nominees }) {
     let byPlacement = [...nominees].sort(
-      (left, right) => Number(left.award.placement) - Number(right.award.placement),
+      (left, right) =>
+        Number(left.award.placement) - Number(right.award.placement),
     );
     let winnerHtml = winner
       ? `<a class="ceremony-winner" href="${escape(window.filmPageUrl(winner.film.id))}">${window.renderFilmPoster(winner.film, "thumb")}<span class="ceremony-winner-body"><b>🏆 ${escape(window.localizedFilmTitle?.(winner.film) || winner.film.title)}</b>${renderCeremonyCredit(winner, category)}</span></a>`
@@ -312,13 +312,18 @@
     return `<div class="ceremony-category-card"><a class="category-link" href="${escape(window.categoryPageUrl(category))}"><b>${escape(window.localizedCategoryName?.(category) || category)}</b></a>${winnerHtml}${othersHtml ? `<ul class="ceremony-nominee-list">${othersHtml}</ul>` : ""}</div>`;
   }
 
-  function renderCeremonyStageSlide({ category, winner, nominees }, index, total) {
+  function renderCeremonyStageSlide(
+    { category, winner, nominees },
+    index,
+    total,
+  ) {
     let nomineeItems = nominees
       .map((entry) => {
         let isWinner = entry === winner;
         let placement = Number(entry.award.placement);
-        let placementLabel = window.placementEmoji?.[placement] || `#${placement}`;
-        return `<li class="ceremony-stage-nominee${isWinner ? " ceremony-stage-nominee--winner" : ""}" style="--ceremony-placement:${placement}">${window.renderFilmPoster(entry.film, "thumb")}<span class="ceremony-stage-nominee-body"><i class="ceremony-placement" aria-label="${escape(ui("Placement {placement}", { placement }))}">${escape(placementLabel)}</i><b>${escape(window.localizedFilmTitle?.(entry.film) || entry.film.title)}</b>${renderCeremonyCredit(entry, category)}</span></li>`;
+        let placementLabel =
+          window.placementEmoji?.[placement] || `#${placement}`;
+        return `<li class="ceremony-stage-nominee film-card${isWinner ? " ceremony-stage-nominee--winner" : ""}" style="--ceremony-placement:${placement}">${window.renderFilmPoster(entry.film, "card")}<div class="film-title"><i class="ceremony-placement" aria-label="${escape(ui("Placement {placement}", { placement }))}">${escape(placementLabel)}</i><b>${escape(window.localizedFilmTitle?.(entry.film) || entry.film.title)}</b></div>${renderCeremonyCredit(entry, category)}</li>`;
       })
       .join("");
     let hasRanking = nominees.some(
@@ -667,9 +672,14 @@
   container.addEventListener?.("click", (event) => {
     let copyButton = event.target.closest?.("[data-copy-view-link]");
     if (!copyButton) return;
-    window.copyViewLink().then((copied) => {
-      copyButton.textContent = ui(copied ? "Copied" : "Copy failed");
-    });
+    window
+      .copyViewLink()
+      .then((copied) => {
+        copyButton.textContent = ui(copied ? "Copied" : "Copy failed");
+      })
+      .catch(() => {
+        copyButton.textContent = ui("Copy failed");
+      });
   });
 
   function setupScopePicker() {
@@ -770,10 +780,16 @@
 
     function applyActive() {
       slides.forEach((slide, index) =>
-        slide.classList.toggle("presentation-slide--active", index === activeIndex),
+        slide.classList.toggle(
+          "presentation-slide--active",
+          index === activeIndex,
+        ),
       );
       jumps.forEach((jump, index) =>
-        jump.classList.toggle("presentation-jump--active", index === activeIndex),
+        jump.classList.toggle(
+          "presentation-jump--active",
+          index === activeIndex,
+        ),
       );
       if (prevButton) prevButton.disabled = activeIndex === 0;
       if (nextButton) nextButton.disabled = activeIndex === slides.length - 1;
@@ -782,7 +798,8 @@
     function applyMode() {
       document.body.classList.toggle("presentation-mode-full", mode === "full");
       if (modeButton)
-        modeButton.textContent = mode === "full" ? exitModeLabel : enterModeLabel;
+        modeButton.textContent =
+          mode === "full" ? exitModeLabel : enterModeLabel;
     }
 
     function goTo(index, { scroll = true } = {}) {
@@ -838,10 +855,12 @@
       let slide = ceremonySlides[ceremonyIndex];
       let revealed = slide?.classList.contains("ceremony-revealed");
       let hasRanking = slide?.dataset.hasRanking === "true";
-      if (revealButton) revealButton.disabled = !hasRanking || Boolean(revealed);
+      if (revealButton)
+        revealButton.disabled = !hasRanking || Boolean(revealed);
       if (ceremonyPrevButton) ceremonyPrevButton.disabled = ceremonyIndex === 0;
       if (ceremonyNextButton)
-        ceremonyNextButton.disabled = ceremonyIndex === ceremonySlides.length - 1;
+        ceremonyNextButton.disabled =
+          ceremonyIndex === ceremonySlides.length - 1;
     }
 
     function ceremonyReveal() {
@@ -852,7 +871,9 @@
     }
 
     function ceremonyReset() {
-      ceremonySlides.forEach((slide) => slide.classList.remove("ceremony-revealed"));
+      ceremonySlides.forEach((slide) =>
+        slide.classList.remove("ceremony-revealed"),
+      );
       ceremonyShow(0);
     }
 
@@ -871,16 +892,27 @@
     startButton?.addEventListener("click", ceremonyEnter);
     exitButton?.addEventListener("click", ceremonyExit);
     revealButton?.addEventListener("click", ceremonyReveal);
-    ceremonyNextButton?.addEventListener("click", () => ceremonyShow(ceremonyIndex + 1));
-    ceremonyPrevButton?.addEventListener("click", () => ceremonyShow(ceremonyIndex - 1));
+    ceremonyNextButton?.addEventListener("click", () =>
+      ceremonyShow(ceremonyIndex + 1),
+    );
+    ceremonyPrevButton?.addEventListener("click", () =>
+      ceremonyShow(ceremonyIndex - 1),
+    );
 
     function handleKeydown(event) {
       let ceremonyActive = stage && !stage.hidden;
       if (ceremonyActive) {
-        if (event.key === "ArrowRight" || event.key === " " || event.key === "Enter") {
+        if (
+          event.key === "ArrowRight" ||
+          event.key === " " ||
+          event.key === "Enter"
+        ) {
           event.preventDefault?.();
           let slide = ceremonySlides[ceremonyIndex];
-          if (slide?.dataset.hasRanking === "true" && !slide.classList.contains("ceremony-revealed"))
+          if (
+            slide?.dataset.hasRanking === "true" &&
+            !slide.classList.contains("ceremony-revealed")
+          )
             ceremonyReveal();
           else ceremonyShow(ceremonyIndex + 1);
         } else if (event.key === "ArrowLeft") {
@@ -892,10 +924,18 @@
         }
         return;
       }
-      if (event.key === "ArrowRight" || event.key === "ArrowDown" || event.key === "PageDown") {
+      if (
+        event.key === "ArrowRight" ||
+        event.key === "ArrowDown" ||
+        event.key === "PageDown"
+      ) {
         event.preventDefault?.();
         goTo(activeIndex + 1);
-      } else if (event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "PageUp") {
+      } else if (
+        event.key === "ArrowLeft" ||
+        event.key === "ArrowUp" ||
+        event.key === "PageUp"
+      ) {
         event.preventDefault?.();
         goTo(activeIndex - 1);
       }

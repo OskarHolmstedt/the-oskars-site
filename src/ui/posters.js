@@ -16,17 +16,7 @@ window.posterSourceLabel = function (poster) {
 // Mirrors window.pageEscape's own body - a defensive fallback for the rare
 // case this file's functions run before page-utils.js has defined it.
 function defaultPosterEscape(value) {
-  return String(value ?? "").replace(
-    /[&<>"']/g,
-    (character) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      })[character],
-  );
+  return (window.escapeHtml || window.pageEscape || String)(value ?? "");
 }
 
 // Only the single-focus 'detail' variant (a page's own hero poster/portrait,
@@ -142,7 +132,10 @@ window.renderOfficialWinnerImage = function (nomination, variant = "winner") {
     .map((name) => peopleMetadata[window.normalizePersonName(name)])
     .filter((entry) => entry?.portrait)
     .map((entry) =>
-      window.renderPersonPortrait({ name: entry.name, portrait: entry.portrait }, variant),
+      window.renderPersonPortrait(
+        { name: entry.name, portrait: entry.portrait },
+        variant,
+      ),
     )
     .filter(Boolean)
     .slice(0, 6);
@@ -152,7 +145,10 @@ window.renderOfficialWinnerImage = function (nomination, variant = "winner") {
   let film = filmMetadata[nomination?.tmdbId];
   if (!film?.poster) return "";
   return window.renderFilmPoster(
-    { poster: film.poster, title: nomination?.originalTitle || nomination?.sourceTitle },
+    {
+      poster: film.poster,
+      title: nomination?.originalTitle || nomination?.sourceTitle,
+    },
     variant,
   );
 };

@@ -55,7 +55,9 @@
   function allTimeCenturyKeys() {
     return Object.keys(window.state.years || {})
       .filter((key) => window.state.years[key]?.periodType === "centuries")
-      .sort((left, right) => periodKeySortValue(left) - periodKeySortValue(right));
+      .sort(
+        (left, right) => periodKeySortValue(left) - periodKeySortValue(right),
+      );
   }
 
   let MERGE_LEVELS = {
@@ -213,7 +215,10 @@
         `Category has no ${level.sourceAdjective} candidates in this ${level.destinationNoun}.`,
       ]);
     let currentTarget = window.state.years?.[destKey];
-    if (currentTarget?.periodType && currentTarget.periodType !== level.periodType)
+    if (
+      currentTarget?.periodType &&
+      currentTarget.periodType !== level.periodType
+    )
       return periodMergeEmptyPlan(level, destKey, category, [
         "The target key belongs to a different period type.",
       ]);
@@ -283,13 +288,16 @@
       }
     });
     placementCounts.forEach((count, placement) => {
-      if (count > 2) errors.push(`Placement #${placement} is shared by ${count} films.`);
+      if (count > 2)
+        errors.push(`Placement #${placement} is shared by ${count} films.`);
     });
     let used = [...placementCounts.keys()]
       .filter(Number.isInteger)
       .sort((a, b) => a - b);
     if (used.length && used.some((placement, index) => placement !== index + 1))
-      errors.push("Placements must be dense from #1 through the highest placement.");
+      errors.push(
+        "Placements must be dense from #1 through the highest placement.",
+      );
     if (errors.length)
       return window.createNominationPlacementPlan({
         operation: "merge",
@@ -316,7 +324,10 @@
       film.awards = (film.awards || []).filter(
         (award) => !periodAward(award, destKey, category, level.periodType),
       );
-      if (category === "Best Picture" && existing.some((entry) => entry.film === film)) {
+      if (
+        category === "Best Picture" &&
+        existing.some((entry) => entry.film === film)
+      ) {
         film[level.rankField] = null;
         film.rank = null;
       }
@@ -326,16 +337,18 @@
     selections.sort(
       (left, right) =>
         left.placement - right.placement ||
-        candidateById.get(left.filmId).title.localeCompare(
-          candidateById.get(right.filmId).title,
-        ),
+        candidateById
+          .get(left.filmId)
+          .title.localeCompare(candidateById.get(right.filmId).title),
     );
     selections.forEach((selection) => {
       let candidate = candidateById.get(selection.filmId);
       let source = candidate.sources.find(
         (item) => item.year === selection.sourceYear,
       );
-      let targetFilm = target.films.find((film) => sameCandidate(film, candidate));
+      let targetFilm = target.films.find((film) =>
+        sameCandidate(film, candidate),
+      );
       if (!targetFilm) {
         targetFilm = window.cloneRecord(candidate.film);
         targetFilm.awards = [];
@@ -355,8 +368,12 @@
       }
       selectedResults.push({ candidate, source, award });
     });
+    // A film without an award for this period can still belong here by
+    // rank (film.rank: "Rank within its source period record"), e.g. a
+    // Best Picture nominee that lost its award above but keeps its ranked
+    // placement, or any film ranked in this period for a non-award reason.
     target.films = target.films.filter(
-      (film) => (film.awards || []).length || film.sourceUrl,
+      (film) => (film.awards || []).length || film.rank != null,
     );
 
     let nextPeriods = { [destKey]: target };
@@ -373,7 +390,7 @@
           if (film.awards.length !== before) changed = true;
           return film;
         })
-        .filter((film) => (film.awards || []).length || film.sourceUrl);
+        .filter((film) => (film.awards || []).length || film.rank != null);
       if (changed) nextPeriods[periodKey] = next;
     });
 
@@ -397,7 +414,10 @@
     });
     selectedResults.forEach((entry) => {
       let previous = previousByIdentity.get(entry.candidate.identity);
-      if (!previous || Number(previous.award.placement) !== Number(entry.award.placement))
+      if (
+        !previous ||
+        Number(previous.award.placement) !== Number(entry.award.placement)
+      )
         changes.push({
           filmId: entry.candidate.filmId,
           title: entry.candidate.title,
@@ -406,7 +426,9 @@
           kind: previous ? "moved" : "added",
         });
     });
-    let duplicates = candidates.filter((candidate) => candidate.sources.length > 1);
+    let duplicates = candidates.filter(
+      (candidate) => candidate.sources.length > 1,
+    );
     let notes = [
       `${candidates.length} candidate(s) from ${childKeys[0]}–${childKeys[childKeys.length - 1]}.`,
       existing.length
@@ -422,7 +444,8 @@
       ),
       ...selectedResults.flatMap((entry) => {
         let previous = previousByIdentity.get(entry.candidate.identity);
-        return previous && awardCredit(previous.award) !== awardCredit(entry.award)
+        return previous &&
+          awardCredit(previous.award) !== awardCredit(entry.award)
           ? [
               `${entry.candidate.title} credit: ${awardCreditText(previous.award)} → ${awardCreditText(entry.award)}.`,
             ]
@@ -434,7 +457,8 @@
     ];
     let logChanges = selectedResults.flatMap((entry) => {
       let previous = previousByIdentity.get(entry.candidate.identity);
-      return previous && awardCredit(previous.award) !== awardCredit(entry.award)
+      return previous &&
+        awardCredit(previous.award) !== awardCredit(entry.award)
         ? [
             {
               field: `${entry.candidate.title} credit`,
@@ -471,7 +495,11 @@
 
   /** Collects canonically deduplicated annual candidates with source provenance. @param {string} decadeKey Decade key. @param {string} category Category. @returns {Object[]} Candidates. */
   window.collectDecadeCategoryCandidates = function (decadeKey, category) {
-    return collectPeriodMergeCandidates(MERGE_LEVELS.decades, decadeKey, category);
+    return collectPeriodMergeCandidates(
+      MERGE_LEVELS.decades,
+      decadeKey,
+      category,
+    );
   };
 
   /** Builds a non-mutating annual-to-decade category replacement plan. @param {Object} values Merge selection ({decadeKey, category, assignments}). @returns {NominationPlacementPlan} Merge plan. */
@@ -489,7 +517,11 @@
 
   /** Collects canonically deduplicated decade candidates with source provenance. @param {string} centuryKey Century key. @param {string} category Category. @returns {Object[]} Candidates. */
   window.collectCenturyDecadeCandidates = function (centuryKey, category) {
-    return collectPeriodMergeCandidates(MERGE_LEVELS.centuries, centuryKey, category);
+    return collectPeriodMergeCandidates(
+      MERGE_LEVELS.centuries,
+      centuryKey,
+      category,
+    );
   };
 
   /** Builds a non-mutating decade-to-century category replacement plan. @param {Object} values Merge selection ({centuryKey, category, assignments}). @returns {NominationPlacementPlan} Merge plan. */
@@ -507,7 +539,11 @@
 
   /** Collects canonically deduplicated century candidates with source provenance. @param {string} category Category. @returns {Object[]} Candidates. */
   window.collectAllTimeCenturyCandidates = function (category) {
-    return collectPeriodMergeCandidates(MERGE_LEVELS.allTime, "alltime", category);
+    return collectPeriodMergeCandidates(
+      MERGE_LEVELS.allTime,
+      "alltime",
+      category,
+    );
   };
 
   /** Builds a non-mutating century-to-all-time category replacement plan. @param {Object} values Merge selection ({category, assignments}). @returns {NominationPlacementPlan} Merge plan. */

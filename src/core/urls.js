@@ -204,12 +204,16 @@ window.encodeCompareTarget = function (target) {
  * @returns {CompareTargetReference|null} Typed target reference, or null when invalid.
  */
 window.decodeCompareTarget = function (value) {
-  let text = String(value || "").trim();
-  let separator = text.indexOf(":");
-  if (separator <= 0) return null;
-  let type = decodeURIComponent(text.slice(0, separator)).trim();
-  let id = decodeURIComponent(text.slice(separator + 1)).trim();
-  return type && id ? { type, id } : null;
+  try {
+    let text = String(value || "").trim();
+    let separator = text.indexOf(":");
+    if (separator <= 0) return null;
+    let type = decodeURIComponent(text.slice(0, separator)).trim();
+    let id = decodeURIComponent(text.slice(separator + 1)).trim();
+    return type && id ? { type, id } : null;
+  } catch {
+    return null;
+  }
 };
 
 /**

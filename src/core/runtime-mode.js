@@ -116,5 +116,7 @@ window.getRuntimeMode = function () {
 window.oskarsCapabilities = function () {
   if (window.state?.isPublicProfileView)
     return window.runtimeModeCapabilities("viewer");
+  if (window.resolveActiveProfileSlug?.())
+    return window.runtimeModeCapabilities("viewer");
   return window.runtimeModeCapabilities(window.getRuntimeMode());
 };

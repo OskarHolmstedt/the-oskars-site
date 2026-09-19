@@ -63,7 +63,10 @@ window.creditSubjectType = function (category, profession) {
 /** Reports whether a category can have more than one nominee from the same film in the same period (acting, song). @param {string} category Award category. @returns {boolean} Whether multiple nominees are allowed. */
 window.isMultiNomineeCategory = function (category) {
   return Boolean(
-    window.creditSubjectType(category, window.PERSON_AWARD_PROFESSIONS[category]),
+    window.creditSubjectType(
+      category,
+      window.PERSON_AWARD_PROFESSIONS[category],
+    ),
   );
 };
 
@@ -227,9 +230,9 @@ window.rebuildPeopleIndex = function () {
     });
   });
   (state.watchlist || []).forEach((item) => {
-    window.parsePersonCredit(item.director).names.forEach((name) =>
-      addWatchlistDirector(name, item),
-    );
+    window
+      .parsePersonCredit(item.director)
+      .names.forEach((name) => addWatchlistDirector(name, item));
   });
   (state.watchedOther || []).forEach((film) => {
     let directors = film.directors?.length
@@ -259,8 +262,7 @@ window.rebuildPeopleIndex = function () {
         if (!person.professions.includes(profession))
           person.professions.push(profession);
       });
-      if (!person.catalogIds.includes(film.id))
-        person.catalogIds.push(film.id);
+      if (!person.catalogIds.includes(film.id)) person.catalogIds.push(film.id);
     });
   });
   doneCollect?.();

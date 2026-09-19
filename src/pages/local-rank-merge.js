@@ -86,7 +86,10 @@
 
   function renderPreview() {
     let itemsHtml = session.merged
-      .map((film) => `<li>${escape(film.title)} <small>(${escape(film.year || "—")})</small></li>`)
+      .map(
+        (film) =>
+          `<li>${escape(film.title)} <small>(${escape(film.year || "—")})</small></li>`,
+      )
       .join("");
     return `<section class="watchlist-merge-preview" data-watchlist-merge-preview>
       <h2>Merged order</h2>
@@ -115,7 +118,9 @@
       step === "pick"
         ? renderPickStep()
         : step === "compare"
-          ? window.renderMergeCompareStep(session, renderCompareCard, { escape })
+          ? window.renderMergeCompareStep(session, renderCompareCard, {
+              escape,
+            })
           : step === "preview"
             ? renderPreview()
             : step === "done"
@@ -138,7 +143,10 @@
       let filmById = new Map(implicitOrder.map((film) => [film.id, film]));
       let storedOrder = await window.loadSupabaseLocalRankOrder(kind, id);
       orderedFilmIds = window
-        .mergeSupabaseLocalRankOrder(storedOrder, implicitOrder.map((film) => film.id))
+        .mergeSupabaseLocalRankOrder(
+          storedOrder,
+          implicitOrder.map((film) => film.id),
+        )
         .map((filmId) => filmById.get(filmId))
         .filter(Boolean);
       step = "setup";
@@ -161,7 +169,8 @@
     let form = event.target.closest("[data-director-search]");
     if (!form) return;
     event.preventDefault();
-    let query = new FormData(form).get("query");
+    let query = String(new FormData(form).get("query") || "").trim();
+    if (!query) return;
     searchStatus = "Searching…";
     render();
     try {
@@ -189,64 +198,72 @@
       collection = null;
       step = "pick";
       render();
-      return;
     }
-    if (event.target.closest("[data-merge-start]")) {
-      let films = orderedFilmIds;
-      if (films.length < 2) return;
-      let mid = Math.ceil(films.length / 2);
-      session = window.createMergeSession(films.slice(0, mid), films.slice(mid));
-      step = session.done ? "preview" : "compare";
+  });
+
+  function startMerge() {
+    let films = orderedFilmIds;
+    if (films.length < 2) return;
+    let mid = Math.ceil(films.length / 2);
+    session = window.createMergeSession(films.slice(0, mid), films.slice(mid));
+    step = session.done ? "preview" : "compare";
+    render();
+  }
+
+  function pickSide(side) {
+    if (!session) return;
+    window.pickMergeSide(session, side);
+    if (session.done) step = "preview";
+    render();
+  }
+
+  function undoLastPick() {
+    if (!session?.history.length) return;
+    window.undoMergeChoice(session);
+    step = "compare";
+    render();
+  }
+
+  async function applyMerge() {
+    if (!session) return;
+    let applyButton = container.querySelector("[data-merge-apply]");
+    if (applyButton) applyButton.disabled = true;
+    try {
+      let filmIds = session.merged.map((film) => film.id);
+      await window.setSupabaseLocalRankOrder(
+        collection.kind,
+        collection.id,
+        filmIds,
+      );
+      applyResult = filmIds;
+      step = "done";
       render();
-      return;
+    } catch (error) {
+      if (applyButton) applyButton.disabled = false;
+      alert(error.message || String(error));
     }
-    let pick = event.target.closest("[data-watchlist-merge-pick]");
-    if (pick) {
-      window.pickMergeSide(session, pick.dataset.watchlistMergePick);
-      if (session.done) step = "preview";
-      render();
-      return;
-    }
-    if (event.target.closest("[data-merge-undo]")) {
-      if (session.history.length) {
-        window.undoMergeChoice(session);
-        step = "compare";
-        render();
-      }
-      return;
-    }
-    if (event.target.closest("[data-merge-cancel]")) {
+  }
+
+  window.wireMergeCompareControls(container, {
+    start: startMerge,
+    pick: pickSide,
+    undo: undoLastPick,
+    cancel: () => {
       session = null;
       step = "setup";
       render();
-      return;
-    }
-    if (event.target.closest("[data-merge-apply]")) {
-      let applyButton = event.target;
-      applyButton.disabled = true;
-      try {
-        let filmIds = session.merged.map((film) => film.id);
-        await window.setSupabaseLocalRankOrder(collection.kind, collection.id, filmIds);
-        applyResult = filmIds;
-        step = "done";
-        render();
-      } catch (error) {
-        applyButton.disabled = false;
-        alert(error.message || String(error));
-      }
-      return;
-    }
-    if (event.target.closest("[data-merge-restart]")) {
+    },
+    apply: applyMerge,
+    restart: () => {
       step = "setup";
       render();
-      return;
-    }
-    if (event.target.closest("[data-merge-again]")) {
+    },
+    again: () => {
       session = null;
       applyResult = null;
       step = "setup";
       render();
-    }
+    },
   });
 
   async function boot() {

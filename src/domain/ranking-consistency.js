@@ -27,7 +27,10 @@ window.rankingConsistencyPairKey = function (aboveId, belowId) {
  * @returns {{key:string, above:FilmRecord, below:FilmRecord}[]}
  */
 window.rankingConsistencyPairs = function (excludeKeys) {
-  return buildRankingConsistencyPairs(window.allTimeSourceFilmsInOrder(), excludeKeys);
+  return buildRankingConsistencyPairs(
+    window.allTimeSourceFilmsInOrder(),
+    excludeKeys,
+  );
 };
 
 /**
@@ -39,26 +42,30 @@ window.rankingConsistencyPairs = function (excludeKeys) {
  */
 window.rankingConsistencyPairsForYear = function (year, excludeKeys) {
   let target = String(year || "");
-  let films = window.allTimeSourceFilmsInOrder().filter(
-    (film) =>
-      String(window.filmConcreteYear?.(film.year) || film.year || "") ===
-      target,
-  );
+  let films = window
+    .allTimeSourceFilmsInOrder()
+    .filter(
+      (film) =>
+        String(window.filmConcreteYear?.(film.year) || film.year || "") ===
+        target,
+    );
   return buildRankingConsistencyPairs(films, excludeKeys);
 };
 
 /** Normalizes ranking-review URL scope names. @param {string} type Scope type. @returns {'years'|'decades'|'centuries'|'allTime'} Canonical scope type. */
 window.normalizeRankingReviewScopeType = function (type) {
-  return {
-    year: "years",
-    years: "years",
-    decade: "decades",
-    decades: "decades",
-    century: "centuries",
-    centuries: "centuries",
-    alltime: "allTime",
-    allTime: "allTime",
-  }[type] || "allTime";
+  return (
+    {
+      year: "years",
+      years: "years",
+      decade: "decades",
+      decades: "decades",
+      century: "centuries",
+      centuries: "centuries",
+      alltime: "allTime",
+      allTime: "allTime",
+    }[type] || "allTime"
+  );
 };
 
 /** Lists films inside a year heat or progressive final. @param {string} type Scope type. @param {string} key Scope key. @returns {FilmRecord[]} Ranked films in canonical order. */
@@ -78,7 +85,10 @@ function rankingReviewBucket(type, key) {
   type = window.normalizeRankingReviewScopeType(type);
   key = type === "allTime" ? "alltime" : String(key || "");
   window.state.rankingReviews ||= {
-    years: {}, decades: {}, centuries: {}, allTime: {},
+    years: {},
+    decades: {},
+    centuries: {},
+    allTime: {},
   };
   window.state.rankingReviews[type] ||= {};
   window.state.rankingReviews[type][key] ||= [];
@@ -92,8 +102,12 @@ window.rankingReviewResolvedKeys = function (type, key) {
 
 function pairCrossesNarrowerScope(type, pair) {
   type = window.normalizeRankingReviewScopeType(type);
-  let aboveYear = String(window.filmConcreteYear?.(pair.above.year) || pair.above.year || "");
-  let belowYear = String(window.filmConcreteYear?.(pair.below.year) || pair.below.year || "");
+  let aboveYear = String(
+    window.filmConcreteYear?.(pair.above.year) || pair.above.year || "",
+  );
+  let belowYear = String(
+    window.filmConcreteYear?.(pair.below.year) || pair.below.year || "",
+  );
   if (type === "years") return true;
   if (type === "decades") return aboveYear !== belowYear;
   if (type === "centuries")
@@ -102,7 +116,11 @@ function pairCrossesNarrowerScope(type, pair) {
 }
 
 /** Lists unresolved adjacent comparisons for one heat/final, excluding decisions settled at narrower scopes. @param {string} type Scope type. @param {string} key Scope key. @param {Set<string>} [extraExcludeKeys] Session exclusions. @returns {{key:string, above:FilmRecord, below:FilmRecord}[]} Review pairs. */
-window.rankingConsistencyPairsForScope = function (type, key, extraExcludeKeys) {
+window.rankingConsistencyPairsForScope = function (
+  type,
+  key,
+  extraExcludeKeys,
+) {
   let excluded = window.rankingReviewResolvedKeys(type, key);
   extraExcludeKeys?.forEach((pairKey) => excluded.add(pairKey));
   return buildRankingConsistencyPairs(
@@ -118,6 +136,12 @@ window.resolveRankingReviewPair = function (type, key, pair) {
   if (added) bucket.push(pair.key);
   pair.above.rankConfirmed = true;
   pair.below.rankConfirmed = true;
+  if (pair.above.rankConfirmedByScope) {
+    pair.above.rankConfirmedByScope[type] = true;
+  }
+  if (pair.below.rankConfirmedByScope) {
+    pair.below.rankConfirmedByScope[type] = true;
+  }
   return added;
 };
 
@@ -132,19 +156,28 @@ window.reopenRankingReviewPair = function (type, key, pair) {
 
 /** Accepts a same-rating year shelf unchanged and persists every adjacent pair decision. @param {string|number} year Release year. @param {string} ratingKey Exact rating key. @returns {{ok:boolean, reviewed:number}} Result. */
 window.confirmYearRankingBucket = function (year, ratingKey) {
-  let films = window.rankingReviewScopeFilms("years", String(year)).filter(
-    (film) => window.rankingRatingKey(film) === ratingKey,
-  );
+  let films = window
+    .rankingReviewScopeFilms("years", String(year))
+    .filter((film) => window.rankingRatingKey(film) === ratingKey);
   if (!films.length) return { ok: false, reviewed: 0 };
-  films.forEach((film) => { film.rankConfirmed = true; });
+  films.forEach((film) => {
+    film.rankConfirmed = true;
+    if (film.rankConfirmedByScope) {
+      film.rankConfirmedByScope.years = true;
+    }
+  });
   let reviewed = 0;
   for (let index = 0; index < films.length - 1; index += 1) {
     let pair = {
-      key: window.rankingConsistencyPairKey(films[index].id, films[index + 1].id),
+      key: window.rankingConsistencyPairKey(
+        films[index].id,
+        films[index + 1].id,
+      ),
       above: films[index],
       below: films[index + 1],
     };
-    if (window.resolveRankingReviewPair("years", String(year), pair)) reviewed += 1;
+    if (window.resolveRankingReviewPair("years", String(year), pair))
+      reviewed += 1;
   }
   return { ok: true, reviewed };
 };

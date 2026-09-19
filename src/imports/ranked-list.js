@@ -82,11 +82,7 @@ function parseRankedList(raw, options = {}) {
       ? 5
       : -1;
   let inferredMediumIndex = inferRankedListMediumIndex(rows);
-  let tagIndex = columns
-    ? columnIndex(["tag"])
-    : rankPrefixedRows
-      ? 6
-      : -1;
+  let tagIndex = columns ? columnIndex(["tag"]) : rankPrefixedRows ? 6 : -1;
   let liveIndex = columns
     ? columnIndex([
         "medium",
@@ -208,12 +204,7 @@ function parseRankedList(raw, options = {}) {
       let line = cols[0];
       let flex = line.match(/^([0-9]{4}s?)[\t,\s]+(.+)$/i);
       if (flex) {
-        // if title begins with a year-like string followed by punctuation, treat it as title
-        if (/^[0-9]{4}[:\-–—]/.test(flex[2])) {
-          cols = [line.trim()];
-        } else {
-          cols = [flex[1].trim(), flex[2].trim()];
-        }
+        cols = [flex[1].trim(), flex[2].trim()];
       }
     }
     return cols;
@@ -252,9 +243,7 @@ function parseRankedList(raw, options = {}) {
     let type = cleanRankedListDash(
       (typeIndex >= 0 ? cols[typeIndex] : "") || "",
     );
-    let tag = cleanRankedListDash(
-      (tagIndex >= 0 ? cols[tagIndex] : "") || "",
-    );
+    let tag = cleanRankedListDash((tagIndex >= 0 ? cols[tagIndex] : "") || "");
     let liveAction = cleanCell((liveIndex >= 0 ? cols[liveIndex] : "") || "");
     let adaptation = cleanCell((adaptIndex >= 0 ? cols[adaptIndex] : "") || "");
     let adaptationSource = cleanCell(
@@ -284,7 +273,7 @@ function parseRankedList(raw, options = {}) {
       (letterboxdIndex >= 0 ? cols[letterboxdIndex] : "") || "",
     );
 
-    if (!title && cols.length === 2) {
+    if (!title && (cols.length === 1 || cols.length === 2)) {
       let line = cleanCell(cols[0]);
       let flex = line.match(/^([0-9]{4}s?)[\t,\s]+(.+)$/i);
       if (flex) {
@@ -552,8 +541,13 @@ function parseRankedListTitleStructure(value) {
   let compositeParts = text.split(/\s+>\s+/);
   if (compositeParts.length > 1) {
     let canonicalTitle = compositeParts.shift().trim();
-    let partTitles =
-      window.splitTieCandidateTitles?.(compositeParts.join(" > ")) || [];
+    let partTitles = compositeParts
+      .flatMap(
+        (part) =>
+          window.splitTieCandidateTitles?.(part.trim()) || [part.trim()],
+      )
+      .map((title) => title.trim())
+      .filter(Boolean);
     return {
       kind: "composite",
       titles: canonicalTitle ? [canonicalTitle] : [],
@@ -576,9 +570,20 @@ function alignedRankedListValues(value, count) {
 }
 
 function assignRankedListGroupRanks(group, field) {
+  let sorted = group.slice().sort((a, b) => {
+    let rankA =
+      Number.isFinite(Number(a.rank)) && Number(a.rank) > 0
+        ? Number(a.rank)
+        : Infinity;
+    let rankB =
+      Number.isFinite(Number(b.rank)) && Number(b.rank) > 0
+        ? Number(b.rank)
+        : Infinity;
+    return rankA - rankB;
+  });
   let nextRank = 1;
   let groupRanks = new Map();
-  group.forEach((film) => {
+  sorted.forEach((film) => {
     if (film.rankingGroupId && groupRanks.has(film.rankingGroupId)) {
       film[field] = groupRanks.get(film.rankingGroupId);
       return;
@@ -604,17 +609,54 @@ function resolveRankedListCompositeRelations(films) {
   films.forEach((film) => {
     if (!film.compositeParts?.length) return;
     film.compositeParts = film.compositeParts.map((part) => {
+      let rawTitle = String(part.title || "").trim();
+      let yearInParen = rawTitle.match(/\s*\((\d{4})\)\s*$/);
+      let targetYear = yearInParen
+        ? yearInParen[1]
+        : String(part.year || "").trim();
+      let cleanTitle = yearInParen
+        ? rawTitle.replace(/\s*\((\d{4})\)\s*$/, "").trim()
+        : rawTitle;
       let key =
-        window.normalizeTitle?.(part.title) ||
-        String(part.title || "").toLowerCase();
-      let match = (byTitle.get(key) || []).find(
+        window.normalizeTitle?.(cleanTitle) ||
+        String(cleanTitle || "").toLowerCase();
+      let candidates = (byTitle.get(key) || []).filter(
         (candidate) => candidate !== film,
       );
+
+      if (!candidates.length && cleanTitle !== rawTitle) {
+        let rawKey =
+          window.normalizeTitle?.(rawTitle) ||
+          String(rawTitle || "").toLowerCase();
+        candidates = (byTitle.get(rawKey) || []).filter(
+          (candidate) => candidate !== film,
+        );
+      }
+
+      let match = null;
+      if (targetYear && candidates.length) {
+        match = candidates.find(
+          (candidate) => String(candidate.year || "") === targetYear,
+        );
+      }
+      if (!match && candidates.length) {
+        if (candidates.length === 1) {
+          match = candidates[0];
+        } else {
+          match =
+            candidates.find(
+              (candidate) =>
+                String(candidate.year || "") === String(film.year || ""),
+            ) || candidates[0];
+        }
+      }
+
       let resolved = Object.assign({}, part);
+      if (cleanTitle) resolved.title = cleanTitle;
       if (match?.year) resolved.year = match.year;
       if (match?.year && match?.title)
         resolved.id = window.makeFilmId?.(match.year, match.title);
-      if (match) {
+      if (match && !match.canonicalComposite) {
         match.canonicalComposite = {
           title: film.title,
           year: film.year,

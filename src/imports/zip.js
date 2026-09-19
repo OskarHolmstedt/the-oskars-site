@@ -108,7 +108,10 @@
     let totalUncompressed = 0;
     let offset = centralOffset;
     for (let index = 0; index < entryCount; index += 1) {
-      if (offset + 46 > eocdOffset || view.getUint32(offset, true) !== 0x02014b50)
+      if (
+        offset + 46 > eocdOffset ||
+        view.getUint32(offset, true) !== 0x02014b50
+      )
         throw new Error("The ZIP central directory is corrupt.");
       let flags = view.getUint16(offset + 8, true);
       let method = view.getUint16(offset + 10, true);
@@ -136,7 +139,9 @@
       totalUncompressed += uncompressedSize;
       if (totalUncompressed > limits.maximumUncompressedBytes)
         throw new Error("The ZIP expands beyond the 100 MiB import limit.");
-      let path = decodeName(bytes.subarray(offset + 46, offset + 46 + nameLength));
+      let path = decodeName(
+        bytes.subarray(offset + 46, offset + 46 + nameLength),
+      );
       let normalizedPath = normalizeZipPath(path);
       let basename = relevantBasename(normalizedPath, selectedNames);
       if (basename) {
@@ -157,7 +162,9 @@
           // the previously-selected deeper duplicate below.
         }
         if (![0, 8].includes(method))
-          throw new Error(`Unsupported ZIP compression method ${method} (${path}).`);
+          throw new Error(
+            `Unsupported ZIP compression method ${method} (${path}).`,
+          );
         if (uncompressedSize > limits.maximumSelectedFileBytes)
           throw new Error(`${basename} expands beyond the 25 MiB file limit.`);
         if (
@@ -184,7 +191,9 @@
       offset = nextOffset;
     }
     if (offset !== centralOffset + centralSize)
-      throw new Error("The ZIP central-directory size does not match its entries.");
+      throw new Error(
+        "The ZIP central-directory size does not match its entries.",
+      );
     return { bytes, entries: [...selected.values()] };
   };
 

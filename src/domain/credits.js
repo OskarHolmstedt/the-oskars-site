@@ -146,13 +146,18 @@ window.buildAwardCandidateCreditIndex = function (source = {}) {
     if (!credit.film_id || !name || !categoriesByRole.has(role)) return;
     let key = `${credit.film_id}\n${role}`;
     let entries = byRole.get(key) || [];
-    if (!entries.some((entry) => entry.name.toLowerCase() === name.toLowerCase()))
+    if (
+      !entries.some((entry) => entry.name.toLowerCase() === name.toLowerCase())
+    )
       entries.push({ name, order: Number(credit.billing_order) || 0 });
     byRole.set(key, entries);
   });
   byRole.forEach((entries, key) => {
     let [filmId, role] = key.split("\n");
-    entries.sort((left, right) => left.order - right.order || left.name.localeCompare(right.name, "en"));
+    entries.sort(
+      (left, right) =>
+        left.order - right.order || left.name.localeCompare(right.name, "en"),
+    );
     (categoriesByRole.get(role) || []).forEach((category) => {
       add(filmId, category, {
         recipient: entries.map((entry) => entry.name).join(", "),

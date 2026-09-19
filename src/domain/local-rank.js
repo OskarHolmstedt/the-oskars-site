@@ -123,11 +123,9 @@
    */
   window.localRankCollectionFilms = function (type, id) {
     if (type === "franchises") {
-      let franchise = (
-        window.ensureFranchiseIndex?.() ||
+      let franchise = (window.ensureFranchiseIndex?.() ||
         state.franchisesById ||
-        {}
-      )[id];
+        {})[id];
       if (!franchise) return null;
       let watchedOtherById = new Map(
         (state.watchedOther || []).map((film) => [film.id, film]),
@@ -144,9 +142,7 @@
       return { name: franchise.name, films };
     }
     if (type === "people") {
-      let person = (window.ensurePeopleIndex?.() || state.peopleById || {})[
-        id
-      ];
+      let person = (window.ensurePeopleIndex?.() || state.peopleById || {})[id];
       if (!person) return null;
       let watchedOtherById = new Map(
         (state.watchedOther || []).map((film) => [film.id, film]),

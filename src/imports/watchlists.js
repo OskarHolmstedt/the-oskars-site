@@ -514,7 +514,8 @@ window.watchlistFilmLike = function (
  * @returns {string[]}
  */
 window.watchlistPeriodKeys = function (periodType, tier) {
-  let normalizedTier = tier === undefined ? null : window.normalizeWatchlistTier(tier);
+  let normalizedTier =
+    tier === undefined ? null : window.normalizeWatchlistTier(tier);
   let keys = new Set();
   (state.watchlist || []).forEach((item) => {
     if (
@@ -555,6 +556,7 @@ let WATCHLIST_UNDO_FIELD_LABELS = {
   swedishTitle: "Swedish title",
   platform: "platform",
 };
+window.WATCHLIST_UNDO_FIELD_LABELS = WATCHLIST_UNDO_FIELD_LABELS;
 
 function watchlistUndoSnapshot(source) {
   let snapshot = {};
@@ -976,7 +978,11 @@ window.watchlistTierPeriodScopeItems = function (tier, periodType, periodKey) {
  * @param {string[]} orderedIds Watchlist ids in the desired final relative order.
  * @returns {Object} Apply result with an explanatory reason on failure.
  */
-window.applyWatchlistTierMergeOrder = function (tier, orderedIds, options = {}) {
+window.applyWatchlistTierMergeOrder = function (
+  tier,
+  orderedIds,
+  options = {},
+) {
   let normalizedTier = window.normalizeWatchlistTier(tier);
   let ids = (orderedIds || []).map((id) => String(id || "")).filter(Boolean);
   let idSet = new Set(ids);
@@ -1001,7 +1007,10 @@ window.applyWatchlistTierMergeOrder = function (tier, orderedIds, options = {}) 
     .filter((entry) => idSet.has(entry.id))
     .map((entry) => entry.index);
   if (mergedItems.length !== ids.length || slots.length !== ids.length)
-    return { ok: false, reason: "Some selected films are no longer in this tier." };
+    return {
+      ok: false,
+      reason: "Some selected films are no longer in this tier.",
+    };
   let nextTierItems = [...tierItems];
   slots.forEach((slotIndex, position) => {
     nextTierItems[slotIndex] = mergedItems[position];
@@ -1092,9 +1101,7 @@ window.watchlistItemsByDirector = function (personName) {
     (state.watchlist || []).forEach((item) => {
       (
         window.splitRecipientNames?.(item.director) ||
-        String(item.director || "").split(
-          /\s*(?:,|;|\/|\s+&\s+|\s+and\s+)\s*/i,
-        )
+        String(item.director || "").split(/\s*(?:,|;|\/|\s+&\s+|\s+and\s+)\s*/i)
       ).forEach((name) => {
         let id = canonicalDirectorId(name);
         if (!id) return;
@@ -1203,8 +1210,7 @@ window.watchlistSessionAttemptCount = function (type) {
 window.watchlistNeedsPosterLookup = function (item) {
   let film = window.watchlistFilmLike(item);
   return (
-    Boolean(item?.title) &&
-    (!film.poster || film.poster.source === "wikimedia")
+    Boolean(item?.title) && (!film.poster || film.poster.source === "wikimedia")
   );
 };
 
@@ -1244,7 +1250,11 @@ function watchlistItemKey(item) {
   return item.id || window.watchlistItemId(item);
 }
 
-function watchlistFailureRecord(item, reason, fallbackReason = "No match found.") {
+function watchlistFailureRecord(
+  item,
+  reason,
+  fallbackReason = "No match found.",
+) {
   return {
     title: String(item?.title || "Watchlist film"),
     year: item?.year || "",
@@ -1339,7 +1349,8 @@ window.fetchWatchlistMetadata = async function (items, options = {}) {
           save: false,
         }),
       notFoundReason: "No TMDB match found.",
-      warnMessage: (item) => `Watchlist metadata lookup failed for ${item.title}`,
+      warnMessage: (item) =>
+        `Watchlist metadata lookup failed for ${item.title}`,
     },
     options,
   );

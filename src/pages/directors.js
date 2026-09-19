@@ -102,9 +102,7 @@
         item,
       ]),
     );
-    return Object.values(
-      window.ensurePeopleIndex?.() || state.peopleById || {},
-    )
+    return Object.values(window.ensurePeopleIndex?.() || state.peopleById || {})
       .filter((person) => person.professions?.includes("Director"))
       .map((person) => {
         let films = directorFilms(person, watchedOtherById);
@@ -139,8 +137,11 @@
     return [...filtered].sort((left, right) => {
       if (sort === "rating") {
         return (
-          window.compareByRatingStatistics(left.ratings, right.ratings, order) ||
-          left.person.name.localeCompare(right.person.name)
+          window.compareByRatingStatistics(
+            left.ratings,
+            right.ratings,
+            order,
+          ) || left.person.name.localeCompare(right.person.name)
         );
       }
       let result;

@@ -1,17 +1,7 @@
 /** @file Renders, groups, localizes, shows, and hides detailed import outcome reports. */
 
 function importReportEscape(value) {
-  return String(value ?? "").replace(
-    /[&<>"']/g,
-    (character) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      })[character],
-  );
+  return (window.escapeHtml || window.pageEscape || String)(value ?? "");
 }
 
 function importReportUi(text, values) {

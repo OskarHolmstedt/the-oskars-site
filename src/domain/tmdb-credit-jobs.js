@@ -161,7 +161,9 @@ window.tmdbCastCandidates = function (details) {
       tmdbId: Number(member.id),
       name: String(member.name || "").trim(),
       character: String(member.character || "").trim(),
-      order: Number.isFinite(member.order) ? member.order : Number.MAX_SAFE_INTEGER,
+      order: Number.isFinite(member.order)
+        ? member.order
+        : Number.MAX_SAFE_INTEGER,
       profilePath: member.profile_path || null,
       gender: Number.isFinite(member.gender) ? member.gender : 0,
     }))

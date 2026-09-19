@@ -226,8 +226,10 @@
           !(film.canonicalComposite && film.suppressAllTimeRank) &&
           // A nominated-but-unranked film already surfaces via allFilms'
           // own awards OR-branch above - excluded here so it doesn't also
-          // show a second time in "Not yet ranked."
-          !(film.awards || []).some(awardInPeriod),
+          // show a second time in "Not yet ranked." Checks both the film's
+          // own awards and any merged-counterpart awards (issue #537).
+          !(film.awards || []).some(awardInPeriod) &&
+          !(rankedCounterpart(film)?.awards || []).some(awardInPeriod),
       )
       .sort(
         (left, right) =>
@@ -564,7 +566,7 @@
       showAwards: {
         param: "awards",
         default: false,
-        parse: (value) => value !== "0",
+        parse: (value) => value === "1" || value === "true",
         serialize: (value) => (value ? "1" : "0"),
         omit: (value, state) =>
           (state.viewMode !== "films" && state.viewMode !== "rewatch") ||
@@ -1215,7 +1217,10 @@
   function decadeMergeDialog() {
     if (!decadeMergeOpen || !periodMergeConfig) return "";
     let categories = decadeMergeCategories();
-    if (!categories.length) return "";
+    if (!categories.length) {
+      decadeMergeOpen = false;
+      return "";
+    }
     if (!categories.includes(decadeMergeCategory))
       decadeMergeCategory = categories[0];
     let candidates = periodMergeConfig.collect(decadeMergeCategory);
@@ -1401,7 +1406,11 @@
           ? watchlistEntries.length
           : films.length;
     let pageCount = Math.max(1, Math.ceil(pageTotal / FILMS_PER_PAGE));
+    let previousFilmPage = filmPage;
     filmPage = Math.min(filmPage, pageCount);
+    if (filmPage !== previousFilmPage) {
+      updateViewUrl();
+    }
     visibleFilmPage =
       viewMode === "films" ||
       viewMode === "rewatch" ||
@@ -1635,29 +1644,57 @@
   });
   window.bindEntityNoteEditor(container);
 
+  function restoreStateBackup(backup) {
+    if (!backup) return;
+    if (typeof window.hydrateState === "function") {
+      window.hydrateState(backup);
+    } else if (window.state) {
+      Object.assign(window.state, backup);
+      if (window.rebuildAggregates) window.rebuildAggregates();
+      else if (window.markAggregatesDirty)
+        window.markAggregatesDirty("state backup restored");
+    }
+  }
+
   function clearAwardDropTargets() {
     container
-      .querySelectorAll(".nominee-card.drop-target")
+      .querySelectorAll(
+        ".nominee-card.drop-target, .ranking-edit-card.drop-target",
+      )
       .forEach((card) => card.classList.remove("drop-target"));
   }
 
   function commitNominationPlan(plan, options = {}) {
     if (!plan) return false;
-    return !!window.reviewNominationPlacementPlan?.(plan, () => {
-      let outcome = window.applyNominationPlacementPlan?.(plan);
-      if (!outcome?.ok) {
-        if (outcome?.reason) window.alert?.(outcome.reason);
-        return;
-      }
-      rebuildPeriodViewModel();
-      if (!canEditBracket) editMode = false;
-      options.beforeRender?.();
-      render();
-      window.save?.({ immediate: true, rebuild: false });
-    });
+    return !!window.reviewNominationPlacementPlan?.(
+      plan,
+      () => {
+        try {
+          let outcome = window.applyNominationPlacementPlan?.(plan);
+          if (!outcome?.ok) {
+            if (outcome?.reason) window.alert?.(outcome.reason);
+            options.onCancel?.();
+            return;
+          }
+          rebuildPeriodViewModel();
+          if (!canEditBracket) editMode = false;
+          if (allFilms.some((film) => film.rankConfirmedByScope))
+            rankingEditMode = false;
+          options.beforeRender?.();
+          render();
+          window.save?.({ immediate: true, rebuild: false });
+        } catch (err) {
+          window.alert?.(err?.message || String(err));
+          options.onCancel?.();
+        }
+      },
+      () => {
+        options.onCancel?.();
+      },
+    );
   }
 
-  function commitAwardPlacementMove(from, targetCard) {
+  function commitAwardPlacementMove(from, targetCard, options = {}) {
     if (
       !from ||
       !targetCard ||
@@ -1679,7 +1716,7 @@
       targetCard.dataset.filmId,
       targetCard.dataset.placement,
     );
-    return commitNominationPlan(plan);
+    return commitNominationPlan(plan, options);
   }
 
   container.addEventListener("input", (event) => {
@@ -1764,6 +1801,15 @@
           String(card.dataset.placement) ===
             String(selectedOption?.dataset.placement),
       );
+      let revertDestination = () => {
+        if (sourceCard) {
+          let sourcePlacement = String(sourceCard.dataset.placement);
+          let sourceIndex = [...destinationSelect.options].findIndex(
+            (option) => String(option.dataset.placement) === sourcePlacement,
+          );
+          if (sourceIndex >= 0) destinationSelect.selectedIndex = sourceIndex;
+        }
+      };
       let moved = commitAwardPlacementMove(
         sourceCard
           ? {
@@ -1774,13 +1820,10 @@
             }
           : null,
         targetCard,
+        { onCancel: revertDestination },
       );
-      if (!moved && sourceCard) {
-        let sourcePlacement = String(sourceCard.dataset.placement);
-        let sourceIndex = [...destinationSelect.options].findIndex(
-          (option) => String(option.dataset.placement) === sourcePlacement,
-        );
-        if (sourceIndex >= 0) destinationSelect.selectedIndex = sourceIndex;
+      if (!moved) {
+        revertDestination();
       }
       return;
     }
@@ -1857,7 +1900,9 @@
         filmPage = 1;
         render();
       } catch (err) {
-        window.hydrateState(backup);
+        restoreStateBackup(backup);
+        rebuildPeriodViewModel();
+        render();
         window.alert?.(err.message || String(err));
       }
       return;
@@ -1886,7 +1931,9 @@
         await window.save();
         render();
       } catch (err) {
-        window.hydrateState(backup);
+        restoreStateBackup(backup);
+        rebuildPeriodViewModel();
+        render();
         window.alert?.(err.message || String(err));
       }
       return;
@@ -1898,6 +1945,7 @@
       let tmdbId =
         addNomineeWatchedButton.dataset.addOfficialNomineeWatchedTmdbId;
       let candidate = window.sharedArchiveCandidateFilmByTmdbId?.(tmdbId);
+      let backup = window.cloneRecord(window.getSerializableState());
       window.setCollectionActionButtonState(addNomineeWatchedButton, {
         label: ui("Adding…"),
         busy: true,
@@ -1912,6 +1960,9 @@
             : window.filmPageUrl(result.filmId);
         })
         .catch((err) => {
+          restoreStateBackup(backup);
+          rebuildPeriodViewModel();
+          render();
           window.setCollectionActionButtonState(addNomineeWatchedButton, {
             label: ui("Add to watched"),
           });
@@ -1952,12 +2003,14 @@
       return;
     }
     if (event.target.closest("[data-period-edit-toggle]")) {
+      if (!canEdit || !canEditBracket) return;
       editMode = !editMode;
       updateViewUrl();
       render();
       return;
     }
     if (event.target.closest("[data-period-ranking-edit-toggle]")) {
+      if (!canEdit) return;
       rankingEditMode = !rankingEditMode;
       updateViewUrl();
       render();
@@ -2102,7 +2155,7 @@
     if (!card) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-    if (editMode) clearAwardDropTargets();
+    clearAwardDropTargets();
     card.classList.add("drop-target");
   });
   container.addEventListener("dragleave", (event) => {
@@ -2152,6 +2205,9 @@
         return;
       }
       rebuildPeriodViewModel();
+      if (!canEditBracket) editMode = false;
+      if (allFilms.some((film) => film.rankConfirmedByScope))
+        rankingEditMode = false;
       render();
       window.save?.({ immediate: true, rebuild: false });
       return;
@@ -2185,8 +2241,19 @@
       render();
     },
     setItemTier(id, tier, tierModifier) {
-      window.setWatchlistMetadata(id, { tier, tierModifier }, { save: false });
+      if (!canEdit) return;
+      let result = window.setWatchlistMetadata(
+        id,
+        { tier, tierModifier },
+        { save: false },
+      );
+      if (!result) {
+        window.alert?.(ui("Could not update this item."));
+        return;
+      }
       window.save?.({ immediate: true, rebuild: false });
+      filmPage = 1;
+      updateViewUrl();
       render();
     },
     setSubPeriod(level, value) {
@@ -2211,12 +2278,14 @@
       render();
     },
     toggleOrderEdit() {
+      if (!canEdit) return;
       watchlistOrderEditMode = !watchlistOrderEditMode;
       if (watchlistOrderEditMode) tierEditMode = false;
       updateViewUrl();
       render();
     },
     toggleTierEdit() {
+      if (!canEdit) return;
       tierEditMode = !tierEditMode;
       if (tierEditMode) watchlistOrderEditMode = false;
       updateViewUrl();
@@ -2248,12 +2317,15 @@
       render();
     },
     addItem(values) {
+      if (!canEdit) return;
       let result = window.addWatchlistItem(values, { save: false });
       if (!result.ok) {
-        alert(result.reason);
+        if (result.reason) window.alert?.(result.reason);
         return;
       }
       window.save?.({ immediate: true, rebuild: false });
+      filmPage = 1;
+      updateViewUrl();
       render();
     },
     filteredEntries: () =>

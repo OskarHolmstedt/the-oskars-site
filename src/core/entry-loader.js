@@ -242,6 +242,7 @@
             "'": "&#39;",
           })[character],
       );
+    window.pageEscape = window.escapeHtml = escapeHeaderText;
     let signedInHeaderAccountHtml = (user, displayName) => {
       let name = String(displayName || user?.email || "Profile").trim();
       let initial = Array.from(name)[0]?.toLocaleUpperCase() || "?";
@@ -369,6 +370,7 @@
       "directors",
       "people",
       "projects",
+      "project",
       "periods",
       "collections",
       "categories",
@@ -889,6 +891,11 @@
     // directory or its plural `?view=compare/ceremony&profiles=a,b`, so
     // without this it fell through to the same sign-in gate as every
     // owner page even though it depends on no account at all (issue #490).
+    /**
+     * Reports whether owner account access is currently blocked by the account gate.
+     * @returns {boolean}
+     */
+    window.oskarsAccountAccessBlocked = () => false;
     if (
       window.runtimeAccountAccessRequired(runtimeModeResult.mode) &&
       !activeProfileSlug &&
@@ -899,7 +906,9 @@
         document.querySelector("main"),
       );
       let access = await window.resolveSupabaseAccountGate();
-      if (!access.allowed) {
+      let blocked = !access.allowed;
+      window.oskarsAccountAccessBlocked = () => blocked;
+      if (blocked) {
         window.renderSupabaseAccountGate(
           access,
           document.querySelector("main"),

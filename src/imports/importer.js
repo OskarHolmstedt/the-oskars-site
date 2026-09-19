@@ -119,24 +119,45 @@ window.importData = function (raw, importType, options = {}) {
       return Boolean(existing && incoming && existing !== incoming);
     }
 
-    function recordArchiveRatingConflicts(entry) {
-      Object.values(state.years || {}).forEach((period) => {
-        (period.films || []).forEach((film) => {
-          if (!sourceFilmMatchesEntry(film, entry)) return;
-          if (!ratingsDisagree(film, entry.rating)) return;
-          recordSourceConflict({
-            target: "archive",
-            field: "rating",
-            title: film.title,
-            year: film.year || "",
-            rowNumber: entry.rowNumber || "",
-            existing:
-              window.renderFilmRating?.(film) || String(film.rating || ""),
-            incoming:
-              window.renderFilmRating?.(entry.rating) ||
-              String(entry.rating || ""),
-            kept: "existing",
+    let archiveFilmsByTitle = null;
+    function getArchiveFilmsByTitle() {
+      if (!archiveFilmsByTitle) {
+        archiveFilmsByTitle = new Map();
+        Object.values(state.years || {}).forEach((period) => {
+          (period.films || []).forEach((film) => {
+            let title = normalizeTitle(film?.title || "");
+            if (!title) return;
+            let list = archiveFilmsByTitle.get(title);
+            if (!list) {
+              list = [];
+              archiveFilmsByTitle.set(title, list);
+            }
+            list.push(film);
           });
+        });
+      }
+      return archiveFilmsByTitle;
+    }
+
+    function recordArchiveRatingConflicts(entry) {
+      let title = normalizeTitle(entry?.title || "");
+      if (!title) return;
+      let candidates = getArchiveFilmsByTitle().get(title) || [];
+      candidates.forEach((film) => {
+        if (!sourceFilmMatchesEntry(film, entry)) return;
+        if (!ratingsDisagree(film, entry.rating)) return;
+        recordSourceConflict({
+          target: "archive",
+          field: "rating",
+          title: film.title,
+          year: film.year || "",
+          rowNumber: entry.rowNumber || "",
+          existing:
+            window.renderFilmRating?.(film) || String(film.rating || ""),
+          incoming:
+            window.renderFilmRating?.(entry.rating) ||
+            String(entry.rating || ""),
+          kept: "existing",
         });
       });
     }
@@ -314,8 +335,15 @@ window.importData = function (raw, importType, options = {}) {
         }
 
         let rankBefore = existing.rank;
+        let existingHasRank = [
+          existing.rank,
+          existing.yearRank,
+          existing.decadeRank,
+          existing.centuryRank,
+          existing.allTimeRank,
+        ].some((rank) => Number(rank) > 0);
         let preserveExistingRankForUnrankedMetadata = Boolean(
-          f.suppressAllTimeRank && Number(existing.allTimeRank) > 0,
+          f.suppressAllTimeRank && existingHasRank,
         );
         existing.rank =
           options.replaceRanks && !preserveExistingRankForUnrankedMetadata
@@ -386,10 +414,7 @@ window.importData = function (raw, importType, options = {}) {
         existing.dateWatched = preserveLocalField("dateWatched", f.dateWatched);
         existing.views = preserveLocalField("views", f.views);
         existing.musicScore = preserveLocalField("musicScore", f.musicScore);
-        existing.musicRating = preserveLocalField(
-          "musicRating",
-          f.musicRating,
-        );
+        existing.musicRating = preserveLocalField("musicRating", f.musicRating);
         existing.musicRatingValue = preserveLocalField(
           "musicRatingValue",
           f.musicRatingValue,
@@ -509,6 +534,7 @@ window.importData = function (raw, importType, options = {}) {
           }
         }
       }
+      archiveFilmsByTitle = null;
     }
 
     function sourceFilmMatchesEntry(film, entry) {
@@ -534,27 +560,54 @@ window.importData = function (raw, importType, options = {}) {
       return before !== after;
     }
 
-    function updateSourceFilmsForFranchise(entry, membership) {
+    function addDirectorToFilmSource(film, director) {
+      if (!director || film.director) return false;
+      film.director = director;
+      film.directors = window.splitRecipientNames
+        ? window.splitRecipientNames(director)
+        : [director];
+      let canonical = film.id ? state.filmsById?.[film.id] : null;
+      if (canonical && canonical !== film && !canonical.director) {
+        canonical.director = film.director;
+        canonical.directors = film.directors;
+      }
+      return true;
+    }
+
+    function updateSourceFilmsForLaneEntry(entry, options = {}) {
       let matched = 0;
       let updated = 0;
-      Object.values(state.years || {}).forEach((period) => {
-        (period.films || []).forEach((film) => {
-          if (!sourceFilmMatchesEntry(film, entry)) return;
-          matched += 1;
-          if (addFranchiseToFilmSource(film, membership)) updated += 1;
-        });
+      let title = normalizeTitle(entry?.title || "");
+      if (!title) return { matched, updated };
+      let candidates = getArchiveFilmsByTitle().get(title) || [];
+      candidates.forEach((film) => {
+        if (!sourceFilmMatchesEntry(film, entry)) return;
+        matched += 1;
+        if (
+          options.membership &&
+          addFranchiseToFilmSource(film, options.membership)
+        ) {
+          updated += 1;
+        } else if (
+          options.director &&
+          addDirectorToFilmSource(film, options.director)
+        ) {
+          updated += 1;
+        }
       });
       return { matched, updated };
     }
 
+    function updateSourceFilmsForFranchise(entry, membership) {
+      return updateSourceFilmsForLaneEntry(entry, { membership });
+    }
+
+    function updateSourceFilmsForDirector(entry) {
+      return updateSourceFilmsForLaneEntry(entry, { director: entry.director });
+    }
+
     function countSourceFilmsForEntry(entry) {
-      let matched = 0;
-      Object.values(state.years || {}).forEach((period) => {
-        (period.films || []).forEach((film) => {
-          if (sourceFilmMatchesEntry(film, entry)) matched += 1;
-        });
-      });
-      return matched;
+      return updateSourceFilmsForLaneEntry(entry).matched;
     }
 
     function watchlistCandidatesForFranchiseEntry(entry) {
@@ -593,15 +646,25 @@ window.importData = function (raw, importType, options = {}) {
       return before - state.watchlist.length;
     }
 
-    function upsertWatchlistFranchiseEntry(entry, membership) {
+    function upsertWatchlistLaneEntry(entry, options = {}) {
       let item = findWatchlistItemForFranchiseEntry(entry);
       if (item) {
-        let before = window.formatFranchiseMemberships?.(item.franchises) || "";
-        item.franchises = window.normalizeFranchiseMemberships?.([
-          ...(item.franchises || []),
-          membership,
-        ]) ||
-          item.franchises || [membership];
+        let fieldChanged = false;
+        if (options.membership) {
+          let before =
+            window.formatFranchiseMemberships?.(item.franchises) || "";
+          item.franchises = window.normalizeFranchiseMemberships?.([
+            ...(item.franchises || []),
+            options.membership,
+          ]) ||
+            item.franchises || [options.membership];
+          let after =
+            window.formatFranchiseMemberships?.(item.franchises) || "";
+          fieldChanged = before !== after;
+        } else if (entry.director && !item.director) {
+          item.director = entry.director;
+          fieldChanged = true;
+        }
         let tierChanged = Boolean(entry.tier && !item.tier);
         if (tierChanged) item.tier = entry.tier;
         else if (entry.tier && item.tier && item.tier !== entry.tier) {
@@ -617,57 +680,28 @@ window.importData = function (raw, importType, options = {}) {
           });
         }
         if (!item.id) item.id = window.watchlistItemId?.(item);
-        let after = window.formatFranchiseMemberships?.(item.franchises) || "";
-        return { added: false, changed: before !== after || tierChanged };
+        return { added: false, changed: fieldChanged || tierChanged };
       }
-      item = window.normalizeWatchlistItem?.({
+      let rawItem = {
         title: entry.title,
         year: entry.year,
         tier: entry.tier,
-        franchises: [membership],
-      });
+      };
+      if (options.membership) rawItem.franchises = [options.membership];
+      if (entry.director) rawItem.director = entry.director;
+      item = window.normalizeWatchlistItem?.(rawItem);
       if (!item) return { added: false, changed: false };
       state.watchlist ||= [];
       state.watchlist.push(item);
       return { added: true, changed: true };
     }
 
+    function upsertWatchlistFranchiseEntry(entry, membership) {
+      return upsertWatchlistLaneEntry(entry, { membership });
+    }
+
     function upsertWatchlistDirectorEntry(entry) {
-      let item = findWatchlistItemForFranchiseEntry(entry);
-      if (item) {
-        let changed = false;
-        if (entry.director && !item.director) {
-          item.director = entry.director;
-          changed = true;
-        }
-        if (entry.tier && !item.tier) {
-          item.tier = entry.tier;
-          changed = true;
-        } else if (entry.tier && item.tier && item.tier !== entry.tier) {
-          recordSourceConflict({
-            target: "watchlist",
-            field: "tier",
-            title: item.title,
-            year: item.year || "",
-            rowNumber: entry.rowNumber || "",
-            existing: item.tier,
-            incoming: entry.tier,
-            kept: "existing",
-          });
-        }
-        if (!item.id) item.id = window.watchlistItemId?.(item);
-        return { added: false, changed };
-      }
-      item = window.normalizeWatchlistItem?.({
-        title: entry.title,
-        year: entry.year,
-        tier: entry.tier,
-        director: entry.director,
-      });
-      if (!item) return { added: false, changed: false };
-      state.watchlist ||= [];
-      state.watchlist.push(item);
-      return { added: true, changed: true };
+      return upsertWatchlistLaneEntry(entry, { director: entry.director });
     }
 
     // Rated, already-watched entries that don't match any archive film
@@ -786,9 +820,7 @@ window.importData = function (raw, importType, options = {}) {
     function upsertDiaryWatchedEntry(entry) {
       state.watchedOther ||= [];
       let incoming = diaryWatchedRecord(entry);
-      let existing = state.watchedOther.find(
-        (item) => item.id === incoming.id,
-      );
+      let existing = state.watchedOther.find((item) => item.id === incoming.id);
       if (!existing) {
         state.watchedOther.push(incoming);
         return { added: true, changed: true };
@@ -828,24 +860,31 @@ window.importData = function (raw, importType, options = {}) {
       });
       if (!existing.type || existing.type === "unknown")
         existing.type = incoming.type;
-      existing.views = Math.max(
-        Number(existing.views) || 0,
-        Number(incoming.views) || 0,
-      ) || null;
+      existing.views =
+        Math.max(Number(existing.views) || 0, Number(incoming.views) || 0) ||
+        null;
       if (
         incoming.dateWatched &&
         (!existing.dateWatched || incoming.dateWatched > existing.dateWatched)
       ) {
         existing.dateWatched = incoming.dateWatched;
       }
-      existing.tags = window.parseFilmTags?.([
-        ...(existing.tags || []),
-        ...(incoming.tags || []),
-      ]) || existing.tags || incoming.tags || [];
-      existing.franchises = window.normalizeFranchiseMemberships?.([
-        ...(existing.franchises || []),
-        ...(incoming.franchises || []),
-      ]) || existing.franchises || incoming.franchises || [];
+      existing.tags =
+        window.parseFilmTags?.([
+          ...(existing.tags || []),
+          ...(incoming.tags || []),
+        ]) ||
+        existing.tags ||
+        incoming.tags ||
+        [];
+      existing.franchises =
+        window.normalizeFranchiseMemberships?.([
+          ...(existing.franchises || []),
+          ...(incoming.franchises || []),
+        ]) ||
+        existing.franchises ||
+        incoming.franchises ||
+        [];
       window.normalizeFilmMetadata?.(existing);
       return { added: false, changed: JSON.stringify(existing) !== before };
     }
@@ -941,7 +980,9 @@ window.importData = function (raw, importType, options = {}) {
           return;
         }
         (parsed.diagnostics?.unsupportedHeaders || []).forEach((header) =>
-          report.warnings.push(`${label} ignored unsupported header "${header}".`),
+          report.warnings.push(
+            `${label} ignored unsupported header "${header}".`,
+          ),
         );
         (parsed.diagnostics?.malformedRows || []).forEach((finding) => {
           report.skipped += 1;
@@ -1149,8 +1190,10 @@ window.importData = function (raw, importType, options = {}) {
         data.entries.forEach((entry) => {
           let kind = window.diaryEntryKind(entry.type);
           if (kind === "archive") {
-            if (findDiaryArchiveFilm(entry)) archiveMatched += 1;
-            else missingArchive.push(entry);
+            if (findDiaryArchiveFilm(entry)) {
+              archiveMatched += 1;
+              if (entry.ratingValue) recordArchiveRatingConflicts(entry);
+            } else missingArchive.push(entry);
             return;
           }
           let result = upsertDiaryWatchedEntry(entry);
@@ -1178,12 +1221,76 @@ window.importData = function (raw, importType, options = {}) {
       }
     } else if (importType === "watchlist") {
       let data = window.parseWatchlist(raw);
-      state.watchlist = data.items;
+      state.watchlist ||= [];
+      let existingById = new Map();
+      state.watchlist.forEach((item) => {
+        let id = item.id || window.watchlistItemId?.(item);
+        if (id) existingById.set(id, item);
+      });
+      let added = 0;
+      let merged = 0;
+      data.items.forEach((incoming) => {
+        let id = incoming.id || window.watchlistItemId?.(incoming);
+        let existing = id ? existingById.get(id) : null;
+        if (!existing) {
+          let normalized = normalizeTitle(incoming.title || "");
+          let year = String(incoming.year || "").trim();
+          existing = state.watchlist.find(
+            (item) =>
+              normalizeTitle(item.title || "") === normalized &&
+              String(item.year || "").trim() === year,
+          );
+        }
+        if (existing) {
+          merged += 1;
+          if (incoming.tier && !existing.tier) {
+            existing.tier = incoming.tier;
+          } else if (
+            incoming.tier &&
+            existing.tier &&
+            existing.tier !== incoming.tier
+          ) {
+            recordSourceConflict({
+              target: "watchlist",
+              field: "tier",
+              title: existing.title,
+              year: existing.year || "",
+              rowNumber: incoming.rowNumber || "",
+              existing: existing.tier,
+              incoming: incoming.tier,
+              kept: "existing",
+            });
+          }
+          if (incoming.director && !existing.director)
+            existing.director = incoming.director;
+          if (incoming.letterboxdUrl && !existing.letterboxdUrl)
+            existing.letterboxdUrl = incoming.letterboxdUrl;
+          if (incoming.tmdbId && !existing.tmdbId)
+            existing.tmdbId = incoming.tmdbId;
+          if (incoming.franchises?.length) {
+            existing.franchises =
+              window.normalizeFranchiseMemberships?.([
+                ...(existing.franchises || []),
+                ...incoming.franchises,
+              ]) || existing.franchises;
+          }
+          if (incoming.tags?.length) {
+            existing.tags = Array.from(
+              new Set([...(existing.tags || []), ...incoming.tags]),
+            );
+          }
+        } else {
+          added += 1;
+          state.watchlist.push(incoming);
+          if (id) existingById.set(id, incoming);
+        }
+      });
       window.recomputeWatchlistOrder?.();
       state.watchlistOrderVersion = 1;
       report.source = "Watchlist";
       report.filmsParsed = data.items.length;
-      report.filmsAdded = data.items.length;
+      report.filmsAdded = added;
+      report.filmsMerged = merged;
       report.skipped += data.diagnostics?.skippedRows || 0;
       report.skippedDetails.push(...(data.diagnostics?.skippedDetails || []));
       if (report.skipped)
@@ -1338,6 +1445,7 @@ window.importData = function (raw, importType, options = {}) {
       report.skipped += data.diagnostics?.skippedRows || 0;
       report.skippedDetails.push(...(data.diagnostics?.skippedDetails || []));
       let archiveMatched = 0;
+      let archiveUpdated = 0;
       let duplicateWatchlistRemoved = 0;
       let watchlistAdded = 0;
       let watchlistMerged = 0;
@@ -1345,6 +1453,7 @@ window.importData = function (raw, importType, options = {}) {
       let watchedOtherMerged = 0;
       let untiered = [];
       let unmatchedRated = [];
+      let ambiguousWatchlist = [];
       data.items.forEach((entry) => {
         // state.peopleById is fully derived on every load, so the URL needs
         // its own persisted side-table - keyed through the same alias
@@ -1359,9 +1468,10 @@ window.importData = function (raw, importType, options = {}) {
           state.directorLinks[window.normalizePersonName(canonicalName)] =
             entry.sourceUrl;
         }
-        let archiveMatches = countSourceFilmsForEntry(entry);
-        if (archiveMatches) {
+        let archiveResult = updateSourceFilmsForDirector(entry);
+        if (archiveResult.matched) {
           archiveMatched += 1;
+          archiveUpdated += archiveResult.updated ? 1 : 0;
           if (entry.ratingValue) recordArchiveRatingConflicts(entry);
           duplicateWatchlistRemoved +=
             removeWatchlistItemsForFranchiseEntry(entry);
@@ -1377,6 +1487,10 @@ window.importData = function (raw, importType, options = {}) {
           return;
         }
         if (!entry.tier) untiered.push(entry);
+        let watchlistCandidates = watchlistCandidatesForFranchiseEntry(entry);
+        if (!entry.year && watchlistCandidates.length > 1) {
+          ambiguousWatchlist.push(entry);
+        }
         let result = upsertWatchlistDirectorEntry(entry);
         if (result.added) watchlistAdded += 1;
         else if (result.changed) watchlistMerged += 1;
@@ -1396,6 +1510,11 @@ window.importData = function (raw, importType, options = {}) {
           `${unmatchedRated.length} Directors sheet row(s) had a star rating but did not match an archive film; they were stored as watched entries of unknown type instead of watchlist rows.`,
         );
       }
+      if (ambiguousWatchlist.length) {
+        report.warnings.push(
+          `${ambiguousWatchlist.length} Directors sheet row(s) had no year and matched multiple watchlist titles; a new watchlist row may have been added.`,
+        );
+      }
       report.directorSummary = {
         lanes: data.diagnostics?.lanes || 0,
         headers: data.diagnostics?.headers || 0,
@@ -1405,11 +1524,17 @@ window.importData = function (raw, importType, options = {}) {
         tiered: data.diagnostics?.tieredItems || 0,
         untiered: data.diagnostics?.untieredItems || 0,
         archiveMatched,
+        archiveUpdated,
         watchlistMerged,
         watchlistAdded,
         duplicateWatchlistRemoved,
         watchedOtherAdded,
         watchedOtherMerged,
+        ambiguousWatchlist: ambiguousWatchlist.slice(0, 25).map((entry) => ({
+          rowNumber: entry.rowNumber,
+          title: entry.title,
+          director: entry.director,
+        })),
         untieredRows: untiered.slice(0, 25).map((entry) => ({
           rowNumber: entry.rowNumber,
           title: entry.title,
@@ -1424,7 +1549,7 @@ window.importData = function (raw, importType, options = {}) {
         })),
       };
       report.warnings.push(
-        `Directors sheet read ${data.diagnostics?.headers || 0} director header(s) across ${data.diagnostics?.lanes || 0} lane(s): ${archiveMatched} already-watched match(es), ${watchlistMerged} watchlist merge(s), ${watchlistAdded} watchlist addition(s), ${duplicateWatchlistRemoved} archive duplicate watchlist removal(s).`,
+        `Directors sheet read ${data.diagnostics?.headers || 0} director header(s) across ${data.diagnostics?.lanes || 0} lane(s): ${archiveMatched} already-watched match(es), ${archiveUpdated} archive update(s), ${watchlistMerged} watchlist merge(s), ${watchlistAdded} watchlist addition(s), ${duplicateWatchlistRemoved} archive duplicate watchlist removal(s).`,
       );
       window.recomputeWatchlistOrder?.();
       state.watchlistOrderVersion = 1;

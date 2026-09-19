@@ -28,7 +28,11 @@ window.supabaseWatchlistTierItemsInOrder = function (tier) {
   return (workspace?.watchlist || [])
     .filter((row) => row.tier === tier)
     .sort((left, right) =>
-      left.position < right.position ? -1 : left.position > right.position ? 1 : 0,
+      left.position < right.position
+        ? -1
+        : left.position > right.position
+          ? 1
+          : 0,
     );
 };
 
@@ -59,7 +63,8 @@ window.supabaseWatchlistPeriodKeys = function (tier, periodType) {
     else if (periodType === "century") keys.add(window.getCenturyKey(year));
   });
   return [...keys].sort(
-    (left, right) => Number(left.replace(/s$/, "")) - Number(right.replace(/s$/, "")),
+    (left, right) =>
+      Number(left.replace(/s$/, "")) - Number(right.replace(/s$/, "")),
   );
 };
 
@@ -71,7 +76,11 @@ window.supabaseWatchlistPeriodKeys = function (tier, periodType) {
  * @param {string} [periodKey] Ignored when periodType is "all".
  * @returns {Object[]}
  */
-window.supabaseWatchlistTierPeriodScopeItems = function (tier, periodType, periodKey) {
+window.supabaseWatchlistTierPeriodScopeItems = function (
+  tier,
+  periodType,
+  periodKey,
+) {
   let items = window.supabaseWatchlistTierItemsInOrder(tier);
   if (periodType === "all") return items;
   return items.filter((row) => {
@@ -79,7 +88,8 @@ window.supabaseWatchlistTierPeriodScopeItems = function (tier, periodType, perio
     if (!Number.isInteger(year)) return false;
     if (periodType === "year") return String(year) === periodKey;
     if (periodType === "decade") return window.getDecadeKey(year) === periodKey;
-    if (periodType === "century") return window.getCenturyKey(year) === periodKey;
+    if (periodType === "century")
+      return window.getCenturyKey(year) === periodKey;
     return false;
   });
 };

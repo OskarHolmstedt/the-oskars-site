@@ -11,8 +11,7 @@
  * Supabase directly, alongside tag.js's shared UI helpers
  * (supabase-entity-note.js, supabase-watchlist-bulk-tier.js).
  *
- * Same scope reduction as every other #439 cutover: "Start project" is
- * dropped (Supabase's projects schema isn't built yet), and
+ * Source-backed projects use the shared Supabase project action, while
  * state.watchedOther/franchiseLinks stay unpopulated by the hydration
  * source (#438's own documented deferred list) - so "Other watched" and a
  * franchise's sourceUrl link are empty here, same as every #438 hydrated
@@ -21,6 +20,7 @@
 (function () {
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let container = document.getElementById("franchisePage");
 
   let franchiseId = window.pageQueryParam("id");
@@ -60,8 +60,11 @@
   let sections = window.sectionsViewMode();
   let combinedView = sections === "combined";
   let watchlistOrderEditMode =
-    !combinedView && window.pageQueryParam("edit") === "watchlist-order";
+    canEdit &&
+    !combinedView &&
+    window.pageQueryParam("edit") === "watchlist-order";
   let localRankEditMode =
+    canEdit &&
     !combinedView &&
     filmSort === "local" &&
     window.pageQueryParam("edit") === "local-rank";
@@ -464,15 +467,18 @@
       ? `<p class="franchise-completion-caveat">${escape(ui("All known films watched. Completion counts known films only — add missing entries to the watchlist to track true coverage."))}</p>`
       : "";
     let watchlistOrderControls =
-      watchlistEntries.length && !combinedView
+      canEdit && watchlistEntries.length && !combinedView
         ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-franchise-watchlist-order-edit-toggle${busy ? " disabled" : ""}>${escape(ui(watchlistOrderEditMode ? "Finish order" : "Reorder"))}</button>${watchlistOrderEditMode ? `<span>${escape(ui("Edits global watchlist order inside the same interest tier only."))}</span>` : ""}</div>`
         : "";
     let localRankControls =
-      !combinedView && filmSort === "local" && localRankEntries.length > 1
+      canEdit &&
+      !combinedView &&
+      filmSort === "local" &&
+      localRankEntries.length > 1
         ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-franchise-local-rank-edit-toggle${busy ? " disabled" : ""}>${escape(ui(localRankEditMode ? "Finish order" : "Reorder"))}</button>${localRankEditMode ? `<span>${escape(ui("Drag to set this collection's independent local order."))}</span>` : `<a class="sort-order-button" href="${escape(window.localRankMergePageUrl("franchises", franchise.id, franchiseViewUrl()))}">${escape(ui("Merge-sort tool"))}</a>`}</div>`
         : "";
     let watchlistBulkTierControls =
-      watchlistEntries.length && !combinedView
+      canEdit && watchlistEntries.length && !combinedView
         ? `<div class="period-edit-controls">${window.renderSupabaseWatchlistBulkTierControl({ count: watchlistEntries.length, busy, escape })}</div>`
         : "";
     document.title = `${franchise.name} · The Oskars`;
@@ -496,7 +502,7 @@
       ],
       { escape },
     )}
-    ${window.renderDetailHeader({ classes: "franchise-detail-header", leadingHtml: representativePoster ? `<div class="franchise-detail-poster">${representativePoster}</div>` : "", mainHtml: `<h1>${escape(franchise.name)}</h1><p>${parentLinks ? `${escape(ui("Part of"))} ${parentLinks}` : escape(ui("Franchise"))}${sourceLinkHtml}</p>` })}
+    ${window.renderDetailHeader({ classes: "franchise-detail-header", leadingHtml: representativePoster ? `<div class="franchise-detail-poster">${representativePoster}</div>` : "", mainHtml: `<h1>${escape(franchise.name)}</h1><p>${parentLinks ? `${escape(ui("Part of"))} ${parentLinks}` : escape(ui("Franchise"))}${sourceLinkHtml}</p>`, actionsHtml: window.renderSourceProjectAction("franchise", franchise.id, { escape, buttonClass: "button-link" }) })}
     ${window.renderCollectionViewController({ view: collectionPageView, overviewUrl: window.franchisePageUrl(franchise.id), awardsUrl: `${window.franchisePageUrl(franchise.id)}&collection-view=awards`, escape, ui })}
     <div data-collection-page-view="films" ${collectionPageView === "films" ? "" : "hidden"}>
     ${window.renderDetailStats({ itemsHtml: `<span><b>${completion.watchedCount}</b> ${escape(ui("Watched"))}</span>${completion.watchlistCount ? `<span><b>${completion.watchlistCount}</b> Watchlist</span>` : ""}<span><b>${completion.total}</b> ${escape(ui("Known"))}</span><span><b>${completion.percent}%</b> ${escape(ui("Complete"))}</span>${years.length ? `<span><b>${Math.min(...years)}–${Math.max(...years)}</b> ${escape(ui("Years"))}</span>` : ""}<span><b>${children.length}</b> ${escape(ui("Child franchises"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}
@@ -516,6 +522,18 @@
     ${otherRows ? `<section class="franchise-other-watched"><h2>${escape(ui("Other watched"))}</h2>${filmView === "grid" ? `<div class="film-grid franchise-film-grid">${otherGrid}</div>` : window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Director"), ui("Type"), ui("Rating")].map(escape), rows: otherRows })}</section>` : ""}</div>
     <div data-collection-page-view="awards" ${collectionPageView === "awards" ? "" : "hidden"}>${window.renderCollectionAwardsView(collectionAwardModel, { escape, ui })}</div>`;
     container
+      .querySelectorAll("[data-start-project-source]")
+      .forEach((button) => {
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          await window.startProjectFromSourceAndOpen(
+            button.dataset.startProjectSource,
+            button.dataset.projectSourceId,
+          );
+          button.disabled = false;
+        });
+      });
+    container
       .querySelector("[data-franchise-sort]")
       ?.addEventListener("change", (event) => {
         window.location.href = franchiseViewUrl({
@@ -526,19 +544,21 @@
     container
       .querySelector("[data-franchise-watchlist-order-edit-toggle]")
       ?.addEventListener("click", () => {
+        if (!canEdit || busy) return;
         watchlistOrderEditMode = !watchlistOrderEditMode;
         window.location.href = franchiseViewUrl();
       });
     container
       .querySelector("[data-franchise-local-rank-edit-toggle]")
       ?.addEventListener("click", () => {
+        if (!canEdit || busy) return;
         localRankEditMode = !localRankEditMode;
         window.location.href = franchiseViewUrl();
       });
     window.createOrderEditController({
       container,
       scope: "watchlist",
-      enabled: () => watchlistOrderEditMode,
+      enabled: () => canEdit && watchlistOrderEditMode,
       rejectedMessage: ui(
         "Watchlist ordering moves are limited to the same interest tier.",
       ),
@@ -589,7 +609,7 @@
     window.createOrderEditController({
       container,
       scope: "local-rank",
-      enabled: () => localRankEditMode,
+      enabled: () => canEdit && localRankEditMode,
       commit: async (from, target, position) => {
         let ok = await window.moveSupabaseLocalRankFilm(
           "franchise",

@@ -111,16 +111,21 @@
     if (plan.notes.length)
       lines.push("", ui("Details"), ...plan.notes.map((item) => `• ${item}`));
     if (plan.warnings.length)
-      lines.push("", ui("Warnings"), ...plan.warnings.map((item) => `• ${item}`));
+      lines.push(
+        "",
+        ui("Warnings"),
+        ...plan.warnings.map((item) => `• ${item}`),
+      );
     if (plan.errors.length)
       lines.push("", ui("Blocked"), ...plan.errors.map((item) => `• ${item}`));
     return lines.join("\n");
   };
 
-  /** Opens a focused placement review and calls the supplied action once accepted. @param {NominationPlacementPlan} plan Placement plan. @param {() => void} onApply Apply callback. @returns {boolean} Whether a valid review was opened. */
-  window.reviewNominationPlacementPlan = function (plan, onApply) {
+  /** Opens a focused placement review and calls the supplied action once accepted. @param {NominationPlacementPlan} plan Placement plan. @param {() => void} onApply Apply callback. @param {() => void} [onCancel] Cancel callback. @returns {boolean} Whether a valid review was opened. */
+  window.reviewNominationPlacementPlan = function (plan, onApply, onCancel) {
     if (!plan.ok) {
       window.alert?.(window.nominationPlacementPlanText(plan));
+      onCancel?.();
       return false;
     }
     let escape = window.pageEscape || ((value) => String(value ?? ""));
@@ -146,8 +151,11 @@
       finished = true;
       dialog.remove();
       if (apply) onApply?.();
+      else onCancel?.();
     }
-    dialog.addEventListener("close", () => finish(dialog.returnValue === "apply"));
+    dialog.addEventListener("close", () =>
+      finish(dialog.returnValue === "apply"),
+    );
     dialog.addEventListener("cancel", () => finish(false));
     document.body.appendChild(dialog);
     if (dialog.showModal) dialog.showModal();
@@ -229,7 +237,9 @@
         });
         if (!auditEntry.undo)
           throw new Error(
-            ui("A safe undo snapshot could not be recorded for this operation."),
+            ui(
+              "A safe undo snapshot could not be recorded for this operation.",
+            ),
           );
       }
       plan.applied = true;

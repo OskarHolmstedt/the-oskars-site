@@ -987,6 +987,7 @@
     "unique to first": { sv: "unika för den första" },
     "unique to second": { sv: "unika för den andra" },
     "Search watched films...": { sv: "Sök sedda filmer..." },
+    "Search films": { sv: "Sök filmer" },
     "Search films, people, periods...": {
       sv: "Sök filmer, personer, perioder...",
     },
@@ -1031,6 +1032,9 @@
     },
     "Could not update {category} recipients.": {
       sv: "Kunde inte uppdatera mottagare för {category}.",
+    },
+    "Could not update this item.": {
+      sv: "Det gick inte att uppdatera objektet.",
     },
     "Clear director filter": { sv: "Rensa regissörsfilter" },
     "Data and backups": { sv: "Data och backup" },

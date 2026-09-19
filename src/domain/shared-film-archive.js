@@ -59,9 +59,8 @@ window.rebuildSharedFilmArchiveByIdIndex = function (map) {
  */
 window.applySharedFilmArchive = function (map) {
   window.OSKARS_SHARED_FILM_ARCHIVE = map || {};
-  window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID = window.rebuildSharedFilmArchiveByIdIndex(
-    window.OSKARS_SHARED_FILM_ARCHIVE,
-  );
+  window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID =
+    window.rebuildSharedFilmArchiveByIdIndex(window.OSKARS_SHARED_FILM_ARCHIVE);
   window.OSKARS_SHARED_FILM_ARCHIVE_VERSION += 1;
   window.OSKARS_SHARED_FILM_ARCHIVE_STATUS = "ready";
   sharedFilmArchiveListeners.forEach((listener) => listener());
@@ -177,7 +176,8 @@ window.sharedArchiveFilmsOutsideCollection = function (
     if (!record) return;
     let tmdbId = String(record.tmdbId || "").trim();
     if (tmdbId) ownTmdbIds.add(tmdbId);
-    else ownTitleYearKeys.add(sharedArchiveTitleYearKey(record));
+    let titleYear = sharedArchiveTitleYearKey(record);
+    if (titleYear) ownTitleYearKeys.add(titleYear);
   }
   Object.values(window.state?.filmsById || {}).forEach(noteOwn);
   (window.state?.watchedOther || []).forEach(noteOwn);
@@ -224,8 +224,8 @@ function officialNomineeFilmPeopleCredits(nominations, metadata) {
   nominations.forEach((nomination) => {
     let profession = window.PERSON_AWARD_PROFESSIONS?.[nomination.category];
     if (!profession) return;
-    (window.parsePersonCredit?.(nomination.recipient).names || []).forEach((name) =>
-      addPerson(name, profession),
+    (window.parsePersonCredit?.(nomination.recipient).names || []).forEach(
+      (name) => addPerson(name, profession),
     );
   });
   return people;
@@ -260,7 +260,12 @@ window.officialNomineeSharedFilmRecords = function () {
           nominationsByTmdbId.set(tmdbId, []);
           firstSeenByTmdbId.set(tmdbId, {
             title: nomination.sourceTitle || "",
-            years,
+            years: [...years],
+          });
+        } else {
+          let entry = firstSeenByTmdbId.get(tmdbId);
+          years.forEach((year) => {
+            if (!entry.years.includes(year)) entry.years.push(year);
           });
         }
         nominationsByTmdbId.get(tmdbId).push(nomination);
@@ -300,7 +305,9 @@ window.sharedArchiveCandidateFilms = function () {
     organic.map((film) => String(film.tmdbId || "")).filter(Boolean),
   );
   let nominees = window
-    .sharedArchiveFilmsOutsideCollection(window.officialNomineeSharedFilmRecords())
+    .sharedArchiveFilmsOutsideCollection(
+      window.officialNomineeSharedFilmRecords(),
+    )
     .filter((film) => !organicTmdbIds.has(String(film.tmdbId || "")));
   return [...organic, ...nominees];
 };
@@ -323,7 +330,8 @@ window.sharedArchiveFilmsForPeriod = function (type, key) {
       );
       if (!years.length) return false;
       if (type === "alltime") return true;
-      if (type === "year") return years.some((year) => String(year) === String(key));
+      if (type === "year")
+        return years.some((year) => String(year) === String(key));
       if (type === "decade")
         return years.some((year) => window.getDecadeKey(year) === key);
       if (type === "century")
@@ -351,7 +359,9 @@ window.sharedArchiveFilmsForPeriod = function (type, key) {
 function externalRecordDirector(record) {
   return (
     record?.director ||
-    (record?.people ? window.sharedArchiveFilmDirectorNames(record).join(", ") : "")
+    (record?.people
+      ? window.sharedArchiveFilmDirectorNames(record).join(", ")
+      : "")
   );
 }
 
@@ -407,7 +417,9 @@ window.sharedArchiveCandidateFilmByTmdbId = function (tmdbId) {
   if (!id) return null;
   return (
     window.OSKARS_SHARED_FILM_ARCHIVE?.[id] ||
-    window.sharedArchiveCandidateFilms().find((candidate) => String(candidate.tmdbId || "") === id) ||
+    window
+      .sharedArchiveCandidateFilms()
+      .find((candidate) => String(candidate.tmdbId || "") === id) ||
     null
   );
 };
@@ -471,7 +483,10 @@ window.addFilmRecordToWatched = async function (record) {
     type: record?.type,
   });
   if (!plan.ok)
-    return { ok: false, reason: plan.errors?.[0] || "Could not add this film." };
+    return {
+      ok: false,
+      reason: plan.errors?.[0] || "Could not add this film.",
+    };
   let result = window.applyFreshWatchedFilm(plan, { save: false });
   if (!result.ok)
     return { ok: false, reason: result.reason || "Could not add this film." };

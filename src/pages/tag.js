@@ -4,6 +4,7 @@
   const PAGE_SIZE = 20;
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let container = document.getElementById("tagPage");
 
   let requestedTag = window.pageQueryParam("name");
@@ -37,9 +38,11 @@
     Number(window.pageQueryParam("watchlistPage")) || 1,
   );
   let watchlistOrderEditMode =
+    canEdit &&
     sections !== "combined" &&
     window.pageQueryParam("edit") === "watchlist-order";
   let localRankEditMode =
+    canEdit &&
     sections !== "combined" &&
     sort === "local" &&
     window.pageQueryParam("edit") === "local-rank";
@@ -339,15 +342,15 @@
       return `<div class="tag-section-heading"><h2>${escape(ui(title))}</h2><span>${escape(countLabel)}</span></div>`;
     }
     let localRankControls =
-      !combinedView && sort === "local" && films.length > 1
+      canEdit && !combinedView && sort === "local" && films.length > 1
         ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-tag-local-rank-edit-toggle${busy ? " disabled" : ""}>${escape(ui(localRankEditMode ? "Finish order" : "Reorder"))}</button>${localRankEditMode ? `<span>${escape(ui("Drag to set this collection's independent local order."))}</span>` : `<a class="sort-order-button" href="${escape(window.localRankMergePageUrl("tags", tagId, tagViewUrl()))}">${escape(ui("Merge-sort tool"))}</a>`}</div>`
         : "";
     let watchlistOrderControls =
-      sortedWatchlistItems.length && !combinedView
+      canEdit && sortedWatchlistItems.length && !combinedView
         ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-tag-watchlist-order-edit-toggle${busy ? " disabled" : ""}>${escape(ui(watchlistOrderEditMode ? "Finish order" : "Reorder"))}</button>${watchlistOrderEditMode ? `<span>${escape(ui("Edits global watchlist order inside the same interest tier only."))}</span>` : ""}</div>`
         : "";
     let watchlistBulkTierControls =
-      sortedWatchlistItems.length && !combinedView
+      canEdit && sortedWatchlistItems.length && !combinedView
         ? `<div class="period-edit-controls">${window.renderSupabaseWatchlistBulkTierControl({ count: sortedWatchlistItems.length, busy, escape })}</div>`
         : "";
     let watchedPaginationHtml = paginationControls(
@@ -385,8 +388,20 @@
     let ratingStatistics = window.collectionRatingStatistics(tagFilms);
 
     document.title = `${canonicalTag} · ${ui("Tags")} · The Oskars`;
-    container.innerHTML = `${window.renderBreadcrumbs([{ label: ui("Tags"), href: "tags.html" }, { label: canonicalTag }], { escape })}${window.renderDetailHeader({ mainHtml: `<h1>${escape(canonicalTag)}</h1>` })}${window.renderDetailStats({ itemsHtml: `<span><b>${films.length}</b> ${escape(ui(films.length === 1 ? "Film" : "Films"))}</span>${sortedWatchlistItems.length ? `<span><b>${sortedWatchlistItems.length}</b> ${escape(ui("Watchlist"))}</span>` : ""}${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}${window.renderSupabaseEntityNote({ entityKind: "tag", entityKey: canonicalTag, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Tag note"), escape })}${toolbarHtml}${combinedView ? combinedContentHtml : splitContentHtml}`;
+    container.innerHTML = `${window.renderBreadcrumbs([{ label: ui("Tags"), href: "tags.html" }, { label: canonicalTag }], { escape })}${window.renderDetailHeader({ mainHtml: `<h1>${escape(canonicalTag)}</h1>`, actionsHtml: window.renderSourceProjectAction("tag", canonicalTag, { escape, buttonClass: "button-link" }) })}${window.renderDetailStats({ itemsHtml: `<span><b>${films.length}</b> ${escape(ui(films.length === 1 ? "Film" : "Films"))}</span>${sortedWatchlistItems.length ? `<span><b>${sortedWatchlistItems.length}</b> ${escape(ui("Watchlist"))}</span>` : ""}${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}${window.renderSupabaseEntityNote({ entityKind: "tag", entityKey: canonicalTag, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Tag note"), escape })}${toolbarHtml}${combinedView ? combinedContentHtml : splitContentHtml}`;
 
+    container
+      .querySelectorAll?.("[data-start-project-source]")
+      .forEach((button) => {
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          await window.startProjectFromSourceAndOpen(
+            button.dataset.startProjectSource,
+            button.dataset.projectSourceId,
+          );
+          button.disabled = false;
+        });
+      });
     container
       .querySelector?.("[data-tag-sort]")
       ?.addEventListener("change", (event) => {
@@ -414,19 +429,21 @@
     container
       .querySelector?.("[data-tag-watchlist-order-edit-toggle]")
       ?.addEventListener("click", () => {
+        if (!canEdit || busy) return;
         watchlistOrderEditMode = !watchlistOrderEditMode;
         window.location.href = tagViewUrl();
       });
     container
       .querySelector?.("[data-tag-local-rank-edit-toggle]")
       ?.addEventListener("click", () => {
+        if (!canEdit || busy) return;
         localRankEditMode = !localRankEditMode;
         window.location.href = tagViewUrl();
       });
     window.createOrderEditController({
       container,
       scope: "watchlist",
-      enabled: () => watchlistOrderEditMode,
+      enabled: () => canEdit && watchlistOrderEditMode,
       rejectedMessage: ui(
         "Watchlist ordering moves are limited to the same interest tier.",
       ),
@@ -458,30 +475,38 @@
           position === "after" ? target.id : tierItems[toIndex - 1]?.id || null;
         let afterId =
           position === "after" ? tierItems[toIndex + 1]?.id || null : target.id;
-        await window.moveSupabaseWatchlistItemWithinTier(
-          from.id,
-          window.getSupabaseWorkspace()?.watchlist || [],
-          beforeId,
-          afterId,
-        );
-        return { ok: true };
+        try {
+          await window.moveSupabaseWatchlistItemWithinTier(
+            from.id,
+            window.getSupabaseWorkspace()?.watchlist || [],
+            beforeId,
+            afterId,
+          );
+          return { ok: true };
+        } catch (error) {
+          return { ok: false, reason: error?.message || String(error) };
+        }
       },
       rerender: reload,
     });
     window.createOrderEditController({
       container,
       scope: "local-rank",
-      enabled: () => localRankEditMode,
+      enabled: () => canEdit && localRankEditMode,
       commit: async (from, target, position) => {
-        let ok = await window.moveSupabaseLocalRankFilm(
-          "tag",
-          tagId,
-          implicitTagFilmIds,
-          from.id,
-          target.id,
-          position,
-        );
-        return ok ? { ok: true } : { ok: false };
+        try {
+          let ok = await window.moveSupabaseLocalRankFilm(
+            "tag",
+            tagId,
+            implicitTagFilmIds,
+            from.id,
+            target.id,
+            position,
+          );
+          return ok ? { ok: true } : { ok: false };
+        } catch (error) {
+          return { ok: false, reason: error?.message || String(error) };
+        }
       },
       rerender: reload,
     });
@@ -547,6 +572,19 @@
           window.supabaseLegacyHydrationWatchlistItem(row, index, chains),
         )
         .filter(Boolean);
+      window.registerTransientProjectSource?.("tag", canonicalTag, {
+        name: canonicalTag,
+        sourceLabel: canonicalTag,
+        filmRefs: [
+          ...tagFilms.map((film) => window.projectFilmRef("archive", film.id)),
+          ...watchlistItems.map((item) =>
+            window.projectFilmRef(
+              "watchlist",
+              item.id || window.watchlistItemId(item),
+            ),
+          ),
+        ],
+      });
       implicitTagFilmIds = [...tagFilms]
         .sort(
           (left, right) =>

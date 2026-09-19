@@ -2,7 +2,8 @@
 
 (function () {
   function escapeHtml(value) {
-    let escape = window.pageEscape || ((text) => String(text ?? ""));
+    let escape =
+      window.escapeHtml || window.pageEscape || ((text) => String(text ?? ""));
     return escape(value);
   }
 

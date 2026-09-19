@@ -65,7 +65,8 @@
    * @returns {Object} The same session, mutated.
    */
   window.undoMergeChoice = function (session) {
-    let side = session?.history?.pop();
+    if (!session || session.done) return session;
+    let side = session.history?.pop();
     if (!side) return session;
     session.merged.pop();
     if (side === "a") session.pointerA -= 1;

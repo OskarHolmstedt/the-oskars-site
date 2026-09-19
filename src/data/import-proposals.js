@@ -276,6 +276,22 @@ window.applyImportProposal = async function (proposal, options = {}) {
       errors: ["Could not retain the current recovery workspace."],
     };
 
+  let postAwaitPlan = window.planImportProposalApplication(
+    proposal,
+    window.state,
+  );
+  if (!postAwaitPlan.ok) {
+    return {
+      ok: false,
+      stale: true,
+      errors: postAwaitPlan.errors.length
+        ? postAwaitPlan.errors
+        : [
+            "The archive was modified while saving recovery workspace. Please re-preview the import proposal against the latest state.",
+          ],
+    };
+  }
+
   let appliedAt = new Date().toISOString();
   window.state = Object.assign(
     window.createEmptyState(),

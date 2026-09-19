@@ -240,48 +240,50 @@ window.lookupTmdbFilmPoster = async function (film, fetchFn) {
     ? [film.title]
     : [...new Set(numberWordVariants(film.title))];
   for (let year of candidateYears) {
-    for (let title of titleVariants) {
-      let poster = await window.lookupTmdbPoster(
-        { tmdbId: film.tmdb_id, title, year },
-        fetchFn,
-      );
-      if (!poster) continue;
-      if (
-        film.tmdb_id ||
-        (await isExactTitleMatch(title, poster.providerId, fetchFn))
-      )
-        return {
-          poster,
-          correctedYear: year !== film.year ? year : null,
-          mediaType: "movie",
-        };
-      // Loose substring+year match rejected - keep trying other
-      // years/title variants rather than silently accepting a
-      // probably-wrong film.
-    }
+    let variantPosters = await Promise.all(
+      titleVariants.map(async (title) => {
+        let poster = await window.lookupTmdbPoster(
+          { tmdbId: film.tmdb_id, title, year },
+          fetchFn,
+        );
+        if (!poster) return null;
+        if (
+          film.tmdb_id ||
+          (await isExactTitleMatch(title, poster.providerId, fetchFn))
+        )
+          return {
+            poster,
+            correctedYear: year !== film.year ? year : null,
+            mediaType: "movie",
+          };
+        return null;
+      }),
+    );
+    let match = variantPosters.find(Boolean);
+    if (match) return match;
   }
-  let tvMatch = await window.lookupTmdbTvSearch(
-    { title: film.title, year: film.year },
-    fetchFn,
-  );
-  if (!tvMatch?.poster_path) return null;
-  // tvMatch.id already carries the "TV:<id>" notation (lookupTmdbTvSearch
-  // adds it), so providerId is set to the SAME notation, not a bare id
-  // stripped back off - lookupTmdbFilmMetadata below (and any other
-  // consumer of a "tv" mediaType result) needs to tell a TV match from a
-  // movie match by its providerId's own shape via parseTmdbReference,
-  // exactly like lookupKnownTvEpisodePoster's own providerId already does.
-  let tvId = String(tvMatch.id).replace(/^TV:/, "");
-  return {
-    poster: window.normalizePosterRecord({
-      url: `https://image.tmdb.org/t/p/w500${tvMatch.poster_path}`,
-      source: "tmdb",
-      sourceUrl: `https://www.themoviedb.org/tv/${tvId}`,
-      providerId: `TV:${tvId}`,
-    }),
-    correctedYear: null,
-    mediaType: "tv",
-  };
+  for (let year of candidateYears) {
+    let tvMatches = await Promise.all(
+      titleVariants.map(async (title) => {
+        let tvMatch = await window.lookupTmdbTvSearch({ title, year }, fetchFn);
+        if (!tvMatch?.poster_path) return null;
+        let tvId = String(tvMatch.id).replace(/^TV:/, "");
+        return {
+          poster: window.normalizePosterRecord({
+            url: `https://image.tmdb.org/t/p/w500${tvMatch.poster_path}`,
+            source: "tmdb",
+            sourceUrl: `https://www.themoviedb.org/tv/${tvId}`,
+            providerId: `TV:${tvId}`,
+          }),
+          correctedYear: year !== film.year ? year : null,
+          mediaType: "tv",
+        };
+      }),
+    );
+    let match = tvMatches.find(Boolean);
+    if (match) return match;
+  }
+  return null;
 };
 
 /**

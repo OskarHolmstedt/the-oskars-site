@@ -174,11 +174,8 @@
         ...new Set(window.parseFilmTags?.(film.tags) || []),
       ].sort();
       if (stable(desired) === stable(sourceTags.get(filmId) || [])) continue;
-      let { error: deleteError } = await client
-        .from("film_tags")
-        .delete()
-        .eq("film_id", filmId);
-      if (deleteError) throw deleteError;
+
+      let desiredTagIds = [];
       for (let name of desired) {
         let { data: tag, error: tagError } = await client
           .from("tags")
@@ -186,12 +183,39 @@
           .select("id")
           .single();
         if (tagError) throw tagError;
-        let { error } = await client.from("film_tags").insert({
-          user_id: authUserId,
-          film_id: filmId,
-          tag_id: tag.id,
-        });
-        if (error) throw error;
+        desiredTagIds.push(tag.id);
+      }
+
+      if (desiredTagIds.length) {
+        let { error: insertError } = await client.from("film_tags").upsert(
+          desiredTagIds.map((tagId) => ({
+            user_id: authUserId,
+            film_id: filmId,
+            tag_id: tagId,
+          })),
+          { onConflict: "user_id,film_id,tag_id" },
+        );
+        if (insertError) throw insertError;
+      }
+
+      let { data: existingRows, error: fetchError } = await client
+        .from("film_tags")
+        .select("tag_id")
+        .eq("user_id", authUserId)
+        .eq("film_id", filmId);
+      if (fetchError) throw fetchError;
+
+      let toRemove = (existingRows || [])
+        .map((r) => r.tag_id)
+        .filter((id) => !desiredTagIds.includes(id));
+      if (toRemove.length) {
+        let { error: deleteError } = await client
+          .from("film_tags")
+          .delete()
+          .eq("user_id", authUserId)
+          .eq("film_id", filmId)
+          .in("tag_id", toRemove);
+        if (deleteError) throw deleteError;
       }
     }
   }
@@ -219,7 +243,18 @@
       .insert({ slug, name, parent_id: parentId || null })
       .select("id")
       .single();
-    if (error) throw error;
+    if (error) {
+      if (error.code === "23505") {
+        let { data: retryExisting, error: retryError } = await client
+          .from("franchises")
+          .select("id,parent_id")
+          .eq("slug", slug)
+          .single();
+        if (retryError) throw retryError;
+        return retryExisting.id;
+      }
+      throw error;
+    }
     return data.id;
   }
 
@@ -469,7 +504,8 @@
       ["Rankings", () => syncRankings(ready.client, source, films)],
       [
         "Watchlist",
-        () => syncWatchlist(ready.client, source, window.state?.watchlist || []),
+        () =>
+          syncWatchlist(ready.client, source, window.state?.watchlist || []),
       ],
     ];
     for (let index = 0; index < stages.length; index++) {
@@ -479,6 +515,10 @@
     }
     window.OSKARS_SUPABASE_HYDRATION_SOURCE =
       await window.loadSupabaseLegacyHydrationSource();
+    window.writeCachedSupabaseHydrationSource?.(
+      auth.user.id,
+      window.OSKARS_SUPABASE_HYDRATION_SOURCE,
+    );
     window.applySharedFilmArchive?.(
       window.buildSharedFilmArchiveFromSupabase(
         window.OSKARS_SUPABASE_HYDRATION_SOURCE.catalogFilms,
@@ -503,6 +543,7 @@
     let operation = saveChain.catch(() => false).then(() => reconcile(options));
     saveChain = operation.catch((error) => {
       console.error("Could not save Supabase page changes", error);
+      window.invalidateCachedSupabaseHydrationSource?.();
       window.showStorageStatus?.(error.message || String(error), "error");
       window.alert?.(error.message || String(error));
       return false;
