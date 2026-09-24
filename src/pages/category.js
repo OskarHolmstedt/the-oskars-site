@@ -98,26 +98,30 @@
     window.history.replaceState(null, "", url);
   }
 
-  function chronologyUrl() {
+  function categoryModeUrl(display, order) {
     let url = window.categoryPageUrl(category);
     if (viewMode !== "rankings") url += `&view=${encodeURIComponent(viewMode)}`;
     if (selectedTypes.size !== typeOrder.length)
-      url += `&types=${encodeURIComponent(selectedTypes.size ? typeOrder.filter((type) => selectedTypes.has(type)).join(",") : "none")}`;
-    if (displayMode !== defaultDisplayMode(viewMode))
-      url += `&display=${encodeURIComponent(displayMode)}`;
-    if (chronologyOrder === "asc") url += "&order=desc";
+      url += `&types=${encodeURIComponent(
+        selectedTypes.size
+          ? typeOrder.filter((type) => selectedTypes.has(type)).join(",")
+          : "none",
+      )}`;
+    if (display !== defaultDisplayMode(viewMode))
+      url += `&display=${encodeURIComponent(display)}`;
+    if (order) url += `&order=${encodeURIComponent(order)}`;
     return url;
   }
 
+  function chronologyUrl() {
+    return categoryModeUrl(
+      displayMode,
+      chronologyOrder === "asc" ? "desc" : "",
+    );
+  }
+
   function displayModeUrl(mode) {
-    let url = window.categoryPageUrl(category);
-    if (viewMode !== "rankings") url += `&view=${encodeURIComponent(viewMode)}`;
-    if (selectedTypes.size !== typeOrder.length)
-      url += `&types=${encodeURIComponent(selectedTypes.size ? typeOrder.filter((type) => selectedTypes.has(type)).join(",") : "none")}`;
-    if (mode !== defaultDisplayMode(viewMode))
-      url += `&display=${encodeURIComponent(mode)}`;
-    if (chronologyOrder === "desc") url += "&order=desc";
-    return url;
+    return categoryModeUrl(mode, chronologyOrder === "desc" ? "desc" : "");
   }
 
   function creditForEntry(entry) {

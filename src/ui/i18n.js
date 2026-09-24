@@ -21,6 +21,12 @@
     "nav.rateWatched": { sv: "Betygsätt sedda" },
     "action.view": { sv: "Visa" },
     "search.placeholder": { sv: "Sök" },
+    "search.loading": { sv: "Laddar sökning…" },
+    "search.error": { sv: "Kunde inte ladda sökningen." },
+    "shell.onDemand": { sv: "Öppna för att ladda ditt arkiv." },
+    "shell.loading": { sv: "Laddar arkiv…" },
+    "shell.error": { sv: "Kunde inte ladda arkivet." },
+    "shell.retry": { sv: "Försök igen" },
     "search.aria": { sv: "Sök i The Oskars" },
     "search.type.film": { sv: "Film" },
     "search.type.otherwatched": { sv: "Övrigt sett" },
@@ -77,8 +83,35 @@
   };
 
   let literalTranslations = {
+    "Not watched": { sv: "Inte sedd" },
+    "Trophy cabinet": { sv: "Troféskåp" },
+    "Fixed collections. Every film counts.": {
+      sv: "Fasta samlingar. Varje film räknas.",
+    },
+    "Trophy earned": { sv: "Trofé intjänad" },
+    "You did the impossible.": { sv: "Du gjorde det omöjliga." },
+    "Your mission: watch all eight films.": {
+      sv: "Ditt uppdrag: se alla åtta filmer.",
+    },
+    "{watched} of {total} watched": { sv: "{watched} av {total} sedda" },
+    "View the eight films": { sv: "Visa de åtta filmerna" },
+    "This collection is fixed at eight films. Existing watches count; future releases do not change it.":
+      {
+        sv: "Den här samlingen består av åtta fasta filmer. Redan sedda filmer räknas; framtida filmer ändrar inte samlingen.",
+      },
+
+    "Loading statistics…": { sv: "Laddar statistik…" },
+    "Loading…": { sv: "Laddar…" },
+    "Could not load completion data.": {
+      sv: "Kunde inte ladda färdigställandedata.",
+    },
+    "Could not load statistics.": { sv: "Kunde inte ladda statistiken." },
+    "Try again": { sv: "Försök igen" },
+    "Use the existing statistics view": {
+      sv: "Använd den befintliga statistikvyn",
+    },
     // Data-health finding issue labels and severity tokens
-    // (src/domain/data-health.js, src/data/health-view.js) - these were
+    // (src/domain/data-health.js) - these were
     // falling back to raw English in Swedish locale (issue #497 sweep
     // finding). Note: the nomination-plans.js dialog headings this same
     // finding flagged (Changes/Details/Warnings/Blocked/Cancel) turned out
@@ -132,12 +165,6 @@
     "Import from another service": { sv: "Importera från en annan tjänst" },
     "Ranking scopes": { sv: "Rankingomfattningar" },
     "Award placements": { sv: "Prisutnämningar" },
-    "{count} watched film(s) are missing poster artwork.": {
-      sv: "{count} sedda filmer saknar affischbild.",
-    },
-    "Every watched film has a shared-catalog poster.": {
-      sv: "Varje sedd film har en affisch i den delade katalogen.",
-    },
     "Account storage is not configured.": {
       sv: "Kontolagringen är inte konfigurerad.",
     },
@@ -187,13 +214,57 @@
     "Save the previewed Google Sheets changes to your account?": {
       sv: "Spara de förhandsgranskade Google Sheets-ändringarna i ditt konto?",
     },
-    "Permanently erase your ratings, rankings, and other opinions? A backup downloads first.":
+    "Watched history": { sv: "Visningshistorik" },
+    "Removes every watched film, along with its rating, review, and rewatch preference.":
       {
-        sv: "Radera dina betyg, rankningar och andra åsikter permanent? En säkerhetskopia hämtas först.",
+        sv: "Tar bort varje sedd film, tillsammans med dess betyg, recension och omtittningsval.",
       },
-    "Opinions erased. Watch history and catalog facts remain.": {
-      sv: "Åsikterna raderades. Visningshistorik och katalogfakta finns kvar.",
+    "Ratings and reviews": { sv: "Betyg och recensioner" },
+    "Clears star ratings, music scores, and written reviews. Watch dates and history stay.":
+      {
+        sv: "Rensar stjärnbetyg, musikbetyg och skrivna recensioner. Visningsdatum och -historik finns kvar.",
+      },
+    "Rewatch preferences": { sv: "Omtittningsval" },
+    'Clears "want to rewatch" flags and rewatch tiers.': {
+      sv: 'Rensar markeringar för "vill se om" och omtittningsnivåer.',
     },
+    "Removes every film from your watchlist, including its tier and order.": {
+      sv: "Tar bort varje film från din watchlist, inklusive dess nivå och ordning.",
+    },
+    "Watchlist tiers": { sv: "Watchlist-nivåer" },
+    "Clears interest tiers on watchlist entries. Membership and order stay.": {
+      sv: "Rensar intressenivåer på watchlist-poster. Medlemskap och ordning finns kvar.",
+    },
+    "Watchlist ranking": { sv: "Watchlist-rangordning" },
+    "Clears your manual watchlist order. Membership and tiers stay.": {
+      sv: "Rensar din manuella watchlist-ordning. Medlemskap och nivåer finns kvar.",
+    },
+    "Rankings (watched films)": { sv: "Rankningar (sedda filmer)" },
+    "Deletes every year/decade/century/all-time ranking, and saved ranking-review progress.":
+      {
+        sv: "Raderar varje års-, decennie-, sekel- och genomtidsrankning, samt sparade framsteg i rankningsgranskningen.",
+      },
+    "Deletes every personal award ballot, its nominations, and its reviewed status.":
+      {
+        sv: "Raderar varje personlig prisomröstning, dess nomineringar och dess granskningsstatus.",
+      },
+    "Deletes notes left on people, periods, franchises, tags, categories, and projects.":
+      {
+        sv: "Raderar anteckningar lämnade på personer, perioder, franchiser, taggar, kategorier och projekt.",
+      },
+    "Deletes your custom tags and removes them from every film.": {
+      sv: "Raderar dina egna taggar och tar bort dem från varje film.",
+    },
+    "Projects and collections": { sv: "Projekt och samlingar" },
+    "Deletes every project and collection you've built, and any local film order inside them.":
+      {
+        sv: "Raderar varje projekt och samling du har byggt, samt eventuell lokal filmordning i dem.",
+      },
+    "Permanently delete this, with no way to undo it: {labels}? A backup downloads first.":
+      {
+        sv: "Radera detta permanent, utan möjlighet att ångra: {labels}? En säkerhetskopia hämtas först.",
+      },
+    "Deleted: {labels}.": { sv: "Raderat: {labels}." },
     "{count} winners": { sv: "{count} vinnare" },
     "Latest winner": { sv: "Senaste vinnare" },
     "No winner selected yet": { sv: "Ingen vinnare vald ännu" },
@@ -234,6 +305,10 @@
     "Jump to a period": { sv: "Hoppa till en period" },
     "Open all-time, a century, a decade, or any populated year.": {
       sv: "Öppna alla tider, ett århundrade, ett årtionde eller valfritt år med innehåll.",
+    },
+    "Loading collection awards…": { sv: "Laddar samlingspriser…" },
+    "Could not load collection awards.": {
+      sv: "Kunde inte ladda samlingspriser.",
     },
     "Build your Oskars": { sv: "Bygg dina Oskars" },
     "Your film journey": { sv: "Din filmresa" },
@@ -852,6 +927,24 @@
     "Personal award": { sv: "Personligt pris" },
     "Official result": { sv: "Officiellt resultat" },
     "Any tag": { sv: "Alla taggar" },
+    "All time": { sv: "Alla tider" },
+    "Collection filters": { sv: "Samlingsfilter" },
+    "Combine collections within groups, then combine the groups. Other filters still apply.":
+      {
+        sv: "Kombinera samlingar inom grupper och kombinera sedan grupperna. Övriga filter gäller fortfarande.",
+      },
+    "All (intersection)": { sv: "Alla (snitt)" },
+    "Any (union)": { sv: "Någon (union)" },
+    "Match groups": { sv: "Matcha grupper" },
+    "Match collections": { sv: "Matcha samlingar" },
+    "Group {number}": { sv: "Grupp {number}" },
+    "Remove group": { sv: "Ta bort grupp" },
+    "Unavailable collection": { sv: "Otillgänglig samling" },
+    "Remove {name}": { sv: "Ta bort {name}" },
+    "Add collection": { sv: "Lägg till samling" },
+    "Choose a collection": { sv: "Välj en samling" },
+    "Add group": { sv: "Lägg till grupp" },
+    "Clear collection filters": { sv: "Rensa samlingsfilter" },
     "Any franchise": { sv: "Alla franchiser" },
     Won: { sv: "Vunnit" },
     Nominated: { sv: "Nominerad" },
@@ -1741,6 +1834,11 @@
     "No watchlist loaded": { sv: "Ingen watchlist laddad" },
     "No watchlist films in this period.": {
       sv: "Inga watchlist-filmer i den här perioden.",
+    },
+    "Loading watchlist…": { sv: "Laddar watchlist…" },
+    "Could not load the watchlist.": { sv: "Kunde inte ladda watchlisten." },
+    "Still loading your watchlist - try again in a moment.": {
+      sv: "Laddar fortfarande din watchlist – försök igen om en stund.",
     },
     "No watched films use this tag.": {
       sv: "Inga sedda filmer använder den här taggen.",

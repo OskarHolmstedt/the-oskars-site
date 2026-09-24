@@ -606,10 +606,6 @@ window.importData = function (raw, importType, options = {}) {
       return updateSourceFilmsForLaneEntry(entry, { director: entry.director });
     }
 
-    function countSourceFilmsForEntry(entry) {
-      return updateSourceFilmsForLaneEntry(entry).matched;
-    }
-
     function watchlistCandidatesForFranchiseEntry(entry) {
       let title = normalizeTitle(entry?.title || "");
       if (!title) return [];

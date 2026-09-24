@@ -19,13 +19,6 @@
  */
 
 (function () {
-  let RANK_FIELD_BY_SCOPE_TYPE = {
-    years: "yearRank",
-    decades: "decadeRank",
-    centuries: "centuryRank",
-    allTime: "allTimeRank",
-  };
-
   /**
    * Returns the state that the entry loader has already hydrated from
    * Supabase. This preserves established controller startup calls without
@@ -62,7 +55,13 @@
             ? "Director"
             : String(credit.role || "").trim();
         if (!profession) return;
-        people[id] ||= { name, professions: [] };
+        people[id] ||= { name, professions: [], supabasePersonIds: [] };
+        let supabasePersonId = credit.people?.id;
+        if (
+          supabasePersonId &&
+          !people[id].supabasePersonIds.includes(supabasePersonId)
+        )
+          people[id].supabasePersonIds.push(supabasePersonId);
         if (!people[id].professions.includes(profession))
           people[id].professions.push(profession);
       });
@@ -166,10 +165,22 @@
    * @returns {Object} Partial FilmRecord.
    */
   function reshapeSharedFilmFields(film, chains) {
-    let directors = (film.credits || [])
-      .filter((credit) => credit.role === "director")
+    let directorCredits = (film.credits || []).filter(
+      (credit) => credit.role === "director",
+    );
+    let directors = directorCredits
       .map((credit) => credit.people?.name)
       .filter(Boolean);
+    // credits.person_id is a real, already-correct foreign key (issue
+    // #633) - carried through here (not just the display name) so a
+    // consumer can look a director up by id instead of re-deriving
+    // identity from name text. Index-aligned with `directors` above (both
+    // filtered from the same list, in the same order) rather than a
+    // name->id map, since a real duplicate-named-director film is exactly
+    // the case an id map would silently collapse.
+    let directorIds = directorCredits
+      .filter((credit) => credit.people?.name)
+      .map((credit) => credit.people?.id || null);
     let tags = (film.film_tags || [])
       .map((entry) => entry.tags?.name)
       .filter(Boolean);
@@ -190,6 +201,7 @@
       year: film.year != null ? String(film.year) : "",
       director: directors.join(", "),
       directors,
+      directorIds,
       tmdbId: film.tmdb_id != null ? String(film.tmdb_id) : "",
       country: film.country || "",
       primaryCountry: film.primary_country || "",
@@ -280,6 +292,7 @@
       order: index + 1,
       director: shared.director,
       directors: shared.directors,
+      directorIds: shared.directorIds,
       country: shared.country,
       medium: shared.medium,
       screenplayType: shared.screenplayType,
@@ -293,12 +306,12 @@
   };
 
   /**
-   * Builds `{years, watchedOther, watchlist, publicProfileDisplayName}` from raw Supabase
+   * Builds the film collections, person portraits, and profile name from raw Supabase
    * rows - the exact fields `window.state` needs assigned before
    * `rebuildAggregates()` runs. Pure; call sites own actually mutating
    * `window.state` and calling `rebuildAggregates()` afterward.
    * @param {Object} source Result of `window.loadSupabaseLegacyHydrationSource()`.
-   * @returns {{years: Object, watchedOther: Object[], watchlist: Object[], publicProfileDisplayName: string}}
+   * @returns {{years: Object, watchedOther: Object[], watchlist: Object[], personPortraits: Record<string, PosterRecord>, publicProfileDisplayName: string}}
    */
   window.buildLegacyStateFromSupabaseHydration = function (source) {
     let chains = buildFranchiseChains(source.franchises);
@@ -320,11 +333,14 @@
     });
     let allTimeFilms = [];
     (source.rankings || []).forEach((ranking) => {
-      let rankField = RANK_FIELD_BY_SCOPE_TYPE[ranking.scope_type];
+      let rankField = window.RANK_FIELD_BY_SCOPE_TYPE[ranking.scope_type];
       (ranking.ranking_entries || []).forEach((entry, index) => {
         let film = filmsBySupabaseId.get(entry.film_id);
         if (!film) return;
-        if (rankField) film[rankField] = index + 1;
+        // An explicit rank (read_ranking_positions(), issue #633) wins over
+        // the array index - a compact read only carries a film's own
+        // entries, so its index isn't its position in the whole ranking.
+        if (rankField) film[rankField] = entry.rank ?? index + 1;
         if (rankField)
           film.rankConfirmedByScope[ranking.scope_type] =
             entry.rank_confirmed !== false;
@@ -354,6 +370,7 @@
             personId:
               window.normalizePersonName?.(recipient.recipient_name) ||
               recipient.recipient_name,
+            supabasePersonId: recipient.person_id || null,
           }),
         );
         film.awards.push({
@@ -371,11 +388,27 @@
 
     let years = {};
     let watchedOther = [];
+    // "Other watched" is for a watched entry with no real rank anywhere
+    // (typically a Short/Stage/TV-series Diary viewing that was never
+    // meant to compete in the ranked archive) - NOT for every non-"Film"
+    // type. A TV-film or Anthology the owner explicitly ranked (a real
+    // Fixed/Dynamic Rank in their own All-time sheet) belongs in the
+    // normal ranked years/all-time lists like any other film; `type` is
+    // a classification/tag on it, not a reason to exclude an otherwise-
+    // ranked film from where its own rank already places it. Excluding
+    // by type alone previously dropped every ranked TV-film/Anthology
+    // from both its year page and the all-time list entirely.
     function isOther(film) {
       let type = String(film.type || "")
         .trim()
         .toLowerCase();
-      return Boolean(type && type !== "film");
+      if (!type || type === "film") return false;
+      return !(
+        Number(film.allTimeRank) > 0 ||
+        Number(film.yearRank) > 0 ||
+        Number(film.decadeRank) > 0 ||
+        Number(film.centuryRank) > 0
+      );
     }
     filmsBySupabaseId.forEach((film) => {
       if (isOther(film)) {
@@ -397,10 +430,33 @@
       )
       .filter(Boolean);
 
+    let personPortraits = {};
+    // slug -> people.id for people rows already loaded (issue #633); a slug
+    // shared by two different rows is recorded as null (ambiguous).
+    let personSupabaseIds = {};
+    (source.people || []).forEach((person) => {
+      let id = window.normalizePersonName(person.name);
+      if (id && person.id)
+        personSupabaseIds[id] =
+          id in personSupabaseIds && personSupabaseIds[id] !== person.id
+            ? null
+            : person.id;
+      let portrait = window.normalizePosterRecord({
+        url: person.portrait_url,
+        source: person.portrait_source,
+        sourceUrl: person.portrait_source_url,
+        providerId: person.portrait_provider_id,
+        fetchedAt: person.portrait_fetched_at,
+      });
+      if (id && portrait) personPortraits[id] = portrait;
+    });
+
     return {
       years,
       watchedOther,
       watchlist,
+      personPortraits,
+      personSupabaseIds,
       publicProfileDisplayName: source.profile?.display_name || "",
     };
   };

@@ -12,6 +12,92 @@
  * lookupTmdbPersonPortrait) have no such coupling and are reused as-is.
  */
 
+// Writing-crew job titles that signal a screenplay is adapted from a
+// pre-existing source (novel, comic, play, etc.) rather than being an
+// original creation. Matched case-insensitively against the `job` field
+// on each crew member in department "Writing".
+const ADAPTED_SCREENPLAY_JOBS = new Set([
+  "novel",
+  "book",
+  "author",
+  "comic book",
+  "graphic novel",
+  "characters",
+  "theatre play",
+  "short story",
+  "based on characters by",
+  "story", // "Story" alone usually means adapted source material
+  "based on",
+  "screen story", // often signals a prior-published story
+  "based on the novel",
+  "based on the book",
+  "based on the comic book",
+  "based on the graphic novel",
+]);
+
+// Genre 16 is TMDB's canonical Animation genre id.
+const TMDB_ANIMATION_GENRE_ID = 16;
+
+/**
+ * Extracts film classification signals (medium, screenplay type, language)
+ * from an already-fetched TMDB movie-details response. Avoids additional
+ * API calls — this is a pure derivation over data `lookupTmdbMovieDetails`
+ * already returns (genres, credits.crew, original_language).
+ *
+ * All three signals are heuristics: TMDB data is crowdsourced and sometimes
+ * incomplete. The caller treats an unknown/null result the same as missing
+ * data and never hard-blocks on it.
+ *
+ * @param {Object|null} details TMDB movie-details response (may be null for TV).
+ * @returns {{medium: 'animation'|'live-action'|null, screenplayType: 'original'|'adapted'|'unknown'|null, originalLanguage: string|null}}
+ */
+window.extractTmdbFilmClassification = function (details) {
+  if (!details || details._media_type === "tv") {
+    return { medium: null, screenplayType: null, originalLanguage: null };
+  }
+
+  // Medium: animation if genre 16 is present, otherwise live-action.
+  // "hybrid" is not auto-assigned from this signal alone — a human import
+  // path already handles that label.
+  let genres = details.genres || [];
+  let medium = genres.some((g) => g?.id === TMDB_ANIMATION_GENRE_ID)
+    ? "animation"
+    : "live-action";
+
+  // Screenplay type: inspect Writing department crew for source-material
+  // jobs. Only a confirmed mismatch sets adapted/original; no writing
+  // credits at all yields "unknown".
+  let crew = details?.credits?.crew || details?.crew || [];
+  let writingCrew = crew.filter(
+    (person) =>
+      String(person?.department || "").toLowerCase() === "writing" ||
+      ADAPTED_SCREENPLAY_JOBS.has(
+        String(person?.job || "")
+          .toLowerCase()
+          .trim(),
+      ),
+  );
+  let screenplayType;
+  if (!writingCrew.length) {
+    screenplayType = "unknown";
+  } else {
+    let hasAdaptedSignal = writingCrew.some((person) =>
+      ADAPTED_SCREENPLAY_JOBS.has(
+        String(person?.job || "")
+          .toLowerCase()
+          .trim(),
+      ),
+    );
+    screenplayType = hasAdaptedSignal ? "adapted" : "original";
+  }
+
+  let originalLanguage = details.original_language
+    ? String(details.original_language).trim().toLowerCase()
+    : null;
+
+  return { medium, screenplayType, originalLanguage };
+};
+
 /**
  * Runs a small bounded-concurrency worker pool over a candidate list,
  * calling `lookup` then `apply` for each, tolerating individual failures
@@ -307,16 +393,30 @@ window.lookupTmdbFilmPoster = async function (film, fetchFn) {
  * rather than writing a value nothing downstream can safely interpret.
  * @param {{tmdb_id: number|null, title: string, year: number|null}} film
  * @param {Function} fetchFn
- * @returns {Promise<{poster: PosterRecord, correctedYear: number|null, country: string|null, primaryCountry: string|null, runtimeMinutes: number|null, tmdbId: string|null}|null>}
+ * @returns {Promise<{poster: PosterRecord, correctedYear: number|null, country: string|null, primaryCountry: string|null, runtimeMinutes: number|null, director: string|null, directors: {tmdbId: number|null, name: string, profilePath: string|null}[], tmdbId: string|null, medium: 'animation'|'live-action'|null, screenplayType: 'original'|'adapted'|'unknown'|null, originalLanguage: string|null}|null>}
  */
 window.lookupTmdbFilmMetadata = async function (film, fetchFn) {
   let result = await window.lookupTmdbFilmPoster(film, fetchFn);
   if (!result) return result;
   if (result.mediaType === "tv") {
     let reference = window.parseTmdbReference(result.poster.providerId);
-    let { country, primaryCountry, runtimeMinutes } =
+    let { country, primaryCountry, runtimeMinutes, director, directors } =
       await window.lookupTmdbTvMetadataFields(reference, fetchFn);
-    return { ...result, country, primaryCountry, runtimeMinutes, tmdbId: null };
+    // Classification signals are movie-specific heuristics; TV matches
+    // return null so the caller does not overwrite any existing human-set
+    // medium/screenplay_type values with an unknowing null.
+    return {
+      ...result,
+      country,
+      primaryCountry,
+      runtimeMinutes,
+      director: director || null,
+      directors: directors || [],
+      tmdbId: null,
+      medium: null,
+      screenplayType: null,
+      originalLanguage: null,
+    };
   }
   let details = await window.lookupTmdbMovieDetails(
     result.poster.providerId,
@@ -325,13 +425,31 @@ window.lookupTmdbFilmMetadata = async function (film, fetchFn) {
   let countries = (details?.production_countries || [])
     .map((country) => String(country.name || "").trim())
     .filter(Boolean);
+  let crew = details?.credits?.crew || details?.crew || [];
+  let directors = crew
+    .filter((person) => person.job === "Director")
+    .map((person) => ({
+      tmdbId: person.id ? Number(person.id) : null,
+      name: String(person.name || "").trim(),
+      profilePath: person.profile_path || null,
+    }))
+    .filter((person) => person.name);
+  let director = directors.map((d) => d.name).join(", ") || null;
+  // Reuse details already fetched above — no extra round trip.
+  let { medium, screenplayType, originalLanguage } =
+    window.extractTmdbFilmClassification(details);
   return {
     ...result,
     country: countries.join(", ") || null,
     primaryCountry: countries[0] || null,
     runtimeMinutes:
       Number(details?.runtime) > 0 ? Number(details.runtime) : null,
+    director,
+    directors,
     tmdbId: String(result.poster.providerId),
+    medium,
+    screenplayType,
+    originalLanguage,
   };
 };
 
@@ -505,7 +623,7 @@ window.findAmbiguousNullYearFilms = function (films) {
  * can safely interpret as a movie id.
  * @param {{mediaType: "movie"|"tv", id: string, season: number|null, episode: number|null}} reference
  * @param {Function} fetchFn
- * @returns {Promise<{poster: PosterRecord|null, year: number|null, country: string|null, primaryCountry: string|null, runtimeMinutes: number|null, releaseYearOptions: string[], runtimeOptions: number[], tmdbId: string|null, title: string}|null>}
+ * @returns {Promise<{poster: PosterRecord|null, year: number|null, country: string|null, primaryCountry: string|null, runtimeMinutes: number|null, director: string|null, directors: {tmdbId: number|null, name: string, profilePath: string|null}[], releaseYearOptions: string[], runtimeOptions: number[], tmdbId: string|null, title: string}|null>}
  */
 window.lookupTmdbReferenceMatch = async function (reference, fetchFn) {
   if (reference.mediaType === "tv") {
@@ -515,7 +633,7 @@ window.lookupTmdbReferenceMatch = async function (reference, fetchFn) {
     );
     if (!details?.id) return null;
     let posterPath = details.poster_path || details.still_path || null;
-    let { country, primaryCountry, runtimeMinutes } =
+    let { country, primaryCountry, runtimeMinutes, director, directors } =
       await window.lookupTmdbTvMetadataFields(reference, fetchFn);
     return {
       poster: posterPath
@@ -530,6 +648,8 @@ window.lookupTmdbReferenceMatch = async function (reference, fetchFn) {
       country,
       primaryCountry,
       runtimeMinutes,
+      director: director || null,
+      directors: directors || [],
       tmdbId: null,
       title: details.name || details.title || "",
     };
@@ -542,6 +662,18 @@ window.lookupTmdbReferenceMatch = async function (reference, fetchFn) {
   let year = details.release_date
     ? Number(String(details.release_date).slice(0, 4))
     : null;
+  let crew = details?.credits?.crew || details?.crew || [];
+  let directors = crew
+    .filter((person) => person.job === "Director")
+    .map((person) => ({
+      tmdbId: person.id ? Number(person.id) : null,
+      name: String(person.name || "").trim(),
+      profilePath: person.profile_path || null,
+    }))
+    .filter((person) => person.name);
+  let director = directors.map((d) => d.name).join(", ") || null;
+  let { medium, screenplayType, originalLanguage } =
+    window.extractTmdbFilmClassification(details);
   return {
     poster: details.poster_path
       ? window.normalizePosterRecord({
@@ -556,6 +688,8 @@ window.lookupTmdbReferenceMatch = async function (reference, fetchFn) {
     primaryCountry: countries[0] || null,
     runtimeMinutes:
       Number(details.runtime) > 0 ? Number(details.runtime) : null,
+    director,
+    directors,
     // Every OTHER legitimate release year/runtime TMDB lists (regional
     // release dates, translated-cut runtimes) - lets a caller that force-
     // corrects a film's data (applyConfirmedTmdbMatch,
@@ -563,10 +697,13 @@ window.lookupTmdbReferenceMatch = async function (reference, fetchFn) {
     // but still genuinely valid one" from "the existing value is just
     // wrong", rather than always overwriting with only this single
     // "primary" pick.
-    releaseYearOptions: window.tmdbReleaseYearOptions(details),
-    runtimeOptions: window.tmdbRuntimeOptions(details),
+    releaseYearOptions: window.tmdbReleaseYearOptions?.(details) || [],
+    runtimeOptions: window.tmdbRuntimeOptions?.(details) || [],
     tmdbId: String(details.id),
     title: details.title || details.original_title || "",
+    medium,
+    screenplayType,
+    originalLanguage,
   };
 };
 

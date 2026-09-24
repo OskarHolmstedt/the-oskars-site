@@ -28,7 +28,7 @@ window.diaryEntryKind = diaryEntryKind;
  *   diagnostics.
  */
 window.parseDiary = function (raw) {
-  let parsed = parseRankedList(raw, { includeRowNumbers: true });
+  let parsed = window.parseRankedList(raw, { includeRowNumbers: true });
   if (!parsed) return null;
   let rankFields = [
     "rank",

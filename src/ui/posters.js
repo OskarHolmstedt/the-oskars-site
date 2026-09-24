@@ -6,11 +6,7 @@
  * @returns {string}
  */
 window.posterSourceLabel = function (poster) {
-  return poster?.source === "tmdb"
-    ? "TMDB"
-    : poster?.source === "wikimedia"
-      ? "Wikimedia"
-      : "";
+  return poster?.source === "tmdb" ? "TMDB" : "";
 };
 
 // Mirrors window.pageEscape's own body - a defensive fallback for the rare
@@ -49,18 +45,58 @@ window.renderFilmPoster = function (film, variant = "card") {
   }</figure>`;
 };
 
+// A dozen hand-drawn character sketches (src/assets/portrait-placeholders/)
+// standing in for a person with no TMDB portrait. Picked per-person via a
+// stable hash of their id (mirrors src/ui/backdrop.js's stablePagePoster),
+// not Math.random, so the same person shows the same sketch on every render
+// instead of flickering between page loads.
+const PORTRAIT_PLACEHOLDER_SKETCHES = [
+  "src/assets/portrait-placeholders/amphibian-creature.png",
+  "src/assets/portrait-placeholders/cyborg-broken-face.png",
+  "src/assets/portrait-placeholders/elephant-musician.png",
+  "src/assets/portrait-placeholders/eye-over-dark-towers.png",
+  "src/assets/portrait-placeholders/ghostly-mask-lineart.png",
+  "src/assets/portrait-placeholders/hal-9000-panel.png",
+  "src/assets/portrait-placeholders/hand-drawn-godzilla.png",
+  "src/assets/portrait-placeholders/ice-suit-dome.png",
+  "src/assets/portrait-placeholders/muzzled-figure.png",
+  "src/assets/portrait-placeholders/serious-man-mohawk.png",
+  "src/assets/portrait-placeholders/tars-robot.png",
+  "src/assets/portrait-placeholders/wrinkled-parasite-torso.png",
+];
+
+function stablePortraitPlaceholder(personId) {
+  let hash = [...String(personId ?? "")].reduce(
+    (value, character) => (value * 31 + character.charCodeAt(0)) >>> 0,
+    0,
+  );
+  return PORTRAIT_PLACEHOLDER_SKETCHES[
+    hash % PORTRAIT_PLACEHOLDER_SKETCHES.length
+  ];
+}
+
 /**
- * Renders a person portrait from the record or portrait store.
+ * Renders a person portrait from the record or portrait store, falling back
+ * to a stable placeholder sketch when the person has none.
  * @param {PersonRecord} person Person to render.
  * @param {string} [variant] Presentation variant.
  * @returns {string}
  */
 window.renderPersonPortrait = function (person, variant = "detail") {
-  let portrait = window.normalizePosterRecord?.(
-    person?.portrait || state.personPortraits?.[person?.id],
-  );
-  if (!portrait) return "";
   let escape = window.pageEscape || defaultPosterEscape;
+  let portrait =
+    window.normalizePosterRecord?.(person?.portrait) ||
+    window.normalizePosterRecord?.(state.personPortraits?.[person?.id]);
+  if (!portrait) {
+    if (!person) return "";
+    let sketch = stablePortraitPlaceholder(person.id);
+    let image = `<img src="${escape(sketch)}" alt="" loading="lazy" decoding="async">`;
+    let figureClass = `person-portrait person-portrait--${escape(variant)} person-portrait--placeholder-sketch`;
+    if (variant !== "detail")
+      return `<figure class="${figureClass}">${image}</figure>`;
+    let personLink = window.personPageUrl?.(person.id) || "";
+    return `<figure class="${figureClass}">${personLink ? `<a href="${escape(personLink)}">${image}</a>` : image}</figure>`;
+  }
   let image = `<img src="${escape(portrait.url)}" alt="Portrait of ${escape(person.name)}" loading="lazy" decoding="async">`;
   if (variant !== "detail")
     return `<figure class="person-portrait person-portrait--${escape(variant)}">${image}</figure>`;
@@ -102,8 +138,15 @@ window.awardRecipientPeople = function (award) {
 window.renderAwardWinnerImage = function (film, award, variant = "winner") {
   let recipients = window.awardRecipients(award);
   if (!recipients.length) return window.renderFilmPoster(film, variant);
-  let portraits = window
-    .awardRecipientPeople(award)
+  let people = window.awardRecipientPeople(award);
+  let withPortraits = people.filter(
+    (person) =>
+      window.normalizePosterRecord?.(person.portrait) ||
+      window.normalizePosterRecord?.(state.personPortraits?.[person.id]),
+  );
+  let filmPoster = window.renderFilmPoster(film, variant);
+  if (!withPortraits.length && filmPoster) return filmPoster;
+  let portraits = (withPortraits.length ? withPortraits : people)
     .map((person) => window.renderPersonPortrait(person, variant))
     .filter(Boolean)
     .slice(0, 6);
@@ -153,14 +196,19 @@ window.renderOfficialWinnerImage = function (nomination, variant = "winner") {
   );
 };
 
-/** Appends the shared image-provider attribution footer once. */
+/**
+ * Fills the shared site footer's attribution slot once. Was previously its
+ * own separate <footer class="data-attribution"> appended to <body> -
+ * merged into the one site-wide footer entry-loader.js's
+ * renderStaticSiteFooter() creates, so pages don't stack two <footer>
+ * elements (issue #587 follow-up).
+ */
 window.renderPosterAttribution = function () {
-  if (document.querySelector(".data-attribution")) return;
-  let footer = document.createElement("footer");
-  footer.className = "data-attribution";
-  footer.innerHTML =
-    'Image sources: <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer">TMDB</a> and <a href="https://www.wikimedia.org/" target="_blank" rel="noopener noreferrer">Wikimedia</a>. This product uses the TMDB API but is not endorsed or certified by TMDB.';
-  document.body.appendChild(footer);
+  let slot = document.querySelector("[data-footer-attribution]");
+  if (!slot || slot.dataset.attributionReady) return;
+  slot.dataset.attributionReady = "true";
+  slot.innerHTML =
+    'Image source: <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer">TMDB</a>. This product uses the TMDB API but is not endorsed or certified by TMDB.';
 };
 
 // Shared poster picker chrome (issue #25): the detail poster wrapped with

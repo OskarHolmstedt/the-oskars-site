@@ -185,6 +185,18 @@ function renderWatchlistSubPeriodSelect(
 // Cascading century -> decade -> year narrowing within the current period
 // (issue #154): each finer select's options are scoped by any coarser
 // selection already made, but not vice versa.
+// Turns a {key: count} counts object (as read_watchlist_page()'s
+// subPeriodCounts.{century,decade,year} returns it) into the same sorted
+// [[key, count], ...] tuple array watchlistSubPeriodGroupCounts() computes
+// client-side, so renderWatchlistSubPeriodSelect() (which only cares about
+// that shape) works identically regardless of which source produced it.
+function subPeriodCountsToOptions(counts) {
+  return Object.entries(counts || {}).sort(
+    (left, right) =>
+      Number(left[0].replace(/s$/, "")) - Number(right[0].replace(/s$/, "")),
+  );
+}
+
 /**
  * Renders the cascading century -> decade -> year sub-period narrowing
  * controls (issue #154) for the current period type; each finer select's
@@ -193,12 +205,62 @@ function renderWatchlistSubPeriodSelect(
  * @param {Object} [options] Rendering options.
  * @param {(value:*) => string} [options.escape] HTML escaper.
  * @param {Function} [options.ui] Localized-text function.
+ * @param {{century:Object, decade:Object, year:Object}} [options.subPeriodCounts]
+ *   Pre-computed counts (issue #598's compact read) to use instead of
+ *   recomputing from window.state.watchlist via periodWatchlistBaseEntries
+ *   - the compact RPC already scopes these exactly like this function's
+ *   own client-side computation below, so passing them is a drop-in swap,
+ *   not a different semantic.
  * @returns {string}
  */
 window.watchlistSubPeriodControls = function (filters, options = {}) {
   let escape = options.escape || window.pageEscape;
   let ui = options.ui || window.uiText || ((text) => text);
   if (filters.type === "year") return "";
+  if (options.subPeriodCounts) {
+    let counts = options.subPeriodCounts;
+    let selects = [];
+    if (filters.type === "alltime")
+      selects.push(
+        renderWatchlistSubPeriodSelect(
+          {
+            attribute: "century",
+            value: filters.subCentury,
+            allLabel: ui("All centuries"),
+            options: subPeriodCountsToOptions(counts.century),
+          },
+          escape,
+          ui,
+        ),
+      );
+    if (filters.type === "century" || filters.type === "alltime")
+      selects.push(
+        renderWatchlistSubPeriodSelect(
+          {
+            attribute: "decade",
+            value: filters.subDecade,
+            allLabel: ui("All decades"),
+            options: subPeriodCountsToOptions(counts.decade),
+          },
+          escape,
+          ui,
+        ),
+      );
+    selects.push(
+      renderWatchlistSubPeriodSelect(
+        {
+          attribute: "year",
+          value: filters.subYear,
+          allLabel: ui("All years"),
+          options: subPeriodCountsToOptions(counts.year),
+        },
+        escape,
+        ui,
+      ),
+    );
+    if (!selects.some(Boolean)) return "";
+    return `<fieldset class="period-filter-controls period-subperiod-filter-controls"><legend>${escape(ui("Narrow period"))}</legend>${selects.join("")}</fieldset>`;
+  }
   let baseEntries = window
     .periodWatchlistBaseEntries(filters)
     .filter((entry) => matchesWatchlistTier(entry, filters));
@@ -354,19 +416,31 @@ window.renderAddWatchlistForm = function (options = {}) {
  * @param {Object} [options] Rendering options.
  * @param {(value:*) => string} [options.escape] HTML escaper.
  * @param {Function} [options.ui] Localized-text function.
+ * @param {Object.<string,number>} [options.tierCounts] Pre-computed
+ *   `{tierKey: count}` counts (issue #598's compact read, "" for unset)
+ *   to use instead of recomputing from window.state.watchlist - the
+ *   compact RPC already scopes these exactly like
+ *   watchlistTierFilterEntries()'s own computation, so passing them is a
+ *   drop-in swap, not a different semantic.
  * @returns {string}
  */
 window.renderWatchlistTierFilter = function (filters, options = {}) {
   let escape = options.escape || window.pageEscape;
   let ui = options.ui || window.uiText || ((text) => text);
-  let entries = watchlistTierFilterEntries(filters);
   let counts = new Map(
     window.watchlistTierFilterValues().map((tier) => [tier, 0]),
   );
-  entries.forEach((entry) => {
-    let tier = window.normalizeWatchlistTier(entry.item.tier);
-    counts.set(tier, (counts.get(tier) || 0) + 1);
-  });
+  if (options.tierCounts) {
+    Object.entries(options.tierCounts).forEach(([tierKey, count]) => {
+      let tier = window.normalizeWatchlistTier(tierKey);
+      counts.set(tier, (counts.get(tier) || 0) + Number(count));
+    });
+  } else {
+    watchlistTierFilterEntries(filters).forEach((entry) => {
+      let tier = window.normalizeWatchlistTier(entry.item.tier);
+      counts.set(tier, (counts.get(tier) || 0) + 1);
+    });
+  }
   let selected = selectedTierSet(filters);
   let buttons = window
     .watchlistTierFilterValues()
@@ -771,10 +845,15 @@ window.wirePeriodWatchlistControls = function (container, handlers) {
       '[data-start-project-source="watchlist-filter"]',
     );
     if (projectButton && !projectButton.disabled) {
-      window.startProjectFromSourceAndOpen(
-        projectButton.dataset.startProjectSource,
-        projectButton.dataset.projectSourceId,
-      );
+      projectButton.disabled = true;
+      Promise.resolve(
+        window.startProjectFromSourceAndOpen(
+          projectButton.dataset.startProjectSource,
+          projectButton.dataset.projectSourceId,
+        ),
+      ).finally(() => {
+        projectButton.disabled = false;
+      });
       return;
     }
   });

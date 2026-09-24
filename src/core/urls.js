@@ -51,13 +51,38 @@ window.yearAwardsPageUrl = function (year) {
   return `awards-year.html?year=${encodeURIComponent(String(year || ""))}`;
 };
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * Builds a person detail URL.
- * @param {string} personId Canonical person id.
+ * Reports whether a value is a real database uuid (a `people.id`,
+ * `films.id`, ...) rather than a legacy name-derived slug.
+ * @param {*} value
+ * @returns {boolean}
+ */
+window.isUuid = function (value) {
+  return UUID_PATTERN.test(String(value || ""));
+};
+
+/**
+ * Builds a person detail URL keyed by the real `people.id` (issue #633)
+ * wherever it's known. Accepts a person record, a `people.id`, or a
+ * legacy name slug; a slug is translated through the loaded people index
+ * when that person has a single unambiguous database row, and otherwise
+ * kept as-is - person.html still resolves slugs, redirecting them to the
+ * uuid form.
+ * @param {string|{id: string, supabasePersonId?: string|null}} personOrId
  * @returns {string} Relative person URL.
  */
-window.personPageUrl = function (personId) {
-  return `person.html?id=${encodeURIComponent(String(personId || ""))}`;
+window.personPageUrl = function (personOrId) {
+  let key =
+    personOrId && typeof personOrId === "object"
+      ? personOrId.supabasePersonId || personOrId.id
+      : personOrId;
+  key = String(key || "");
+  if (key && !window.isUuid(key))
+    key = window.state?.peopleById?.[key]?.supabasePersonId || key;
+  return `person.html?id=${encodeURIComponent(key)}`;
 };
 
 /**

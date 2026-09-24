@@ -13,25 +13,10 @@
   const NOMINATION_UNDO_MAX_ACTIONS = 512;
   const NOMINATION_UNDO_MAX_BYTES = 1024 * 1024;
 
-  function stableJson(value) {
-    if (value === null || typeof value !== "object")
-      return JSON.stringify(value);
-    if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
-    return `{${Object.keys(value)
-      .sort()
-      .map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`)
-      .join(",")}}`;
-  }
-
   function nominationPeriodSignature(value) {
-    let json = stableJson(value === undefined ? null : value);
-    let first = 2166136261;
-    let second = 2654435769;
-    for (let index = 0; index < json.length; index += 1) {
-      let code = json.charCodeAt(index);
-      first = Math.imul(first ^ code, 16777619);
-      second = Math.imul(second ^ code, 2246822519);
-    }
+    let json = window.stableJson(value === undefined ? null : value);
+    let first = window.fnv1a32(json, 2166136261, 16777619);
+    let second = window.fnv1a32(json, 2654435769, 2246822519);
     return `${json.length}:${(first >>> 0).toString(16)}:${(second >>> 0).toString(16)}`;
   }
 
@@ -378,6 +363,7 @@
   let EDIT_UNDO_KINDS = {
     "nomination-periods": {
       structural: true,
+      normalize: normalizeNominationPeriodsUndo,
       plan: planNominationPeriodsUndo,
       apply: applyNominationPeriodsUndo,
     },
@@ -484,7 +470,7 @@
       resolve(target) {
         return { scope: target.noteScope, key: target.noteKey };
       },
-      read(note, key) {
+      read(note) {
         return String(noteStoreForUndo(note.scope)[note.key] || "").trim();
       },
       apply(note, restores) {
@@ -509,10 +495,9 @@
    */
   window.normalizeEditLogUndo = function (payload) {
     if (!payload || typeof payload !== "object") return null;
-    if (payload.kind === "nomination-periods")
-      return normalizeNominationPeriodsUndo(payload);
     let kind = EDIT_UNDO_KINDS[payload.kind];
     if (!kind) return null;
+    if (kind.structural) return kind.normalize ? kind.normalize(payload) : null;
     let target = {};
     for (let key of kind.targetKeys) {
       let value = String(payload.target?.[key] || "").trim();

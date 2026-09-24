@@ -62,31 +62,51 @@
         });
   }
 
-  // Film credits use the derived peopleByProfession groups. Most pages can keep
-  // the people index lazy, but the film page explicitly needs it before render.
-  window.ensurePeopleIndex?.();
-
   let filmId = window.pageQueryParam("id");
   let previewTmdbId = filmId ? "" : window.pageQueryParam("tmdb");
   let awardsView =
     window.pageQueryParam("awards") === "matrix" ? "matrix" : "periods";
   let container = document.getElementById("filmPage");
 
+  // Compact film detail (issue #617): window.OSKARS_FILM_COMPACT opts a
+  // canonical film.html?id=<filmId> visit into a fast initial paint from
+  // loadSupabaseFilmDetail() (one film's own watched/watchlist/rankings/
+  // personal-awards/franchises slice) instead of the eager full archive
+  // hydration every other film.html visit still gets. `compactActive`
+  // stays true only until a full hydration actually completes (either
+  // the eager background upgrade below, or an interactive action that
+  // needs it) - once it flips false it never flips back for the rest of
+  // this page's life, so every other function below runs completely
+  // unmodified from that point on, exactly like #598's own Watchlist
+  // cutover. `compactReady` tracks whether the one-film fetch itself has
+  // resolved yet - distinct from compactActive, which stays true even
+  // after that (until the *background full* hydration also finishes).
+  let compactActive = Boolean(window.OSKARS_FILM_COMPACT) && Boolean(filmId);
+  let compactReady = !compactActive;
+  let fullyHydratedPromise = null;
+
+  // Film credits use the derived peopleByProfession groups. Most pages can
+  // keep the people index lazy, but the film page explicitly needs it
+  // before render - except in compact mode, where the archive-wide alias
+  // index it builds (rebuildPeopleIndex()) is exactly the shared people/
+  // franchise infrastructure issue #617 rules out touching here, so the
+  // credits section defers until the real background full hydration below
+  // rebuilds it from complete data, same as ensureFilmFullyHydrated() does
+  // for the watchlist-detail view's archive-match-review section.
+  if (!compactActive) window.ensurePeopleIndex?.();
+
   // Watchlisted-film detail (issue #451/#457): film.html?id=<filmId> is now
   // the one canonical URL regardless of status - a Watchlisted film used to
   // live at a separate watchlist-film.html?id=<watchlistRowId> URL entirely.
-  // Resolved once at load, not recomputed per render, since a film's
-  // Watched/Watchlisted status doesn't change without a navigation away
-  // (mark-as-watched/add-to-watched both redirect elsewhere; removal shows
-  // an inline "Removed from watchlist" state via removedWatchlistSnapshot
-  // below, matching this file's existing shared-preview add flow rather
-  // than re-deriving status from window.state on every render).
-  let watchlistItem = filmId
-    ? window.state.watchlist?.find(
-        (entry) => entry.supabaseFilmId === filmId,
-      ) || null
-    : null;
-  let isWatchlistDetail = Boolean(watchlistItem);
+  // Recomputed once at load (and again once compact/full hydration lands),
+  // not on every render, since a film's Watched/Watchlisted status doesn't
+  // change without a navigation away (mark-as-watched/add-to-watched both
+  // redirect elsewhere; removal shows an inline "Removed from watchlist"
+  // state via removedWatchlistSnapshot below, matching this file's existing
+  // shared-preview add flow rather than re-deriving status from
+  // window.state on every render).
+  let watchlistItem = null;
+  let isWatchlistDetail = false;
   let watchlistBusy = false;
   let watchedBusy = false;
   let removedWatchlistSnapshot = null;
@@ -96,16 +116,104 @@
   // Supabase-side there's no separate "watchedOther" bucket) rather than a
   // live loadSupabaseWorkspace() call watchlist-film.js's own boot() used
   // to make - the data's already sitting in window.state by the time this
-  // page's script runs.
+  // runs (in compact mode, only once the real background full hydration
+  // has landed - a compact one-film read has no other titles to compare
+  // against, so this genuinely cross-item check defers alongside credits).
   let watchedTitlesByYear = new Map();
-  if (isWatchlistDetail) {
-    Object.values(window.state.filmsById || {}).forEach((watched) => {
-      let title = window.normalizeTitle(watched.title || "");
-      if (!title) return;
-      let entry = { title: watched.title, year: watched.year };
-      watchedTitlesByYear.set(`${title}::${watched.year || ""}`, entry);
-      watchedTitlesByYear.set(`${title}::`, entry);
-    });
+
+  function refreshWatchlistDetailState() {
+    watchlistItem = filmId
+      ? window.state.watchlist?.find(
+          (entry) => entry.supabaseFilmId === filmId,
+        ) || null
+      : null;
+    isWatchlistDetail = Boolean(watchlistItem);
+    watchedTitlesByYear = new Map();
+    if (isWatchlistDetail && !compactActive) {
+      Object.values(window.state.filmsById || {}).forEach((watched) => {
+        let title = window.normalizeTitle(watched.title || "");
+        if (!title) return;
+        let entry = { title: watched.title, year: watched.year };
+        watchedTitlesByYear.set(`${title}::${watched.year || ""}`, entry);
+        watchedTitlesByYear.set(`${title}::`, entry);
+      });
+    }
+  }
+
+  /**
+   * Resolves once window.state holds this film's complete personal record
+   * (issue #617) - a no-op once already hydrated (legacy mode, or a prior
+   * call already finished). Every write handler below calls this first, so
+   * a click that lands before the eager background upgrade finishes still
+   * waits for real data instead of risking a write against a partial
+   * state; #607's own reconcile() guard is the last-resort backstop this
+   * is meant to make normally unreachable, not depended on for
+   * correctness.
+   * @returns {Promise<void>}
+   */
+  function ensureFilmFullyHydrated() {
+    if (!compactActive) return Promise.resolve();
+    if (fullyHydratedPromise) return fullyHydratedPromise;
+    fullyHydratedPromise = (
+      window.ensureFocusedShellData?.() || Promise.resolve()
+    )
+      .then(() => {
+        compactActive = false;
+        window.ensurePeopleIndex?.();
+        refreshWatchlistDetailState();
+        render(currentlyEditing);
+        ensureOfficialResultsForThisFilm();
+      })
+      .catch((error) => {
+        // Leaves compactActive true so a later interaction can try again;
+        // the compact view itself keeps working from its own last-fetched
+        // data in the meantime, so a transient hydration failure doesn't
+        // break browsing, only temporarily disables writes/credits.
+        fullyHydratedPromise = null;
+        throw error;
+      });
+    return fullyHydratedPromise;
+  }
+
+  if (compactActive) {
+    window
+      .loadSupabaseFilmDetail(filmId)
+      .then((source) => {
+        Object.assign(
+          window.state,
+          window.buildLegacyStateFromSupabaseHydration(source),
+        );
+        // state.filmsById is rebuilt from state.years by rebuildAggregates()
+        // itself, not by the reshape above (buildLegacyStateFromSupabaseHydration
+        // only returns years/watchedOther/watchlist/personPortraits) -
+        // exactly the same second step ensureOskarsData() always takes.
+        window.rebuildAggregates();
+        compactReady = true;
+        refreshWatchlistDetailState();
+        render(currentlyEditing);
+        ensureOfficialResultsForThisFilm();
+        // Eager background upgrade: once the fast compact paint is
+        // showing, immediately start a full hydration in the background
+        // so writes/credits are almost always already safe to use by the
+        // time a person could actually reach for them - browsing itself
+        // never waits on this.
+        ensureFilmFullyHydrated().catch(() => {});
+      })
+      .catch(() => {
+        // The compact read itself failed (not just the background
+        // upgrade) - fall straight through to the same full-hydration
+        // path every write already waits on, rather than leaving the
+        // page stuck on an empty "not found". compactActive stays true
+        // until that actually resolves, so a write that lands in the
+        // meantime still waits instead of racing ahead of real data.
+        ensureFilmFullyHydrated().finally(() => {
+          compactReady = true;
+          render(currentlyEditing);
+          ensureOfficialResultsForThisFilm();
+        });
+      });
+  } else {
+    refreshWatchlistDetailState();
   }
 
   function filmViewUrl() {
@@ -131,13 +239,96 @@
     ).join("")}`;
   }
 
-  function watchlistMetadataRow(label, value, href) {
-    if (!value) return "";
-    return `<div><dt>${filmPageEscape(label)}</dt><dd>${
-      href
-        ? `<a class="period-link" href="${filmPageEscape(href)}"${/^https?:\/\//i.test(String(href)) ? ' target="_blank" rel="noopener noreferrer"' : ""}>${filmPageEscape(value)}</a>`
-        : filmPageEscape(value)
-    }</dd></div>`;
+  // Objective catalog metadata - shared verbatim across the Watched
+  // (archive) detail view, the Watchlist detail view, and the Unseen
+  // (catalog-only, no personal record) preview: none of these facts
+  // (type, medium, screenplay, TMDB/Letterboxd ids, country, runtime...)
+  // depend on the viewer's relation to the film, only on the shared
+  // `films` row itself, so a watched film, a watchlist item, and an
+  // Unseen preview all read the same field names here and must render
+  // identically. Previously each of the 3 views hand-built its own row
+  // list and had quietly drifted apart - the Watchlist view was missing
+  // Type/Primary country/URL entirely, and the Unseen preview surfaced
+  // only TMDB/Country/Runtime out of an object that already carried
+  // every other field too (see buildSharedFilmArchiveFromSupabase in
+  // src/domain/supabase-legacy-hydration.js).
+  function objectiveFilmMetadataRows(film) {
+    let letterboxdUrl =
+      film.letterboxdUrl ||
+      (/letterboxd\.com/i.test(String(film.url || "")) ? film.url : "");
+    let otherUrl = film.url && film.url !== letterboxdUrl ? film.url : "";
+    let countryValues = window.countryListValues(film.country);
+    let primaryCountry =
+      window.primaryCountryValue?.(film) || film.primaryCountry || "";
+    return [
+      [
+        ui("Year"),
+        film.year,
+        film.year ? window.periodPageUrl("year", film.year) : "",
+      ],
+      [ui("Type"), film.type ? metadataLabel(film.type) : ""],
+      [
+        "TMDB",
+        film.tmdbId ? `#${film.tmdbId}` : "",
+        film.tmdbId
+          ? `https://www.themoviedb.org/${window.tmdbResourcePath(window.parseTmdbReference(film.tmdbId))}`
+          : "",
+      ],
+      ["Letterboxd", letterboxdUrl ? "Open on Letterboxd" : "", letterboxdUrl],
+      [
+        ui("Medium"),
+        film.medium && film.medium !== "unknown"
+          ? metadataLabel(film.medium)
+          : "",
+      ],
+      [
+        ui("Screenplay"),
+        film.screenplayType && film.screenplayType !== "unknown"
+          ? metadataLabel(film.screenplayType)
+          : "",
+      ],
+      [
+        ui("Adapted from"),
+        film.adaptationSource,
+        film.adaptationSource
+          ? `${window.periodPageUrl("alltime", "alltime")}&view=films&scope=all&source=${encodeURIComponent(film.adaptationSource)}`
+          : "",
+      ],
+      [ui("Swedish title"), film.swedishTitle],
+      [
+        ui("Primary country"),
+        primaryCountry,
+        "",
+        primaryCountry && countryValues.length > 1
+          ? window.renderCountryLinks(primaryCountry, filmPageEscape)
+          : "",
+      ],
+      [
+        ui("Country"),
+        countryValues.join(", "),
+        "",
+        countryValues.length
+          ? window.renderCountryLinks(countryValues.join(", "), filmPageEscape)
+          : "",
+      ],
+      [ui("Runtime"), formatRuntime(film.runtimeMinutes)],
+      ["URL", otherUrl, otherUrl],
+    ].filter((entry) => entry[1]);
+  }
+
+  function objectiveFilmMetadataHtml(film) {
+    return objectiveFilmMetadataRows(film)
+      .map(
+        (entry) =>
+          `<div><dt>${filmPageEscape(entry[0])}</dt><dd>${
+            entry[3]
+              ? entry[3]
+              : entry[2]
+                ? `<a class="period-link" href="${filmPageEscape(entry[2])}"${/^https?:\/\//i.test(String(entry[2])) ? ' target="_blank" rel="noopener noreferrer"' : ""}>${filmPageEscape(entry[1])}</a>`
+                : filmPageEscape(entry[1])
+          }</dd></div>`,
+      )
+      .join("");
   }
 
   // Read-only archive-match hint (issue #439's confirmed scope reduction
@@ -242,54 +433,11 @@
       ? `<span class="leaderboard-meta localized-title-meta">${filmPageEscape(ui("Original title"))}: ${filmPageEscape(watchlistItem.title)}</span>`
       : "";
     let posterHtml = renderPosterArea(watchlistItem);
-    let directorHtml = window.renderLinkedDirectors(watchlistItem.director, {
+    let directorHtml = window.renderLinkedDirectors(watchlistItem, {
       escape: filmPageEscape,
       expanded: true,
     });
-    let tmdbId = watchlistItem.tmdbId || "";
-    let metadataHtml = [
-      watchlistMetadataRow(
-        ui("Year"),
-        watchlistItem.year,
-        watchlistItem.year
-          ? window.periodPageUrl("year", watchlistItem.year)
-          : "",
-      ),
-      watchlistMetadataRow(
-        "TMDB",
-        tmdbId ? `#${tmdbId}` : "",
-        tmdbId
-          ? `https://www.themoviedb.org/${window.tmdbResourcePath(window.parseTmdbReference(tmdbId))}`
-          : "",
-      ),
-      watchlistMetadataRow(
-        "Letterboxd",
-        watchlistItem.letterboxdUrl ? "Open on Letterboxd" : "",
-        watchlistItem.letterboxdUrl,
-      ),
-      watchlistMetadataRow(
-        ui("Medium"),
-        watchlistItem.medium && watchlistItem.medium !== "unknown"
-          ? metadataLabel(watchlistItem.medium)
-          : "",
-      ),
-      watchlistMetadataRow(
-        ui("Screenplay"),
-        watchlistItem.screenplayType &&
-          watchlistItem.screenplayType !== "unknown"
-          ? metadataLabel(watchlistItem.screenplayType)
-          : "",
-      ),
-      watchlistMetadataRow(ui("Adapted from"), watchlistItem.adaptationSource),
-      watchlistMetadataRow(ui("Swedish title"), watchlistItem.swedishTitle),
-      watchlistItem.country
-        ? `<div><dt>${filmPageEscape(ui("Country"))}</dt><dd>${window.renderCountryLinks(watchlistItem.country, filmPageEscape)}</dd></div>`
-        : "",
-      watchlistMetadataRow(
-        ui("Runtime"),
-        formatRuntime(watchlistItem.runtimeMinutes),
-      ),
-    ].join("");
+    let metadataHtml = objectiveFilmMetadataHtml(watchlistItem);
     let archiveMatchHtml = renderArchiveMatchReview();
 
     document.title = `${displayTitle} · Watchlist · The Oskars`;
@@ -694,80 +842,14 @@
     let director = film.directors?.length
       ? film.directors
       : String(film.director || "").trim();
-    let directorHtml = window.renderLinkedDirectors(director, {
-      escape: filmPageEscape,
-      expanded: true,
-    });
-    let letterboxdUrl =
-      film.letterboxdUrl ||
-      (/letterboxd\.com/i.test(String(film.url || "")) ? film.url : "");
-    let otherUrl = film.url && film.url !== letterboxdUrl ? film.url : "";
-    let countryValues = window.countryListValues(film.country);
-    let primaryCountry = window.primaryCountryValue(film);
-    let metadata = [
-      [
-        ui("Year"),
-        film.year,
-        film.year ? window.periodPageUrl("year", film.year) : "",
-      ],
-      [ui("Type"), film.type ? metadataLabel(film.type) : ""],
-      [
-        "TMDB",
-        film.tmdbId ? `#${film.tmdbId}` : "",
-        film.tmdbId
-          ? `https://www.themoviedb.org/${window.tmdbResourcePath(window.parseTmdbReference(film.tmdbId))}`
-          : "",
-      ],
-      ["Letterboxd", letterboxdUrl ? "Open on Letterboxd" : "", letterboxdUrl],
-      [
-        ui("Medium"),
-        film.medium !== "unknown" ? metadataLabel(film.medium) : "",
-      ],
-      [
-        ui("Screenplay"),
-        film.screenplayType !== "unknown"
-          ? metadataLabel(film.screenplayType)
-          : "",
-      ],
-      [
-        ui("Adapted from"),
-        film.adaptationSource,
-        film.adaptationSource
-          ? `${window.periodPageUrl("alltime", "alltime")}&view=films&scope=all&source=${encodeURIComponent(film.adaptationSource)}`
-          : "",
-      ],
-      [ui("Swedish title"), film.swedishTitle],
-      [
-        ui("Primary country"),
-        primaryCountry,
-        "",
-        primaryCountry && countryValues.length > 1
-          ? window.renderCountryLinks(primaryCountry, filmPageEscape)
-          : "",
-      ],
-      [
-        ui("Country"),
-        countryValues.join(", "),
-        "",
-        countryValues.length
-          ? window.renderCountryLinks(countryValues.join(", "), filmPageEscape)
-          : "",
-      ],
-      [ui("Runtime"), formatRuntime(film.runtimeMinutes)],
-      ["URL", otherUrl, otherUrl],
-    ].filter((entry) => entry[1]);
-    let metadataHtml = metadata
-      .map(
-        (entry) =>
-          `<div><dt>${filmPageEscape(entry[0])}</dt><dd>${
-            entry[3]
-              ? entry[3]
-              : entry[2]
-                ? `<a class="period-link" href="${filmPageEscape(entry[2])}"${["URL", "TMDB", "Letterboxd"].includes(entry[0]) ? ' target="_blank" rel="noopener noreferrer"' : ""}>${filmPageEscape(entry[1])}</a>`
-                : filmPageEscape(entry[1])
-          }</dd></div>`,
-      )
-      .join("");
+    let directorHtml = window.renderLinkedDirectors(
+      film.directors?.length ? film : director,
+      {
+        escape: filmPageEscape,
+        expanded: true,
+      },
+    );
+    let metadataHtml = objectiveFilmMetadataHtml(film);
     let viewingFacts = [
       [ui("Watched"), formatWatchedDate(film.dateWatched)],
       [ui("Platform"), film.platform],
@@ -872,8 +954,18 @@
   ${tagHtml ? `<section class="film-tags"><h2>${filmPageEscape(ui("Tags"))}</h2><div class="film-tag-list">${tagHtml}</div></section>` : ""}
   ${franchiseHtml ? `<section class="film-franchises"><h2>${filmPageEscape(ui("Franchises"))}</h2><div class="film-franchise-links">${franchiseHtml}</div></section>` : ""}
   ${relationsHtml}
-  ${projectMembershipHtml}
-  ${professionHtml ? `<section class="film-credits" data-collapsible-section><h2 data-collapsible-heading>${filmPageEscape(ui("Award credits"))}</h2><div class="film-credit-grid" data-collapsible-body>${professionHtml}</div></section>` : ""}
+  ${
+    compactActive
+      ? '<p class="data-panel-status">Loading project memberships…</p>'
+      : projectMembershipHtml
+  }
+  ${
+    compactActive
+      ? `<section class="film-credits"><h2>${filmPageEscape(ui("Award credits"))}</h2><p class="data-panel-status">Loading…</p></section>`
+      : professionHtml
+        ? `<section class="film-credits" data-collapsible-section><h2 data-collapsible-heading>${filmPageEscape(ui("Award credits"))}</h2><div class="film-credit-grid" data-collapsible-body>${professionHtml}</div></section>`
+        : ""
+  }
   ${awardsHtml}`;
     window.enhanceCollapsibles?.(container);
   }
@@ -943,27 +1035,13 @@
       preview.swedishTitle && preview.swedishTitle !== preview.title
         ? `<p class="film-localized-title">${filmPageEscape(preview.swedishTitle === localizedTitle ? preview.title : preview.swedishTitle)}</p>`
         : "";
-    let metadataRows = [
-      preview.tmdbId
-        ? [
-            "TMDB",
-            `#${preview.tmdbId}`,
-            `https://www.themoviedb.org/${window.tmdbResourcePath(window.parseTmdbReference(preview.tmdbId))}`,
-          ]
-        : null,
-      preview.primaryCountry || preview.country
-        ? [ui("Country"), preview.primaryCountry || preview.country]
-        : null,
-      preview.runtimeMinutes
-        ? [ui("Runtime"), formatRuntime(preview.runtimeMinutes)]
-        : null,
-    ].filter(Boolean);
-    let metadataHtml = metadataRows
-      .map(
-        ([label, value, href]) =>
-          `<div><dt>${filmPageEscape(label)}</dt><dd>${href ? `<a href="${filmPageEscape(href)}" target="_blank" rel="noopener">${filmPageEscape(value)}</a>` : filmPageEscape(value)}</dd></div>`,
-      )
-      .join("");
+    // Same shared objective-metadata table the Watched and Watchlist
+    // detail views use (see objectiveFilmMetadataHtml above) - preview
+    // already carries every field it needs (buildSharedFilmArchiveFromSupabase
+    // populates type/medium/screenplayType/swedishTitle/letterboxdUrl/
+    // adaptationSource alongside tmdbId/country/runtime), so this no
+    // longer hand-picks just 3 of them.
+    let metadataHtml = objectiveFilmMetadataHtml(preview);
     let franchiseHtml = window.renderFranchiseMembershipLinks(
       preview.franchises,
       { filmId: preview.id, escape: filmPageEscape },
@@ -977,7 +1055,6 @@
       leadingHtml: posterHtml,
       mainClasses: "detail-header-main film-detail-main",
       mainHtml: `<div class="film-title-row"><h1>${filmPageEscape(title)}</h1></div>${localizedTitleMeta}${directorHtml ? `<p>${filmPageEscape(ui("by"))} ${directorHtml}</p>` : ""}
-      <p>${filmPageEscape(preview.year)}</p>
       ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}`,
       actionsHtml: canEdit
         ? `<div class="collection-action-buttons">${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Add to watchlist"), escape: filmPageEscape, attributes: { "data-add-shared-preview-watchlist": true } })}${window.renderCollectionActionButton({ kind: "watched", label: ui("Add to watched"), escape: filmPageEscape, attributes: { "data-add-shared-preview-watched": true } })}</div>`
@@ -993,6 +1070,11 @@
   function render(editing = false) {
     currentlyEditing = editing;
     let finishRenderTimer = window.startOskarsPerformance?.("film:render");
+    if (compactActive && !compactReady) {
+      container.innerHTML = '<p class="data-panel-status">Loading…</p>';
+      finishRenderTimer?.("compact: loading");
+      return;
+    }
     let film = currentFilm();
     if (!film && isWatchlistDetail) {
       renderWatchlistDetail();
@@ -1037,6 +1119,12 @@
   }
 
   container.addEventListener("click", async (event) => {
+    // Every write action below waits on the real background full
+    // hydration first (issue #617, same blanket policy as #598's own
+    // Watchlist cutover) - a no-op once already hydrated (legacy mode, or
+    // compact mode's eager upgrade already finished, almost always true
+    // by the time a person could actually click anything).
+    await ensureFilmFullyHydrated().catch(() => {});
     if (event.target.closest("[data-mark-watchlist-watched]")) {
       renderWatchlistWatchedForm();
       return;
@@ -1206,6 +1294,7 @@
   });
 
   container.addEventListener("change", async (event) => {
+    await ensureFilmFullyHydrated().catch(() => {});
     let tierSelect = event.target.closest("[data-tier-select]");
     let tierModifierToggle = event.target.closest(
       '[data-tier-modifier-input] input[name="tierModifier"]',
@@ -1247,9 +1336,14 @@
   });
 
   container.addEventListener("submit", async (event) => {
+    // preventDefault() first and synchronously, before the await below -
+    // every branch here handles its own form programmatically, so letting
+    // the browser's default submit navigation race an in-flight hydration
+    // wait would reload the page out from under it.
+    event.preventDefault();
+    await ensureFilmFullyHydrated().catch(() => {});
     let transitionForm = event.target.closest("#markWatchlistWatchedForm");
     if (transitionForm) {
-      event.preventDefault();
       let values = Object.fromEntries(new FormData(transitionForm).entries());
       let parsed = window.parseFilmRating(values.rating);
       watchlistBusy = true;
@@ -1275,7 +1369,6 @@
     }
     let watchlistTagForm = event.target.closest("[data-add-tag-form]");
     if (watchlistTagForm) {
-      event.preventDefault();
       let name = new FormData(watchlistTagForm).get("tag")?.trim();
       if (!name) return;
       watchlistBusy = true;
@@ -1295,7 +1388,6 @@
       "[data-add-franchise-form]",
     );
     if (watchlistFranchiseForm) {
-      event.preventDefault();
       let values = Object.fromEntries(
         new FormData(watchlistFranchiseForm).entries(),
       );
@@ -1320,7 +1412,6 @@
     }
     let form = event.target.closest("#filmEditForm");
     if (!form) return;
-    event.preventDefault();
     let backup = window.cloneRecord(window.getSerializableState());
     try {
       let film = currentFilm();
@@ -1388,8 +1479,23 @@
       render(false);
   });
 
+  // officialFilmContext() (used only by renderView()'s Watched-film case)
+  // is the one caller of official-results content on this page - a
+  // Watchlist-detail or Unseen-preview visit never reads it, so it's
+  // skipped entirely there rather than fetching even a scoped slice for
+  // nothing. Guarded against firing twice: once synchronously below for
+  // the already-resolved legacy path, and once from compactActive's own
+  // fetch .then() once isWatchlistDetail is actually known there too.
+  let officialResultsRequested = false;
+  function ensureOfficialResultsForThisFilm() {
+    if (officialResultsRequested || isWatchlistDetail || previewTmdbId) return;
+    if (!filmId) return;
+    officialResultsRequested = true;
+    window
+      .hydrateOfficialResultsForFilm?.(filmId)
+      .then(() => render(currentlyEditing));
+  }
+
   render(false);
-  window
-    .hydrateOfficialResultsFromSupabase?.()
-    .then(() => render(currentlyEditing));
+  ensureOfficialResultsForThisFilm();
 })();

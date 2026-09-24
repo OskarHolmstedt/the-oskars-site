@@ -10,7 +10,7 @@ window.normalizePosterRecord = function (poster) {
   if (!poster || !/^https?:\/\//i.test(String(poster.url || ""))) return null;
   return {
     url: String(poster.url).trim(),
-    source: ["tmdb", "wikimedia", "manual"].includes(poster.source)
+    source: ["tmdb", "manual"].includes(poster.source)
       ? poster.source
       : "manual",
     sourceUrl: /^https?:\/\//i.test(String(poster.sourceUrl || ""))
@@ -84,10 +84,15 @@ window.lookupTmdbMovieMetadata = async function (film, options = {}) {
     match._details || (await window.lookupTmdbMovieDetails(match.id, fetchFn));
   // An episode's crew/guest_stars are native root fields, not nested under
   // an appended "credits" resource the way movie/series/season credits are.
-  let directors = (details.credits?.crew || details.crew || [])
+  let directorPeople = (details.credits?.crew || details.crew || [])
     .filter((person) => person.job === "Director")
-    .map((person) => String(person.name || "").trim())
-    .filter(Boolean);
+    .map((person) => ({
+      tmdbId: person.id ? Number(person.id) : null,
+      name: String(person.name || "").trim(),
+      profilePath: person.profile_path || null,
+    }))
+    .filter((person) => person.name);
+  let directors = directorPeople.map((person) => person.name);
   // TV series/season report origin_country as ISO codes directly, already
   // matching this app's stored country format; movies report full
   // production_countries objects instead.
@@ -113,6 +118,7 @@ window.lookupTmdbMovieMetadata = async function (film, options = {}) {
     tmdbId: String(match.id),
     type: classifyTmdbFilmType(reference, details),
     director: directors.join(", "),
+    directors: directorPeople,
     country,
     primaryCountry: productionCountries[0] || "",
     swedishTitle,

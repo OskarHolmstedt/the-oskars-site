@@ -102,7 +102,9 @@
     try {
       localStorage.setItem("oskars-poster-backdrop", enabled ? "on" : "off");
     } catch (err) {}
-    window.refreshOskarsBackdrop?.();
+    if (window.refreshFocusedShellBackdrop)
+      window.refreshFocusedShellBackdrop();
+    else window.refreshOskarsBackdrop?.();
   };
 
   if (typeof document !== "undefined" && preferredPosterBackdrop())
@@ -218,6 +220,13 @@
   }
 
   function primaryPreviewHtml(section, escape) {
+    if (
+      window.ensureFocusedShellData &&
+      !window.focusedShellDataFresh() &&
+      ["periods", "categories"].includes(section)
+    )
+      return `<div class="primary-nav-preview primary-nav-preview--${section}"><div class="primary-nav-preview-panel"><a href="${section}.html">${escape(headerText(section === "periods" ? "menu.browsePeriods" : "menu.browseCategories", section === "periods" ? "Browse all periods" : "Browse all categories"))} →</a><p>${escape(headerText("shell.onDemand", "Open to load your archive."))}</p></div></div>`;
+
     // The outer .primary-nav-preview box starts flush against the nav link
     // (no gap) and its top padding stands in for the visual gap, so that
     // whole padded area stays part of the hoverable region — otherwise a
@@ -306,6 +315,42 @@
       previewCloseTimers.delete(item);
     }
     item.classList.add("is-preview-open");
+    if (
+      !window.ensureFocusedShellData ||
+      window.focusedShellDataFresh() ||
+      item.dataset.shellLoading
+    )
+      return;
+    let section = item.classList.contains("primary-nav-item--periods")
+      ? "periods"
+      : item.classList.contains("primary-nav-item--categories")
+        ? "categories"
+        : null;
+    if (!section) return;
+    item.dataset.shellLoading = "true";
+    let panel = item.querySelector(".primary-nav-preview-panel");
+    if (panel)
+      panel.innerHTML = `<p role="status">${defaultHeaderEscape(headerText("shell.loading", "Loading archive…"))}</p>`;
+    window
+      .ensureFocusedShellData()
+      .then(
+        () => {
+          if (item.isConnected === false) return;
+          let preview = item.querySelector(".primary-nav-preview");
+          if (preview)
+            preview.outerHTML = primaryPreviewHtml(
+              section,
+              defaultHeaderEscape,
+            );
+        },
+        () => {
+          if (item.isConnected === false || !panel) return;
+          panel.innerHTML = `<p role="status">${defaultHeaderEscape(headerText("shell.error", "Could not load the archive."))}</p><button type="button" data-shell-preview-retry>${defaultHeaderEscape(headerText("shell.retry", "Try again"))}</button>`;
+        },
+      )
+      .finally(() => {
+        delete item.dataset.shellLoading;
+      });
   }
   function schedulePreviewClose(item) {
     let pending = previewCloseTimers.get(item);
@@ -319,6 +364,21 @@
     );
   }
   function bindPrimaryNavHoverIntent(header) {
+    header.addEventListener("focusin", (event) => {
+      let item = event.target.closest(".primary-nav-item");
+      if (item && header.contains(item)) openPreviewItem(item);
+    });
+    header.addEventListener("focusout", (event) => {
+      let item = event.target.closest(".primary-nav-item");
+      if (item && !item.contains(event.relatedTarget))
+        schedulePreviewClose(item);
+    });
+    header.addEventListener("click", (event) => {
+      if (event.target.closest("[data-shell-preview-retry]"))
+        openPreviewItem(event.target.closest(".primary-nav-item"));
+      if (event.target.closest("[data-focused-backdrop-retry]"))
+        window.refreshFocusedShellBackdrop?.();
+    });
     header.addEventListener("mouseover", (event) => {
       let item = event.target.closest(".primary-nav-item");
       if (!item || !header.contains(item)) return;
@@ -403,6 +463,8 @@
     // Keyboard navigation (issue #66): Up/Down move an active result (tracked
     // via aria-activedescendant so focus stays in the input), Enter opens the
     // active result (or the first match), Escape and blur behave as before.
+    let searchStatus = header.querySelector("[data-site-search-status]");
+    let searchRequest = 0;
     let searchMatchList = [];
     let activeResultIndex = -1;
     function setActiveResult(nextIndex) {
@@ -426,15 +488,7 @@
       }
     }
     function getSearchEntries() {
-      let sharedArchiveVersion = window.OSKARS_SHARED_FILM_ARCHIVE_VERSION || 0;
-      if (
-        !header._siteSearchEntries ||
-        header._siteSearchSharedArchiveVersion !== sharedArchiveVersion
-      ) {
-        header._siteSearchEntries = buildSiteSearchIndex();
-        header._siteSearchSharedArchiveVersion = sharedArchiveVersion;
-      }
-      return header._siteSearchEntries;
+      return buildSiteSearchIndex();
     }
     function renderSearchResults() {
       let finishQueryTimer =
@@ -457,10 +511,114 @@
       setActiveResult(-1);
       finishQueryTimer?.(`${searchMatchList.length} result(s)`);
     }
-    searchInput?.addEventListener("input", renderSearchResults);
-    searchInput?.addEventListener("focus", renderSearchResults);
+    function clearResults() {
+      searchMatchList = [];
+      searchResults.hidden = true;
+      searchResults.innerHTML = "";
+      searchInput.setAttribute("aria-expanded", "false");
+      setActiveResult(-1);
+    }
+    function showSearchStatus(message, retry = false) {
+      if (!searchStatus) return;
+      searchStatus.hidden = !message;
+      searchStatus.innerHTML = message
+        ? `<span>${escape(message)}</span>${retry ? ` <button type="button" data-site-search-retry>${escape(headerText("shell.retry", "Try again"))}</button>` : ""}`
+        : "";
+    }
+    async function requestSearch(submit = false) {
+      if (!window.ensureFocusedShellData) {
+        renderSearchResults();
+        return;
+      }
+      let request = ++searchRequest;
+      let query = searchInput.value;
+      let selectedHref = searchMatchList[activeResultIndex]?.href;
+      if (!query.trim()) {
+        clearResults();
+        showSearchStatus("");
+        searchInput.removeAttribute("aria-busy");
+        return;
+      }
+      if (!window.focusedShellDataFresh()) {
+        clearResults();
+        showSearchStatus(headerText("search.loading", "Loading search…"));
+      }
+      searchInput.setAttribute("aria-busy", "true");
+      let finish = window.startOskarsPerformance?.("siteSearch:ready");
+      try {
+        await window.ensureFocusedShellData();
+        if (
+          request !== searchRequest ||
+          query !== searchInput.value ||
+          searchInput.isConnected === false
+        )
+          return;
+        showSearchStatus("");
+        renderSearchResults();
+        if (submit) {
+          let match =
+            searchMatchList.find((entry) => entry.href === selectedHref) ||
+            searchMatchList[0];
+          if (match) window.location.href = match.href;
+        }
+      } catch (_) {
+        if (request !== searchRequest || searchInput.isConnected === false)
+          return;
+        clearResults();
+        showSearchStatus(
+          headerText("search.error", "Could not load search."),
+          true,
+        );
+      } finally {
+        if (request === searchRequest) searchInput.removeAttribute("aria-busy");
+        finish?.();
+      }
+    }
+    searchInput?.addEventListener("input", () => requestSearch());
+    searchInput?.addEventListener("focus", () => requestSearch());
+    searchStatus?.addEventListener("click", (event) => {
+      if (event.target.closest("[data-site-search-retry]")) {
+        if (document.activeElement === searchInput) requestSearch();
+        else searchInput.focus();
+      }
+    });
+    if (window.ensureFocusedShellData) {
+      if (header._shellReady)
+        window.removeEventListener(
+          "oskars:focused-shell-ready",
+          header._shellReady,
+        );
+      header._shellReady = () => {
+        for (let section of ["periods", "categories"]) {
+          let preview = header.querySelector(
+            ".primary-nav-item--" + section + " .primary-nav-preview",
+          );
+          if (preview) preview.outerHTML = primaryPreviewHtml(section, escape);
+        }
+      };
+      window.addEventListener("oskars:focused-shell-ready", header._shellReady);
+      if (header._shellInvalidated)
+        window.removeEventListener(
+          "oskars:focused-shell-invalidated",
+          header._shellInvalidated,
+        );
+      header._shellInvalidated = () => {
+        searchRequest += 1;
+        clearResults();
+        showSearchStatus("");
+        searchInput.removeAttribute("aria-busy");
+        window.renderSiteHeader?.();
+      };
+      window.addEventListener(
+        "oskars:focused-shell-invalidated",
+        header._shellInvalidated,
+      );
+    }
     searchInput?.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
+        searchRequest += 1;
+        showSearchStatus("");
+        searchInput.removeAttribute("aria-busy");
         searchInput.value = "";
         searchResults.hidden = true;
         searchInput.setAttribute("aria-expanded", "false");
@@ -479,6 +637,10 @@
     });
     searchForm?.addEventListener("submit", (event) => {
       event.preventDefault();
+      if (window.ensureFocusedShellData) {
+        requestSearch(true);
+        return;
+      }
       let match = searchMatchList.length
         ? searchMatchList[activeResultIndex >= 0 ? activeResultIndex : 0]
         : siteSearchMatches(getSearchEntries(), searchInput.value)[0];
@@ -486,8 +648,12 @@
     });
     searchForm?.addEventListener("focusout", () => {
       setTimeout(() => {
-        if (!searchForm.contains(document.activeElement) && searchResults)
+        if (!searchForm.contains(document.activeElement) && searchResults) {
+          searchRequest += 1;
           searchResults.hidden = true;
+          showSearchStatus("");
+          searchInput.removeAttribute("aria-busy");
+        }
       }, 120);
     });
   }
@@ -532,6 +698,30 @@
     container.innerHTML = `<div class="auth-status-account"><a class="auth-status-profile" href="profile.html" title="${escape(name)}"><span class="auth-status-avatar">${avatar}</span><span class="auth-status-name">${escape(name)}</span></a><button class="auth-status-sign-out" type="button" data-supabase-sign-out aria-label="Sign out" title="Sign out"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M8 4H4.8A1.8 1.8 0 0 0 3 5.8v8.4A1.8 1.8 0 0 0 4.8 16H8M12.5 6.5 16 10l-3.5 3.5M7 10h9"/></svg></button></div>`;
   };
 
+  /**
+   * Renders the signed-in user status into any page's [data-auth-status] container
+   * and wires up the sign-out action with page reload.
+   * @param {Object} user Signed-in Supabase user.
+   * @param {string} [displayName] Optional display name override.
+   */
+  window.renderHeaderAuthStatus = function (user, displayName) {
+    let statusContainer = document.querySelector("[data-auth-status]");
+    if (!statusContainer || !user) return;
+    let name =
+      displayName ||
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      user.email ||
+      "Signed in";
+    window.renderSignedInHeaderAccount(statusContainer, user, name);
+    statusContainer
+      .querySelector("[data-supabase-sign-out]")
+      ?.addEventListener("click", async () => {
+        await window.signOutOfSupabase?.();
+        window.location.reload();
+      });
+  };
+
   /** Renders or refreshes the shared site header and binds its controls. */
   window.renderSiteHeader = function () {
     let done = window.startOskarsPerformance?.("siteHeader:render");
@@ -555,11 +745,13 @@
       <form class="site-search" role="search" data-site-search>
         <input type="search" autocomplete="off" placeholder="${escape(headerText("search.placeholder", "Search"))}" aria-label="${escape(headerText("search.aria", "Search The Oskars"))}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="siteSearchResults" data-site-search-input>
         <div class="site-search-results" id="siteSearchResults" role="listbox" aria-label="${escape(headerText("search.aria", "Search The Oskars"))}" data-site-search-results hidden></div>
+        <div class="site-search-results" role="status" data-site-search-status hidden></div>
       </form>
       <button class="language-toggle" type="button" data-language-toggle></button>
       <button class="theme-toggle" type="button" data-theme-toggle title="${escape(themeToggleTitle(nextOskarsTheme(preferredTheme())))}" aria-label="${escape(headerText("theme.switch", "Switch color theme"))}">${THEME_ICON[preferredTheme()] || "☾"}</button>
       <button class="poster-grid-toggle" type="button" data-poster-grid-toggle aria-pressed="${preferredPosterGrid() ? "true" : "false"}" title="${escape(posterGridToggleTitle(preferredPosterGrid()))}" aria-label="${escape(posterGridToggleTitle(preferredPosterGrid()))}">🖼️</button>
       <button class="poster-backdrop-toggle" type="button" data-poster-backdrop-toggle aria-pressed="${preferredPosterBackdrop() ? "true" : "false"}" title="${escape(posterBackdropToggleTitle(preferredPosterBackdrop()))}" aria-label="${escape(posterBackdropToggleTitle(preferredPosterBackdrop()))}">🎞️</button>
+      ${window.ensureFocusedShellData ? `<span role="status" data-focused-backdrop-status hidden>${escape(headerText("shell.error", "Could not load the archive."))} <button type="button" data-focused-backdrop-retry>${escape(headerText("shell.retry", "Try again"))}</button></span>` : ""}
       <div class="auth-status" data-auth-status aria-live="polite"></div>
       <details class="site-menu">
         <summary aria-label="${escape(headerText("menu.openDirectory", "Open site directory"))}" title="${escape(headerText("menu.openDirectory", "Site directory"))}"><span></span><span></span><span></span></summary>
@@ -585,7 +777,6 @@
     bindSiteHeader(header, escape);
     refreshHeaderAuthStatus(header);
     updateLanguageToggle(header.querySelector("[data-language-toggle]"));
-    header._siteSearchEntries = null;
     done?.();
   };
 })();

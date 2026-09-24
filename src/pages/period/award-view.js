@@ -212,7 +212,6 @@ window.renderPeriodAwardStories = function (
  */
 window.renderPeriodAwardView = function ({
   awards,
-  type,
   key = "",
   editMode = false,
   officialComparison = null,

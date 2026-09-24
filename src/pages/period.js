@@ -97,9 +97,15 @@
   function comparePeriodRank(left, right) {
     let leftRank = periodSortRankForFilm(left);
     let rightRank = periodSortRankForFilm(right);
-    if (Boolean(leftRank) !== Boolean(rightRank)) return leftRank ? -1 : 1;
-    let result = leftRank - rightRank;
-    if (periodDirection === "desc") result = -result;
+    let result = window.compareByAllTimeRank(
+      { allTimeRank: leftRank },
+      { allTimeRank: rightRank },
+      undefined,
+      { rankTieBreak: false, yearFallback: false },
+    );
+    if (result !== 0 && leftRank && rightRank && periodDirection === "desc") {
+      result = -result;
+    }
     return result || window.compareEnglishTitles(left.title, right.title);
   }
 
@@ -124,24 +130,16 @@
   }
 
   function titlesLikelyMatch(leftTitle, rightTitle) {
-    let comparable = (value) =>
-      normalizeTitle(value).replace(/[^a-z0-9\u00c0-\u024f]+/g, "");
-    let left = comparable(leftTitle);
-    let right = comparable(rightTitle);
-    return (
-      left === right ||
-      (Math.min(left.length, right.length) >= 8 &&
-        (left.startsWith(right) || right.startsWith(left)))
-    );
+    return window.titlesLikelyMatch
+      ? window.titlesLikelyMatch(leftTitle, rightTitle)
+      : String(leftTitle || "").toLowerCase() ===
+          String(rightTitle || "").toLowerCase();
   }
 
   function mergePeriodAwards(first, second) {
-    let merged = [];
-    [...(first || []), ...(second || [])].forEach((award) => {
-      if (!merged.some((existing) => window.sameAward(existing, award)))
-        merged.push(award);
-    });
-    return merged;
+    return window.mergeAwards
+      ? window.mergeAwards([...(first || [])], second)
+      : [...(first || []), ...(second || [])];
   }
 
   function awardsWithSourceFilm(film) {
@@ -291,6 +289,26 @@
     "score",
     "shuffle",
   ]);
+  const FILM_LIST_VIEW_MODES = new Set(["films", "rewatch", "other", "shared"]);
+  function isFilmListViewMode(mode) {
+    return FILM_LIST_VIEW_MODES.has(mode);
+  }
+
+  function runtimeFilterSchemaField({ param, filterKey, allowedViewModes }) {
+    return {
+      param,
+      default: 0,
+      parse: (value) => {
+        let runtime = Number(value) || 0;
+        return window.parseFilmFilterValue(filterKey, runtime, {
+          defaultValue: 0,
+        });
+      },
+      omit: (value, state) =>
+        !allowedViewModes.includes(state.viewMode) || !value,
+    };
+  }
+
   let periodUrlState = window.createPageViewState({
     path: "period.html",
     preserveUnknown: true,
@@ -407,32 +425,16 @@
       // Shared between Films and Rewatchlist, like sort order/direction and
       // grid/list layout already are - unlike medium/screenplay/rating,
       // which stay films-only.
-      minimumRuntimeFilter: {
+      minimumRuntimeFilter: runtimeFilterSchemaField({
         param: "filmMinRuntime",
-        default: 0,
-        parse: (value) => {
-          let runtime = Number(value) || 0;
-          return window.parseFilmFilterValue("minimumRuntime", runtime, {
-            defaultValue: 0,
-          });
-        },
-        omit: (value, state) =>
-          (state.viewMode !== "films" && state.viewMode !== "rewatch") ||
-          !value,
-      },
-      maximumRuntimeFilter: {
+        filterKey: "minimumRuntime",
+        allowedViewModes: ["films", "rewatch"],
+      }),
+      maximumRuntimeFilter: runtimeFilterSchemaField({
         param: "filmMaxRuntime",
-        default: 0,
-        parse: (value) => {
-          let runtime = Number(value) || 0;
-          return window.parseFilmFilterValue("maximumRuntime", runtime, {
-            defaultValue: 0,
-          });
-        },
-        omit: (value, state) =>
-          (state.viewMode !== "films" && state.viewMode !== "rewatch") ||
-          !value,
-      },
+        filterKey: "maximumRuntime",
+        allowedViewModes: ["films", "rewatch"],
+      }),
       watchlistTierFilter: {
         param: "tiers",
         aliases: ["tier", "watchTier"],
@@ -483,28 +485,16 @@
         default: "",
         omit: (value, state) => state.viewMode !== "watchlist" || !value,
       },
-      watchlistMinRuntimeFilter: {
+      watchlistMinRuntimeFilter: runtimeFilterSchemaField({
         param: "minRuntime",
-        default: 0,
-        parse: (value) => {
-          let runtime = Number(value) || 0;
-          return window.parseFilmFilterValue("minimumRuntime", runtime, {
-            defaultValue: 0,
-          });
-        },
-        omit: (value, state) => state.viewMode !== "watchlist" || !value,
-      },
-      watchlistMaxRuntimeFilter: {
+        filterKey: "minimumRuntime",
+        allowedViewModes: ["watchlist"],
+      }),
+      watchlistMaxRuntimeFilter: runtimeFilterSchemaField({
         param: "maxRuntime",
-        default: 0,
-        parse: (value) => {
-          let runtime = Number(value) || 0;
-          return window.parseFilmFilterValue("maximumRuntime", runtime, {
-            defaultValue: 0,
-          });
-        },
-        omit: (value, state) => state.viewMode !== "watchlist" || !value,
-      },
+        filterKey: "maximumRuntime",
+        allowedViewModes: ["watchlist"],
+      }),
       watchlistSubCentury: {
         param: "subCentury",
         default: "all",
@@ -647,6 +637,108 @@
   // current filter every time it's shown rather than saved anywhere,
   // deliberately lighter than "Start project" (issue #163).
   let watchlistQueueVisible = false;
+
+  // Compact Watchlist read (issue #598): window.OSKARS_WATCHLIST_COMPACT
+  // opts this one view into a fast initial paint from
+  // read_watchlist_page() instead of the eager full hydration every other
+  // period.html view still gets. `watchlistCompactActive` stays true only
+  // until a full hydration actually completes (either the eager background
+  // upgrade below, or an interactive action that needs it) - once it flips
+  // false it never flips back for the rest of this page's life, so the
+  // rest of the controller's existing watchlist code (every write handler,
+  // periodWatchlistEntries, periodWatchlistBaseEntries and everything built
+  // on it) runs completely unmodified from that point on.
+  let watchlistCompactActive = Boolean(window.OSKARS_WATCHLIST_COMPACT);
+  let compactWatchlistModel = null;
+  let compactWatchlistKey = null;
+  let compactWatchlistRequestId = 0;
+  let compactWatchlistError = null;
+  let watchlistHydrationPromise = null;
+
+  /**
+   * Resolves once window.state holds the complete watchlist (issue #598).
+   * A no-op once already hydrated (legacy mode, or a prior call already
+   * finished) - every write handler and edit-mode toggle below calls this
+   * first, so a click that lands before the eager background upgrade
+   * finishes still waits for real data instead of risking a partial-state
+   * write; #607's own reconcile() guard is the last-resort backstop this
+   * is meant to make normally unreachable, not depended on for
+   * correctness.
+   * @returns {Promise<void>}
+   */
+  function ensureWatchlistFullyHydrated() {
+    if (!watchlistCompactActive) return Promise.resolve();
+    if (watchlistHydrationPromise) return watchlistHydrationPromise;
+    watchlistHydrationPromise = (
+      window.ensureFocusedShellData?.() || Promise.resolve()
+    )
+      .then(() => {
+        watchlistCompactActive = false;
+        render();
+      })
+      .catch((error) => {
+        // Leaves watchlistCompactActive true so a later interaction (or
+        // the next periodic retry below) can try again; the compact view
+        // itself keeps working from its own last-fetched page in the
+        // meantime, so a transient hydration failure doesn't break
+        // browsing, only temporarily disables writes/queue/edit modes.
+        watchlistHydrationPromise = null;
+        throw error;
+      });
+    return watchlistHydrationPromise;
+  }
+
+  function compactWatchlistRequestKey(filters) {
+    return JSON.stringify({
+      ...filters,
+      page: filmPage,
+    });
+  }
+
+  /**
+   * Fetches the compact Watchlist projection for the current filters/page
+   * if not already fresh, then re-renders once it resolves. Safe to call
+   * on every render() while compact mode is active - it no-ops when the
+   * current filters/page already match the last successful fetch (or one
+   * already in flight), and a permanently-unsupported sort axis (title/
+   * year/runtime - issue #598's own explicit scope limit) triggers the
+   * same full-hydration fallback as an interactive write instead of
+   * calling the RPC with an axis it would reject.
+   */
+  function ensureCompactWatchlistFresh() {
+    if (!watchlistCompactActive || viewMode !== "watchlist") return;
+    let filters = currentWatchlistFilters();
+    if (filters.order !== "rank" && filters.order !== "shuffle") {
+      ensureWatchlistFullyHydrated().catch(() => {});
+      return;
+    }
+    let key = compactWatchlistRequestKey(filters);
+    if (key === compactWatchlistKey) return;
+    compactWatchlistKey = key;
+    let requestId = ++compactWatchlistRequestId;
+    window
+      .loadSupabaseWatchlistPage(filters, {
+        limit: FILMS_PER_PAGE,
+        offset: (filmPage - 1) * FILMS_PER_PAGE,
+      })
+      .then((model) => {
+        if (requestId !== compactWatchlistRequestId) return;
+        compactWatchlistModel = model;
+        compactWatchlistError = null;
+        render();
+        // Eager background upgrade: once the fast compact paint is showing,
+        // immediately start a full hydration in the background so writes/
+        // queue/edit-mode toggles are almost always already safe to use
+        // by the time a person could actually reach for them - browsing
+        // itself never waits on this.
+        ensureWatchlistFullyHydrated().catch(() => {});
+      })
+      .catch((error) => {
+        if (requestId !== compactWatchlistRequestId) return;
+        compactWatchlistError = error;
+        render();
+      });
+  }
 
   function periodViewStateValues() {
     return {
@@ -1026,7 +1118,7 @@
   function ratingFilterOptions(selected, prefix) {
     return Array.from({ length: 10 }, (_, index) => {
       let value = (index + 1) / 2;
-      let rating = `${value % 1 ? value : value.toFixed(0)}★`;
+      let rating = window.formatStarRating(value);
       let label =
         prefix === "At least "
           ? ui("At least {rating}", { rating })
@@ -1040,7 +1132,7 @@
   function exactRatingOptions(selected) {
     return exactRatingValues
       .map((value) => {
-        let label = `${value % 1 ? value : value.toFixed(0)}★`;
+        let label = window.formatStarRating(value);
         return `<option value="${value}" ${selected === value ? "selected" : ""}>${periodEscape(label)}</option>`;
       })
       .join("");
@@ -1120,6 +1212,17 @@
           category,
           assignments,
         }),
+      label: () => ui("Merge annual category"),
+      openHint: () => ui("Build one decade category from its annual nominees."),
+      dialogHint: () =>
+        ui("Assign explicit decade placements. Blank placements are excluded."),
+      replaceText: (count) =>
+        ui(
+          "This replaces {count} existing decade nomination(s) in this category.",
+          { count },
+        ),
+      createText: () => ui("This creates the decade category."),
+      sourceChoosePlaceholder: () => ui("Choose year"),
     },
     century: {
       periodType: "centuries",
@@ -1132,6 +1235,20 @@
           category,
           assignments,
         }),
+      label: () => ui("Merge decade category"),
+      openHint: () =>
+        ui("Build one century category from its decade nominees."),
+      dialogHint: () =>
+        ui(
+          "Assign explicit century placements. Blank placements are excluded.",
+        ),
+      replaceText: (count) =>
+        ui(
+          "This replaces {count} existing century nomination(s) in this category.",
+          { count },
+        ),
+      createText: () => ui("This creates the century category."),
+      sourceChoosePlaceholder: () => ui("Choose decade"),
     },
     alltime: {
       periodType: "allTime",
@@ -1140,64 +1257,60 @@
         window.collectAllTimeCenturyCandidates?.(category) || [],
       plan: (assignments, category) =>
         window.planAllTimeCenturyMerge({ category, assignments }),
+      label: () => ui("Merge century category"),
+      openHint: () =>
+        ui("Build the all-time category from its century nominees."),
+      dialogHint: () =>
+        ui(
+          "Assign explicit all-time placements. Blank placements are excluded.",
+        ),
+      replaceText: (count) =>
+        ui(
+          "This replaces {count} existing all-time nomination(s) in this category.",
+          { count },
+        ),
+      createText: () => ui("This creates the all-time category."),
+      sourceChoosePlaceholder: () => ui("Choose century"),
     },
   }[type];
 
   function periodMergeLabel() {
-    if (type === "century") return ui("Merge decade category");
-    if (type === "alltime") return ui("Merge century category");
-    return ui("Merge annual category");
+    return periodMergeConfig?.label?.() || ui("Merge annual category");
   }
 
   function periodMergeOpenHint() {
-    if (type === "century")
-      return ui("Build one century category from its decade nominees.");
-    if (type === "alltime")
-      return ui("Build the all-time category from its century nominees.");
-    return ui("Build one decade category from its annual nominees.");
+    return (
+      periodMergeConfig?.openHint?.() ||
+      ui("Build one decade category from its annual nominees.")
+    );
   }
 
   function periodMergeDialogHint() {
-    if (type === "century")
-      return ui(
-        "Assign explicit century placements. Blank placements are excluded.",
-      );
-    if (type === "alltime")
-      return ui(
-        "Assign explicit all-time placements. Blank placements are excluded.",
-      );
-    return ui(
-      "Assign explicit decade placements. Blank placements are excluded.",
+    return (
+      periodMergeConfig?.dialogHint?.() ||
+      ui("Assign explicit decade placements. Blank placements are excluded.")
     );
   }
 
   function periodMergeReplaceText(count) {
-    if (type === "century")
-      return ui(
-        "This replaces {count} existing century nomination(s) in this category.",
+    return (
+      periodMergeConfig?.replaceText?.(count) ||
+      ui(
+        "This replaces {count} existing decade nomination(s) in this category.",
         { count },
-      );
-    if (type === "alltime")
-      return ui(
-        "This replaces {count} existing all-time nomination(s) in this category.",
-        { count },
-      );
-    return ui(
-      "This replaces {count} existing decade nomination(s) in this category.",
-      { count },
+      )
     );
   }
 
   function periodMergeCreateText() {
-    if (type === "century") return ui("This creates the century category.");
-    if (type === "alltime") return ui("This creates the all-time category.");
-    return ui("This creates the decade category.");
+    return (
+      periodMergeConfig?.createText?.() ||
+      ui("This creates the decade category.")
+    );
   }
 
   function periodMergeSourceChoosePlaceholder() {
-    if (type === "century") return ui("Choose decade");
-    if (type === "alltime") return ui("Choose century");
-    return ui("Choose year");
+    return periodMergeConfig?.sourceChoosePlaceholder?.() || ui("Choose year");
   }
 
   function decadeMergeCategories() {
@@ -1309,12 +1422,48 @@
   function render() {
     let finishRenderTimer = window.startOskarsPerformance?.("period:render");
     let watchlistFilters = currentWatchlistFilters();
-    let watchlistEntries = window.periodWatchlistEntries(watchlistFilters);
+    if (viewMode === "watchlist" && watchlistCompactActive)
+      ensureCompactWatchlistFresh();
+    let watchlistCompactReady =
+      viewMode === "watchlist" && watchlistCompactActive
+        ? Boolean(compactWatchlistModel)
+        : true;
+    let watchlistEntries =
+      viewMode === "watchlist" && watchlistCompactActive
+        ? compactWatchlistModel?.page || []
+        : window.periodWatchlistEntries(watchlistFilters);
+    // The compact read's own totalCount/orderedIds cover the COMPLETE
+    // filtered set - watchlistEntries above is only the current page in
+    // compact mode, so every place below that means "how many films match
+    // these filters" (not "how many are on screen") must use this, not
+    // watchlistEntries.length.
+    let watchlistFilteredCount =
+      viewMode === "watchlist" && watchlistCompactActive
+        ? compactWatchlistModel?.totalCount || 0
+        : watchlistEntries.length;
+    // Legacy mode checks "is the user's ENTIRE watchlist (every period)
+    // empty" via state.watchlist directly, to decide whether to
+    // auto-open the add-film form and show the edit-watchlist controls.
+    // window.state.watchlist is never populated in compact mode, so this
+    // uses the CURRENT period/filter's own count as a proxy instead - a
+    // known, narrow, intentional difference (not a correctness issue):
+    // these two UI decisions are scoped to "this period's watchlist looks
+    // empty" rather than "the whole cross-period watchlist is empty" while
+    // compact, which is arguably at least as relevant given the
+    // surrounding page is itself period-scoped either way.
+    let watchlistNonEmptyForUi =
+      viewMode === "watchlist" && watchlistCompactActive
+        ? watchlistFilteredCount > 0
+        : Boolean((state.watchlist || []).length);
     let watchlistFilterProjectSourceId =
       viewMode === "watchlist"
         ? window.registerWatchlistFilterProjectSource(
             watchlistFilters,
-            watchlistEntries,
+            viewMode === "watchlist" && watchlistCompactActive
+              ? (compactWatchlistModel?.orderedIds || []).map((id) => ({
+                  item: { id },
+                }))
+              : watchlistEntries,
             periodViewUrl(),
           )
         : "";
@@ -1363,13 +1512,7 @@
                 : allFilms.filter((film) =>
                     (film.awards || []).some(awardInPeriod),
                   );
-    if (
-      (viewMode === "films" ||
-        viewMode === "rewatch" ||
-        viewMode === "other" ||
-        viewMode === "shared") &&
-      periodOrder === "shuffle"
-    ) {
+    if (isFilmListViewMode(viewMode) && periodOrder === "shuffle") {
       films = [...films].sort((left, right) =>
         window.compareBySeededShuffle(
           left.id || left.tmdbId || `${left.year || ""}::${left.title}`,
@@ -1378,10 +1521,7 @@
         ),
       );
     } else if (
-      (viewMode === "films" ||
-        viewMode === "rewatch" ||
-        viewMode === "other" ||
-        viewMode === "shared") &&
+      isFilmListViewMode(viewMode) &&
       (periodOrder !== "rank" || viewMode === "films")
     ) {
       films = [...films].sort((left, right) =>
@@ -1403,31 +1543,38 @@
       viewMode === "official"
         ? officialNominations.length
         : viewMode === "watchlist"
-          ? watchlistEntries.length
+          ? watchlistFilteredCount
           : films.length;
     let pageCount = Math.max(1, Math.ceil(pageTotal / FILMS_PER_PAGE));
     let previousFilmPage = filmPage;
-    filmPage = Math.min(filmPage, pageCount);
-    if (filmPage !== previousFilmPage) {
-      updateViewUrl();
+    // While a compact fetch's true total is still unknown (first paint,
+    // before compactWatchlistModel resolves), pageTotal is a placeholder
+    // 0 - clamping filmPage against that would collapse an intentional
+    // e.g. "page 3" back to 1 before the real (already in-flight, correct)
+    // fetch for page 3 even returns. Skip the clamp until a real total is
+    // in hand; the render triggered once it resolves clamps correctly.
+    if (watchlistCompactReady) {
+      filmPage = Math.min(filmPage, pageCount);
+      if (filmPage !== previousFilmPage) {
+        updateViewUrl();
+      }
     }
-    visibleFilmPage =
-      viewMode === "films" ||
-      viewMode === "rewatch" ||
-      viewMode === "other" ||
-      viewMode === "shared"
-        ? films.slice(
-            (filmPage - 1) * FILMS_PER_PAGE,
-            filmPage * FILMS_PER_PAGE,
-          )
-        : films;
+    visibleFilmPage = isFilmListViewMode(viewMode)
+      ? films.slice((filmPage - 1) * FILMS_PER_PAGE, filmPage * FILMS_PER_PAGE)
+      : films;
     visibleWatchlistPage =
-      viewMode === "watchlist"
-        ? watchlistEntries.slice(
-            (filmPage - 1) * FILMS_PER_PAGE,
-            filmPage * FILMS_PER_PAGE,
-          )
-        : [];
+      viewMode !== "watchlist"
+        ? []
+        : watchlistCompactActive
+          ? // Already exactly the current page (fetched with the matching
+            // limit/offset) - re-slicing by global position here would be
+            // wrong, since compact page rows are page-relative, not
+            // absolute.
+            watchlistEntries
+          : watchlistEntries.slice(
+              (filmPage - 1) * FILMS_PER_PAGE,
+              filmPage * FILMS_PER_PAGE,
+            );
     finishFilterTimer?.(
       `${viewMode}: ${pageTotal} item(s), page ${filmPage}/${pageCount}`,
     );
@@ -1551,6 +1698,29 @@
       (!hasNominees || unresolvedYearTies.length)
         ? `<section class="detail-note setup-year-cta"><p>${periodEscape(ui("{year} isn't fully built yet.", { year: key }))}</p><a class="button-link" href="${periodEscape(window.yearRankingPageUrl(key))}">${periodEscape(ui("Rank {year}", { year: key }))}</a><a class="button-link" href="${periodEscape(window.yearAwardsPageUrl(key))}">${periodEscape(ui("Build {year} awards", { year: key }))}</a></section>`
         : "";
+    // Compact-mode watchlist loading/error states (issue #598). The
+    // disposable queue (window.renderWatchlistQueue) always needs the
+    // COMPLETE filtered set to pick a random sample from, not just the
+    // current page, so it shows a loading placeholder and relies on
+    // toggleQueue()'s own ensureWatchlistFullyHydrated() call rather than
+    // ever rendering from partial compact data.
+    let watchlistCompactStillLoading =
+      viewMode === "watchlist" &&
+      watchlistCompactActive &&
+      !compactWatchlistModel;
+    let watchlistQueueHtml = !watchlistQueueVisible
+      ? ""
+      : viewMode === "watchlist" && watchlistCompactActive
+        ? `<div class="watchlist-queue-panel"><p role="status">${periodEscape(ui("Loading…"))}</p></div>`
+        : window.renderWatchlistQueue(watchlistEntries, {
+            escape: periodEscape,
+            ui,
+          });
+    let watchlistEmptyHtml = compactWatchlistError
+      ? `<p class="detail-empty">${periodEscape(ui("Could not load the watchlist."))} <button type="button" class="link-button" data-watchlist-compact-retry>${periodEscape(ui("Try again"))}</button></p>`
+      : watchlistCompactStillLoading
+        ? `<p role="status">${periodEscape(ui("Loading watchlist…"))}</p>`
+        : `<p>${periodEscape(ui("No watchlist films in this period."))}</p>`;
     let periodRatingStatistics = window.collectionRatingStatistics(allFilms);
     let otherRatingStatistics = window.collectionRatingStatistics(otherFilms);
     let officialAgreementSummaryHtml = officialComparison?.comparedCount
@@ -1561,7 +1731,7 @@
         ? `<span><b>${officialNominations.length}</b> ${periodEscape(ui("Official nominations"))}</span><span><b>${officialNominations.filter((entry) => entry.winner).length}</b> ${periodEscape(ui("Official winners"))}</span>${officialAgreementSummaryHtml}`
         : viewMode === "shared"
           ? `<span><b>${films.length}</b> ${periodEscape(ui("Unseen films"))}</span><span>${periodEscape(ui("Not watched or watchlisted"))}</span>`
-          : `<span><b>${viewMode === "watchlist" ? watchlistEntries.length : films.length}</b> ${periodEscape(viewMode === "watchlist" ? "Watchlist" : viewMode === "rewatch" ? ui("Rewatchlist") : viewMode === "other" ? ui("Other watched") : ui("Films"))}</span>${viewMode === "other" ? "" : `<span><b>${awards.length}</b> ${periodEscape(ui("Nominations"))}</span>`}${viewMode === "awards" ? officialAgreementSummaryHtml : ""}${viewMode === "films" ? window.renderRatingStatisticsItems(periodRatingStatistics, { escape: periodEscape, ui }) : viewMode === "other" ? window.renderRatingStatisticsItems(otherRatingStatistics, { escape: periodEscape, ui }) : ""}`;
+          : `<span><b>${viewMode === "watchlist" ? watchlistFilteredCount : films.length}</b> ${periodEscape(viewMode === "watchlist" ? "Watchlist" : viewMode === "rewatch" ? ui("Rewatchlist") : viewMode === "other" ? ui("Other watched") : ui("Films"))}</span>${viewMode === "other" ? "" : `<span><b>${awards.length}</b> ${periodEscape(ui("Nominations"))}</span>`}${viewMode === "awards" ? officialAgreementSummaryHtml : ""}${viewMode === "films" ? window.renderRatingStatisticsItems(periodRatingStatistics, { escape: periodEscape, ui }) : viewMode === "other" ? window.renderRatingStatisticsItems(otherRatingStatistics, { escape: periodEscape, ui }) : ""}`;
     let ceremonyActionHtml =
       hasNominees && (viewMode === "awards" || viewMode === "official")
         ? `<a class="button-link" href="presentation.html?scope=period&amp;id=${periodEscape(encodeURIComponent(`${type}:${key}`))}&amp;section=ceremony">${periodEscape(ui("Run ceremony"))}</a>`
@@ -1584,7 +1754,7 @@
     ${viewMode === "films" ? renderRatingHistogram() : ""}
     <fieldset class="period-view-controls"><legend>${periodEscape(ui("View"))}</legend><label><input type="radio" name="periodViewMode" value="films" ${viewMode === "films" ? "checked" : ""}> ${periodEscape(ui("Watched"))}</label><label><input type="radio" name="periodViewMode" value="watchlist" ${viewMode === "watchlist" ? "checked" : ""}> Watchlist</label>${canEdit ? `<label><input type="radio" name="periodViewMode" value="shared" ${viewMode === "shared" ? "checked" : ""}> ${periodEscape(ui("Unseen"))}</label>` : ""}<label><input type="radio" name="periodViewMode" value="rewatch" ${viewMode === "rewatch" ? "checked" : ""}> ${periodEscape(ui("Rewatchlist"))}</label><label><input type="radio" name="periodViewMode" value="other" ${viewMode === "other" ? "checked" : ""}> ${periodEscape(ui("Other watched"))}</label><label><input type="radio" name="periodViewMode" value="awards" ${viewMode === "awards" ? "checked" : ""} ${hasNominees ? "" : "disabled"}> ${periodEscape(ui("Award bracket"))}</label>${type === "year" ? `<label><input type="radio" name="periodViewMode" value="official" ${viewMode === "official" ? "checked" : ""} ${hasOfficialResults ? "" : "disabled"}> ${periodEscape(ui("Official results"))}</label>` : ""}</fieldset>
     ${viewMode === "films" && (decadeMergeControls() || rankingEditControls()) ? `<details class="period-secondary-controls period-maintenance-controls"${rankingEditMode ? " open" : ""}><summary>${periodEscape(ui("Edit period"))}</summary><div>${decadeMergeControls()}${rankingEditControls()}</div></details>` : `${periodEditControls()}${decadeMergeControls()}${rankingEditControls()}`}
-    ${viewMode === "watchlist" && (state.watchlist || []).length && watchlistEditControls() ? `<details class="period-secondary-controls period-maintenance-controls"${tierEditMode || watchlistOrderEditMode ? " open" : ""}><summary>${periodEscape(ui("Edit watchlist"))}</summary><div>${watchlistEditControls()}</div></details>` : viewMode === "watchlist" ? "" : watchlistEditControls()}
+    ${viewMode === "watchlist" && watchlistNonEmptyForUi && watchlistEditControls() ? `<details class="period-secondary-controls period-maintenance-controls"${tierEditMode || watchlistOrderEditMode ? " open" : ""}><summary>${periodEscape(ui("Edit watchlist"))}</summary><div>${watchlistEditControls()}</div></details>` : viewMode === "watchlist" ? "" : watchlistEditControls()}
     ${collectionToolbarHtml}
     ${
       viewMode === "official"
@@ -1618,7 +1788,7 @@
                 ? `${renderFilmFilterControls(sourceOptions, countryOptions)}
       ${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid">${filmCards}</div>` : renderPeriodFilmList(visibleFilmPage)}${pagination}${unrankedPeriodSectionHtml()}`
                 : viewMode === "watchlist"
-                  ? `${window.renderAddWatchlistForm({ escape: periodEscape, ui, open: !(state.watchlist || []).length })}${window.watchlistSubPeriodControls(watchlistFilters, { escape: periodEscape, ui })}${window.renderWatchlistTierFilter(watchlistFilters, { escape: periodEscape, ui })}${window.watchlistFilterControls(watchlistFilters, { filteredCount: watchlistEntries.length, projectSourceId: watchlistFilterProjectSourceId, bulkTierValue: bulkTierControl?.value(), queueVisible: watchlistQueueVisible, escape: periodEscape, ui })}${watchlistQueueVisible ? window.renderWatchlistQueue(watchlistEntries, { escape: periodEscape, ui }) : ""}${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid watchlist-grid">${watchlistCards || `<p>${periodEscape(ui("No watchlist films in this period."))}</p>`}</div>` : `<div class="leaderboard-wrap watchlist-list"><table class="leaderboard"><thead><tr><th>${periodEscape(ui("Interest"))}</th><th>${periodEscape(ui("Film"))}</th><th>${periodEscape(ui("Director"))}</th><th>${periodEscape(ui("Tier"))}</th></tr></thead><tbody>${visibleWatchlistPage.map((entry, visibleIndex) => window.renderWatchlistRow(entry, visibleIndex, { tierEditMode, watchlistOrderEditMode, escape: periodEscape })).join("") || `<tr><td colspan="4">${periodEscape(ui("No watchlist films in this period."))}</td></tr>`}</tbody></table></div>`}${pagination}`
+                  ? `${window.renderAddWatchlistForm({ escape: periodEscape, ui, open: !watchlistNonEmptyForUi })}${window.watchlistSubPeriodControls(watchlistFilters, { escape: periodEscape, ui, subPeriodCounts: watchlistCompactActive ? compactWatchlistModel?.subPeriodCounts : undefined })}${window.renderWatchlistTierFilter(watchlistFilters, { escape: periodEscape, ui, tierCounts: watchlistCompactActive ? compactWatchlistModel?.tierCounts : undefined })}${window.watchlistFilterControls(watchlistFilters, { filteredCount: watchlistFilteredCount, projectSourceId: watchlistFilterProjectSourceId, bulkTierValue: bulkTierControl?.value(), queueVisible: watchlistQueueVisible, escape: periodEscape, ui })}${watchlistQueueHtml}${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid watchlist-grid">${watchlistCards || watchlistEmptyHtml}</div>` : `<div class="leaderboard-wrap watchlist-list"><table class="leaderboard"><thead><tr><th>${periodEscape(ui("Interest"))}</th><th>${periodEscape(ui("Film"))}</th><th>${periodEscape(ui("Director"))}</th><th>${periodEscape(ui("Tier"))}</th></tr></thead><tbody>${visibleWatchlistPage.map((entry, visibleIndex) => window.renderWatchlistRow(entry, visibleIndex, { tierEditMode, watchlistOrderEditMode, escape: periodEscape })).join("") || `<tr><td colspan="4">${watchlistEmptyHtml}</td></tr>`}</tbody></table></div>`}${pagination}`
                   : `<div class="period-award-view">${categorySections}</div>`
     }
     ${decadeMergeDialog()}`;
@@ -1636,7 +1806,17 @@
   window.onSharedFilmArchiveChange?.(() => {
     if (viewMode === "shared") render();
   });
-  if ((state.watchlist || []).length || !window.ensureWatchlistData) render();
+  // Compact mode's own render() drives its first fetch itself
+  // (ensureCompactWatchlistFresh()) - the bundled-watchlist-CSV fallback
+  // below exists for the local/offline (non-Supabase) mode and would
+  // otherwise run a pointless failing fetch here every time, since
+  // state.watchlist is never populated by this view.
+  if (
+    watchlistCompactActive ||
+    (state.watchlist || []).length ||
+    !window.ensureWatchlistData
+  )
+    render();
   else window.ensureWatchlistData().then(render);
   window.hydrateOfficialResultsFromSupabase?.().then(() => {
     refreshOfficialResultsViewModel();
@@ -1885,6 +2065,12 @@
     }
   });
   container.addEventListener("click", async (event) => {
+    if (event.target.closest("[data-watchlist-compact-retry]")) {
+      compactWatchlistError = null;
+      compactWatchlistKey = null;
+      render();
+      return;
+    }
     let addSharedFilmButton = event.target.closest(
       "[data-add-shared-film-tmdb-id]",
     );
@@ -2240,8 +2426,13 @@
       updateViewUrl();
       render();
     },
-    setItemTier(id, tier, tierModifier) {
+    async setItemTier(id, tier, tierModifier) {
       if (!canEdit) return;
+      // Reachable in practice only once tierEditMode is on, which itself
+      // already waited on this (defense in depth, issue #598/#607 - see
+      // the file-level ensureWatchlistFullyHydrated() doc comment).
+      await ensureWatchlistFullyHydrated().catch(() => {});
+      if (watchlistCompactActive) return;
       let result = window.setWatchlistMetadata(
         id,
         { tier, tierModifier },
@@ -2277,22 +2468,31 @@
       updateViewUrl();
       render();
     },
-    toggleOrderEdit() {
+    async toggleOrderEdit() {
       if (!canEdit) return;
-      watchlistOrderEditMode = !watchlistOrderEditMode;
+      // Entering order-edit mode needs the complete watchlist (drag-
+      // reorder moves operate on real items, not a compact page slice) -
+      // wait for a full hydration before turning it on at all, so
+      // moveItem/afterMove below are only ever reachable already hydrated.
+      let next = !watchlistOrderEditMode;
+      if (next) await ensureWatchlistFullyHydrated().catch(() => {});
+      watchlistOrderEditMode = next && !watchlistCompactActive;
       if (watchlistOrderEditMode) tierEditMode = false;
       updateViewUrl();
       render();
     },
-    toggleTierEdit() {
+    async toggleTierEdit() {
       if (!canEdit) return;
-      tierEditMode = !tierEditMode;
+      let next = !tierEditMode;
+      if (next) await ensureWatchlistFullyHydrated().catch(() => {});
+      tierEditMode = next && !watchlistCompactActive;
       if (tierEditMode) watchlistOrderEditMode = false;
       updateViewUrl();
       render();
     },
     toggleQueue() {
       watchlistQueueVisible = !watchlistQueueVisible;
+      if (watchlistQueueVisible) ensureWatchlistFullyHydrated().catch(() => {});
       render();
     },
     toggleTierFilter(rawValue) {
@@ -2316,8 +2516,18 @@
       updateViewUrl();
       render();
     },
-    addItem(values) {
+    async addItem(values) {
       if (!canEdit) return;
+      // The add-film form is always shown, unlike the edit-mode toggles
+      // above, so this is the one write action reachable before any other
+      // watchlist interaction - always wait for a full hydration first.
+      await ensureWatchlistFullyHydrated().catch(() => {});
+      if (watchlistCompactActive) {
+        window.alert?.(
+          ui("Still loading your watchlist - try again in a moment."),
+        );
+        return;
+      }
       let result = window.addWatchlistItem(values, { save: false });
       if (!result.ok) {
         if (result.reason) window.alert?.(result.reason);
@@ -2329,7 +2539,14 @@
       render();
     },
     filteredEntries: () =>
-      window.periodWatchlistEntries(currentWatchlistFilters()),
+      // Only reachable via bindWatchlistBulkTierControl's own synchronous
+      // apply(), which can't await a hydration promise - an empty result
+      // here is always safe (bulk-apply becomes a no-op rather than acting
+      // on a partial set), and the eager background hydration already
+      // kicked off means this window is normally too brief to hit anyway.
+      watchlistCompactActive
+        ? []
+        : window.periodWatchlistEntries(currentWatchlistFilters()),
     applyBulkTier(outcome) {
       watchlistTierFilter = [outcome.tier || ""];
       watchlistOrderEditMode = false;

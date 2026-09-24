@@ -3,8 +3,8 @@
  * per category), shared by the Data Health report and the Completion hub.
  */
 
-function getImportedBracketPeriods() {
-  return Object.entries(state.years || {})
+function getImportedBracketPeriods(stateRef = state) {
+  return Object.entries(stateRef.years || {})
     .map(([key, source]) => {
       let periodType =
         source.periodType || (/^\d{4}$/.test(key) ? "years" : "");
@@ -36,13 +36,13 @@ function getImportedBracketPeriods() {
 // bracket checks previously rescanned every film and award once per category,
 // then scanned them all again for eligibility validation. Keep the source film
 // for placement/tie semantics and the canonical film for validation.
-function dataHealthBracketAwardIndex(periods) {
+function dataHealthBracketAwardIndex(periods, stateRef = state) {
   let index = new Map();
   periods.forEach((period) => {
     let entries = [];
     let byCategory = new Map();
     (period.source.films || []).forEach((sourceFilm) => {
-      let film = state.filmsById[sourceFilm.id] || sourceFilm;
+      let film = stateRef.filmsById[sourceFilm.id] || sourceFilm;
       (sourceFilm.awards || []).forEach((award) => {
         if (
           String(award.year || "") !== period.key ||
@@ -114,6 +114,7 @@ function computeAnnualCategoryCompletion(
   bracketPeriods,
   bracketAwardIndex,
   orderedCategories,
+  stateRef,
 ) {
   let annualPeriods = new Map(
     bracketPeriods
@@ -121,7 +122,7 @@ function computeAnnualCategoryCompletion(
       .map((period) => [period.key, period]),
   );
   let watchedYears = new Set(
-    Object.values(state.filmsById || {})
+    Object.values(stateRef.filmsById || {})
       .map((film) => String(film?.year || ""))
       .filter((year) => /^\d{4}$/.test(year)),
   );
@@ -163,11 +164,16 @@ function computeAnnualCategoryCompletion(
  * Award-bracket completion (filled placement slots per imported period) on
  * its own, independent of the rest of the Data Health diagnostic pass
  * (findings, eligibility, aliases, images) — used by the Completion hub.
+ * @param {Object} [options] Computation options.
+ * @param {Object} [options.state] Explicit state to read instead of
+ *   window.state (issue #597's compact-read cutover) - every existing call
+ *   site omits this and is unaffected.
  */
-window.awardBracketCompletion = function () {
+window.awardBracketCompletion = function (options = {}) {
+  let stateRef = options.state || state;
   let orderedCategories = getOrderedCategories();
-  let bracketPeriods = getImportedBracketPeriods();
-  let bracketAwardIndex = dataHealthBracketAwardIndex(bracketPeriods);
+  let bracketPeriods = getImportedBracketPeriods(stateRef);
+  let bracketAwardIndex = dataHealthBracketAwardIndex(bracketPeriods, stateRef);
   return computeBracketCompletion(
     bracketPeriods,
     bracketAwardIndex,
@@ -178,15 +184,21 @@ window.awardBracketCompletion = function () {
 /**
  * Aggregates annual bracket completion by category, counting only years that
  * contain at least one watched film.
+ * @param {Object} [options] Computation options.
+ * @param {Object} [options.state] Explicit state to read instead of
+ *   window.state (issue #597's compact-read cutover) - every existing call
+ *   site omits this and is unaffected.
  * @returns {Object[]} Category completion rows.
  */
-window.awardBracketCategoryCompletion = function () {
+window.awardBracketCategoryCompletion = function (options = {}) {
+  let stateRef = options.state || state;
   let orderedCategories = getOrderedCategories();
-  let bracketPeriods = getImportedBracketPeriods();
-  let bracketAwardIndex = dataHealthBracketAwardIndex(bracketPeriods);
+  let bracketPeriods = getImportedBracketPeriods(stateRef);
+  let bracketAwardIndex = dataHealthBracketAwardIndex(bracketPeriods, stateRef);
   return computeAnnualCategoryCompletion(
     bracketPeriods,
     bracketAwardIndex,
     orderedCategories,
+    stateRef,
   );
 };

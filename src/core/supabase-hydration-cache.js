@@ -15,7 +15,7 @@
 // Version the key whenever the raw hydration-source contract changes so a
 // payload written by older loader code cannot survive into an incompatible
 // reader after a reload.
-window.OSKARS_HYDRATION_CACHE_KEY = "oskars-supabase-hydration-cache:v2";
+window.OSKARS_HYDRATION_CACHE_KEY = "oskars-supabase-hydration-cache:v3";
 window.OSKARS_HYDRATION_CACHE_TTL_MS = 5 * 60 * 1000;
 
 /**
@@ -49,24 +49,45 @@ window.readCachedSupabaseHydrationSource = function (userId) {
  */
 window.writeCachedSupabaseHydrationSource = function (userId, source) {
   if (!userId) return;
+  let finishWrite = window.startOskarsPerformance?.("hydration:cacheWrite");
   try {
     sessionStorage.setItem(
       window.OSKARS_HYDRATION_CACHE_KEY,
       JSON.stringify({ userId, savedAt: Date.now(), source }),
     );
+    finishWrite?.("stored");
   } catch (err) {
+    finishWrite?.("unavailable");
     // Storage quota exceeded or disabled (private browsing, etc.) - caching
     // is a pure optimization, so a write failure just means every page
     // re-fetches, not a broken app.
   }
 };
 
-/** Clears the cached hydration source, e.g. after a mutation or sign-out. */
-window.invalidateCachedSupabaseHydrationSource = function () {
+window.OSKARS_HYDRATION_INVALIDATION_KEY = "oskars-hydration-invalidation:v1";
+
+/** Clears cached hydration and notifies active shell consumers. @param {boolean} [broadcast] Whether to notify other tabs after a local write. */
+window.invalidateCachedSupabaseHydrationSource = function (broadcast = true) {
   try {
     sessionStorage.removeItem(window.OSKARS_HYDRATION_CACHE_KEY);
   } catch (err) {}
+  if (broadcast) {
+    try {
+      localStorage.setItem(
+        window.OSKARS_HYDRATION_INVALIDATION_KEY,
+        `${Date.now()}:${Math.random()}`,
+      );
+    } catch (_) {}
+  }
+  try {
+    window.dispatchEvent?.(new CustomEvent("oskars:hydration-invalidated"));
+  } catch (_) {}
 };
+
+window.addEventListener?.("storage", (event) => {
+  if (event.key === window.OSKARS_HYDRATION_INVALIDATION_KEY)
+    window.invalidateCachedSupabaseHydrationSource(false);
+});
 
 // Every write-shaped Supabase function in supabase-workspace.js, wrapped
 // from outside that file (rather than editing ~40 function bodies) so a
@@ -128,6 +149,7 @@ window.OSKARS_HYDRATION_CACHE_INVALIDATING_MUTATIONS = [
   "moveSupabaseCollectionItem",
   "setSupabaseFilmPoster",
   "setSupabaseFilmMetadata",
+  "persistSupabaseFilmCredits",
   "setSupabasePersonPortrait",
   "mergeSupabaseFilms",
   "mergeSupabasePeople",

@@ -283,6 +283,7 @@
         let entry = freshWatchedRecordFields(row, validYear);
         applyViewingFacts(entry, row, facts);
         window.enrichPersonalRecordFromSharedArchive?.(entry, "film");
+        window.state.years ||= {};
         window.state.years[row.year] ||= { periodType: "years", films: [] };
         window.state.years[row.year].films.push(entry);
         archiveRecords.push(entry);
@@ -446,7 +447,9 @@
       try {
         files[name] = decoder.decode(entry.bytes).replace(/^\uFEFF/, "");
       } catch (err) {
-        throw new Error(`${entry.path} is not valid UTF-8 text.`);
+        throw new Error(`${entry.path} is not valid UTF-8 text.`, {
+          cause: err,
+        });
       }
     });
     return window.proposeLetterboxdImport(files, options);

@@ -25,7 +25,6 @@ let saveTimer = null;
 let saveWaiters = [];
 let persistenceTabId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 let lastSeenWriteCounter = 0;
-let staleWriteDetected = false;
 let persistenceChannel = null;
 let persistenceLoadInfo = { found: false, source: "none" };
 const PERSISTENCE_META_KEY = "_oskarsPersistence";
@@ -36,7 +35,6 @@ function persistenceStamp(snapshot) {
 
 function markPersistenceFresh(snapshot) {
   lastSeenWriteCounter = persistenceStamp(snapshot);
-  staleWriteDetected = false;
 }
 
 function staleWriteError() {
@@ -79,7 +77,6 @@ function readOnlyViewerStatus() {
 }
 
 function markPersistenceStale(message) {
-  staleWriteDetected = true;
   storageStatus(
     message || "Changed in another tab — reload before editing",
     "stale",
@@ -342,7 +339,10 @@ function writeRecoveryDatabase(database, snapshot, options = {}) {
 
 function recoveryAccountUid(options = {}) {
   return String(
-    options.accountUid || window.state?.draftMetadata?.remoteSync?.uid || "",
+    options.accountUid ||
+      window.getSupabaseCurrentUser?.()?.id ||
+      window.state?.draftMetadata?.remoteSync?.uid ||
+      "",
   );
 }
 
@@ -475,22 +475,33 @@ window.saveRecoveryWorkspace = async function (snapshot, options = {}) {
 };
 
 /**
- * Reads the latest recoverable workspace.
- *
- * The per-account visibility check this used to apply here was removed: its
- * backing globals - getFirebaseCurrentUser, getOskarsBrowserAccountUid,
- * oskarsAccountCanAccessRecovery - were deleted in c44d485 and never got a
- * Supabase-era replacement, so the check had become a permanent no-op.
- * Revisit account-scoping here before wiring restoreRecoveryWorkspace into
- * any UI.
+ * Reads the latest recoverable workspace. Scoped to the active account (issue #508):
+ * if the recovery record was saved under a specific user account, it will only be
+ * returned when accessed by that same account (or matching options.accountUid).
+ * @param {Object} [options] Recovery read options.
+ * @param {string} [options.accountUid] Expected account UID. Defaults to active account.
+ * @param {boolean} [options.allowAnyAccount] If true, skips account-scoping checks.
  * @returns {Promise<Object|null>} Recovery record.
  */
-window.readRecoveryWorkspace = async function () {
+window.readRecoveryWorkspace = async function (options = {}) {
   try {
     let database = await openStateDatabase();
-    if (database) return await readRecoveryDatabase(database);
-    let stored = localStorage.getItem(window.OSKARS_FALLBACK_RECOVERY_KEY);
-    return stored ? JSON.parse(stored) : null;
+    let recovery = database ? await readRecoveryDatabase(database) : null;
+    if (!recovery) {
+      let stored = localStorage.getItem(window.OSKARS_FALLBACK_RECOVERY_KEY);
+      recovery = stored ? JSON.parse(stored) : null;
+    }
+    if (!recovery) return null;
+
+    if (!options.allowAnyAccount) {
+      let expectedUid = recoveryAccountUid(options);
+      let recordUid = String(recovery.accountUid || "");
+      if (recordUid && recordUid !== expectedUid) {
+        return null;
+      }
+    }
+
+    return recovery;
   } catch (err) {
     console.error("Could not read recovery workspace", err);
     return null;
@@ -499,10 +510,11 @@ window.readRecoveryWorkspace = async function () {
 
 /**
  * Restores the latest recoverable workspace as current browser state.
+ * @param {Object} [options] Recovery read and restore options.
  * @returns {Promise<boolean>} Whether recovery was restored.
  */
-window.restoreRecoveryWorkspace = async function () {
-  let recovery = await window.readRecoveryWorkspace();
+window.restoreRecoveryWorkspace = async function (options = {}) {
+  let recovery = await window.readRecoveryWorkspace(options);
   if (!recovery?.workspace) return false;
   let runtime = window.browserPersistenceToRuntimeState(recovery.workspace);
   return window.replaceStoredState(runtime, {
@@ -614,8 +626,11 @@ window.save = function (options = {}) {
   // from reaching this legacy persistence
   // choke point once nothing calls ensureOskarsData()/window.load()
   // first to establish it shouldn't be reachable at all.
-  if (window.OSKARS_ENTRY_SKIPS_LEGACY_DATA_LOAD) {
-    console.error(
+  if (
+    window.OSKARS_ENTRY_SKIPS_LEGACY_DATA_LOAD ||
+    window.oskarsCapabilities?.().skipsLegacyDataLoad
+  ) {
+    console.error?.(
       "window.save() was called on a Supabase-backed entry with no legacy persistence write path - this action isn't available here yet.",
     );
     return false;
@@ -795,7 +810,10 @@ window.load = function () {
   // first IndexedDB read that could silently overwrite already-Supabase-
   // sourced state sometime later (issue #438). Short-circuit here instead
   // of touching every page's own call site.
-  if (window.OSKARS_ENTRY_SKIPS_LEGACY_DATA_LOAD) {
+  if (
+    window.OSKARS_ENTRY_SKIPS_LEGACY_DATA_LOAD ||
+    window.oskarsCapabilities?.().skipsLegacyDataLoad
+  ) {
     loadPromise ||= Promise.resolve(window.state);
     return loadPromise;
   }

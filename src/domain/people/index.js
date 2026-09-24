@@ -98,7 +98,7 @@ window.rebuildPeopleIndex = function () {
   let issues = [];
   let issueKeys = new Set();
 
-  function ensurePerson(name) {
+  function ensurePerson(name, supabasePersonId = null) {
     let variantId = window.normalizePersonName(name);
     if (!variantId) return null;
     let canonicalName = state.peopleAliases?.[variantId] || String(name).trim();
@@ -119,14 +119,32 @@ window.rebuildPeopleIndex = function () {
       watchlistIds: [],
       catalogIds: [],
       _creditKeys: new Set(),
+      _supabasePersonIds: new Set(),
     });
     if (!person.aliases.includes(String(name).trim()))
       person.aliases.push(String(name).trim());
+    // Real people.id candidates (issue #633) - resolved to one
+    // supabasePersonId at finalize only if every source agrees; a slug that
+    // maps to two different database people stays slug-only.
+    if (supabasePersonId) person._supabasePersonIds.add(supabasePersonId);
+    let portraitPersonId = state.personSupabaseIds?.[id];
+    if (portraitPersonId) person._supabasePersonIds.add(portraitPersonId);
     return person;
   }
 
-  function addCredit(name, credit) {
-    let person = ensurePerson(name);
+  // film.directors/film.directorIds are index-aligned (see
+  // reshapeSharedFilmFields); a name parsed back out of the flat director
+  // string is matched to its id by normalized name.
+  function directorSupabaseId(record, name) {
+    let key = window.normalizePersonName(name);
+    let index = (record?.directors || []).findIndex(
+      (candidate) => window.normalizePersonName(candidate) === key,
+    );
+    return index >= 0 ? record.directorIds?.[index] || null : null;
+  }
+
+  function addCredit(name, credit, supabasePersonId = null) {
+    let person = ensurePerson(name, supabasePersonId);
     if (!person) return;
     if (credit.profession && !person.professions.includes(credit.profession))
       person.professions.push(credit.profession);
@@ -147,7 +165,7 @@ window.rebuildPeopleIndex = function () {
   }
 
   function addWatchlistDirector(name, item) {
-    let person = ensurePerson(name);
+    let person = ensurePerson(name, directorSupabaseId(item, name));
     if (!person) return;
     if (!person.professions.includes("Director"))
       person.professions.push("Director");
@@ -157,7 +175,7 @@ window.rebuildPeopleIndex = function () {
   }
 
   function addWatchedOtherDirector(name, film) {
-    let person = ensurePerson(name);
+    let person = ensurePerson(name, directorSupabaseId(film, name));
     if (!person) return;
     if (!person.professions.includes("Director"))
       person.professions.push("Director");
@@ -174,17 +192,21 @@ window.rebuildPeopleIndex = function () {
       ? film.directors
       : window.parsePersonCredit(film.director).names;
     directors.forEach((name) =>
-      addCredit(name, {
-        source: "film",
-        filmId: film.id,
-        filmTitle: film.title,
-        filmYear: film.year,
-        period: film.year,
-        category: "Director",
-        placement: null,
-        profession: "Director",
-        originalCredit: film.director || directors.join(", "),
-      }),
+      addCredit(
+        name,
+        {
+          source: "film",
+          filmId: film.id,
+          filmTitle: film.title,
+          filmYear: film.year,
+          period: film.year,
+          category: "Director",
+          placement: null,
+          profession: "Director",
+          originalCredit: film.director || directors.join(", "),
+        },
+        directorSupabaseId(film, name),
+      ),
     );
 
     (film.awards || []).forEach((award) => {
@@ -212,20 +234,24 @@ window.rebuildPeopleIndex = function () {
       }
 
       window.awardRecipients(award).forEach((recipient) =>
-        addCredit(recipient.name, {
-          source: "award",
-          filmId: film.id,
-          filmTitle: film.title,
-          filmYear: film.year,
-          period: award.year,
-          category: award.category,
-          placement: Number(award.placement),
-          profession,
-          originalCredit,
-          detail,
-          subjectType,
-          subjectId,
-        }),
+        addCredit(
+          recipient.name,
+          {
+            source: "award",
+            filmId: film.id,
+            filmTitle: film.title,
+            filmYear: film.year,
+            period: award.year,
+            category: award.category,
+            placement: Number(award.placement),
+            profession,
+            originalCredit,
+            detail,
+            subjectType,
+            subjectId,
+          },
+          recipient.supabasePersonId,
+        ),
       );
     });
   });
@@ -256,7 +282,12 @@ window.rebuildPeopleIndex = function () {
   (window.sharedArchiveCandidateFilms?.() || []).forEach((film) => {
     if (!film.id) return;
     Object.values(film.people || {}).forEach((credit) => {
-      let person = ensurePerson(credit.name);
+      let person = ensurePerson(
+        credit.name,
+        credit.supabasePersonIds?.length === 1
+          ? credit.supabasePersonIds[0]
+          : null,
+      );
       if (!person) return;
       (credit.professions || []).forEach((profession) => {
         if (!person.professions.includes(profession))
@@ -308,6 +339,11 @@ window.rebuildPeopleIndex = function () {
         .filter(Boolean),
     );
     delete person._creditKeys;
+    person.supabasePersonId =
+      person._supabasePersonIds.size === 1
+        ? [...person._supabasePersonIds][0]
+        : null;
+    delete person._supabasePersonIds;
   });
   doneFinalize?.(`${Object.keys(peopleById).length} people`);
 
@@ -370,6 +406,33 @@ window.rebuildPeopleIndex = function () {
   state.creditSubjectsVersion = Number(state.aggregateVersion) || 0;
   done?.(`${Object.keys(peopleById).length} people`);
   return peopleById;
+};
+
+/**
+ * The key a person's own stored data (notes, local ranks, director
+ * ballots, person projects) is saved under (issue #633): their real
+ * people.id when the index resolved one, else the legacy name slug.
+ * @param {{id: string, supabasePersonId?: string|null}|null} person
+ * @returns {string}
+ */
+window.personStorageKey = function (person) {
+  return person?.supabasePersonId || person?.id || "";
+};
+
+/**
+ * Finds a people-index record by either key form - a people.id uuid or a
+ * legacy name slug.
+ * @param {string} key
+ * @returns {Object|null}
+ */
+window.findPersonByKey = function (key) {
+  let people = window.ensurePeopleIndex?.() || state.peopleById || {};
+  if (!key) return null;
+  if (!window.isUuid?.(key)) return people[key] || null;
+  return (
+    Object.values(people).find((person) => person.supabasePersonId === key) ||
+    null
+  );
 };
 
 /** Returns the current people index, rebuilding stale indexes. @returns {Record<string, PersonRecord>} People index. */

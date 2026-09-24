@@ -1,6 +1,10 @@
 /**
  * @file Collects bracket integrity, metadata coverage, eligibility, alias, image, and work-queue health data.
  */
+/* exported collectDataHealth -- true top-level global (no wrapping IIFE),
+ * called bare from tests/data-health.jxa.js. That file is excluded from
+ * ESLint's own *.jxa.js ignore list, so no-unused-vars can't see the real
+ * cross-file call and flags this as dead otherwise. */
 
 function dataHealthAllTimeFilms() {
   return (state.periods?.allTime?.all?.films || [])
@@ -41,6 +45,14 @@ function dataHealthTitlesLikelyMatch(leftTitle, rightTitle) {
   let longer = left.length < right.length ? right : left;
   return shorter.length >= 8 && longer.includes(shorter);
 }
+
+/**
+ * Heuristic match for film titles handling quotes, ellipsis, unicode slash, and prefix/substring matches.
+ * @param {string} leftTitle First title.
+ * @param {string} rightTitle Second title.
+ * @returns {boolean} True if titles likely represent the same film.
+ */
+window.titlesLikelyMatch = dataHealthTitlesLikelyMatch;
 
 function dataHealthAllTimeFilmIndex() {
   let all = dataHealthAllTimeFilms();

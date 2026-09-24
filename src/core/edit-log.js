@@ -350,6 +350,10 @@ function editLogTsvCell(value) {
     .replace(/\r?\n|\r/g, " / ");
 }
 
+function rowsToTsv(rows) {
+  return rows.map((row) => row.map(editLogTsvCell).join("\t")).join("\n");
+}
+
 /**
  * Formats edit-log entries as sanitized tab-separated sheet rows.
  * @param {EditLogEntry[]} [entries] Entries to format.
@@ -373,7 +377,7 @@ window.formatEditLogForSheet = function (entries = window.state.editLog || []) {
       changes,
     ]);
   });
-  return rows.map((row) => row.map(editLogTsvCell).join("\t")).join("\n");
+  return rowsToTsv(rows);
 };
 
 /**
@@ -524,7 +528,7 @@ window.formatGroupedEditLogForSheet = function (
           ]);
         });
       });
-      return rows.map((row) => row.map(editLogTsvCell).join("\t")).join("\n");
+      return rowsToTsv(rows);
     })
     .join("\n\n");
 };

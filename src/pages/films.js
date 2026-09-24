@@ -80,6 +80,11 @@
           },
         ]),
       ),
+      collections: {
+        default: "",
+        validate: (value) =>
+          !value || Boolean(window.parseCollectionFilter(value)),
+      },
       q: { default: "" },
       sort: {
         default: "title",
@@ -101,6 +106,11 @@
     },
   });
   let currentState = viewState.read();
+  let collectionChoices = null;
+  let collectionExpression = window.parseCollectionFilter(
+    currentState.collections,
+  ) || { mode: "all", groups: [] };
+  let advancedOpen = Boolean(currentState.collections);
   let catalog = null;
   let officialIndex = null;
   // Standard catalog-scale page size (matches people.js).
@@ -383,12 +393,104 @@
     return String(film.title || "").toLowerCase();
   }
 
+  function collectionChoiceLabel(choice) {
+    if (choice.type !== "period") return choice.name;
+    let type = choice.id.split(":")[0];
+    let label = { year: "Year", decade: "Decade", century: "Century" }[type];
+    return label ? `${ui(label)}: ${choice.name}` : ui(choice.name);
+  }
+
+  function collectionBuilderHtml() {
+    let labels = {
+      tag: ui("Tag"),
+      franchise: ui("Franchise"),
+      person: ui("Filmography"),
+      period: ui("Period"),
+    };
+    function modeOptions(value) {
+      return ["all", "any"]
+        .map(
+          (mode) =>
+            `<option value="${mode}"${value === mode ? " selected" : ""}>${escape(ui(mode === "all" ? "All (intersection)" : "Any (union)"))}</option>`,
+        )
+        .join("");
+    }
+    let choices = collectionChoices || [];
+    let options = Object.entries(labels)
+      .map(
+        ([type, label]) =>
+          `<optgroup label="${escape(label)}">${choices
+            .filter((choice) => choice.type === type)
+            .map(
+              (choice) =>
+                `<option value="${escape(JSON.stringify([choice.type, choice.id]))}">${escape(collectionChoiceLabel(choice))} (${choice.members.size})</option>`,
+            )
+            .join("")}</optgroup>`,
+      )
+      .join("");
+    return `<section class="films-collection-builder" aria-label="${escape(ui("Collection filters"))}"><h2>${escape(ui("Collection filters"))}</h2><p>${escape(ui("Combine collections within groups, then combine the groups. Other filters still apply."))}</p>
+      <label>${escape(ui("Match groups"))} <select data-collection-mode>${modeOptions(collectionExpression.mode)}</select></label>
+      ${collectionExpression.groups
+        .map(
+          (group, index) =>
+            `<fieldset data-collection-group="${index}"><legend>${escape(ui("Group {number}", { number: index + 1 }))}</legend><label>${escape(ui("Match collections"))} <select data-group-mode="${index}">${modeOptions(group.mode)}</select></label><button type="button" data-remove-group="${index}">${escape(ui("Remove group"))}</button><ul>${group.items
+              .map((item, itemIndex) => {
+                let choice = choices.find(
+                  (entry) => entry.type === item.type && entry.id === item.id,
+                );
+                let label = `${labels[item.type]}: ${choice ? collectionChoiceLabel(choice) : item.id}`;
+                return `<li>${escape(label)}${choice ? "" : ` (${escape(ui("Unavailable collection"))})`} <button type="button" data-remove-collection="${index}:${itemIndex}" aria-label="${escape(ui("Remove {name}", { name: label }))}">×</button></li>`;
+              })
+              .join(
+                "",
+              )}</ul><label>${escape(ui("Add collection"))} <select data-add-collection="${index}"><option value="">${escape(ui("Choose a collection"))}</option>${options}</select></label></fieldset>`,
+        )
+        .join("")}
+      <button type="button" data-add-group>${escape(ui("Add group"))}</button> <button type="button" data-clear-collections>${escape(ui("Clear collection filters"))}</button></section>`;
+  }
+
+  function saveCollectionExpression() {
+    let focused = document.activeElement;
+    let focusAttribute = [...(focused?.attributes || [])].find((attribute) =>
+      attribute.name.startsWith("data-"),
+    );
+    currentState = {
+      ...currentState,
+      collections: collectionExpression.groups.length
+        ? JSON.stringify(collectionExpression)
+        : "",
+      page: 1,
+    };
+    viewState.replace(currentState);
+    advancedOpen = true;
+    render();
+    if (focusAttribute) {
+      let candidates = container.querySelectorAll(`[${focusAttribute.name}]`);
+      let restored = [...candidates].find(
+        (element) =>
+          element.getAttribute(focusAttribute.name) === focusAttribute.value,
+      );
+      (restored || container.querySelector("[data-add-group]"))?.focus();
+    }
+  }
+
   function render() {
     let finish = window.startOskarsPerformance?.("films:render");
     // Resolved once per render rather than per film below - render() already
     // re-runs on an "oskars:localechange" event, so this can't go stale.
     let locale = window.oskarsLocale();
     let films = fullCatalog();
+    if (!collectionChoices && advancedOpen)
+      collectionChoices = window.buildCatalogCollectionChoices(films);
+    let selectedChoices = new Map(
+      (collectionChoices || []).map((choice) => [
+        JSON.stringify([choice.type, choice.id]),
+        choice,
+      ]),
+    );
+    let hasCollectionFilters = collectionExpression.groups.some(
+      (group) => group.items.length,
+    );
     let filmFilters = Object.fromEntries(
       filterNames.map((name) => [name, currentState[name]]),
     );
@@ -402,6 +504,14 @@
         }) &&
         (!currentState.status || film.catalogStatus === currentState.status) &&
         matchesSearch(film, currentState.q) &&
+        (!hasCollectionFilters ||
+          window.matchesCollectionFilter(
+            collectionExpression,
+            (item) =>
+              selectedChoices
+                .get(JSON.stringify([item.type, item.id]))
+                ?.members.has(film) || false,
+          )) &&
         matchesTags(film, currentState.tags) &&
         (!franchiseMembers || franchiseMembers.has(film.id)) &&
         matchesPersonalAward(film, currentState.personalAward) &&
@@ -465,8 +575,9 @@
       <label class="films-search">${escape(ui("Search"))}<input type="search" name="q" placeholder="${escape(ui("Title or director"))}" value="${escape(currentState.q)}"></label>
       ${sortControl}
       ${toolbarControlsHtml}
-      <details class="films-advanced-filters">
+      <details class="films-advanced-filters"${advancedOpen ? " open" : ""}>
         <summary>${escape(ui("Advanced filters"))}</summary>
+        ${advancedOpen ? collectionBuilderHtml() : ""}
         <div class="films-advanced-filters-grid">
           <label>${escape(ui("Period"))}<select name="period">${periodOptionsHtml(films)}</select></label>
           <label>${escape(ui("Medium"))}<select name="medium">${option("", ui("Any medium"), "medium")}${option("live-action", ui("Live action"), "medium")}${option("animation", ui("Animation"), "medium")}${option("hybrid", ui("Hybrid"), "medium")}</select></label>
@@ -531,6 +642,57 @@
         });
       });
     let toolbar = document.getElementById("filmsToolbar");
+    toolbar?.addEventListener("submit", (event) => event.preventDefault());
+    container
+      .querySelector(".films-advanced-filters")
+      ?.addEventListener("toggle", (event) => {
+        let changed = advancedOpen !== event.target.open;
+        advancedOpen = event.target.open;
+        if (changed && advancedOpen) render();
+      });
+    toolbar?.addEventListener("click", (event) => {
+      let button = event.target.closest("button");
+      if (!button) return;
+      if (button.hasAttribute("data-add-group")) {
+        if (collectionExpression.groups.length >= 20) return;
+        collectionExpression.groups.push({ mode: "any", items: [] });
+      } else if (button.hasAttribute("data-clear-collections"))
+        collectionExpression = { mode: "all", groups: [] };
+      else if (button.hasAttribute("data-remove-group"))
+        collectionExpression.groups.splice(
+          Number(button.dataset.removeGroup),
+          1,
+        );
+      else if (button.hasAttribute("data-remove-collection")) {
+        let [group, item] = button.dataset.removeCollection
+          .split(":")
+          .map(Number);
+        collectionExpression.groups[group].items.splice(item, 1);
+      } else return;
+      saveCollectionExpression();
+    });
+    toolbar?.addEventListener("change", (event) => {
+      let target = event.target;
+      if (target.hasAttribute("data-collection-mode"))
+        collectionExpression.mode = target.value;
+      else if (target.hasAttribute("data-group-mode"))
+        collectionExpression.groups[Number(target.dataset.groupMode)].mode =
+          target.value;
+      else if (target.hasAttribute("data-add-collection") && target.value) {
+        let [type, id] = JSON.parse(target.value);
+        let group =
+          collectionExpression.groups[Number(target.dataset.addCollection)];
+        if (
+          group.items.length >= 50 ||
+          group.items.some((item) => item.type === type && item.id === id)
+        ) {
+          target.value = "";
+          return;
+        }
+        group.items.push({ type, id });
+      } else return;
+      saveCollectionExpression();
+    });
     let searchDebounce = null;
     toolbar?.addEventListener("input", (event) => {
       if (event.target.name !== "q") return;

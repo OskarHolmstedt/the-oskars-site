@@ -162,8 +162,8 @@ window.findExistingFilmStoreRecord = function (
   let concreteYear = window.filmConcreteYear(effectiveYear);
   if (!normalizedTitle) return null;
   let candidates = window.filmStoreCandidatesByTitle
-    ? window.filmStoreCandidatesByTitle(normalizedTitle)
-    : Object.values(window.state?.filmsById || {}).filter(
+    ? window.filmStoreCandidatesByTitle(normalizedTitle, options.store)
+    : Object.values((options.store || window.state)?.filmsById || {}).filter(
         (candidate) =>
           candidate.normalizedTitle === normalizedTitle ||
           window.normalizeTitle(candidate.title) === normalizedTitle,
@@ -200,26 +200,31 @@ window.findExistingFilmStoreRecord = function (
   );
 };
 
-/** Replaces a canonical film id across source and derived indexes. @param {string} oldId Old id. @param {string} newId New id. @param {FilmRecord} film Canonical film. */
-window.replaceFilmStoreId = function (oldId, newId, film) {
+/** Replaces a canonical film id across source and derived indexes. @param {string} oldId Old id. @param {string} newId New id. @param {FilmRecord} film Canonical film. @param {Object} [store] Isolated canonical store, or application state. */
+window.replaceFilmStoreId = function (
+  oldId,
+  newId,
+  film,
+  store = window.state,
+) {
   if (!oldId || !newId || oldId === newId) return;
-  if (window.state.filmsById?.[oldId] === film) {
-    delete window.state.filmsById[oldId];
-    window.state.filmsById[newId] = film;
+  if (store.filmsById?.[oldId] === film) {
+    delete store.filmsById[oldId];
+    store.filmsById[newId] = film;
   }
-  Object.values(window.state.years || {}).forEach((period) => {
+  Object.values(store.years || {}).forEach((period) => {
     (period.films || []).forEach((sourceFilm) => {
       if (sourceFilm.id === oldId) sourceFilm.id = newId;
     });
   });
   ["years", "decades", "centuries"].forEach((group) => {
-    Object.values(window.state.periods?.[group] || {}).forEach((period) => {
+    Object.values(store.periods?.[group] || {}).forEach((period) => {
       (period.films || []).forEach((entry) => {
         if (entry.id === oldId) entry.id = newId;
       });
     });
   });
-  (window.state.periods?.allTime?.all?.films || []).forEach((entry) => {
+  (store.periods?.allTime?.all?.films || []).forEach((entry) => {
     if (entry.id === oldId) entry.id = newId;
   });
 };

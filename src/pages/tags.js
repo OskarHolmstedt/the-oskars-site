@@ -119,11 +119,17 @@
     container
       .querySelectorAll?.("[data-start-project-source]")
       .forEach((button) => {
-        button.addEventListener("click", () => {
-          window.startProjectFromSourceAndOpen(
-            button.dataset.startProjectSource,
-            button.dataset.projectSourceId,
-          );
+        button.addEventListener("click", async () => {
+          if (button.disabled) return;
+          button.disabled = true;
+          try {
+            await window.startProjectFromSourceAndOpen(
+              button.dataset.startProjectSource,
+              button.dataset.projectSourceId,
+            );
+          } finally {
+            button.disabled = false;
+          }
         });
       });
     finishRenderTimer?.(`${tags.length} tags`);

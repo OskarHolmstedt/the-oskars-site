@@ -36,25 +36,14 @@
   let container = document.getElementById("profilePage");
   let profile = null;
 
-  function downloadJson(value, filename) {
-    let url = URL.createObjectURL(
-      new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }),
-    );
-    let link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
-  }
-
-  function stampedFilename(prefix) {
-    return `${prefix}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
-  }
+  let downloadJson = window.downloadJson;
+  let stampedFilename = window.stampedFilename;
 
   function authSectionHtml(user) {
     return `<section id="profileAuthSection" class="data-panel">
       <h2>Profile</h2>
       <p>Signed in as ${escape(user.email || "your profile")}.</p>
+      <p class="data-panel-status"><a href="privacy.html" id="profilePrivacyNoticeLink" data-privacy-notice-trigger>Privacy notice</a></p>
       <div class="data-actions"><button id="profileSignOutBtn" type="button">Sign out</button></div>
     </section>`;
   }
@@ -242,21 +231,7 @@
   }
 
   function renderHeaderAuthStatus(user, profileRecord) {
-    let statusContainer = document.querySelector("[data-auth-status]");
-    if (!statusContainer) return;
-    let displayName =
-      profileRecord?.display_name ||
-      user.user_metadata?.full_name ||
-      user.user_metadata?.name ||
-      user.email ||
-      "Profile";
-    window.renderSignedInHeaderAccount?.(statusContainer, user, displayName);
-    statusContainer
-      .querySelector("[data-supabase-sign-out]")
-      ?.addEventListener("click", async () => {
-        await window.signOutOfSupabase?.();
-        window.location.reload();
-      });
+    window.renderHeaderAuthStatus?.(user, profileRecord?.display_name);
   }
 
   async function boot() {
@@ -271,6 +246,7 @@
       render(access.user);
       renderHeaderAuthStatus(access.user, profile);
       finish?.();
+      window.refreshFocusedShellBackdrop?.();
     } catch (error) {
       container.innerHTML = `<section class="detail-empty"><h2>Could not load your profile</h2><p>${escape(error.message || String(error))}</p></section>`;
     }

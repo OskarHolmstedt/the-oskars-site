@@ -71,15 +71,7 @@
   let watchlistSource = null;
   let watchlistById = new Map();
 
-  function initials(name) {
-    return String(name || "")
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase();
-  }
+  let initials = window.initialsFor;
 
   function viewUrl(nextView) {
     return peopleUrlState.build(

@@ -202,6 +202,39 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.app-footer {
+  box-sizing: border-box;
+  width: min(var(--content-width), 100%);
+  margin: 32px auto 0;
+  padding: 0 14px;
+}
+.app-footer-links {
+  padding: 12px 0;
+  text-align: center;
+}
+.app-footer-links a {
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+.app-footer-links a:hover,
+.app-footer-links a:focus-visible {
+  color: var(--accent-dark);
+  text-decoration: underline;
+}
+.app-footer-attribution {
+  border-top: 1px solid #ccc;
+  padding: 14px 0 20px;
+  color: #777;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.app-footer-attribution:empty {
+  display: none;
+}
+.app-footer-attribution a {
+  color: inherit;
+}
 .app-header-actions {
   display: grid;
   grid-column: 2 / -1;
@@ -844,6 +877,12 @@ textarea {
   max-width: var(--content-width);
   margin: 0 auto;
 }
+.data-workspace a:not(.button-link) {
+  color: var(--accent-dark);
+}
+.data-workspace a:not(.button-link):hover {
+  color: var(--accent);
+}
 .data-workspace-heading {
   display: flex;
   align-items: flex-end;
@@ -1211,8 +1250,7 @@ pre.data-panel-status {
 .data-health-heading h2 {
   margin: 3px 0 0;
 }
-.data-health-heading p,
-.data-health-note {
+.data-health-heading p {
   margin: 0;
   color: var(--muted);
 }
@@ -1379,6 +1417,51 @@ pre.data-panel-status {
   gap: 4px;
   color: inherit;
   font-size: 12px;
+}
+.data-danger-zone-list {
+  border-color: rgba(161, 38, 34, 0.35);
+  background: rgba(161, 38, 34, 0.045);
+}
+.data-danger-zone-list h3 {
+  margin: 0 0 4px;
+  color: #8f2926;
+  font-size: 18px;
+}
+.data-delete-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin: 10px 0 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(161, 38, 34, 0.25);
+  font-size: 12px;
+  font-weight: bold;
+}
+.data-delete-shortcuts label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.data-delete-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(161, 38, 34, 0.18);
+  cursor: pointer;
+}
+.data-delete-row h4 {
+  margin: 0 0 2px;
+  font-size: 14px;
+}
+.data-delete-row p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.data-delete-row input[type="checkbox"] {
+  flex-shrink: 0;
 }
 .edit-log-panel {
   margin-top: 16px;
@@ -8507,19 +8590,8 @@ a.rate-watched-year-arrow:hover {
   }
 }
 
-/* Attribution, franchises, completion, and statistics pages. */
-.data-attribution {
-  max-width: var(--content-width);
-  margin: 44px auto 0;
-  border-top: 1px solid #ccc;
-  padding: 14px 0 4px;
-  color: #777;
-  font-size: 11px;
-  line-height: 1.5;
-}
-.data-attribution a {
-  color: inherit;
-}
+/* Franchises, completion, and statistics pages. Attribution now lives in
+   the shared .app-footer-attribution slot above. */
 .film-franchises {
   margin: 24px 0 30px;
 }
@@ -10227,6 +10299,46 @@ a.rate-watched-year-arrow:hover {
   top: 5px;
   width: 24px;
 }
+/* Super-exclude button sits to the left of the per-category hide button. */
+.setup-year-pool-card .card-super-exclude-button {
+  right: 33px;
+  color: var(--muted);
+}
+.setup-year-pool-card .card-super-exclude-button:hover {
+  color: var(--danger, #c0392b);
+}
+/* Filter-reason badge on filtered-out cards. */
+.setup-year-pool-filter-badge {
+  display: inline-block;
+  background: var(--line);
+  border-radius: 3px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin: 0 6px 4px;
+  padding: 1px 4px;
+  text-transform: uppercase;
+}
+/* Filtered-out cards appear dimmed so they're visually secondary. */
+.setup-year-pool-card.is-filtered-out {
+  border-style: dashed;
+  opacity: 0.75;
+}
+.setup-year-pool-card.is-filtered-out:hover,
+.setup-year-pool-card.is-filtered-out:focus-visible {
+  border-style: solid;
+  opacity: 1;
+}
+/* Filtered pool sub-section — slight top separator from the eligible pool. */
+.setup-year-filtered-pool {
+  border-top: 1px dashed var(--line);
+  margin-top: 12px;
+  padding-top: 10px;
+}
+.setup-year-show-filtered.is-active {
+  background: var(--surface-raised, #f4f4f4);
+}
 .setup-year-pool-card:hover,
 .setup-year-pool-card:focus-visible {
   border-color: var(--accent, #4a7c59);
@@ -10235,6 +10347,7 @@ a.rate-watched-year-arrow:hover {
 .setup-year-pool-card.dragging {
   opacity: 0.5;
 }
+
 .setup-year-credit-form {
   display: flex;
   flex-wrap: wrap;
@@ -12262,4 +12375,225 @@ a.rate-watched-year-arrow:hover {
 #dataToolsPage .film-edit-group :is(input, button) {
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* Privacy notice modal and page styles (issue #587). */
+.privacy-notice-dialog {
+  max-width: 640px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 24px;
+}
+.privacy-notice-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.privacy-notice-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  line-height: 1.55;
+  font-size: 14px;
+}
+.privacy-notice-content h1,
+.privacy-notice-content h2,
+.privacy-notice-content h3 {
+  margin: 0 0 6px;
+  line-height: 1.3;
+}
+.privacy-notice-content .privacy-notice-lead {
+  font-size: 15px;
+  opacity: 0.9;
+  margin: 0;
+}
+.privacy-notice-content ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.privacy-notice-content code {
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--surface-soft, #f0f0f0);
+}
+.account-gate-privacy {
+  margin-top: 14px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+.privacy-page-container {
+  max-width: 720px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
+.privacy-page-panel {
+  padding: 28px;
+}
+
+.films-collection-builder {
+  margin-block: 16px;
+}
+.films-collection-builder h2 {
+  font-size: 16px;
+}
+.films-collection-builder p {
+  color: var(--muted);
+  font-size: 13px;
+}
+.films-collection-builder fieldset {
+  min-width: 0;
+  margin-block: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.films-collection-builder select {
+  max-width: 100%;
+}
+.films-collection-builder ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 0;
+  list-style: none;
+}
+.films-collection-builder button {
+  margin-inline-start: 6px;
+}
+
+/* Fixed-collection trophies use typography rather than generated artwork. */
+.trophy-cabinet {
+  margin: 2rem 0;
+}
+.trophy-cabinet > header p {
+  color: var(--muted);
+}
+.collection-trophy {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.collection-trophy.is-earned {
+  border-color: var(--gold);
+}
+.trophy-emblem {
+  display: flex;
+  flex: 0 0 88px;
+  width: 88px;
+  height: 104px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border: 3px double var(--muted);
+  border-radius: 44px 44px 16px 16px;
+  color: var(--ink);
+}
+.is-earned .trophy-emblem {
+  border-color: var(--gold);
+}
+.trophy-emblem span {
+  font: bold 1.8rem var(--heading-font);
+}
+.trophy-emblem small {
+  margin-top: 0.5rem;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+}
+.trophy-content {
+  flex: 1;
+  min-width: 0;
+}
+.trophy-status {
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+}
+.trophy-content h3 {
+  font: bold clamp(1.5rem, 4vw, 2rem) var(--heading-font);
+  margin: 0;
+}
+.trophy-caption {
+  margin: 0.5rem 0 1.25rem;
+}
+.trophy-progress-label {
+  display: block;
+  font-size: 0.9rem;
+}
+.trophy-content progress {
+  width: 100%;
+  max-width: 28rem;
+  height: 0.65rem;
+  accent-color: var(--accent);
+}
+.trophy-films {
+  margin-top: 1.25rem;
+}
+.trophy-films summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.trophy-films p {
+  color: var(--muted);
+}
+.trophy-films ul {
+  list-style: none;
+  padding: 0;
+}
+.trophy-films li {
+  display: grid;
+  grid-template-columns: 6rem 1fr auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--line);
+}
+.trophy-film-state,
+.trophy-film-year {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+@media (max-width: 540px) {
+  .collection-trophy {
+    flex-direction: column;
+  }
+  .trophy-emblem {
+    flex-basis: auto;
+  }
+  .trophy-content {
+    width: 100%;
+  }
+  .trophy-films li {
+    grid-template-columns: 1fr auto;
+  }
+  .trophy-film-state {
+    grid-column: 1 / -1;
+  }
+}
+.trophy-content progress::-webkit-progress-bar {
+  background: var(--line);
+  border-radius: 4px;
+}
+.trophy-content progress::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: 4px;
+}
+.trophy-content progress::-moz-progress-bar {
+  background: var(--accent);
+}
+.trophy-films a {
+  color: var(--ink);
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+.trophy-films a:hover {
+  color: var(--accent);
 }

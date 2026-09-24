@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Notice · The Oskars</title>
+    <link rel="stylesheet" href="styles/app.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-brand">
+        <a href="index.html" class="brand-link">The Oskars</a>
+      </div>
+      <nav class="header-nav">
+        <a href="index.html" class="nav-link">← Return to archive</a>
+      </nav>
+    </header>
+    <main class="data-workspace privacy-page-container">
+      <div class="data-panel privacy-page-panel" id="privacyNoticeMount">
+        <p>Loading privacy notice…</p>
+      </div>
+    </main>
+    <script src="src/ui/privacy-notice.js"></script>
+    <script>
+      // privacy.html and the sign-in gate/profile modal render from the
+      // same window.renderPrivacyNoticeContentHtml() source (issue #587) so
+      // the notice never has two copies that can drift out of sync.
+      document.getElementById("privacyNoticeMount").innerHTML =
+        window.renderPrivacyNoticeContentHtml();
+    </script>
+  </body>
+</html>

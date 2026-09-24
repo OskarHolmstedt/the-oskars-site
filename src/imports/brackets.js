@@ -106,7 +106,7 @@ function parseTable(raw, options = {}) {
     let category = CATEGORY_NAME_MAP[rawCategory.toLowerCase()];
     if (!category) return null;
 
-    let field = "";
+    let field;
 
     if (category === "Best Picture") {
       field = pictureFieldFromRawField(rawField);
@@ -163,7 +163,7 @@ function parseTable(raw, options = {}) {
           ? "allTime"
           : "years";
 
-    let year = "";
+    let year;
 
     if (periodType === "allTime") {
       year = "alltime";

@@ -72,6 +72,28 @@
     return `${fuzzyTitleKey(title)}::${year ?? ""}`;
   }
 
+  // Common words too short/generic to count as evidence two titles are
+  // the same film - excluding them stops e.g. "The Cars That Ate Paris"
+  // vs "Pat Garrett & Billy the Kid" from spuriously sharing "the".
+  const TITLE_MATCH_STOPWORDS = new Set([
+    "the", "and", "for", "with", "into", "from", "that", "this", "are",
+    "was", "were",
+  ]);
+
+  /** Whether two titles share at least one real (non-stopword, 3+ char) word - a cheap plausibility check for an id-based match, not a full similarity score. @param {string} a Title. @param {string} b Title. @returns {boolean} */
+  function titlesPlausiblyRelated(a, b) {
+    let wordsA = fuzzyTitleKey(a)
+      .split(" ")
+      .filter((word) => word.length >= 3 && !TITLE_MATCH_STOPWORDS.has(word));
+    if (!wordsA.length) return true; // Nothing to compare against - don't block on it.
+    let wordsB = new Set(
+      fuzzyTitleKey(b)
+        .split(" ")
+        .filter((word) => word.length >= 3 && !TITLE_MATCH_STOPWORDS.has(word)),
+    );
+    return wordsA.some((word) => wordsB.has(word));
+  }
+
   /** Normalizes a nomination source key so recipient order is deterministic. @param {string} rawKey Raw source key. @returns {string} Normalized key. */
   window.normalizeNominationSourceKey = function (rawKey) {
     if (!rawKey || typeof rawKey !== "string") return String(rawKey || "");
@@ -162,6 +184,32 @@
     }
   }
 
+  /**
+   * Whether a freshly-computed "watched" row would change anything already
+   * stored for that film - `source_row_number` deliberately excluded: an
+   * All-time re-export very often reorders rows (a re-ranking, a new film
+   * inserted higher up) without any of this row's own watched data
+   * actually changing, and treating a pure reorder as "changed" would
+   * force a real upsert for every film on every import.
+   * @param {Object} incoming Freshly computed watched row (no `id`/`user_id`).
+   * @param {Object} [existing] The matching row already in Supabase, if any.
+   * @returns {boolean}
+   */
+  function watchedRowUnchanged(incoming, existing) {
+    if (!existing) return false;
+    let numbersMatch = (a, b) => (a ?? null) === (b ?? null);
+    return (
+      numbersMatch(incoming.rating, existing.rating) &&
+      (incoming.rating_modifier || null) === (existing.rating_modifier || null) &&
+      (incoming.date_watched || null) === (existing.date_watched || null) &&
+      numbersMatch(incoming.views, existing.views) &&
+      (incoming.platform || null) === (existing.platform || null) &&
+      (incoming.music_score || null) === (existing.music_score || null) &&
+      (incoming.music_rating || null) === (existing.music_rating || null) &&
+      numbersMatch(incoming.music_rating_value, existing.music_rating_value)
+    );
+  }
+
   /* ===========================
      Working resolvers - identical logic to the Node script, see
      scripts/import-owner-sheets-to-supabase.mjs for the full rationale.
@@ -198,7 +246,7 @@
       title,
       periodHint,
       filmCategoryHistory,
-      categories,
+      awards,
     ) {
       let candidates = (
         byTitleOnly.get(
@@ -231,10 +279,20 @@
       // films have a Best Score nomination *somewhere* in their history),
       // so only the immediate level distinguishes "promoted into this
       // bracket" from "coincidentally also nominated once, elsewhere"
-      // (issue #473). Tier 2 is exactly #471's original any-category,
-      // any-narrower-rank check, tried against the same original candidate
-      // set whenever tier 1 can't narrow to one, so nothing #471 already
-      // resolved regresses.
+      // (issue #473). Within that immediate-scope category match, also
+      // require the recipient name(s) to overlap when both the current
+      // award and the historical one recorded any - a category match
+      // alone isn't enough when both real Suspiria films separately won
+      // Best Song at their own century (1900s Goblin's "Suspiria" vs.
+      // 2000s Thom Yorke's "Suspirium"), which made the category-only
+      // check match both candidates and wrongly stay ambiguous even
+      // though the all-time win's own recipient ("Goblin") only ever
+      // matches the 1977 film's history. A category with no recorded
+      // recipients on either side (e.g. Best Picture) still falls back to
+      // the category-only match. Tier 2 is exactly #471's original
+      // any-category, any-narrower-rank check, tried against the same
+      // original candidate set whenever tier 1 can't narrow to one, so
+      // nothing #471 already resolved regresses.
       let via = null;
       function hasNarrowerHistory(film) {
         let currentRank = PERIOD_RANK[periodHint?.periodType] ?? Infinity;
@@ -247,13 +305,19 @@
       }
       if (candidates.length > 1 && filmCategoryHistory) {
         let currentRank = PERIOD_RANK[periodHint?.periodType] ?? Infinity;
-        if (categories?.length && Number.isFinite(currentRank) && currentRank > 0) {
+        if (awards?.length && Number.isFinite(currentRank) && currentRank > 0) {
           let immediateScope = PERIOD_BY_RANK[currentRank - 1];
           let withCategory = candidates.filter((film) => {
-            let categorySet = filmCategoryHistory
-              .get(film.id)
-              ?.get(immediateScope);
-            return categorySet && categories.some((c) => categorySet.has(c));
+            let categoryMap = filmCategoryHistory.get(film.id)?.get(immediateScope);
+            if (!categoryMap) return false;
+            return awards.some(({ category, recipients }) => {
+              let recipientSet = categoryMap.get(category);
+              if (!recipientSet) return false;
+              if (!recipients?.length || !recipientSet.size) return true;
+              return recipients.some((name) =>
+                recipientSet.has(normalizedPersonName(name)),
+              );
+            });
           });
           if (withCategory.length === 1) {
             candidates = withCategory;
@@ -278,7 +342,24 @@
       let tmdbId = cleanTmdbId(source.tmdbId);
       let year = numericOrNull(source.year);
       if (tmdbId !== null && byTmdbId.has(tmdbId)) {
-        return { status: "resolved", film: byTmdbId.get(tmdbId), via: "tmdb" };
+        let tmdbMatch = byTmdbId.get(tmdbId);
+        if (titlesPlausiblyRelated(source.title, tmdbMatch.title)) {
+          return { status: "resolved", film: tmdbMatch, via: "tmdb" };
+        }
+        // A tmdb_id whose catalog title shares no real word with this
+        // row's own title is untrustworthy - almost certainly a wrong id
+        // pasted into the sheet, not a genuine match. Trusting it would
+        // silently merge this row's rating/date/director onto a
+        // completely unrelated film (found live: 28 real Diary rows with
+        // a wrong tmdbId each merged a real viewing onto some other
+        // owned film, e.g. a "Jesus Christ Superstar" viewing landing on
+        // "Hair"). Never auto-resolve or auto-create from here - flag it
+        // for the owner to fix the sheet's tmdbId and re-import.
+        return {
+          status: "tmdb-mismatch",
+          requestedTmdbId: tmdbId,
+          matchedFilm: tmdbMatch,
+        };
       }
       let exact = byExactTitleYear.get(exactTitleYearKey(source.title, year));
       if (exact) return { status: "resolved", film: exact, via: "title-year" };
@@ -493,6 +574,7 @@
       createdFilms: 0,
       ambiguous: [],
       skipped: [],
+      tmdbMismatches: [],
       notes: {},
     };
   }
@@ -525,6 +607,24 @@
 
   function noteSkipped(report, rowNumber, reason) {
     report.skipped.push({ rowNumber: rowNumber ?? null, reason });
+  }
+
+  /**
+   * Reports a row whose tmdb_id points to a different film than its own
+   * title - never resolved, created, or merged (see resolve()'s
+   * titlesPlausiblyRelated check). rowNumber is separate from source's own
+   * fields since some callers (The Oskars) don't carry a row number.
+   */
+  function noteTmdbMismatch(report, source, resolution, rowNumber) {
+    report.tmdbMismatches.push({
+      rowNumber: rowNumber ?? source.rowNumber ?? null,
+      sheetTitle: source.title,
+      sheetYear: source.year || null,
+      requestedTmdbId: resolution.requestedTmdbId,
+      matchedFilmId: resolution.matchedFilm?.id ?? null,
+      matchedFilmTitle: resolution.matchedFilm?.title ?? null,
+      matchedFilmYear: resolution.matchedFilm?.year ?? null,
+    });
   }
 
   /* ===========================
@@ -583,6 +683,12 @@
     report.notes["franchise memberships"] =
       (report.notes["franchise memberships"] || 0) + 1;
     if (!ctx.confirm) return;
+    let key = `${filmId}:${leaf.id}`;
+    if (ctx.existingFranchiseMembershipKeys?.has(key)) {
+      report.notes["franchise memberships already recorded"] =
+        (report.notes["franchise memberships already recorded"] || 0) + 1;
+      return;
+    }
     let { error } = await ctx.client.from("film_franchises").insert({
       franchise_id: leaf.id,
       film_id: filmId,
@@ -591,8 +697,11 @@
     // Same authenticated-grant gap as credits above (select+insert only,
     // no update) - insert and tolerate the unique violation instead of
     // upserting, matching supabase-workspace.js's existing film_franchises
-    // writer.
+    // writer. The pre-check above handles the common "already recorded"
+    // case locally without a round trip; this still covers a row created
+    // moments earlier elsewhere in the same run and not yet in the set.
     if (error && error.code !== "23505") throw error;
+    ctx.existingFranchiseMembershipKeys?.add(key);
   }
 
   /**
@@ -600,13 +709,26 @@
    * runAllTimeStage and runDirectorsFranchisesStage (both stages carry a
    * director name alongside a film row).
    */
-  async function applyDirectorCredit(personResolver, filmId, directorName, ctx) {
+  async function applyDirectorCredit(
+    personResolver,
+    filmId,
+    directorName,
+    ctx,
+    report,
+  ) {
     let directorResolution = await resolveOrCreatePerson(
       personResolver,
       directorName,
       ctx,
     );
     if (!directorResolution || !ctx.confirm) return;
+    let key = `${filmId}:${directorResolution.person.id}`;
+    if (ctx.existingDirectorCreditKeys?.has(key)) {
+      if (report)
+        report.notes["director credits already recorded"] =
+          (report.notes["director credits already recorded"] || 0) + 1;
+      return;
+    }
     let { error } = await ctx.client.from("credits").insert({
       film_id: filmId,
       person_id: directorResolution.person.id,
@@ -617,8 +739,12 @@
     // CONFLICT DO UPDATE plan is rejected outright even when no row
     // actually conflicts. A plain insert plus tolerating the unique
     // violation gets the same "create if missing" result and matches
-    // how supabase-workspace.js already treats film_franchises.
+    // how supabase-workspace.js already treats film_franchises. The
+    // pre-check above handles the common "already recorded" case locally
+    // without a round trip; this still covers a row created moments
+    // earlier elsewhere in the same run and not yet in the set.
     if (error && error.code !== "23505") throw error;
+    ctx.existingDirectorCreditKeys?.add(key);
   }
 
   /* ===========================
@@ -638,6 +764,7 @@
     let rankingRowsByScope = new Map();
     let tagNames = new Set();
     let filmTagRelations = [];
+    let changedWatchedRows = [];
 
     function addRankingRow(scopeType, scope, row) {
       let key = `${scopeType}::${scope}`;
@@ -656,6 +783,10 @@
         ctx,
       );
       noteFilmResolution(report, resolution);
+      if (resolution.status === "tmdb-mismatch") {
+        noteTmdbMismatch(report, film, resolution);
+        continue;
+      }
       if (resolution.status === "ambiguous") {
         noteAmbiguous(report, film, resolution);
         continue;
@@ -669,6 +800,7 @@
           filmId,
           film.director,
           ctx,
+          report,
         );
       }
 
@@ -690,10 +822,17 @@
       };
       report.notes["watched rows"] = (report.notes["watched rows"] || 0) + 1;
       if (ctx.confirm) {
-        let { error } = await ctx.client
-          .from("watched")
-          .upsert(watchedRow, { onConflict: "user_id,film_id" });
-        if (error) throw error;
+        if (
+          watchedRowUnchanged(
+            watchedRow,
+            ctx.existingWatchedByFilmId?.get(filmId),
+          )
+        ) {
+          report.notes["watched rows already up to date"] =
+            (report.notes["watched rows already up to date"] || 0) + 1;
+        } else {
+          changedWatchedRows.push(watchedRow);
+        }
       }
 
       let year = integerOrNull(film.year);
@@ -744,6 +883,15 @@
         tagNames.add(name);
         filmTagRelations.push({ filmId, name });
       }
+    }
+
+    if (ctx.confirm && changedWatchedRows.length) {
+      await writeBatches(changedWatchedRows, async (batch) => {
+        let { error } = await ctx.client
+          .from("watched")
+          .upsert(batch, { onConflict: "user_id,film_id" });
+        if (error) throw error;
+      });
     }
 
     let scopeKeys = [...rankingRowsByScope.keys()];
@@ -831,6 +979,138 @@
   }
 
   /* ===========================
+     Stage 1b: Diary - every row not already covered by an existing
+     watched row or this run's All-time stage gets its film resolved/
+     created and a plain watched row written (rating, date, views,
+     platform, director credit, franchise memberships) but no ranking
+     rows, since Diary carries no rank. This applies uniformly regardless
+     of the row's own Type (Film, TV-film, Short, Documentary, Stage,
+     Concert, TV-series, Anthology, ...) - `films.type` is a free-text
+     column with no constraint, so a Short or a Stage recording is just
+     as valid a films row as a Film, and shows up correctly in the app's
+     "Other watched" view once created (buildLegacyStateFromSupabaseHydration
+     only routes a watched film there when it's genuinely unranked, not
+     based on type - see supabase-legacy-hydration.js). Earlier versions
+     of this stage skipped every non-Film/TV-film row outright on the
+     mistaken assumption there was nowhere for it to go; issue #622
+     already tracked adding this. A film already covered by All-time/an
+     existing watched row is left untouched even if it recurs in Diary,
+     so a rewatch log never clobbers that film's canonical watched row.
+  =========================== */
+
+  async function runDiaryStage(raw, resolvers, ownedWatchedFilmIds, ctx) {
+    let report = newStageReport("Diary");
+    let parsed = window.parseDiary(raw);
+    if (!parsed) return { report, watchedFilmIds: new Set() };
+    report.totalRows = parsed.entries.length;
+    report.skipped = (parsed.diagnostics?.skippedDetails || []).map(
+      (entry) => ({ rowNumber: entry.rowNumber, reason: entry.reason }),
+    );
+
+    let watchedFilmIds = new Set();
+    let changedWatchedRows = [];
+    let nonFilmTypeRows = 0;
+    let skippedAlreadyWatched = 0;
+
+    let index = 0;
+    for (let entry of parsed.entries) {
+      index += 1;
+      ctx.onProgress?.("Diary", index, parsed.entries.length);
+      if (window.diaryEntryKind(entry.type) !== "archive") nonFilmTypeRows += 1;
+      let resolution = await resolveOrCreateFilm(
+        resolvers.filmResolver,
+        entry,
+        ctx,
+      );
+      noteFilmResolution(report, resolution);
+      if (resolution.status === "tmdb-mismatch") {
+        noteTmdbMismatch(report, entry, resolution);
+        continue;
+      }
+      if (resolution.status === "ambiguous") {
+        noteAmbiguous(report, entry, resolution);
+        continue;
+      }
+      let filmId = resolution.film.id;
+      if (ownedWatchedFilmIds.has(filmId) || watchedFilmIds.has(filmId)) {
+        skippedAlreadyWatched += 1;
+        continue;
+      }
+      watchedFilmIds.add(filmId);
+
+      if (entry.director) {
+        await applyDirectorCredit(
+          resolvers.personResolver,
+          filmId,
+          entry.director,
+          ctx,
+          report,
+        );
+      }
+
+      for (let membership of entry.franchises || []) {
+        await applyFranchiseMembership(
+          resolvers.franchiseResolver,
+          filmId,
+          membership,
+          ctx,
+          report,
+        );
+      }
+
+      let ratingParsed = window.parseFilmRating(entry.rating);
+      let musicParsed = window.parseFilmRating(entry.musicScore);
+      let watchedRow = {
+        film_id: filmId,
+        rating: ratingParsed.value || null,
+        rating_modifier: ratingParsed.value
+          ? textOrNull(ratingParsed.modifier)
+          : null,
+        date_watched: textOrNull(entry.dateWatched),
+        views: integerOrNull(entry.views),
+        platform: textOrNull(entry.platform),
+        music_score: textOrNull(entry.musicScore),
+        music_rating: textOrNull(entry.musicScore),
+        music_rating_value: musicParsed.value || null,
+        source_row_number: integerOrNull(entry.rowNumber),
+      };
+      report.notes["watched rows"] = (report.notes["watched rows"] || 0) + 1;
+      if (ctx.confirm) {
+        if (
+          watchedRowUnchanged(
+            watchedRow,
+            ctx.existingWatchedByFilmId?.get(filmId),
+          )
+        ) {
+          report.notes["watched rows already up to date"] =
+            (report.notes["watched rows already up to date"] || 0) + 1;
+        } else {
+          changedWatchedRows.push(watchedRow);
+        }
+      }
+    }
+
+    // A rewatch log can carry the same not-yet-watched film across several
+    // rows - keep only the last one seen so the batch write below never
+    // sends duplicate film_ids in one upsert.
+    changedWatchedRows = dedupeByKey(changedWatchedRows, (row) => row.film_id);
+    report.notes["diary rows for non-film/TV-film media (still imported)"] =
+      nonFilmTypeRows;
+    report.notes["diary rows already covered by an existing watched film"] =
+      skippedAlreadyWatched;
+    if (ctx.confirm && changedWatchedRows.length) {
+      await writeBatches(changedWatchedRows, async (batch) => {
+        let { error } = await ctx.client
+          .from("watched")
+          .upsert(batch, { onConflict: "user_id,film_id" });
+        if (error) throw error;
+      });
+    }
+
+    return { report, watchedFilmIds };
+  }
+
+  /* ===========================
      Stage 2: Watchlist
   =========================== */
 
@@ -858,6 +1138,10 @@
         ctx,
       );
       noteFilmResolution(report, resolution);
+      if (resolution.status === "tmdb-mismatch") {
+        noteTmdbMismatch(report, item, resolution);
+        continue;
+      }
       if (resolution.status === "ambiguous") {
         noteAmbiguous(report, item, resolution);
         continue;
@@ -914,8 +1198,27 @@
     let items = window.parseDirectorsFranchisesSheet(input);
     report.totalRows = items.length;
 
+    // Snapshot of which films are genuinely already a real watchlist row
+    // in Supabase, taken before this stage's own loop mutates
+    // `watchlistFilmIds` - the "changedTierRows" path below sends only
+    // {film_id, tier} (no `position`, a NOT NULL column with no default),
+    // which is only valid as an UPDATE against a row that already exists.
+    // The sheet can repeat the same film across two rows (e.g. two
+    // franchise memberships) - the first occurrence adds it to
+    // `watchlistFilmIds` in memory immediately, but its actual INSERT
+    // doesn't run until this whole loop finishes, so a same-run second
+    // occurrence would otherwise see "already on watchlist" and route to
+    // the tier-only UPDATE payload for a row that doesn't exist in
+    // Supabase yet - PostgREST's upsert then tries an INSERT with no
+    // `position`, violating the NOT NULL constraint (Postgres 23502) and
+    // aborting the whole import before The Oskars stage ever runs.
+    let alreadyOnWatchlistInSupabase = new Set(watchlistFilmIds);
+    let pendingNewWatchlistRowsByFilmId = new Map();
+
     let alreadyWatched = 0;
     let tierUpdates = 0;
+    let tierUpdatesSkippedUnchanged = 0;
+    let changedTierRows = [];
     let newWatchlistRows = [];
     let nextPosition = startPosition;
 
@@ -929,6 +1232,10 @@
         ctx,
       );
       noteFilmResolution(report, resolution);
+      if (resolution.status === "tmdb-mismatch") {
+        noteTmdbMismatch(report, item, resolution);
+        continue;
+      }
       if (resolution.status === "ambiguous") {
         noteAmbiguous(report, item, resolution);
         continue;
@@ -941,6 +1248,7 @@
           filmId,
           item.director,
           ctx,
+          report,
         );
       }
 
@@ -959,31 +1267,69 @@
         continue;
       }
       if (watchlistFilmIds.has(filmId)) {
-        tierUpdates += 1;
+        if (!alreadyOnWatchlistInSupabase.has(filmId)) {
+          // Added earlier in this same run (e.g. a repeated film across
+          // two Franchise rows) - its INSERT is still pending in
+          // newWatchlistRows, not yet written, so update the tier on
+          // that same pending row instead of sending a separate
+          // {film_id, tier}-only "update" for a row that doesn't exist
+          // in Supabase yet (see the comment above this function).
+          if (item.tier) {
+            let pendingRow = pendingNewWatchlistRowsByFilmId.get(filmId);
+            if (pendingRow) pendingRow.tier = item.tier;
+          }
+          continue;
+        }
         if (ctx.confirm && item.tier) {
-          let { error } = await ctx.client
-            .from("watchlist")
-            .update({ tier: item.tier })
-            .eq("film_id", filmId);
-          if (error) throw error;
+          let existingTier = ctx.existingWatchlistTierByFilmId?.get(filmId);
+          if ((existingTier || null) === (item.tier || null)) {
+            tierUpdatesSkippedUnchanged += 1;
+          } else {
+            tierUpdates += 1;
+            let existingPosition =
+              ctx.existingWatchlistPositionByFilmId?.get(filmId);
+            let position =
+              existingPosition ||
+              String(nextPosition++).padStart(10, "0");
+            changedTierRows.push({
+              film_id: filmId,
+              tier: item.tier,
+              position,
+            });
+          }
+        } else {
+          tierUpdates += 1;
         }
         continue;
       }
       watchlistFilmIds.add(filmId);
-      newWatchlistRows.push({
+      let newRow = {
         film_id: filmId,
         tier: item.tier || null,
         position: String(nextPosition).padStart(10, "0"),
         reason: null,
-      });
+      };
+      newWatchlistRows.push(newRow);
+      pendingNewWatchlistRowsByFilmId.set(filmId, newRow);
       nextPosition += 1;
     }
 
     newWatchlistRows = dedupeByKey(newWatchlistRows, (row) => row.film_id);
+    changedTierRows = dedupeByKey(changedTierRows, (row) => row.film_id);
     report.notes["already watched (franchise/director only)"] = alreadyWatched;
     report.notes["existing watchlist tier updates"] = tierUpdates;
+    report.notes["existing watchlist tiers already correct"] =
+      tierUpdatesSkippedUnchanged;
     report.notes["new watchlist rows (no added_at source)"] =
       newWatchlistRows.length;
+    if (ctx.confirm && changedTierRows.length) {
+      await writeBatches(changedTierRows, async (batch) => {
+        let { error } = await ctx.client
+          .from("watchlist")
+          .upsert(batch, { onConflict: "user_id,film_id" });
+        if (error) throw error;
+      });
+    }
     if (ctx.confirm && newWatchlistRows.length) {
       await writeBatches(newWatchlistRows, async (batch) => {
         let { error } = await ctx.client
@@ -1037,18 +1383,50 @@
     let scopeTypeByAwardId = new Map(
       priorAwards.map((row) => [row.id, row.scope_type]),
     );
+    // filmId -> scopeType -> category -> Set(normalized recipient name) -
+    // the Set stays empty for a category that's never recorded a
+    // recipient (e.g. Best Picture), which resolveByTitleOnly treats as
+    // "recipient check doesn't apply, category match is enough".
     let filmCategoryHistory = new Map();
-    function noteFilmCategory(filmId, scopeType, category) {
+    function noteFilmCategory(filmId, scopeType, category, recipientNames) {
       let byScope = filmCategoryHistory.get(filmId) || new Map();
-      let categories = byScope.get(scopeType) || new Set();
-      if (category) categories.add(category);
-      byScope.set(scopeType, categories);
+      let byCategory = byScope.get(scopeType) || new Map();
+      let recipientSet = byCategory.get(category) || new Set();
+      for (let name of recipientNames || []) {
+        let normalized = normalizedPersonName(name);
+        if (normalized) recipientSet.add(normalized);
+      }
+      if (category) byCategory.set(category, recipientSet);
+      byScope.set(scopeType, byCategory);
       filmCategoryHistory.set(filmId, byScope);
+    }
+    let recipientNamesByNominationId = new Map();
+    if (existingNominations.length) {
+      let existingNominationIds = new Set(
+        existingNominations.map((n) => n.id),
+      );
+      let recipientRows = (
+        await fetchAll(
+          ctx.client,
+          "personal_nomination_recipients",
+          "nomination_id,recipient_name",
+        )
+      ).filter((row) => existingNominationIds.has(row.nomination_id));
+      for (let row of recipientRows) {
+        let list = recipientNamesByNominationId.get(row.nomination_id) || [];
+        list.push(row.recipient_name);
+        recipientNamesByNominationId.set(row.nomination_id, list);
+      }
     }
     for (let nomination of existingNominations) {
       let scopeType = scopeTypeByAwardId.get(nomination.personal_award_id);
       if (scopeType && nomination.film_id)
-        noteFilmCategory(nomination.film_id, scopeType, nomination.category);
+        noteFilmCategory(
+          nomination.film_id,
+          scopeType,
+          nomination.category,
+          recipientNamesByNominationId.get(nomination.id),
+        );
     }
 
     let periodIndex = 0;
@@ -1065,15 +1443,27 @@
         // year - only true for a "years" (annual) block. For decade/
         // century/all-time blocks, resolve by title alone against the
         // working catalog instead of trusting film.year.
+        let awardRecipientNames = (award) =>
+          (award.recipients || [])
+            .map((recipient) => textOrNull(recipient?.name))
+            .filter(Boolean);
         let resolution = window.filmConcreteYear(film.year)
           ? await resolveOrCreateFilm(resolvers.filmResolver, film, ctx)
           : resolvers.filmResolver.resolveByTitleOnly(
               film.title,
               { periodType: period.periodType, year: period.year },
               filmCategoryHistory,
-              (film.awards || []).map((award) => award.category),
+              (film.awards || []).map((award) => ({
+                category: award.category,
+                recipients: awardRecipientNames(award),
+              })),
             );
         noteFilmResolution(report, resolution);
+        if (resolution.status === "tmdb-mismatch") {
+          noteTmdbMismatch(report, film, resolution);
+          skippedNominations += (film.awards || []).length;
+          continue;
+        }
         if (resolution.status === "ambiguous") {
           noteAmbiguous(report, film, resolution);
           skippedNominations += (film.awards || []).length;
@@ -1090,7 +1480,12 @@
         }
         let filmId = resolution.film.id;
         for (let award of film.awards || [])
-          noteFilmCategory(filmId, period.periodType, award.category);
+          noteFilmCategory(
+            filmId,
+            period.periodType,
+            award.category,
+            awardRecipientNames(award),
+          );
         let isPending = String(filmId).startsWith("pending:");
 
         for (let award of film.awards || []) {
@@ -1103,9 +1498,7 @@
             );
             continue;
           }
-          let recipients = (award.recipients || [])
-            .map((recipient) => textOrNull(recipient?.name))
-            .filter(Boolean);
+          let recipients = awardRecipientNames(award);
           let sortedRecipients = [...recipients].sort((a, b) =>
             String(a).localeCompare(String(b), undefined, {
               sensitivity: "base",
@@ -1280,6 +1673,7 @@
       bracket: ranges.bracket,
       watchlist: ranges.watchlist,
       directorsAndFranchises: ranges.directorsAndFranchises,
+      diary: ranges.diary,
     };
   }
 
@@ -1328,6 +1722,7 @@
       watchlistRaw: window.rowsToDelimited(byKey.watchlist || [], "\t"),
       bracketRows: byKey.bracket || [],
       directorsFranchisesRows: byKey.directorsAndFranchises || [],
+      diaryRaw: window.rowsToDelimited(byKey.diary || [], "\t"),
     };
   };
 
@@ -1348,23 +1743,60 @@
       onProgress: options.onProgress,
     };
 
-    let [films, people, franchises, watched, watchlist, personalNominations] =
-      await Promise.all([
-        fetchAll(
-          client,
-          "films",
-          "id,tmdb_id,title,year,medium,type,runtime_minutes,country,primary_country,poster_url,swedish_title,genre,screenplay_type,adaptation_source,letterboxd_url",
-        ),
-        fetchAll(client, "people", "id,name"),
-        fetchAll(client, "franchises", "id,slug,name,parent_id,source_url"),
-        fetchAll(client, "watched", "user_id,film_id"),
-        fetchAll(client, "watchlist", "user_id,film_id"),
-        fetchAll(
-          client,
-          "personal_nominations",
-          "id,personal_award_id,source_key,category,placement,film_id,detail",
-        ),
-      ]);
+    let [
+      films,
+      people,
+      franchises,
+      watched,
+      watchlist,
+      personalNominations,
+      directorCredits,
+      franchiseMemberships,
+    ] = await Promise.all([
+      fetchAll(
+        client,
+        "films",
+        "id,tmdb_id,title,year,medium,type,runtime_minutes,country,primary_country,poster_url,swedish_title,genre,screenplay_type,adaptation_source,letterboxd_url",
+      ),
+      fetchAll(client, "people", "id,name"),
+      fetchAll(client, "franchises", "id,slug,name,parent_id,source_url"),
+      // All-time's per-film watched-row upsert used to run unconditionally
+      // for every row (issue: "All-time sheet takes some time" - a rating/
+      // date/etc. correction or two, most rows completely unchanged run to
+      // run). Selecting every column the upsert can write lets
+      // runAllTimeStage below diff against what's already there and skip
+      // writing rows that would be a no-op, matching the credits/
+      // film_franchises fix just above.
+      fetchAll(
+        client,
+        "watched",
+        "user_id,film_id,rating,rating_modifier,date_watched,views,platform,music_score,music_rating,music_rating_value",
+      ),
+      // Directors and Franchises' Tier column re-asserts a tier for every
+      // watchlist row it names, not just newly-added ones - selecting tier
+      // here too lets that stage skip a row whose tier already matches
+      // instead of always issuing an update (issue: same "Directors and
+      // Franchises still going through basically every row" report the
+      // credits/franchise-membership skips above were fixing).
+      fetchAll(client, "watchlist", "user_id,film_id,tier,position"),
+      fetchAll(
+        client,
+        "personal_nominations",
+        "id,personal_award_id,source_key,category,placement,film_id,detail",
+      ),
+      // Neither table has an update grant for `authenticated` (a shared,
+      // append-only catalog fact - see applyDirectorCredit/
+      // applyFranchiseMembership below), so every insert there previously
+      // had no local way to tell "already recorded" from "new" and always
+      // round-tripped to Supabase, catching the resulting unique-violation
+      // one row at a time. That's fine for a small watchlist stage, but the
+      // Directors and Franchises sheet is typically almost entirely rows
+      // the owner already has recorded, so it paid a wasted network
+      // round trip per row. Pre-fetching both tables once here lets those
+      // two functions skip already-recorded rows locally instead.
+      fetchAll(client, "credits", "film_id,person_id,role"),
+      fetchAll(client, "film_franchises", "film_id,franchise_id"),
+    ]);
 
     let resolvers = {
       filmResolver: buildFilmResolver(films),
@@ -1375,12 +1807,50 @@
     let ownedWatchedFilmIds = new Set(watched.map((row) => row.film_id));
     let ownedWatchlistFilmIds = new Set(watchlist.map((row) => row.film_id));
     let nextWatchlistPosition = ownedWatchlistFilmIds.size + 1;
+    let ctxDirectorCreditKeys = new Set(
+      directorCredits
+        .filter((row) => row.role === "director")
+        .map((row) => `${row.film_id}:${row.person_id}`),
+    );
+    let ctxFranchiseMembershipKeys = new Set(
+      franchiseMemberships.map((row) => `${row.film_id}:${row.franchise_id}`),
+    );
+    ctx.existingDirectorCreditKeys = ctxDirectorCreditKeys;
+    ctx.existingFranchiseMembershipKeys = ctxFranchiseMembershipKeys;
+    ctx.existingWatchlistTierByFilmId = new Map(
+      watchlist.map((row) => [row.film_id, row.tier ?? null]),
+    );
+    // Belt-and-suspenders for a tier-only update: always carries a real
+    // `position` (a NOT NULL column with no default) sourced from the
+    // film's own existing row when there is one, so a genuine update
+    // never disturbs its ordering. If local bookkeeping is ever wrong
+    // about a film already being a real watchlist row (found live: an
+    // earlier, now-fixed version of this stage could crash mid-run,
+    // leaving a profile in a state where some films the in-memory
+    // tracking expected to exist didn't actually get written yet), this
+    // still lands as a harmless insert instead of a NOT NULL violation
+    // that aborts the whole import before The Oskars stage ever runs.
+    ctx.existingWatchlistPositionByFilmId = new Map(
+      watchlist.map((row) => [row.film_id, row.position ?? null]),
+    );
+    ctx.existingWatchedByFilmId = new Map(
+      watched.map((row) => [row.film_id, row]),
+    );
 
     let reports = [];
 
     let stage1 = await runAllTimeStage(source.allTimeRaw, resolvers, ctx);
     reports.push(stage1.report);
     stage1.watchedFilmIds.forEach((id) => ownedWatchedFilmIds.add(id));
+
+    let stage1b = await runDiaryStage(
+      source.diaryRaw,
+      resolvers,
+      ownedWatchedFilmIds,
+      ctx,
+    );
+    reports.push(stage1b.report);
+    stage1b.watchedFilmIds.forEach((id) => ownedWatchedFilmIds.add(id));
 
     let stage2 = await runWatchlistStage(
       source.watchlistRaw,

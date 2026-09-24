@@ -77,6 +77,9 @@ window.runtimeModeCapabilities = function (mode) {
     canImport: !isViewer,
     canPublish: isOwner,
     canPersistPrivateState: !isViewer,
+    skipsLegacyDataLoad: Boolean(
+      window.OSKARS_ENTRY_SKIPS_LEGACY_DATA_LOAD ?? window.OSKARS_ENTRY,
+    ),
   };
 };
 

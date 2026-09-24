@@ -312,18 +312,7 @@
     });
   }
 
-  // Same shape as src/pages/people.js and src/pages/compare/panels.js's own
-  // private copies (issue #546 tracks consolidating all three into one
-  // shared window.initialsFor()).
-  function initials(name) {
-    return String(name || "")
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase();
-  }
+  let initials = window.initialsFor;
 
   // Same shape as src/pages/compare/panels.js's own private copy - this
   // file called it at 3 call sites with no such function ever in its own
@@ -333,48 +322,41 @@
     return ui(window.TARGET_TYPE_LABELS[target.type] || target.type);
   }
 
-  function renderPersonTargetCard(target) {
-    let portrait =
-      window.renderPersonPortrait?.(target.record, "card") ||
-      `<div class="person-portrait-placeholder person-portrait-placeholder--compare" aria-hidden="true">${escape(initials(target.displayName))}</div>`;
-    return `<article class="card compare-film-card compare-person-card">
-    ${portrait}
-    <div class="card-content">
-      <span class="eyebrow">${escape(targetTypeLabel(target))}</span>
-      <h2><a class="table-film-link" href="${escape(target.url)}">${escape(target.displayName)}</a></h2>
-      <div class="leaderboard-meta">${Object.entries(target.metrics || {})
-        .filter(
-          ([, value]) => value !== "" && value !== null && value !== undefined,
-        )
-        .slice(0, 3)
-        .map(([key, value]) => `${escape(ui(key))}: ${escape(value)}`)
-        .join(" · ")}</div>
-    </div>
-    ${window.renderCardRemoveButton({
-      escape,
-      title: ui("Remove {title}", { title: target.displayName }),
-      attributes: {
-        "data-remove-compare-target":
-          window.compareTargetKey?.(target) || `${target.type}:${target.id}`,
-      },
-    })}
-  </article>`;
+  function formatCompareMetrics(metrics, options = {}) {
+    let limit = options.limit ?? 3;
+    let separator = options.separator ?? " · ";
+    let shouldEscape = options.escape ?? true;
+    return Object.entries(metrics || {})
+      .filter(
+        ([, value]) => value !== "" && value !== null && value !== undefined,
+      )
+      .slice(0, limit)
+      .map(([key, value]) => {
+        let label = ui(key);
+        return shouldEscape
+          ? `${escape(label)}: ${escape(value)}`
+          : `${label}: ${value}`;
+      })
+      .join(separator);
   }
 
   function renderTargetCard(target) {
     if (target.type === "film") return renderFilmCard(target.record);
-    if (target.type === "person") return renderPersonTargetCard(target);
-    return `<article class="card compare-film-card">
-    <div class="card-content">
+    let isPerson = target.type === "person";
+    let portrait = isPerson
+      ? `${window.renderPersonPortrait?.(target.record, "card") || `<div class="person-portrait-placeholder person-portrait-placeholder--compare" aria-hidden="true">${escape(initials(target.displayName))}</div>`}\n    `
+      : "";
+    let extraClass = isPerson ? " compare-person-card" : "";
+    let formattedMetrics = formatCompareMetrics(target.metrics, {
+      limit: 3,
+      separator: " · ",
+      escape: true,
+    });
+    return `<article class="card compare-film-card${extraClass}">
+    ${portrait}<div class="card-content">
       <span class="eyebrow">${escape(targetTypeLabel(target))}</span>
       <h2><a class="table-film-link" href="${escape(target.url)}">${escape(target.displayName)}</a></h2>
-      <div class="leaderboard-meta">${Object.entries(target.metrics || {})
-        .filter(
-          ([, value]) => value !== "" && value !== null && value !== undefined,
-        )
-        .slice(0, 3)
-        .map(([key, value]) => `${escape(ui(key))}: ${escape(value)}`)
-        .join(" · ")}</div>
+      <div class="leaderboard-meta">${formattedMetrics}</div>
     </div>
     ${window.renderCardRemoveButton({
       escape,
@@ -394,14 +376,11 @@
       "The Oskars comparison",
       "",
       ...targets.map((target, index) => {
-        let metrics = Object.entries(target.metrics || {})
-          .filter(
-            ([, value]) =>
-              value !== "" && value !== null && value !== undefined,
-          )
-          .slice(0, 4)
-          .map(([key, value]) => `${ui(key)}: ${value}`)
-          .join("; ");
+        let metrics = formatCompareMetrics(target.metrics, {
+          limit: 4,
+          separator: "; ",
+          escape: false,
+        });
         let represented = [
           `${target.filmIds.length} ${ui("watched")}`,
           `${target.watchlistIds.length} ${ui("watchlist")}`,
@@ -543,10 +522,16 @@
     }
     let projectButton = event.target.closest("[data-start-project-source]");
     if (projectButton) {
-      window.startProjectFromSourceAndOpen(
-        projectButton.dataset.startProjectSource,
-        projectButton.dataset.projectSourceId,
-      );
+      if (projectButton.disabled) return;
+      projectButton.disabled = true;
+      Promise.resolve(
+        window.startProjectFromSourceAndOpen(
+          projectButton.dataset.startProjectSource,
+          projectButton.dataset.projectSourceId,
+        ),
+      ).finally(() => {
+        projectButton.disabled = false;
+      });
       return;
     }
     let addTargetButton = event.target.closest("[data-add-compare-target]");

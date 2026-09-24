@@ -26,12 +26,6 @@
 (function () {
   let PAGE_SIZE = 1000;
   let FILTER_CHUNK_SIZE = 100;
-  let RANK_FIELD_BY_SCOPE_TYPE = {
-    years: "yearRank",
-    decades: "decadeRank",
-    centuries: "centuryRank",
-    allTime: "allTimeRank",
-  };
 
   function posterFromUrl(url, tmdbId) {
     return url
@@ -307,7 +301,7 @@
     });
     byScope.forEach((entries) => {
       let scopeType = entries[0]?.scope_type;
-      let rankField = RANK_FIELD_BY_SCOPE_TYPE[scopeType];
+      let rankField = window.RANK_FIELD_BY_SCOPE_TYPE[scopeType];
       entries
         .slice()
         .sort((a, b) =>

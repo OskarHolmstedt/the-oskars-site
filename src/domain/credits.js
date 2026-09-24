@@ -51,7 +51,9 @@ window.awardRecipients = function (award) {
       let personId = window.normalizePersonName(
         typeof record === "string" ? name : record?.personId || name,
       );
-      return { name, personId };
+      let supabasePersonId =
+        typeof record === "string" ? null : record?.supabasePersonId || null;
+      return { name, personId, supabasePersonId };
     })
     .filter(
       (record) =>
@@ -74,6 +76,10 @@ window.resolveAwardRecipients = function (award) {
       return {
         name: canonicalName,
         personId: window.resolveAwardRecipientPersonId(recipient.personId),
+        // Only trustworthy when no alias remapped this recipient to a
+        // different canonical person.
+        supabasePersonId:
+          canonicalName === recipient.name ? recipient.supabasePersonId : null,
       };
     })
     .filter(

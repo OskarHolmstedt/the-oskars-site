@@ -7,16 +7,44 @@
   let container = document.getElementById("completionPage");
   document.title = `${ui("Completion")} · The Oskars`;
 
+  // Compact Completion read (issue #597): official-results, award-bracket,
+  // and watch-goal completion paint fast from a compact projection
+  // instead of the eager full hydration every other entry still gets.
+  // Directors/franchises/projects ("known collections") always need the
+  // complete archive (the shared people/franchise indexes many other
+  // pages also depend on), so hub starts empty and fills in once the
+  // eager background full hydration below completes -
+  // completionCompactActive never flips back to true once hydration
+  // succeeds, so every other completion.js function (including every
+  // write action) runs completely unmodified from that point on.
+  let completionCompactActive = Boolean(window.OSKARS_COMPLETION_COMPACT);
+  let compactCompletionSource = null;
+  let compactCompletionError = null;
+  let officialResultsHydrated = false;
+  let completionHydrationPromise = null;
+
   // Completion hub (issue #17): directors, franchises, and projects ranked by
   // progress toward watching everything the archive + watchlist know about.
   let finishCollectTimer =
     window.startOskarsPerformance?.("completion:collect");
-  let hub = window.completionHubData();
+  let emptyHub = {
+    directors: [],
+    franchises: [],
+    projects: [],
+    completeDirectors: 0,
+    completeFranchises: 0,
+    completeProjects: 0,
+  };
+  let hub = completionCompactActive ? emptyHub : window.completionHubData();
   // Award-bracket completion (moved here from the Data Health report): how
   // much of each imported award period's category slots are filled in,
   // independent of watch progress below.
-  let bracketCompletion = window.awardBracketCompletion();
-  let bracketCategoryCompletion = window.awardBracketCategoryCompletion();
+  let bracketCompletion = completionCompactActive
+    ? []
+    : window.awardBracketCompletion();
+  let bracketCategoryCompletion = completionCompactActive
+    ? []
+    : window.awardBracketCategoryCompletion();
   // One completion section per populated official-results source (issue
   // #344), not just Oscars - academy-awards sorts first to keep this page's
   // established section order, any other source follows in whatever order
@@ -25,11 +53,15 @@
   // source: they're generic styling hooks now, not Oscar-specific, and
   // renaming them would touch styles/app.css and a long tail of test
   // literals for zero functional or visible benefit.
-  // Reassigned by refreshOfficialCompletions(), including on the
+  // Reassigned by refreshOfficialCompletions() (legacy mode) or
+  // applyCompactOfficialModel() (compact mode), including on the
   // post-hydration re-render.
-  let officialSourceIds;
-  let officialCompletions;
+  let officialSourceIds = [];
+  let officialCompletions = new Map();
   function refreshOfficialCompletions() {
+    let finishOfficial = window.startOskarsPerformance?.(
+      "completion:officialCollect",
+    );
     officialSourceIds = Object.keys(window.state?.officialResults || {}).sort(
       (a, b) => (a === "academy-awards" ? -1 : b === "academy-awards" ? 1 : 0),
     );
@@ -39,8 +71,105 @@
         window.officialCollectionCompletion(sourceId),
       ]),
     );
+    finishOfficial?.();
   }
-  refreshOfficialCompletions();
+  // Both the compact projection fetch and the live official-results fetch
+  // (window.hydrateOfficialResultsFromSupabase(), already independent and
+  // lazy) can resolve in either order - only recompute once both are in.
+  function applyCompactOfficialModel() {
+    if (!compactCompletionSource || !officialResultsHydrated) return;
+    let finishOfficial = window.startOskarsPerformance?.(
+      "completion:officialCollect",
+    );
+    officialCompletions = window.buildSupabaseCompletionOfficialModel(
+      compactCompletionSource,
+      window.state?.officialResults || {},
+    );
+    officialSourceIds = [...officialCompletions.keys()];
+    ensureOfficialSortState();
+    // Backfill only - never overwrite an existing entry, since a user's
+    // in-session tier change must survive this. officialWatchlistTiers
+    // starts empty in compact mode (officialSourceIds is [] until this
+    // function's first real call), so this is the actual place new source
+    // ids need a default tier, not just the legacy hydrateOfficialResults-
+    // FromSupabase() callback below (which may resolve before or after
+    // this, in either order).
+    officialSourceIds.forEach((sourceId) => {
+      if (!officialWatchlistTiers.has(sourceId))
+        officialWatchlistTiers.set(
+          sourceId,
+          preferredOfficialWatchlistTier(sourceId),
+        );
+    });
+    finishOfficial?.();
+  }
+  if (!completionCompactActive) refreshOfficialCompletions();
+
+  /**
+   * Resolves once window.state holds the complete archive (issue #597).
+   * A no-op once already hydrated. Every write action below (official
+   * watchlist-add, "Start project") calls this first, so a click that
+   * lands before the eager background upgrade finishes still waits for
+   * real data instead of risking a partial-state write; #607's own
+   * reconcile() guard is the last-resort backstop this is meant to make
+   * normally unreachable, not depended on for correctness.
+   * @returns {Promise<void>}
+   */
+  function ensureCompletionFullyHydrated() {
+    if (!completionCompactActive) return Promise.resolve();
+    if (completionHydrationPromise) return completionHydrationPromise;
+    completionHydrationPromise = (
+      window.ensureFocusedShellData?.() || Promise.resolve()
+    )
+      .then(() => {
+        completionCompactActive = false;
+        refreshOfficialCompletions();
+        hub = window.completionHubData();
+        bracketCompletion = window.awardBracketCompletion();
+        bracketCategoryCompletion = window.awardBracketCategoryCompletion();
+        watchGoalYears = window.watchGoalProgress("year");
+        watchGoalDecades = window.watchGoalProgress("decade");
+        watchGoalCenturies = window.watchGoalProgress("century");
+        ensureOfficialSortState();
+        render();
+      })
+      .catch((error) => {
+        // Leaves completionCompactActive true so a later interaction can
+        // try again; the compact sections keep showing their last-fetched
+        // data in the meantime, so a transient hydration failure doesn't
+        // break browsing, only temporarily disables writes and the known-
+        // collections section.
+        completionHydrationPromise = null;
+        throw error;
+      });
+    return completionHydrationPromise;
+  }
+
+  /** Fetches the compact Completion projection once (issue #597) and re-renders when it resolves; also kicks off the eager background full-hydration upgrade so writes are almost always already safe by the time a person reaches for them. */
+  function ensureCompactCompletionFresh() {
+    if (!completionCompactActive || compactCompletionSource) return;
+    window
+      .loadSupabaseCompletionWatchedProjection()
+      .then((source) => {
+        compactCompletionSource = source;
+        let bracketModel = window.buildSupabaseCompletionBracketModel(source);
+        bracketCompletion = bracketModel.bracketCompletion;
+        bracketCategoryCompletion = bracketModel.bracketCategoryCompletion;
+        let goalModel = window.buildSupabaseCompletionWatchGoalModel(source);
+        watchGoalYears = goalModel.watchGoalYears;
+        watchGoalDecades = goalModel.watchGoalDecades;
+        watchGoalCenturies = goalModel.watchGoalCenturies;
+        applyCompactOfficialModel();
+        render();
+        ensureCompletionFullyHydrated().catch(() => {});
+      })
+      .catch((error) => {
+        compactCompletionError = error;
+        render();
+      });
+  }
+  ensureCompactCompletionFresh();
+
   let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   function officialWatchlistTierKey(sourceId) {
     return `oskars-official-watchlist-tier-${sourceId}`;
@@ -73,9 +202,15 @@
   // Watch-count goals per period: how many films have actually been watched
   // from each year/decade/century against a flat target, separate from
   // award nominee coverage above.
-  let watchGoalYears = window.watchGoalProgress("year");
-  let watchGoalDecades = window.watchGoalProgress("decade");
-  let watchGoalCenturies = window.watchGoalProgress("century");
+  let watchGoalYears = completionCompactActive
+    ? []
+    : window.watchGoalProgress("year");
+  let watchGoalDecades = completionCompactActive
+    ? []
+    : window.watchGoalProgress("decade");
+  let watchGoalCenturies = completionCompactActive
+    ? []
+    : window.watchGoalProgress("century");
   finishCollectTimer?.(
     `${hub.directors.length} directors, ${hub.franchises.length} franchises, ${hub.projects.length} projects, ${officialSourceIds.map((sourceId) => officialCompletions.get(sourceId).films.length).join("/")} official film(s) by source, ${bracketCompletion.length} bracket period(s), ${watchGoalYears.length}/${watchGoalDecades.length}/${watchGoalCenturies.length} year/decade/century goal(s)`,
   );
@@ -262,8 +397,13 @@
           ? "franchise"
           : "";
     if (!sourceType) return null;
+    // A person project is keyed by people.id when known (issue #633).
+    let sourceId =
+      sourceType === "person"
+        ? window.personStorageKey((state.peopleById || {})[row.id]) || row.id
+        : row.id;
     return {
-      action: minimalSourceProjectAction(sourceType, row.id, options),
+      action: minimalSourceProjectAction(sourceType, sourceId, options),
     };
   }
 
@@ -304,7 +444,7 @@
 
   function completionTable(section, rows, completeCount, options) {
     if (!rows.length && !completeCount) {
-      return `<p class="completion-empty">${escape(options.emptyText)}</p>`;
+      return `<p class="completion-empty" role="status">${escape(completionCompactActive ? ui("Loading…") : options.emptyText)}</p>`;
     }
     let sorted = sortRows(rows, section, completionRowValue);
     let page = paginateRows(sorted, section, options.itemLabel);
@@ -357,7 +497,7 @@
 
   function bracketCompletionTable(periods) {
     if (!periods.length) {
-      return `<p class="completion-empty">${escape(ui("No award bracket data imported yet."))}</p>`;
+      return `<p class="completion-empty" role="status">${escape(completionCompactActive && !compactCompletionSource ? ui("Loading…") : ui("No award bracket data imported yet."))}</p>`;
     }
     let incomplete = periods.filter(
       (period) => period.filledSlots < period.totalSlots,
@@ -439,7 +579,7 @@
 
   function bracketCategoryCompletionGrid(categories) {
     if (!categories.length || !categories[0].periodCount) {
-      return `<p class="completion-empty">${escape(ui("No annual award brackets with watched films yet."))}</p>`;
+      return `<p class="completion-empty" role="status">${escape(completionCompactActive && !compactCompletionSource ? ui("Loading…") : ui("No annual award brackets with watched films yet."))}</p>`;
     }
     return fixedCategoryGrid(
       categories,
@@ -461,7 +601,7 @@
 
   function watchGoalTable(section, rows, periodType) {
     if (!rows.length) {
-      return `<p class="completion-empty">${escape(ui("No watched films yet."))}</p>`;
+      return `<p class="completion-empty" role="status">${escape(completionCompactActive && !compactCompletionSource ? ui("Loading…") : ui("No watched films yet."))}</p>`;
     }
     let incomplete = rows.filter((row) => row.watchedCount < row.target);
     let completeCount = rows.length - incomplete.length;
@@ -802,6 +942,10 @@
   }
 
   async function addOfficialWatchlistSource(scopeId) {
+    // Defense in depth: also reachable directly from the "needs review"
+    // confirm dialog, not just the button branch above that already awaits
+    // this.
+    await ensureCompletionFullyHydrated().catch(() => {});
     let plan = window.officialCollectionWatchlistPlan?.(scopeId);
     if (!plan) return;
     let sourceId = plan.sourceId;
@@ -850,24 +994,6 @@
     return `<section class="completion-section" id="completion-${escape(id)}" data-collapsible-section><header class="completion-section-header" data-collapsible-heading><div><h2>${escape(title)}</h2><p>${escape(subtitle)}</p></div></header><div class="completion-section-body" data-collapsible-body>${bodyHtml}</div></section>`;
   }
 
-  let inProgressTotal =
-    hub.directors.length + hub.franchises.length + hub.projects.length;
-  let bracketSummary = bracketCompletion.reduce(
-    (summary, row) => ({
-      filled: summary.filled + row.filledSlots,
-      total: summary.total + row.totalSlots,
-    }),
-    { filled: 0, total: 0 },
-  );
-  let watchGoals = [
-    ...watchGoalYears,
-    ...watchGoalDecades,
-    ...watchGoalCenturies,
-  ];
-  let reachedWatchGoals = watchGoals.filter(
-    (row) => row.watchedCount >= row.target,
-  ).length;
-
   function officialSummaryStatItems() {
     return officialSourceIds
       .map((sourceId) => {
@@ -911,6 +1037,30 @@
   }
 
   function render() {
+    let finishRenderTimer =
+      window.startOskarsPerformance?.("completion:render");
+    // Recomputed on every render, not once at module load (issue #597):
+    // hub/bracketCompletion/watchGoal* are all reassigned once the compact
+    // fetch and/or the eager background hydration resolve, so anything
+    // derived from them must be too, or these summary figures would stay
+    // frozen at their initial (empty, in compact mode) values forever.
+    let inProgressTotal =
+      hub.directors.length + hub.franchises.length + hub.projects.length;
+    let bracketSummary = bracketCompletion.reduce(
+      (summary, row) => ({
+        filled: summary.filled + row.filledSlots,
+        total: summary.total + row.totalSlots,
+      }),
+      { filled: 0, total: 0 },
+    );
+    let watchGoals = [
+      ...watchGoalYears,
+      ...watchGoalDecades,
+      ...watchGoalCenturies,
+    ];
+    let reachedWatchGoals = watchGoals.filter(
+      (row) => row.watchedCount >= row.target,
+    ).length;
     let summaryHtml = window.renderDetailStats({
       classes: "completion-summary",
       itemsHtml: `${officialSummaryStatItems()}
@@ -928,6 +1078,12 @@
   <p>${escape(ui("Official completion covers every imported official nominee, per source. Director, franchise, and project completion covers known films in the archive and watchlist."))}</p>
   ${summaryHtml}
 </header>
+${window.renderTrophyCabinet()}
+${
+  compactCompletionError
+    ? `<p class="detail-empty" role="status">${escape(ui("Could not load completion data."))} <button type="button" class="link-button" data-completion-compact-retry>${escape(ui("Try again"))}</button></p>`
+    : ""
+}
 <div class="completion-view-toolbar"><span>${escape(ui("Completion display"))}</span>${window.renderFilmViewToggle(
       {
         view: layout,
@@ -989,22 +1145,23 @@ ${completionSection(
   ),
   `${bracketCompletionTable(bracketCompletion)}<div class="completion-subsection completion-bracket-categories"><h3>${escape(ui("By category"))}</h3><p>${escape(ui("Annual award slots across years with at least one watched film."))}</p>${bracketCategoryCompletionGrid(bracketCategoryCompletion)}</div>`,
 )}
-${inProgressTotal || anyOfficialNomineesTotal() ? "" : `<div class="detail-empty"><h2>${escape(ui("Nothing in progress."))}</h2><p>${escape(ui("Import a watchlist or start a project to track completion."))}</p></div>`}
+${completionCompactActive || inProgressTotal || anyOfficialNomineesTotal() ? "" : `<div class="detail-empty"><h2>${escape(ui("Nothing in progress."))}</h2><p>${escape(ui("Import a watchlist or start a project to track completion."))}</p></div>`}
 ${officialWatchlistDialog()}`;
 
     container
       .querySelectorAll(".completion-section .leaderboard-wrap")
       .forEach((wrapper) => wrapper.setAttribute("data-collapsible-skip", ""));
     window.enhanceCollapsibles?.(container);
+    finishRenderTimer?.(
+      `${inProgressTotal} in progress, ${hub.completeDirectors + hub.completeFranchises + hub.completeProjects} complete, ${officialSourceIds.map((sourceId) => `${officialCompletions.get(sourceId).nominees.watchedCount}/${officialCompletions.get(sourceId).nominees.total}`).join(", ")} official films watched by source, ${bracketCompletion.length} bracket period(s)`,
+    );
   }
 
-  let finishRenderTimer = window.startOskarsPerformance?.("completion:render");
   render();
-  finishRenderTimer?.(
-    `${inProgressTotal} in progress, ${hub.completeDirectors + hub.completeFranchises + hub.completeProjects} complete, ${officialSourceIds.map((sourceId) => `${officialCompletions.get(sourceId).nominees.watchedCount}/${officialCompletions.get(sourceId).nominees.total}`).join(", ")} official films watched by source, ${bracketCompletion.length} bracket period(s)`,
-  );
   window.hydrateOfficialResultsFromSupabase?.().then(() => {
-    refreshOfficialCompletions();
+    officialResultsHydrated = true;
+    if (completionCompactActive) applyCompactOfficialModel();
+    else refreshOfficialCompletions();
     ensureOfficialSortState();
     // Backfill only - never overwrite an existing entry, since a user's
     // in-session tier change (line ~1071 below) must survive this refresh.
@@ -1019,9 +1176,20 @@ ${officialWatchlistDialog()}`;
   });
 
   container.addEventListener("click", async (event) => {
+    if (event.target.closest("[data-completion-compact-retry]")) {
+      compactCompletionError = null;
+      ensureCompactCompletionFresh();
+      render();
+      return;
+    }
     let addWatchlistButton = event.target.closest("[data-add-oscar-watchlist]");
     if (addWatchlistButton) {
       let scopeId = addWatchlistButton.dataset.addOscarWatchlist;
+      // officialCollectionWatchlistPlan() itself reads window.state
+      // directly (unlike officialCollectionCompletion(), it has no
+      // options.state override) - wait for full hydration before
+      // computing a plan at all, not just before applying it.
+      await ensureCompletionFullyHydrated().catch(() => {});
       let plan = window.officialCollectionWatchlistPlan?.(scopeId);
       if (!plan) return;
       if (plan.needsReview.length) {
@@ -1072,6 +1240,12 @@ ${officialWatchlistDialog()}`;
     let projectButton = event.target.closest("[data-start-project-source]");
     if (projectButton) {
       projectButton.disabled = true;
+      // watchGoalProjectSource()/window.startProjectFromSourceAndOpen
+      // read window.state directly - wait for full hydration first
+      // (reachable from the watch-goals section, which stays live in
+      // compact mode; director/franchise/project source buttons only
+      // exist once hub is populated post-hydration anyway).
+      await ensureCompletionFullyHydrated().catch(() => {});
       await window.startProjectFromSourceAndOpen?.(
         projectButton.dataset.startProjectSource,
         projectButton.dataset.projectSourceId,

@@ -376,3 +376,99 @@ window.checkSupabaseFilmTmdbLinks = async function (films, options = {}) {
   ).length;
   return result;
 };
+
+let supabasePersonLinkCheckAttempts = new Set();
+
+/**
+ * Batch-checks stored person tmdb_ids against TMDB's /person/{id} endpoint
+ * to ensure they resolve and match the stored person's name.
+ * @param {Object[]} people Raw Supabase person rows (id, tmdb_id, name, tmdb_verified_at).
+ * @param {{fetchFn?: Function, limit?: number, concurrency?: number, force?: boolean, onProgress?: (done:number, total:number, person:Object) => void}} [options]
+ * @returns {Promise<{attempted: number, ok: number, okPeople: Object[], issues: {person: Object, status: string, detail: string, tmdbName?: string}[], failed: number, remaining: number}>}
+ */
+window.checkSupabasePersonTmdbLinks = async function (people, options = {}) {
+  let fetchFn = options.fetchFn || window.fetch?.bind(window);
+  if (!fetchFn)
+    throw new Error("TMDB link checks require browser network access.");
+  let limit = Math.max(1, Number(options.limit) || 300);
+  let eligible = (people || []).filter(
+    (person) => person.tmdb_id && (options.force || !person.tmdb_verified_at),
+  );
+  let candidates = eligible
+    .filter((person) => !supabasePersonLinkCheckAttempts.has(person.id))
+    .slice(0, limit);
+  candidates.forEach((person) =>
+    supabasePersonLinkCheckAttempts.add(person.id),
+  );
+
+  let result = {
+    attempted: candidates.length,
+    ok: 0,
+    okPeople: [],
+    issues: [],
+    failed: 0,
+  };
+  let cursor = 0;
+  async function worker() {
+    while (cursor < candidates.length) {
+      let person = candidates[cursor++];
+      try {
+        let response = await fetchFn(
+          `${window.TMDB_API_BASE}/person/${encodeURIComponent(person.tmdb_id)}?language=en-US`,
+          { headers: { accept: "application/json" } },
+        );
+        if (response.status === 404) {
+          result.issues.push({
+            person,
+            status: "missing",
+            detail: `TMDB person ${person.tmdb_id} not found (404)`,
+          });
+        } else if (!response.ok) {
+          throw new Error(`TMDB request failed (${response.status})`);
+        } else {
+          let data = await response.json();
+          let tmdbName = String(data.name || "").trim();
+          let normLocal =
+            window.normalizePersonName?.(person.name) ||
+            person.name.trim().toLowerCase();
+          let normTmdb =
+            window.normalizePersonName?.(tmdbName) ||
+            tmdbName.trim().toLowerCase();
+          let alsoKnown = (data.also_known_as || []).map(
+            (n) =>
+              window.normalizePersonName?.(n) || String(n).trim().toLowerCase(),
+          );
+          let match = normLocal === normTmdb || alsoKnown.includes(normLocal);
+          if (match) {
+            result.ok += 1;
+            result.okPeople.push(person);
+          } else {
+            result.issues.push({
+              person,
+              status: "name_mismatch",
+              detail: `Name mismatch: catalog has "${person.name}", TMDB has "${tmdbName}"`,
+              tmdbName,
+            });
+          }
+        }
+      } catch (err) {
+        result.failed += 1;
+        supabasePersonLinkCheckAttempts.delete(person.id);
+      }
+      options.onProgress?.(
+        result.ok + result.issues.length + result.failed,
+        candidates.length,
+        person,
+      );
+    }
+  }
+  let concurrency = Math.min(
+    candidates.length,
+    Math.max(1, Number(options.concurrency) || 4),
+  );
+  await Promise.all(Array.from({ length: concurrency }, worker));
+  result.remaining = eligible.filter(
+    (person) => !supabasePersonLinkCheckAttempts.has(person.id),
+  ).length;
+  return result;
+};

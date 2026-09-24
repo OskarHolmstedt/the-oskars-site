@@ -22,12 +22,12 @@ function watchGoalSourceParts(sourceId) {
     : null;
 }
 
-function watchGoalWatchlistCandidates(periodType, period) {
-  return (state.watchlist || [])
+function watchGoalWatchlistCandidates(periodType, period, stateRef = state) {
+  return (stateRef.watchlist || [])
     .filter(
       (item) =>
         item &&
-        !window.findWatchlistArchiveFilm?.(item) &&
+        !window.findWatchlistArchiveFilm?.(item, stateRef) &&
         watchGoalPeriodKey(periodType, item.year) === period,
     )
     .sort(window.compareWatchlistItems);
@@ -66,20 +66,25 @@ window.watchGoalProjectSource = function (sourceId) {
  * Watched-film counts per period against WATCH_GOAL_TARGETS, for every
  * period with at least one watched film.
  * @param {"year"|"decade"|"century"} periodType
+ * @param {Object} [options] Computation options.
+ * @param {Object} [options.state] Explicit state to read instead of
+ *   window.state (issue #597's compact-read cutover) - every existing call
+ *   site omits this and is unaffected.
  * @returns {{period: string, watchedCount: number, target: number}[]}
  */
-window.watchGoalProgress = function (periodType) {
+window.watchGoalProgress = function (periodType, options = {}) {
+  let stateRef = options.state || state;
   let target = window.WATCH_GOAL_TARGETS[periodType];
   let counts = new Map();
   let candidateCounts = new Map();
-  Object.values(state.filmsById || {}).forEach((film) => {
+  Object.values(stateRef.filmsById || {}).forEach((film) => {
     if (!film?.id || !film.title) return;
     let key = watchGoalPeriodKey(periodType, film.year);
     if (!key) return;
     counts.set(key, (counts.get(key) || 0) + 1);
   });
-  (state.watchlist || []).forEach((item) => {
-    if (!item || window.findWatchlistArchiveFilm?.(item)) return;
+  (stateRef.watchlist || []).forEach((item) => {
+    if (!item || window.findWatchlistArchiveFilm?.(item, stateRef)) return;
     let key = watchGoalPeriodKey(periodType, item.year);
     if (!key) return;
     candidateCounts.set(key, (candidateCounts.get(key) || 0) + 1);

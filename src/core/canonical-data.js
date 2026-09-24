@@ -1520,12 +1520,7 @@ window.canonicalDataToRuntimeState = function (source) {
   return {
     dataVersion: window.OSKARS_BUNDLED_DATA_VERSION || 0,
     creditSchemaVersion: 3,
-    centuryRangeVersion: 1,
-    adaptationSourceVersion: 1,
-    watchlistOrderVersion: 1,
-    groupedRankProjectionVersion: 1,
-    watchedDateVersion: 1,
-    viewingFactsVersion: 1,
+    ...window.CURRENT_MIGRATION_FLAGS,
     years: canonical.years,
     officialResults: canonical.officialResults,
     collectionAwards: canonical.collectionAwards,
@@ -2057,12 +2052,7 @@ window.hydratePublicProfileState = function (publicData, meta = {}) {
   let runtimeSource = {
     dataVersion: window.OSKARS_BUNDLED_DATA_VERSION || 0,
     creditSchemaVersion: 3,
-    centuryRangeVersion: 1,
-    adaptationSourceVersion: 1,
-    watchlistOrderVersion: 1,
-    groupedRankProjectionVersion: 1,
-    watchedDateVersion: 1,
-    viewingFactsVersion: 1,
+    ...window.CURRENT_MIGRATION_FLAGS,
     years: publicData.years,
     officialResults: publicData.officialResults,
     collectionAwards: publicData.collectionAwards || {

@@ -21,10 +21,21 @@
         </div>
       </div>
 
-      <section
-        id="dataHealthView"
-        class="data-panel data-health-panel"
-      ></section>
+      <section id="dataHealthView" class="data-panel data-health-panel">
+        <div class="data-health-heading">
+          <div>
+            <span class="eyebrow">Your archive</span>
+            <h2 id="dataHealthHeading">Data summary</h2>
+          </div>
+          <p id="dataHealthMessage">Loading your archive…</p>
+        </div>
+        <div class="data-health-summary">
+          <div><b id="dataHealthWatched">–</b><span>Watched</span></div>
+          <div><b id="dataHealthWatchlist">–</b><span>Watchlist</span></div>
+          <div><b id="dataHealthRankings">–</b><span>Ranking scopes</span></div>
+          <div><b id="dataHealthAwards">–</b><span>Award placements</span></div>
+        </div>
+      </section>
 
       <div class="data-tool-groups">
         <section class="data-tool-group" aria-labelledby="dataImportHeading">
@@ -69,34 +80,6 @@
               >
 The ZIP never leaves this browser.</pre>
             </section>
-
-            <section class="data-panel" id="googleSheetsImport" hidden>
-              <span class="eyebrow">Configured source</span>
-              <h3>Google Sheets</h3>
-              <p>
-                Fetch your configured private Sheet, preview what would change,
-                then save the reviewed changes to your account.
-              </p>
-              <div class="data-actions">
-                <button id="googleSheetsPreviewBtn" type="button">
-                  Preview import
-                </button>
-                <button id="googleSheetsApplyBtn" type="button" disabled>
-                  Apply reviewed import
-                </button>
-              </div>
-              <progress
-                id="googleSheetsProgress"
-                value="0"
-                max="1"
-                hidden
-              ></progress>
-              <pre
-                id="googleSheetsStatus"
-                class="data-panel-status"
-                role="status"
-              ></pre>
-            </section>
           </div>
         </section>
 
@@ -106,39 +89,57 @@ The ZIP never leaves this browser.</pre>
             <h2 id="dataRecoveryHeading">Backup and restore</h2>
             <p>Download a recovery file or review one before restoring it.</p>
           </div>
-          <section class="data-panel" id="backupRestore">
-            <h3>Portable backup</h3>
-            <p>
-              Export your core archive rows and their joined catalog records as
-              JSON. Merge keeps existing rows that are absent from the file;
-              replace clears current watched, watchlist, ranking, award, and tag
-              rows first.
-            </p>
-            <label class="data-field"
-              >Restore mode<select id="restoreModeSelect">
-                <option value="merge" selected>Merge with existing data</option>
-                <option value="replace">Replace personal archive</option>
-              </select></label
-            >
-            <div class="data-actions">
-              <button id="downloadBtn" type="button">Download backup</button>
-              <label class="button-link"
-                >Choose backup<input
-                  id="uploadInput"
-                  type="file"
-                  accept="application/json,.json"
-                  hidden
-              /></label>
-              <button id="jsonImportApplyBtn" type="button" disabled>
-                Restore reviewed backup
-              </button>
-            </div>
-            <pre
-              id="restoreStatus"
-              class="data-panel-status"
-              role="status"
-            ></pre>
-          </section>
+          <div class="data-panel-grid">
+            <section class="data-panel" id="backupExport">
+              <h3>Export</h3>
+              <p>
+                Download your core archive rows and their joined catalog records
+                as one JSON file.
+              </p>
+              <div class="data-actions">
+                <button id="downloadBtn" type="button">Download backup</button>
+              </div>
+              <p
+                id="downloadStatus"
+                class="data-panel-status"
+                role="status"
+              ></p>
+            </section>
+            <section class="data-panel" id="backupRestore">
+              <h3>Import a backup</h3>
+              <p>
+                Review a previously downloaded backup file, then choose how it
+                joins your account. Merge keeps existing rows that are absent
+                from the file; replace clears current watched, watchlist,
+                ranking, award, and tag rows first.
+              </p>
+              <label class="data-field"
+                >Restore mode<select id="restoreModeSelect">
+                  <option value="merge" selected>
+                    Merge with existing data
+                  </option>
+                  <option value="replace">Replace personal archive</option>
+                </select></label
+              >
+              <div class="data-actions">
+                <label class="button-link"
+                  >Choose backup<input
+                    id="uploadInput"
+                    type="file"
+                    accept="application/json,.json"
+                    hidden
+                /></label>
+                <button id="jsonImportApplyBtn" type="button" disabled>
+                  Restore reviewed backup
+                </button>
+              </div>
+              <pre
+                id="restoreStatus"
+                class="data-panel-status"
+                role="status"
+              ></pre>
+            </section>
+          </div>
         </section>
 
         <section
@@ -172,28 +173,43 @@ The ZIP never leaves this browser.</pre>
             <span class="eyebrow">Irreversible changes</span>
             <h2 id="dataDangerHeading">Danger zone</h2>
           </div>
-          <section class="data-panel data-danger-zone">
-            <div>
-              <h3>Permanently erase opinions</h3>
-              <p>
-                Clears ratings, reviews, rewatch preferences, interest tiers,
-                rankings, award ballots/reviews, and entity notes. Watched and
-                watchlist membership plus shared catalog facts remain.
-              </p>
-              <p>
-                <a class="button-link" href="build.html">Build your Oskars</a>
-              </p>
-              <p
-                id="clearOpinionsStatus"
-                class="data-panel-status"
-                role="status"
-              ></p>
+          <section
+            class="data-panel data-danger-zone-list"
+            id="deleteDataPanel"
+          >
+            <h3>Delete data</h3>
+            <p>
+              Check what to delete, then delete it. A full account backup
+              downloads first. Everything here stays behind your sign-in; delete
+              the account itself from
+              <a href="profile.html">your profile page</a>.
+            </p>
+            <div class="data-delete-shortcuts">
+              <label
+                ><input type="checkbox" id="deleteSelectAll" />
+                Everything</label
+              >
+              <label
+                ><input type="checkbox" id="deleteSelectOpinions" /> Just
+                opinions (ratings, rewatch, watchlist tiers, rankings, awards,
+                notes)</label
+              >
             </div>
-            <button id="clearOpinionsBtn" type="button">Erase opinions</button>
+            <div id="deleteDataRows"></div>
+            <div class="data-panel-actions">
+              <button id="deleteSelectedBtn" type="button" disabled>
+                Delete selected
+              </button>
+            </div>
+            <p
+              id="deleteDataStatus"
+              class="data-panel-status"
+              role="status"
+            ></p>
           </section>
         </section>
       </div>
     </main>
-    <script src="src/core/entry-loader.js" data-entry="data"></script>
+    <script src="src/core/entry-loader.js?v=22a33240dea2" data-entry="data"></script>
   </body>
 </html>

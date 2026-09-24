@@ -147,4 +147,75 @@
       return false;
     }
   };
+
+  /**
+   * Same contract as hydrateOfficialResultsFromSupabase(), scoped to one
+   * film's Academy Awards nominations (issue #633) - film.html's
+   * officialFilmContext() only ever reads this one film's own
+   * nominations, so there's no reason to pull ~1,900 categories/~9,300
+   * nominations across every source just to look at one film's slice of
+   * one of them. Reuses buildOfficialResultsFromSupabase() completely
+   * unchanged; only the query is different. Replaces (not merges) this
+   * one page visit's state.officialResults["academy-awards"] with the
+   * scoped result - safe because every page in this app re-boots
+   * window.state fresh on navigation (no SPA-style persistence across
+   * pages), and film.html's own renderView() is officialFilmContext()'s
+   * only caller.
+   * @param {string} filmId
+   * @returns {Promise<boolean>} Whether state.officialResults was updated with live data.
+   */
+  window.hydrateOfficialResultsForFilm = async function (filmId) {
+    try {
+      let source = await window.loadSupabaseOfficialResultsForFilm(filmId);
+      let live = window.buildOfficialResultsFromSupabase(source);
+      if (!Object.keys(live).length) return false;
+      window.state.officialResults = Object.assign(
+        {},
+        window.state.officialResults || {},
+        live,
+      );
+      return true;
+    } catch (err) {
+      console.warn(
+        "Could not load this film's live official results from Supabase.",
+        err,
+      );
+      return false;
+    }
+  };
+
+  /**
+   * Same contract as hydrateOfficialResultsFromSupabase(), scoped to the
+   * official nominations whose recipient text mentions this person (issue
+   * #633) - person.html's officialPersonRecords() matches recipient text
+   * against the person's name, aliases and id, so only nominations
+   * containing one of those can ever match. Every live source is still
+   * replaced (with just its matching nominations), exactly as the
+   * complete read would replace it.
+   * @param {{id: string, name: string, aliases?: string[]}} person
+   * @returns {Promise<boolean>} Whether state.officialResults was updated with live data.
+   */
+  window.hydrateOfficialResultsForPerson = async function (person) {
+    try {
+      let source = await window.loadSupabaseOfficialResultsForRecipients([
+        person?.name,
+        person?.id,
+        ...(person?.aliases || []),
+      ]);
+      let live = window.buildOfficialResultsFromSupabase(source);
+      if (!Object.keys(live).length) return false;
+      window.state.officialResults = Object.assign(
+        {},
+        window.state.officialResults || {},
+        live,
+      );
+      return true;
+    } catch (err) {
+      console.warn(
+        "Could not load this person's live official results from Supabase.",
+        err,
+      );
+      return false;
+    }
+  };
 })();

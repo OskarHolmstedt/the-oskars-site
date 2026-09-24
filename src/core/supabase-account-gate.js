@@ -119,7 +119,7 @@ function welcomeHeroHtml({ eyebrow, heading, description }) {
  */
 function welcomeSignInHtml() {
   return `<section class="account-welcome-signin" aria-labelledby="accountWelcomeSignIn">
-      <div><span class="eyebrow">Private by design</span><h2 id="accountWelcomeSignIn">Bring your archive with you</h2><p>Sign in to open your private workspace and keep it synchronized with your account.</p></div>
+      <div><span class="eyebrow">Private by design</span><h2 id="accountWelcomeSignIn">Bring your archive with you</h2><p>Sign in to open your private workspace and keep it synchronized with your account. <a href="privacy.html" data-privacy-notice-trigger>Privacy notice</a>.</p></div>
       <div class="account-welcome-signin-action"><div data-supabase-gate-button></div><p>No browser archive is loaded or uploaded until sign-in succeeds and you explicitly connect this browser.</p></div>
     </section>`;
 }
@@ -302,9 +302,10 @@ window.renderSupabaseAccountGate = function (access, container) {
     : teaserKey
       ? signedOutTeaserContent(SIGNED_OUT_TEASERS[teaserKey])
       : `<div class="account-gate">
-    <p>${escape(message)}</p>
-    <div data-supabase-gate-button></div>
-  </div>`;
+     <p>${escape(message)}</p>
+     <div data-supabase-gate-button></div>
+     <p class="account-gate-privacy"><a href="privacy.html" data-privacy-notice-trigger>Privacy notice</a></p>
+   </div>`;
   if (access.status === "signed-out") {
     window.renderGoogleSignInButtonForSupabase?.(
       container.querySelector("[data-supabase-gate-button]"),

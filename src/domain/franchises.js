@@ -8,9 +8,7 @@ window.normalizeFranchiseId = function (value) {
 };
 
 function isBlankFranchiseValue(value) {
-  return /^(?:-|–|—|n\/?a|none|no franchise)$/i.test(
-    String(value || "").trim(),
-  );
+  return window.isPlaceholderValue(value, /^no franchise$/i);
 }
 
 /** Normalizes and merges franchise memberships. @param {*} value Membership input. @returns {FranchiseMembership[]} Memberships. */

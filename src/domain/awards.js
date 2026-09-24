@@ -107,7 +107,7 @@ window.normalizeAdaptationSource = function (value) {
   let source = String(value || "")
     .normalize("NFKC")
     .trim();
-  if (!source || /^(?:-|–|—|original|none|n\/?a)$/i.test(source)) return "";
+  if (!source || window.isPlaceholderValue(source, /^original$/i)) return "";
   let key = source
     .toLowerCase()
     .replace(/[_-]+/g, " ")
@@ -243,7 +243,7 @@ window.parseWatchedDate = function (value) {
 /** Normalizes understood watch dates while preserving meaningful unknown text. @param {*} value Date value. @returns {string} Normalized value. */
 window.normalizeWatchedDate = function (value) {
   let text = String(value || "").trim();
-  if (!text || /^(?:-+|–|—|\?+|n\/?a|none|\d{1,2})$/i.test(text)) return "";
+  if (!text || window.isPlaceholderValue(text, /^(?:\?+|\d{1,2})$/)) return "";
   return window.parseWatchedDate(text) || text;
 };
 

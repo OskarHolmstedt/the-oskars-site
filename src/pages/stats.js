@@ -10,21 +10,28 @@
             k in values ? values[k] : m,
           )
         : text);
-  window.load();
+  if (!window.OSKARS_STATS_COMPACT) window.load();
   let container = document.getElementById("statsPage");
   document.title = `${ui("Statistics")} · The Oskars`;
 
-  let stats = window.viewingStatistics();
-  let personalAnnualAwardEntries = Object.values(
-    window.state?.filmsById || {},
-  ).flatMap((film) =>
-    (film.awards || [])
-      .filter((award) => window.getAwardPeriodType(award) === "years")
-      .map((award) => ({ film, award })),
-  );
-  // Reassigned by renderStatsPage() below, including on the post-hydration
-  // re-render - awardsContent() reads it by closure.
+  let stats;
+  let personalAnnualAwardEntries;
   let awardAgreement;
+  function collectLegacyStatistics() {
+    let finishStatistics = window.startOskarsPerformance?.("stats:statistics");
+    stats = window.viewingStatistics();
+    finishStatistics?.();
+    let finishAwardEntries =
+      window.startOskarsPerformance?.("stats:awardEntries");
+    personalAnnualAwardEntries = Object.values(
+      window.state?.filmsById || {},
+    ).flatMap((film) =>
+      (film.awards || [])
+        .filter((award) => window.getAwardPeriodType(award) === "years")
+        .map((award) => ({ film, award })),
+    );
+    finishAwardEntries?.();
+  }
 
   function percent(count, total = stats.filmCount) {
     return total ? Math.round((count / total) * 100) : 0;
@@ -158,26 +165,27 @@
     ${links}`;
   }
 
-  let viewingSummary = window.renderDetailStats({
-    classes: "stats-summary",
-    itemsHtml: `
+  function renderStatsPage() {
+    let finishRenderTimer = window.startOskarsPerformance?.("stats:render");
+    if (!window.OSKARS_STATS_COMPACT) {
+      let finishCollectTimer = window.startOskarsPerformance?.("stats:collect");
+      awardAgreement = window.officialAwardAgreementStatistics({
+        personalEntries: personalAnnualAwardEntries,
+        officialSource:
+          window.state?.officialResults?.["academy-awards"] || null,
+      });
+      finishCollectTimer?.();
+    }
+    let viewingSummary = window.renderDetailStats({
+      classes: "stats-summary",
+      itemsHtml: `
   <span><b>${stats.filmCount}</b> ${escape(ui("films watched"))}</span>
   ${window.renderRatingStatisticsItems(stats.ratingStatistics, { escape, ui })}
   <span><b>${stats.datedCount}</b> ${escape(ui("with a watch date"))}</span>
   <span><b>${hours(stats.knownRuntimeMinutes)}</b> ${escape(ui("known hours"))}</span>
 `,
-  });
-
-  function renderStatsPage() {
-    let finishRenderTimer = window.startOskarsPerformance?.("stats:render");
-    let finishCollectTimer = window.startOskarsPerformance?.("stats:collect");
-    awardAgreement = window.officialAwardAgreementStatistics({
-      personalEntries: personalAnnualAwardEntries,
-      officialSource: window.state?.officialResults?.["academy-awards"] || null,
     });
-    finishCollectTimer?.(
-      `${stats.filmCount} films, ${stats.ratedCount} rated, ${stats.datedCount} dated, ${awardAgreement.comparedCount} award comparison(s)`,
-    );
+
     container.innerHTML = `<header class="stats-hero">
   <span class="eyebrow">${escape(ui("The archive by the numbers"))}</span>
   <h1>${escape(ui("Viewing statistics"))}</h1>
@@ -231,6 +239,83 @@ ${section(
       `${stats.filmCount} films, ${stats.ratingRows.length} rating rows, ${stats.decadeRows.length} decade rows`,
     );
   }
-  renderStatsPage();
-  window.hydrateOfficialResultsFromSupabase?.().then(renderStatsPage, () => {});
+  if (!window.OSKARS_STATS_COMPACT) {
+    collectLegacyStatistics();
+    renderStatsPage();
+    window
+      .hydrateOfficialResultsFromSupabase?.()
+      .then(renderStatsPage, () => {});
+    return;
+  }
+
+  let generation = 0;
+  let owner = window.getSupabaseCurrentUser?.()?.id || null;
+  let loadedAt = null;
+  let pending = null;
+
+  function refreshStats() {
+    if (!owner) return Promise.resolve();
+    if (pending) return pending;
+    let requestGeneration = generation;
+    let requestOwner = owner;
+    let current = () =>
+      generation === requestGeneration &&
+      requestOwner &&
+      requestOwner === window.getSupabaseCurrentUser?.()?.id &&
+      !window.resolveActiveProfileSlug?.() &&
+      !window.state?.isPublicProfileView;
+    container.innerHTML = `<p role="status">${escape(ui("Loading statistics…"))}</p>`;
+    let finish = window.startOskarsPerformance?.("stats:dataReady");
+    let request = (async () => {
+      try {
+        let source = await window.loadSupabaseStatsProjection();
+        if (!current()) return;
+        if (!source.hasLiveAcademy) await window.loadStatsOfficialFallback();
+        if (!current()) return;
+        let model = window.buildSupabaseStatsModel(
+          source,
+          window.OSKARS_BUNDLED_OFFICIAL_RESULTS?.["academy-awards"],
+        );
+        stats = model.statistics;
+        awardAgreement = model.agreement;
+        loadedAt = Date.now();
+        renderStatsPage();
+        finish?.();
+        window.refreshFocusedShellBackdrop?.();
+      } catch (error) {
+        if (!current()) return;
+        console.warn("Could not load compact Stats.", error);
+        container.innerHTML = `<section class="detail-empty"><h2>${escape(ui("Could not load statistics."))}</h2><button type="button" data-stats-retry>${escape(ui("Try again"))}</button><p><a href="stats.html?statsSource=legacy">${escape(ui("Use the existing statistics view"))}</a></p></section>`;
+        container
+          .querySelector("[data-stats-retry]")
+          ?.addEventListener("click", refreshStats);
+      } finally {
+        if (pending === request) pending = null;
+      }
+    })();
+    pending = request;
+    return request;
+  }
+  function invalidateStats() {
+    generation += 1;
+    pending = null;
+    loadedAt = null;
+    container.innerHTML = "";
+    if (owner) refreshStats();
+  }
+  window.onSupabaseAuthChange?.((user) => {
+    let nextOwner = user?.id || null;
+    if (owner === nextOwner) return;
+    owner = nextOwner;
+    invalidateStats();
+  });
+  window.addEventListener("oskars:hydration-invalidated", invalidateStats);
+  window.addEventListener("focus", () => {
+    if (
+      loadedAt === null ||
+      Date.now() - loadedAt >= window.OSKARS_HYDRATION_CACHE_TTL_MS
+    )
+      refreshStats();
+  });
+  refreshStats();
 })();

@@ -20,7 +20,7 @@ window.pageLinkedRecipients = function (award, options = {}) {
     let canonicalName =
       state.peopleAliases?.[recipient.personId] || recipient.name;
     let personId = window.normalizePersonName(canonicalName);
-    return `<a class="table-film-link" href="${window.pageEscape(window.personPageUrl(personId))}">${window.pageEscape(canonicalName)}</a>`;
+    return `<a class="table-film-link" href="${window.pageEscape(window.personPageUrl(recipient.supabasePersonId || personId))}">${window.pageEscape(canonicalName)}</a>`;
   });
   let limit = Math.max(1, Number(options.limit) || 2);
   if (links.length <= limit || options.expanded) return links.join(", ");
@@ -104,9 +104,14 @@ window.renderLinkedPeopleNames = function (value, options = {}) {
     let personId = window.normalizePersonName?.(name) || name.toLowerCase();
     let canonicalName = state.peopleAliases?.[personId] || name;
     let canonicalId = window.normalizePersonName?.(canonicalName) || personId;
-    let href =
-      options.assumeIndexed ||
-      (window.ensurePeopleIndex?.() || state.peopleById || {})[canonicalId]
+    // A known people.id (issue #633) is the canonical link target - no
+    // index lookup needed to resolve it.
+    let knownPersonId =
+      canonicalName === name ? options.personIds?.[personId] : null;
+    let href = knownPersonId
+      ? window.personPageUrl(knownPersonId)
+      : options.assumeIndexed ||
+          (window.ensurePeopleIndex?.() || state.peopleById || {})[canonicalId]
         ? window.personPageUrl(canonicalId)
         : options.watchlistDirectorFallback &&
             window.watchlistItemsByDirector?.(canonicalName).length
@@ -198,8 +203,20 @@ window.renderLinkedDirectors = function (filmOrNames, options = {}) {
       : typeof filmOrNames === "object" && filmOrNames
         ? filmOrNames.director || ""
         : filmOrNames;
+  // film.directors/film.directorIds are index-aligned (issue #633).
+  let personIds = {};
+  if (
+    filmOrNames &&
+    typeof filmOrNames === "object" &&
+    !Array.isArray(filmOrNames)
+  )
+    (filmOrNames.directors || []).forEach((director, index) => {
+      let id = filmOrNames.directorIds?.[index];
+      if (id)
+        personIds[window.normalizePersonName?.(director) || director] = id;
+    });
   return window.renderLinkedPeopleNames(
     names,
-    Object.assign({ watchlistDirectorFallback: true }, options),
+    Object.assign({ watchlistDirectorFallback: true, personIds }, options),
   );
 };

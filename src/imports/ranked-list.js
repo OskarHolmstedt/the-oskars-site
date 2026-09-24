@@ -2,6 +2,9 @@
  * @file Parses ranked-list CSV or TSV exports, including tied/composite rows,
  * ranking groups, film metadata, and archive relationship references.
  */
+/* exported parseRankedList -- true top-level global, called bare from
+ * src/imports/importer.js and tests/import.jxa.js/snippet-import.jxa.js
+ * (both excluded from ESLint), so no-unused-vars can't see those calls. */
 
 /**
  * Parses a ranked-list export into canonical film records.
@@ -509,7 +512,7 @@ function rankedListMediumKind(value) {
     .toLowerCase()
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ");
-  if (!text || /^(?:-|–|—|n\/?a|none|unknown)$/.test(text)) return "";
+  if (!text || window.isPlaceholderValue(text)) return "";
   if (/\b(?:anim|animated|animation|animerad|tecknad)\b/.test(text))
     return "animation";
   if (/\b(?:live action|liveaction|spelfilm)\b/.test(text))
@@ -532,7 +535,7 @@ function cleanRankedListDash(value) {
   let text = String(value || "")
     .replace(/[\u200E\u200F\u202A-\u202E]/g, "")
     .trim();
-  return /^(?:-|–|—|n\/?a|none)$/i.test(text) ? "" : text;
+  return window.isPlaceholderValue(text) ? "" : text;
 }
 
 function parseRankedListTitleStructure(value) {

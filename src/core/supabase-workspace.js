@@ -49,7 +49,7 @@
  */
 
 const WATCHED_SELECT =
-  "id, film_id, rating, rating_modifier, date_watched, review, platform, views, updated_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type)";
+  "id, film_id, rating, rating_modifier, date_watched, review, platform, views, updated_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type, original_language)";
 const WATCHLIST_SELECT =
   "id, film_id, tier, tier_modifier, position, reason, updated_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, medium, type)";
 
@@ -1065,7 +1065,7 @@ window.loadSupabaseAwardCandidateCredits = async function (filmIds) {
  * intentional shape the importer already uses.
  * @param {string} filmId Film UUID.
  * @param {string} role credits.role value (see window.AWARD_CATEGORY_CREDIT_JOBS).
- * @param {{tmdbId: number, name: string, profilePath?: string|null}[]} people TMDB crew to persist.
+ * @param {(string|{tmdbId?: number|null, name: string, profilePath?: string|null})[]} people TMDB crew or names to persist.
  * @returns {Promise<void>}
  */
 window.persistSupabaseFilmCredits = async function (filmId, role, people) {
@@ -1075,14 +1075,23 @@ window.persistSupabaseFilmCredits = async function (filmId, role, people) {
   let authState = await window.resolveSupabaseAuthState();
   if (authState.status !== "signed-in") return;
   for (let [index, person] of people.entries()) {
-    if (!person?.tmdbId || !person?.name) continue;
+    let name =
+      typeof person === "string"
+        ? person.trim()
+        : String(person?.name || "").trim();
+    if (!name) continue;
+    let tmdbId =
+      typeof person === "object" && person?.tmdbId
+        ? Number(person.tmdbId) || null
+        : null;
+    let profilePath = typeof person === "object" ? person?.profilePath : null;
     let { data: personId, error: personError } = await ready.client.rpc(
       "find_or_create_person",
       {
-        p_tmdb_id: person.tmdbId,
-        p_name: person.name,
-        p_portrait_url: person.profilePath
-          ? `https://image.tmdb.org/t/p/w300${person.profilePath}`
+        p_tmdb_id: tmdbId,
+        p_name: name,
+        p_portrait_url: profilePath
+          ? `https://image.tmdb.org/t/p/w300${profilePath}`
           : null,
       },
     );
@@ -1504,6 +1513,7 @@ const SUPABASE_ACCOUNT_BACKUP_TABLES = [
   ],
   ["ranking_pair_reviews", "*", ["scope", "film_id_a", "film_id_b"]],
   ["award_reviews", "*", ["year", "category"]],
+  ["collection_ballots", "*", ["id"]],
   ["entity_notes", "*", ["id"]],
   ["declined_official_watchlist_adds", "*", ["film_id"]],
   ["intake_workflows", "*", ["id"]],
@@ -1928,14 +1938,38 @@ window.updateSupabaseNominationRecipients = async function (
   );
 
   if (toAdd.length) {
+    // Resolves person_id the same way persistSupabaseFilmCredits() already
+    // does for directors (issue #633 - this column has existed since the
+    // initial schema and nothing has ever written it, forcing every
+    // consumer to re-derive identity from the free-text name instead).
+    // find_or_create_person's name-only branch throws on a genuinely
+    // ambiguous name (multiple existing people share it) rather than
+    // guessing - caught here and left as a plain-text recipient, same
+    // degraded shape this row always had, rather than blocking the save
+    // over a disambiguation problem the person editing an award isn't
+    // positioned to resolve.
+    let rows = [];
+    for (let recipient_name of toAdd) {
+      let personId;
+      try {
+        let { data, error } = await ready.client.rpc("find_or_create_person", {
+          p_tmdb_id: null,
+          p_name: recipient_name,
+        });
+        if (error) throw error;
+        personId = data || null;
+      } catch (err) {
+        personId = null;
+      }
+      rows.push({
+        nomination_id: nominationId,
+        recipient_name,
+        person_id: personId,
+      });
+    }
     let { error: insertError } = await ready.client
       .from("personal_nomination_recipients")
-      .insert(
-        toAdd.map((recipient_name) => ({
-          nomination_id: nominationId,
-          recipient_name,
-        })),
-      );
+      .insert(rows);
     if (insertError) throw insertError;
   }
 
@@ -2001,20 +2035,27 @@ async function fetchAllSupabaseRows(
   return rows;
 }
 
+/** Fetches all pages of a Supabase query using its exact count. @param {function(boolean): Object} buildQuery Builds a fresh query, requesting count when true. @param {number} [pageSize] Maximum rows per page. @returns {Promise<Object[]>} All selected rows. */
+window.fetchAllSupabaseRows = fetchAllSupabaseRows;
+
 // Every field a legacy read-only page's FilmRecord might display -
 // credits/tags/franchises embedded directly (one round trip, no per-film
 // N+1 query) rather than a separate bulk fetch per film id, since
-// PostgREST resolves nested resources server-side.
+// PostgREST resolves nested resources server-side. people(id, name), not
+// just name: credits.person_id is a real, already-correct identity (see
+// issue #633) - reshapeSharedFilmFields() carries the id through so
+// director lookups can use it instead of re-deriving identity from the
+// name string client-side.
 const LEGACY_HYDRATION_FILM_FIELDS =
-  "id, tmdb_id, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type, adaptation_source, swedish_title, letterboxd_url, credits(role, people(name)), film_tags(tags(name)), film_franchises(franchises(id, name, parent_id))";
+  "id, tmdb_id, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type, adaptation_source, swedish_title, letterboxd_url, credits(role, people(id, name)), film_tags(tags(name)), film_franchises(franchises(id, name, parent_id))";
 
 /**
  * Loads every table src/domain/supabase-legacy-hydration.js needs to
  * rebuild window.state's established view-model shape - watched, watchlist, every
  * ranking (all four scope types), every personal-award nomination (all
  * four scope types), the shared film and franchise catalogs, every
- * project the user owns (issue #458), and the profile display name. One
- * pass per page load, matching what the previous app always loaded
+ * project the user owns (issue #458), saved person portraits, and the profile
+ * display name. One pass per page load, matching what the previous app always loaded
  * wholesale - not cached; edit-capable callers refresh it after writes
  * (issues #438, #440).
  * @returns {Promise<Object>} Raw rows, reshaped entirely by the caller.
@@ -2031,6 +2072,7 @@ window.loadSupabaseLegacyHydrationSource = async function () {
       personalAwards: [],
       franchises: [],
       catalogFilms: [],
+      people: [],
       ownProjects: [],
       profile: null,
     };
@@ -2043,6 +2085,7 @@ window.loadSupabaseLegacyHydrationSource = async function () {
     personalAwardsResult,
     franchises,
     catalogFilms,
+    people,
     ownProjectsResult,
     profileResult,
   ] = await Promise.all([
@@ -2080,7 +2123,7 @@ window.loadSupabaseLegacyHydrationSource = async function () {
     client
       .from("personal_awards")
       .select(
-        "id, scope, scope_type, personal_nominations(id, category, placement, film_id, detail, personal_nomination_recipients(recipient_name))",
+        "id, scope, scope_type, personal_nominations(id, category, placement, film_id, detail, personal_nomination_recipients(recipient_name, person_id))",
       )
       .order("placement", { foreignTable: "personal_nominations" }),
     // Both paginated (issue #463) - the shared, non-personal catalog is
@@ -2102,6 +2145,16 @@ window.loadSupabaseLegacyHydrationSource = async function () {
           LEGACY_HYDRATION_FILM_FIELDS,
           withCount ? { count: "exact" } : undefined,
         ),
+    ),
+    fetchAllSupabaseRows((withCount) =>
+      client
+        .from("people")
+        .select(
+          "id, name, portrait_url, portrait_source, portrait_source_url, portrait_provider_id, portrait_fetched_at",
+          withCount ? { count: "exact" } : undefined,
+        )
+        .not("portrait_url", "is", null)
+        .order("id"),
     ),
     // issue #458: every project the signed-in user owns, with its
     // collection's source identity and full item list - lets
@@ -2163,6 +2216,7 @@ window.loadSupabaseLegacyHydrationSource = async function () {
     personalAwards: personalAwardsResult.data,
     franchises,
     catalogFilms,
+    people,
     ownProjects: ownProjectsResult.data,
     profile: profileResult.data,
   };
@@ -2222,6 +2276,308 @@ window.loadSupabaseOfficialResultsSource = async function () {
 };
 
 /**
+ * Loads Academy Awards official-results data scoped to one film (issue
+ * #633) - the read film.html actually needs (officialFilmContext() only
+ * ever reads state.officialResults["academy-awards"], filtered to
+ * nominations whose filmRef.id matches this one film), instead of
+ * loadSupabaseOfficialResultsSource()'s unconditional ~1,900
+ * categories/~9,300 nominations across every source. One query, filtered
+ * by film_id, with its category/ceremony ancestors embedded (a plain
+ * many-to-one join, not the child-side !inner+eq filtering the personal
+ * compact reads use) - reshaped back into the same flat
+ * {ceremonies, categories, nominations} arrays
+ * loadSupabaseOfficialResultsSource() returns, so
+ * buildOfficialResultsFromSupabase() keeps working completely unmodified
+ * on either source. Every ceremony/category this film has ever been
+ * nominated in is included even if unrelated films share them - nothing
+ * here trims a category/ceremony down to just this film's own row within
+ * it, since buildOfficialResultsFromSupabase() only ever reads the
+ * nominations it's actually handed anyway.
+ * @param {string} filmId
+ * @returns {Promise<{ceremonies: Object[], categories: Object[], nominations: Object[]}>}
+ */
+window.loadSupabaseOfficialResultsForFilm = async function (filmId) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { data, error } = await ready.client
+    .from("official_nominations")
+    .select(
+      "id, category_id, film_id, is_winner, source_id, source_title, original_title, source_category, detail, country, recipient_text, films(id, tmdb_id, title, year), official_categories!inner(id, ceremony_id, name, official_ceremonies!inner(id, source, year, period_key, period_type, ceremony_label, source_url))",
+    )
+    .eq("film_id", filmId)
+    // official_categories!inner/official_ceremonies!inner above turn this
+    // into a real inner-join filter - a non-academy-awards nomination row
+    // is excluded entirely, not just missing its embed (confirmed against
+    // real Postgres: without !inner on both levels, a plain .eq() here
+    // still returns the row with the embed merely nulled out).
+    .eq("official_categories.official_ceremonies.source", "academy-awards");
+  if (error) throw error;
+  let ceremoniesById = new Map();
+  let categoriesById = new Map();
+  let nominations = [];
+  (data || []).forEach((row) => {
+    let category = row.official_categories;
+    let ceremony = category?.official_ceremonies;
+    // Never actually null given the !inner filtering above - defensive
+    // only, matching loadSupabaseOfficialResultsSource()'s own FK-orphan
+    // guard.
+    if (!category || !ceremony) return;
+    ceremoniesById.set(ceremony.id, {
+      id: ceremony.id,
+      source: ceremony.source,
+      year: ceremony.year,
+      period_key: ceremony.period_key,
+      period_type: ceremony.period_type,
+      ceremony_label: ceremony.ceremony_label,
+      source_url: ceremony.source_url,
+    });
+    categoriesById.set(category.id, {
+      id: category.id,
+      ceremony_id: category.ceremony_id,
+      name: category.name,
+    });
+    nominations.push({
+      id: row.id,
+      category_id: row.category_id,
+      film_id: row.film_id,
+      is_winner: row.is_winner,
+      source_id: row.source_id,
+      source_title: row.source_title,
+      original_title: row.original_title,
+      source_category: row.source_category,
+      detail: row.detail,
+      country: row.country,
+      recipient_text: row.recipient_text,
+      films: row.films,
+    });
+  });
+  return {
+    ceremonies: [...ceremoniesById.values()],
+    categories: [...categoriesById.values()],
+    nominations,
+  };
+};
+
+// PostgREST or()/ilike value quoting: double-quoted, with \ and " escaped,
+// so a name containing a comma or parenthesis can't break the filter.
+function postgrestQuoted(value) {
+  return `"${String(value).replace(/[\\"]/g, (char) => `\\${char}`)}"`;
+}
+
+// ilike wildcards in a literal value, escaped so a name is matched as text.
+function ilikeLiteral(value) {
+  return String(value).replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+// Runs an .in() query in chunks - a prolific director's film ids would
+// otherwise risk an over-long request URL.
+async function selectInChunks(ids, runChunk, chunkSize = 100) {
+  let rows = [];
+  for (let start = 0; start < ids.length; start += chunkSize) {
+    let { data, error } = await runChunk(ids.slice(start, start + chunkSize));
+    if (error) throw error;
+    rows.push(...(data || []));
+  }
+  return rows;
+}
+
+/**
+ * Loads official results matching a person's recipient text (issue #633)
+ * - the read person.html's officialPersonRecords() needs, instead of
+ * loadSupabaseOfficialResultsSource()'s complete ~9,300 nominations.
+ * officialPersonRecord() already matches by case-insensitive substring of
+ * the recipient text against the person's name/aliases and then narrows
+ * to exact person ids; the same substring filter runs here in SQL, so it
+ * returns a superset the unchanged client logic narrows exactly as
+ * before. Every ceremony (a few hundred rows) is included, so a source
+ * with no matches for this person still replaces its bundled default
+ * with an empty live one, same as the complete read would.
+ * @param {string[]} needles Name and alias strings to match.
+ * @returns {Promise<{ceremonies: Object[], categories: Object[], nominations: Object[]}>}
+ */
+window.loadSupabaseOfficialResultsForRecipients = async function (needles) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let terms = [
+    ...new Set(
+      (needles || [])
+        .map((value) => String(value || "").trim())
+        .filter(Boolean),
+    ),
+  ];
+  let client = ready.client;
+  let ceremoniesResult = await client
+    .from("official_ceremonies")
+    .select(
+      "id, source, year, period_key, period_type, ceremony_label, source_url",
+    );
+  if (ceremoniesResult.error) throw ceremoniesResult.error;
+  if (!terms.length)
+    return {
+      ceremonies: ceremoniesResult.data || [],
+      categories: [],
+      nominations: [],
+    };
+  let rows = await fetchAllSupabaseRows((withCount) =>
+    client
+      .from("official_nominations")
+      .select(
+        "id, category_id, film_id, is_winner, source_id, source_title, original_title, source_category, detail, country, recipient_text, films(id, tmdb_id, title, year), official_categories(id, ceremony_id, name)",
+        withCount ? { count: "exact" } : undefined,
+      )
+      .or(
+        terms
+          .map(
+            (term) =>
+              `recipient_text.ilike.${postgrestQuoted(`*${ilikeLiteral(term)}*`)}`,
+          )
+          .join(","),
+      ),
+  );
+  let categoriesById = new Map();
+  let nominations = rows.map((row) => {
+    let { official_categories: category, ...nomination } = row;
+    if (category) categoriesById.set(category.id, category);
+    return nomination;
+  });
+  return {
+    ceremonies: ceremoniesResult.data || [],
+    categories: [...categoriesById.values()],
+    nominations,
+  };
+};
+
+/**
+ * Loads one person's complete slice of the signed-in user's archive
+ * (issue #633) - the compact read behind person.html, instead of the
+ * whole archive. A person's films are the ones they're credited as
+ * director on (credits.person_id - the only credit role this app stores)
+ * plus the ones they're a personal-award recipient on (recipient
+ * person_id, or an exact case-insensitive name match for rows written
+ * before recipients carried an id). For exactly those films it returns
+ * the watched/watchlist rows, real ranks (read_ranking_positions), every
+ * personal nomination on them (collaborators on the same films included),
+ * their shared-catalog rows (the Unseen section) and this person's own
+ * projects - shaped as a `source` for the unchanged
+ * buildLegacyStateFromSupabaseHydration()/rebuildPeopleIndex() pipeline,
+ * so the person record it produces matches the complete read's.
+ * @param {string} personId people.id uuid.
+ * @returns {Promise<Object|null>} Scoped source plus `person`, or null if no such person.
+ */
+window.loadSupabasePersonDetail = async function (personId) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let client = ready.client;
+  let [personResult, directedResult] = await Promise.all([
+    client
+      .from("people")
+      .select(
+        "id, name, portrait_url, portrait_source, portrait_source_url, portrait_provider_id, portrait_fetched_at",
+      )
+      .eq("id", personId)
+      .maybeSingle(),
+    client
+      .from("credits")
+      .select("film_id")
+      .eq("person_id", personId)
+      .eq("role", "director"),
+  ]);
+  if (personResult.error) throw personResult.error;
+  if (directedResult.error) throw directedResult.error;
+  let person = personResult.data;
+  if (!person) return null;
+  let recipientResult = await client
+    .from("personal_nomination_recipients")
+    .select("personal_nominations!inner(film_id)")
+    .or(
+      `person_id.eq.${personId},recipient_name.ilike.${postgrestQuoted(ilikeLiteral(person.name))}`,
+    );
+  if (recipientResult.error) throw recipientResult.error;
+  let directedIds = (directedResult.data || []).map((row) => row.film_id);
+  let filmIds = [
+    ...new Set([
+      ...directedIds,
+      ...(recipientResult.data || []).map(
+        (row) => row.personal_nominations?.film_id,
+      ),
+    ]),
+  ].filter(Boolean);
+  let slug = window.normalizePersonName?.(person.name) || "";
+  let [
+    watched,
+    watchlist,
+    rankings,
+    personalAwards,
+    franchisesResult,
+    catalogFilms,
+    projectsResult,
+  ] = await Promise.all([
+    selectInChunks(filmIds, (ids) =>
+      client
+        .from("watched")
+        .select(
+          `id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+        )
+        .in("film_id", ids)
+        .order("id"),
+    ),
+    // Relative order only: a watchlist item's `order` comes from its
+    // position in this array, and this is a subset of the watchlist -
+    // sorted the same way, so relative order within it is unchanged.
+    selectInChunks(filmIds, (ids) =>
+      client
+        .from("watchlist")
+        .select(
+          `id, film_id, tier, tier_modifier, position, reason, added_at, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+        )
+        .in("film_id", ids)
+        .order("position")
+        .order("id"),
+    ),
+    window.loadSupabaseRankingsForFilms(filmIds),
+    filmIds.length
+      ? client
+          .from("personal_awards")
+          .select(
+            "id, scope, scope_type, personal_nominations!inner(id, category, placement, film_id, detail, personal_nomination_recipients(recipient_name, person_id))",
+          )
+          .in("personal_nominations.film_id", filmIds)
+          .order("placement", { foreignTable: "personal_nominations" })
+          .then(({ data, error }) => {
+            if (error) throw error;
+            return data || [];
+          })
+      : [],
+    client.from("franchises").select("id, name, parent_id"),
+    selectInChunks(directedIds, (ids) =>
+      client.from("films").select(LEGACY_HYDRATION_FILM_FIELDS).in("id", ids),
+    ),
+    client
+      .from("collections")
+      .select(
+        "id, name, source_label, source_type, source_id, created_at, projects!inner(status, pinned, updated_at), collection_items(film_id, position)",
+      )
+      .eq("source_type", "person")
+      .in("source_id", [personId, slug].filter(Boolean))
+      .order("position", { foreignTable: "collection_items" }),
+  ]);
+  if (franchisesResult.error) throw franchisesResult.error;
+  if (projectsResult.error) throw projectsResult.error;
+  return {
+    person,
+    watched,
+    watchlist,
+    rankings,
+    personalAwards,
+    franchises: franchisesResult.data || [],
+    catalogFilms,
+    people: person.portrait_url ? [person] : [],
+    ownProjects: projectsResult.data || [],
+    profile: null,
+  };
+};
+
+/**
  * Loads one watchlist item by id, with its full film join (credits,
  * tags, franchises) - the single-item detail read the watchlisted branch
  * of `film.html` needs, distinct from the bulk hydration query above.
@@ -2240,6 +2596,143 @@ window.loadSupabaseWatchlistItemDetail = async function (watchlistId) {
     .maybeSingle();
   if (error) throw error;
   return data;
+};
+
+/**
+ * Loads the caller's ranking entries for a set of films, each carrying
+ * its real rank within the whole ranking (issue #633), shaped like
+ * loadSupabaseLegacyHydrationSource()'s `rankings` so
+ * buildLegacyStateFromSupabaseHydration() consumes it unchanged. The rank
+ * comes from read_ranking_positions() in SQL: a compact read only has
+ * these films' own entries, so the client can't derive rank from array
+ * position the way the complete read does.
+ * @param {string[]} filmIds
+ * @returns {Promise<Object[]>} Rankings with nested, rank-ordered entries.
+ */
+window.loadSupabaseRankingsForFilms = async function (filmIds) {
+  let ids = [...new Set((filmIds || []).filter(Boolean))];
+  if (!ids.length) return [];
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { data, error } = await ready.client.rpc("read_ranking_positions", {
+    p_film_ids: ids,
+  });
+  if (error) throw error;
+  let rankings = new Map();
+  (data || []).forEach((row) => {
+    let ranking = rankings.get(row.ranking_id);
+    if (!ranking) {
+      ranking = {
+        id: row.ranking_id,
+        scope: row.scope,
+        scope_type: row.scope_type,
+        ranking_entries: [],
+      };
+      rankings.set(row.ranking_id, ranking);
+    }
+    ranking.ranking_entries.push({
+      ranking_id: row.ranking_id,
+      film_id: row.film_id,
+      position: row.position,
+      rank: Number(row.rank),
+      rank_confirmed: row.rank_confirmed,
+      suppress_all_time_rank: row.suppress_all_time_rank,
+      tie_group_id: row.tie_group_id,
+      tie_group_title: row.tie_group_title,
+    });
+  });
+  return [...rankings.values()];
+};
+
+/**
+ * Loads one film's complete personal slice - the compact read behind
+ * film.html's fast initial paint (issue #617) instead of eager full
+ * archive hydration. Every table read here is scoped to `filmId` via
+ * PostgREST's embedded-resource `!inner` + `.eq()` filtering (proven
+ * against the real RLS policies, which are all already scoped to
+ * `auth.uid()` on the owning parent row regardless of any extra WHERE
+ * clause a caller adds - no new RLS or migration needed), so the
+ * response shape is a drop-in, unmodified `source` argument for
+ * `buildLegacyStateFromSupabaseHydration()`: the exact same reshape
+ * logic every page already uses, just fed a one-film slice instead of
+ * the complete archive.
+ *
+ * Two pieces of the full hydration are deliberately left out, not
+ * forgotten. `catalogFilms`/`people` stay empty here, matching the
+ * signed-out default shape above - the credits section they drive
+ * (`rebuildPeopleIndex()`'s archive-wide alias/name index) is exactly
+ * the shared people/franchise infrastructure issue #617 rules out
+ * touching in this pass. `ownProjects` also stays empty: unlike
+ * rankings/personal_awards, a project's progress needs its *complete*
+ * item list (`window.projectProgress()` resolves every one of a
+ * project's `filmRefs`, not just the one matching this film), so a
+ * `collection_items` filter narrow enough to be cheap here would also
+ * be too narrow to report an honest watched/total count - a two-query
+ * "find the containing projects, then fetch them whole" round trip
+ * would work but isn't worth it for this one secondary section. Both
+ * sections defer until the real background full hydration lands,
+ * unchanged, same as film.js already does for the watchlist-detail
+ * view's archive-match-review section (a genuine cross-item check).
+ * @param {string} filmId
+ * @returns {Promise<Object>} A `source`-shaped object scoped to one film.
+ */
+window.loadSupabaseFilmDetail = async function (filmId) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let client = ready.client;
+  let [
+    watchedResult,
+    watchlistResult,
+    rankingsResult,
+    personalAwardsResult,
+    franchisesResult,
+  ] = await Promise.all([
+    client
+      .from("watched")
+      .select(
+        `id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+      )
+      .eq("film_id", filmId)
+      .maybeSingle(),
+    client
+      .from("watchlist")
+      .select(
+        `id, film_id, tier, tier_modifier, position, reason, added_at, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+      )
+      .eq("film_id", filmId)
+      .maybeSingle(),
+    window.loadSupabaseRankingsForFilms([filmId]).then(
+      (data) => ({ data, error: null }),
+      (error) => ({ data: null, error }),
+    ),
+    client
+      .from("personal_awards")
+      .select(
+        "id, scope, scope_type, personal_nominations!inner(id, category, placement, film_id, detail, personal_nomination_recipients(recipient_name, person_id))",
+      )
+      .eq("personal_nominations.film_id", filmId)
+      .order("placement", { foreignTable: "personal_nominations" }),
+    client.from("franchises").select("id, name, parent_id"),
+  ]);
+  for (let result of [
+    watchedResult,
+    watchlistResult,
+    rankingsResult,
+    personalAwardsResult,
+    franchisesResult,
+  ])
+    if (result.error) throw result.error;
+  return {
+    watched: watchedResult.data ? [watchedResult.data] : [],
+    watchlist: watchlistResult.data ? [watchlistResult.data] : [],
+    rankings: rankingsResult.data || [],
+    personalAwards: personalAwardsResult.data || [],
+    franchises: franchisesResult.data || [],
+    catalogFilms: [],
+    people: [],
+    ownProjects: [],
+    profile: null,
+  };
 };
 
 /**
@@ -2461,6 +2954,98 @@ window.addSupabaseFilmFranchiseMembership = async function (
  * film's franchise ancestor chain outside the bulk hydration pass.
  * @returns {Promise<Object[]>}
  */
+/**
+ * Moves the signed-in user's rows stored under a legacy key to their new
+ * key (issue #633's lazy person-key migration: a person's notes, local
+ * ranks, director ballot and person project move from the name slug to
+ * the people.id uuid the first time they're opened under it). Leaves the
+ * legacy rows alone if anything already exists under the new key, rather
+ * than merging or overwriting it. RLS keeps both reads and the update to
+ * the caller's own rows.
+ * @param {{table: string, kindColumn: string, kind: string, keyColumn: string, fromKey: string, toKey: string}} options
+ * @returns {Promise<boolean>} Whether any rows were moved.
+ */
+window.adoptLegacySupabaseKey = async function ({
+  table,
+  kindColumn,
+  kind,
+  keyColumn,
+  fromKey,
+  toKey,
+}) {
+  if (!fromKey || !toKey || fromKey === toKey) return false;
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) return false;
+  let { count, error: existingError } = await ready.client
+    .from(table)
+    .select(keyColumn, { count: "exact", head: true })
+    .eq(kindColumn, kind)
+    .eq(keyColumn, toKey);
+  if (existingError) throw existingError;
+  if (count) return false;
+  let { data, error } = await ready.client
+    .from(table)
+    .update({ [keyColumn]: toKey })
+    .eq(kindColumn, kind)
+    .eq(keyColumn, fromKey)
+    .select(keyColumn);
+  if (error) throw error;
+  return (data || []).length > 0;
+};
+
+/**
+ * Runs adoptLegacySupabaseKey() for every table a person's own data lives
+ * in. Best-effort: a failure leaves that data on its old key, where
+ * nothing reads it any more, so it's logged rather than thrown.
+ * @param {string} slug Legacy name slug.
+ * @param {string} personId people.id uuid.
+ * @returns {Promise<void>}
+ */
+window.adoptLegacyPersonKeys = async function (slug, personId) {
+  if (!slug || !personId || slug === personId) return;
+  let moves = [
+    ["entity_notes", "entity_kind", "person", "entity_key"],
+    ["local_ranks", "collection_kind", "person", "collection_id"],
+    ["collection_ballots", "collection_type", "director", "collection_id"],
+    ["collections", "source_type", "person", "source_id"],
+  ];
+  await Promise.all(
+    moves.map(([table, kindColumn, kind, keyColumn]) =>
+      window
+        .adoptLegacySupabaseKey({
+          table,
+          kindColumn,
+          kind,
+          keyColumn,
+          fromKey: slug,
+          toKey: personId,
+        })
+        .catch((error) =>
+          console.warn(`Could not move ${table} to this person's id.`, error),
+        ),
+    ),
+  );
+};
+
+/**
+ * Loads one shared-catalog person's id and name (issue #633) - person.html
+ * uses it to resolve a people.id uuid whose name slug the client-side
+ * people index couldn't pin to a single row.
+ * @param {string} personId
+ * @returns {Promise<{id: string, name: string}|null>}
+ */
+window.loadSupabasePersonName = async function (personId) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) return null;
+  let { data, error } = await ready.client
+    .from("people")
+    .select("id, name")
+    .eq("id", personId)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+};
+
 window.loadSupabaseFranchiseCatalog = async function () {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
@@ -3283,7 +3868,7 @@ window.loadSupabaseFilmCatalogForDataTools = async function () {
     ready.client
       .from("films")
       .select(
-        "id, tmdb_id, title, swedish_title, year, poster_url, country, primary_country, runtime_minutes, tmdb_verified_at",
+        "id, tmdb_id, title, swedish_title, year, poster_url, country, primary_country, runtime_minutes, tmdb_verified_at, medium, screenplay_type, original_language, credits(role, people(name, tmdb_id))",
         withCount ? { count: "exact" } : undefined,
       ),
   );
@@ -3301,7 +3886,7 @@ window.loadSupabasePeopleCatalogForDataTools = async function () {
     ready.client
       .from("people")
       .select(
-        "id, tmdb_id, name, portrait_url, portrait_source, portrait_source_url, portrait_provider_id, portrait_fetched_at",
+        "id, tmdb_id, name, portrait_url, portrait_source, portrait_source_url, portrait_provider_id, portrait_fetched_at, tmdb_verified_at",
         withCount ? { count: "exact" } : undefined,
       ),
   );
@@ -3391,7 +3976,7 @@ window.setSupabaseFilmPoster = async function (filmId, posterUrl, year) {
  * corrects it), it's skipped by future checks until something clears
  * that verification again.
  * @param {string} filmId
- * @param {{title?: string, posterUrl?: string, year?: number, country?: string, primaryCountry?: string, runtimeMinutes?: number, tmdbId?: string, clearTmdbId?: boolean, markVerified?: boolean, clearVerified?: boolean}} fields
+ * @param {{title?: string, posterUrl?: string, year?: number, country?: string, primaryCountry?: string, runtimeMinutes?: number, tmdbId?: string|number|null, clearTmdbId?: boolean, markVerified?: boolean, clearVerified?: boolean, directors?: (string|{tmdbId?: number|null, name: string, profilePath?: string|null})[], director?: string}} fields
  * @returns {Promise<void>}
  */
 window.setSupabaseFilmMetadata = async function (filmId, fields) {
@@ -3410,11 +3995,29 @@ window.setSupabaseFilmMetadata = async function (filmId, fields) {
   else if (fields.clearTmdbId) update.tmdb_id = null;
   if (fields.markVerified) update.tmdb_verified_at = new Date().toISOString();
   else if (fields.clearVerified) update.tmdb_verified_at = null;
-  let { error } = await ready.client
-    .from("films")
-    .update(update)
-    .eq("id", filmId);
-  if (error) throw error;
+  if (fields.medium != null) update.medium = fields.medium;
+  if (fields.screenplayType != null)
+    update.screenplay_type = fields.screenplayType;
+  if (fields.originalLanguage != null)
+    update.original_language = fields.originalLanguage;
+  if (Object.keys(update).length > 0) {
+    let { error } = await ready.client
+      .from("films")
+      .update(update)
+      .eq("id", filmId);
+    if (error) throw error;
+  }
+  let directors = fields.directors?.length
+    ? fields.directors
+    : typeof fields.director === "string" && fields.director.trim()
+      ? fields.director
+          .split(",")
+          .map((s) => ({ name: s.trim() }))
+          .filter((d) => d.name)
+      : null;
+  if (directors?.length && window.persistSupabaseFilmCredits) {
+    await window.persistSupabaseFilmCredits(filmId, "director", directors);
+  }
 };
 
 /**
@@ -3440,6 +4043,31 @@ window.setSupabasePersonPortrait = async function (personId, posterRecord) {
   if (error) throw error;
   window.invalidateSupabaseHydrationCache?.();
   return data;
+};
+
+/**
+ * Updates a person row's metadata (name, tmdb_id, verification timestamp)
+ * in the shared catalog.
+ * @param {string} personId Person UUID.
+ * @param {{name?: string, tmdbId?: number|null, markVerified?: boolean, clearVerified?: boolean}} fields
+ * @returns {Promise<void>}
+ */
+window.setSupabasePersonMetadata = async function (personId, fields) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let update = {};
+  if (fields.name != null) update.name = fields.name;
+  if (fields.tmdbId != null) update.tmdb_id = fields.tmdbId;
+  else if (fields.clearTmdbId) update.tmdb_id = null;
+  if (fields.markVerified) update.tmdb_verified_at = new Date().toISOString();
+  else if (fields.clearVerified) update.tmdb_verified_at = null;
+  if (Object.keys(update).length > 0) {
+    let { error } = await ready.client
+      .from("people")
+      .update(update)
+      .eq("id", personId);
+    if (error) throw error;
+  }
 };
 
 /**

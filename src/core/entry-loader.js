@@ -6,6 +6,18 @@
 (function () {
   let entry = document.currentScript?.dataset.entry;
   window.OSKARS_ENTRY = entry;
+  // Every script this loader adds carries one shared version, so a browser
+  // can never pair a fresh page controller with a stale cached dependency.
+  // A deployed artifact stamps the commit onto this loader's own tag
+  // (scripts/package-artifact.py); a local dev server sends no cache
+  // headers at all, so there every page load is its own version.
+  let assetVersion =
+    new URL(
+      document.currentScript?.src || window.location.href,
+    ).searchParams.get("v") ||
+    (["localhost", "127.0.0.1", ""].includes(window.location.hostname)
+      ? String(Date.now())
+      : "");
   let pageEntries = new Set([
     "home",
     "data",
@@ -291,16 +303,107 @@
     // the registration that does the real work.
   }
 
+  // Rendered unconditionally alongside the header, before the account gate
+  // or any hydration - so the Privacy Notice link is always present, signed
+  // in or out, gated or not (issue #587 follow-up: it was previously only
+  // linked from the sign-in gate and profile page, not reachable from
+  // every page the way a footer disclosure normally is). Relies on
+  // src/ui/privacy-notice.js's global [data-privacy-notice-trigger]
+  // delegation, loaded a few lines into the async flow below on every
+  // entry - the same trigger the gate and profile links already use.
+  //
+  // The single site-wide footer object: this is the only place that
+  // creates document.body's <footer class="app-footer">. Anything else
+  // that wants a footer entry (src/ui/posters.js's TMDB attribution is the
+  // other current one) fills the empty [data-footer-attribution] slot
+  // below instead of creating a second, competing <footer> - two stacked
+  // footers was the actual bug an owner screenshot caught here.
+  function renderStaticSiteFooter() {
+    if (document.querySelector(".app-footer")) return;
+    let footer = document.createElement("footer");
+    footer.className = "app-footer";
+    footer.innerHTML = `<div class="app-footer-links"><a href="privacy.html" data-privacy-notice-trigger>Privacy notice</a></div><div class="app-footer-attribution" data-footer-attribution></div>`;
+    document.body.appendChild(footer);
+  }
+
   renderStaticSiteHeader();
+  renderStaticSiteFooter();
 
   // Loaded and rendered before anything else, on every page, so the header is
   // always the first thing painted regardless of how much the rest of a page's
   // dependency chain has to load (previously home/editor/data only rendered the
   // header from their own page script, i.e. after the *entire* list below).
+  window.OSKARS_STATS_COMPACT =
+    entry === "stats" &&
+    new URLSearchParams(window.location.search).get("statsSource") !== "legacy";
+  // Period Watchlist compact-read cutover (issue #598): period.html serves
+  // both the period-ranking view and, at ?view=watchlist, the Watchlist
+  // view in one shared entry - unlike stats, only THIS specific view skips
+  // eager full hydration; every other period.html visit (any other `view`,
+  // or `view=watchlist` with the legacy escape hatch below) is completely
+  // unaffected and keeps its existing eager-hydration behavior.
+  window.OSKARS_WATCHLIST_COMPACT =
+    entry === "period" &&
+    new URLSearchParams(window.location.search).get("view") === "watchlist" &&
+    new URLSearchParams(window.location.search).get("legacyWatchlist") !== "1";
+  // Compact Completion cutover (issue #597 expansion): official-results,
+  // award-bracket, and watch-goal completion paint fast from a compact
+  // read; directors/franchises/projects ("known collections") still needs
+  // the complete archive (the shared people/franchise indexes many other
+  // pages also depend on - a materially wider-blast-radius problem #592
+  // explicitly deferred), so that section shows a loading placeholder
+  // until the same eager background full hydration used elsewhere
+  // completes. `&legacyCompletion=1` is the manual escape hatch.
+  window.OSKARS_COMPLETION_COMPACT =
+    entry === "completion" &&
+    new URLSearchParams(window.location.search).get("legacyCompletion") !== "1";
+  // film.html compact-read cutover (issue #617): a bookmarked/direct
+  // film.html?id=<filmId> visit gets a fast initial paint from a
+  // one-film-scoped read instead of eager full archive hydration.
+  // Unlike stats/watchlist above, this only applies to the canonical
+  // Watched/Watchlist detail visit (`?id=`) - a `?tmdb=` Unseen-preview
+  // visit has no filmId at all and depends on the shared film-catalog
+  // archive regardless, so it's excluded here and keeps today's full
+  // hydration unconditionally. `&legacyFilm=1` is the manual escape hatch.
+  window.OSKARS_FILM_COMPACT =
+    entry === "film" &&
+    Boolean(new URLSearchParams(window.location.search).get("id")) &&
+    new URLSearchParams(window.location.search).get("legacyFilm") !== "1";
+  // person.html compact-read cutover (issue #633): a canonical
+  // person.html?id=<people.id uuid> visit reads only that person's slice
+  // of the archive. A legacy name-slug URL keeps the complete read (it
+  // needs the people index to find the person at all) and redirects to the
+  // uuid form, so the next visit is compact. `&legacyPerson=1` is the
+  // manual escape hatch.
+  window.OSKARS_PERSON_COMPACT =
+    entry === "person" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      new URLSearchParams(window.location.search).get("id") || "",
+    ) &&
+    new URLSearchParams(window.location.search).get("legacyPerson") !== "1";
+  let focusedShellEntries = new Set([
+    "profile",
+    ...(window.OSKARS_STATS_COMPACT ? ["stats"] : []),
+    ...(window.OSKARS_WATCHLIST_COMPACT ? ["period"] : []),
+    ...(window.OSKARS_COMPLETION_COMPACT ? ["completion"] : []),
+    ...(window.OSKARS_FILM_COMPACT ? ["film"] : []),
+    ...(window.OSKARS_PERSON_COMPACT ? ["person"] : []),
+  ]);
   let headerDependencies = [
-    // Must load before state-shape.js: createEmptyState() reads this
-    // bundled default synchronously at module-load time (issue #277).
-    "src/core/bundled-official-results.js",
+    // Hydrated entries need bundled defaults before state creation. Focused
+    // entries restore them when the deferred archive is reshaped - except
+    // compact Completion, which keeps this eager: unlike Stats (one known
+    // source, gated on its own compact hasLiveAcademy flag) it can show
+    // any number of official sources, several of which may have no live
+    // ceremony data at all and rely entirely on this bundled fallback:
+    // deferring it produced a real, confirmed regression (real-browser
+    // verification showed sources like Cannes/Guldbaggen silently missing
+    // from the compact view's official-results summary).
+    ...(focusedShellEntries.has(entry) &&
+    entry !== "completion" &&
+    entry !== "person"
+      ? []
+      : ["src/core/bundled-official-results.js"]),
     "src/core/state-shape.js",
     "src/core/performance.js",
     "src/domain/category-order.js",
@@ -308,6 +411,7 @@
     "src/ui/page-utils.js",
     "src/ui/i18n.js",
     "src/ui/archive-indexes.js",
+    ...(focusedShellEntries.has(entry) ? ["src/core/focused-shell.js"] : []),
     "src/ui/site-header.js",
   ];
 
@@ -325,9 +429,13 @@
     ...(["data", "completion"].includes(entry)
       ? ["src/domain/award-bracket-completion.js"]
       : []),
+    ...(entry === "completion"
+      ? ["src/domain/trophies.js", "src/ui/trophies.js"]
+      : []),
     ...(["completion", "project"].includes(entry)
       ? ["src/domain/watch-goals.js"]
       : []),
+    ...(entry === "completion" ? ["src/domain/supabase-completion.js"] : []),
     ...(["film", "period", "data", "intake", "awards-year"].includes(entry)
       ? ["src/domain/nomination-plans.js"]
       : []),
@@ -355,7 +463,9 @@
     "src/domain/watch-queue.js",
     ...(entry === "home" ? ["src/domain/home-dashboard.js"] : []),
     ...(entry === "collections" ? ["src/domain/collections-hub.js"] : []),
-    ...(entry === "films" ? ["src/domain/film-catalog.js"] : []),
+    ...(entry === "films"
+      ? ["src/domain/film-catalog.js", "src/domain/collection-filters.js"]
+      : []),
     "src/domain/local-rank.js",
     "src/domain/merge-order.js",
     "src/domain/watched-films.js",
@@ -529,6 +639,23 @@
       "src/ui/detail-scaffold.js",
       "src/ui/scroll-affordance.js",
     ],
+    stats: [
+      "src/domain/people/index.js",
+      "src/domain/credits.js",
+      "src/core/state.js",
+      "src/domain/film-matching.js",
+      "src/domain/awards.js",
+      "src/ui/film-rating.js",
+      "src/ui/country.js",
+      "src/domain/stats.js",
+      "src/domain/official-completion.js",
+      "src/domain/official-comparison.js",
+      "src/domain/supabase-legacy-hydration.js",
+      "src/domain/supabase-stats.js",
+      "src/ui/leaderboard.js",
+      "src/ui/detail-scaffold.js",
+      "src/ui/scroll-affordance.js",
+    ],
     profile: [
       "src/core/state.js",
       "src/core/persistence.js",
@@ -566,29 +693,63 @@
       "src/ui/detail-scaffold.js",
       "src/ui/scroll-affordance.js",
     ],
-    "data-tools": [
-      "src/core/state.js",
-      "src/domain/posters.js",
-      "src/domain/image-providers.js",
-      "src/domain/film-matching.js",
-      "src/domain/credits.js",
-      "src/domain/people/index.js",
-      "src/domain/poster-selection.js",
-      "src/domain/supabase-metadata-batch.js",
-      "src/domain/tmdb-link-check.js",
-      "src/ui/scroll-affordance.js",
-    ],
+    // The Google Sheets importer (src/data/google-sheets-supabase-import.js)
+    // fans out into nearly every import/domain helper in the app depending
+    // on which sheet ranges the owner's local config defines (films,
+    // watchlist, brackets, franchise/director sheets, ranked lists, ...),
+    // several of them called without `?.` - a hand-curated trimmed list
+    // here reliably went stale one missing function at a time (found via
+    // real "window.parseRankedList/parseFilmRating is not a function"
+    // reports). Reuse the same broad `dependencies` list every hydrated
+    // entry gets, filtered the same way, plus this page's own
+    // metadata/Sheets-specific files.
+    "data-tools": dependencies
+      .filter(
+        (dependency) =>
+          !["src/core/persistence.js", "src/core/migrations.js"].includes(
+            dependency,
+          ),
+      )
+      .concat([
+        "src/domain/supabase-metadata-batch.js",
+        "src/domain/metadata-jobs.js",
+        "src/data/google-sheets.js",
+        "src/data/google-sheets-supabase-import.js",
+        "src/data/google-sheets-write-back.js",
+        // Only merge-check.js's own report needs window.state.years
+        // populated - it calls window.ensureOskarsData() itself, lazily,
+        // rather than this page paying that hydration cost on every visit
+        // just for its usual TMDB/duplicate tooling. Still needs
+        // supabase-legacy-hydration.js loaded up front since that's what
+        // defines buildLegacyStateFromSupabaseHydration/
+        // buildSharedFilmArchiveFromSupabase that ensureOskarsData() calls.
+        "src/domain/supabase-legacy-hydration.js",
+        "src/domain/merge-check.js",
+      ]),
   };
 
+  function versionedAsset(path) {
+    if (!assetVersion) return path;
+    return `${path}${path.includes("?") ? "&" : "?"}v=${assetVersion}`;
+  }
+
+  let loadedScripts = new Map();
   function loadScript(path, optional = false) {
-    return new Promise((resolve, reject) => {
+    if (loadedScripts.has(path)) return loadedScripts.get(path);
+    let pending = new Promise((resolve, reject) => {
       let script = document.createElement("script");
-      script.src = path;
+      script.src = versionedAsset(path);
       script.onload = resolve;
-      script.onerror = () =>
-        optional ? resolve() : reject(new Error(`Could not load ${path}`));
+      script.onerror = () => {
+        script.remove();
+        loadedScripts.delete(path);
+        if (optional) resolve();
+        else reject(new Error(`Could not load ${path}`));
+      };
       document.head.appendChild(script);
     });
+    loadedScripts.set(path, pending);
+    return pending;
   }
 
   function renderBlockedMessage(heading, detail) {
@@ -720,15 +881,24 @@
     "collection",
     "custom-collections",
   ]);
+  if (window.OSKARS_STATS_COMPACT) {
+    supabaseHydratedEntries.delete("stats");
+    supabaseBackedEntries.add("stats");
+  }
   // Every one of these entries' own page controller (or a file it loads,
   // e.g. src/pages/film.js's/period.js's error-rollback window.hydrateState()
   // calls) still calls into persistence.js's window.load()/window.save()
   // (issue #438's finding) - persistence.js checks this flag directly so a
   // real IndexedDB read/write can't silently race with Supabase-sourced
   // state.
+  // Every one of these entries across all sets is Supabase-backed. Derive
+  // the legacy-skip flag comprehensively so no entry or Set can drift
+  // (issue #508).
   window.OSKARS_ENTRY_SKIPS_LEGACY_DATA_LOAD =
+    pageEntries.has(entry) ||
     supabaseHydratedEntries.has(entry) ||
-    supabaseFullDependencyEntries.has(entry);
+    supabaseFullDependencyEntries.has(entry) ||
+    supabaseBackedEntries.has(entry);
 
   let pageDependencies = supabaseHydratedEntries.has(entry)
     ? dependencies.filter(
@@ -740,6 +910,22 @@
     : supabaseBackedEntries.has(entry)
       ? supabaseEntryDependencies[entry] || []
       : dependencies;
+
+  function useLegacyStats() {
+    if (!window.OSKARS_STATS_COMPACT) return;
+    window.OSKARS_STATS_COMPACT = false;
+    focusedShellEntries.delete("stats");
+    supabaseBackedEntries.delete("stats");
+    supabaseHydratedEntries.add("stats");
+    headerDependencies = headerDependencies.filter(
+      (path) => path !== "src/core/focused-shell.js",
+    );
+    headerDependencies.unshift("src/core/bundled-official-results.js");
+    pageDependencies = dependencies.filter(
+      (path) =>
+        !["src/core/persistence.js", "src/core/migrations.js"].includes(path),
+    );
+  }
 
   // Performance: the loops below load headerDependencies and this entry's
   // main dependency list one script at a time, `await`ing each one fully
@@ -758,7 +944,7 @@
     let link = document.createElement("link");
     link.rel = "preload";
     link.as = "script";
-    link.href = path;
+    link.href = versionedAsset(path);
     document.head.appendChild(link);
   });
 
@@ -782,6 +968,7 @@
     }
     let capabilities = window.runtimeModeCapabilities(runtimeModeResult.mode);
     let activeProfileSlug = window.resolveActiveProfileSlug?.();
+    if (activeProfileSlug) useLegacyStats();
     if (!capabilities.allowOwnerPages || activeProfileSlug) {
       document
         .querySelectorAll(
@@ -804,6 +991,7 @@
       return;
     }
     await loadScript("config.local.js", true);
+    if (window.OSKARS_STATS_COMPACT_READS === false) useLegacyStats();
     // Every entry now runs entirely on Supabase (epic #428) - the Firebase
     // account-gate path this used to branch to is gone.
     // page-utils.js is normally part of headerDependencies below, but
@@ -816,7 +1004,10 @@
     await loadScript("supabase.config.js", true);
     await loadScript("src/core/supabase-client.js");
     await loadScript("src/core/supabase-workspace.js");
+    if (["awards-year", "person", "franchise", "data"].includes(entry))
+      await loadScript("src/domain/supabase-collection-ballots.js");
     await loadScript("src/core/supabase-hydration-cache.js");
+    await loadScript("src/ui/privacy-notice.js");
     await loadScript("src/core/supabase-account-gate.js");
     await window.renderStaticHeaderAuth?.();
     // Per-entry Supabase domain logic - the same
@@ -884,6 +1075,13 @@
       supabaseFullDependencyEntries.has(entry)
     )
       await loadScript("src/domain/supabase-legacy-hydration.js");
+    // Compact Watchlist read (issue #598) - only actually called in
+    // window.OSKARS_WATCHLIST_COMPACT mode, but loading it unconditionally
+    // for "period" is simpler than a second narrower condition and costs
+    // nothing on every other period.html visit (a few hundred bytes,
+    // parsed but never invoked).
+    if (entry === "period")
+      await loadScript("src/domain/supabase-watchlist.js");
     // Community's directory/compare/ceremony views are read-only over the
     // same isolated anonymous public reader direct profile viewing uses
     // (issue #483) - `activeProfileSlug` only ever recognizes the
@@ -933,27 +1131,64 @@
     );
     for (let dependency of remainingHeaderDependencies)
       await loadScript(dependency);
+    if (focusedShellEntries.has(entry)) {
+      window.configureFocusedShell(async () => {
+        await loadScript("src/core/bundled-official-results.js");
+        await loadScript("src/domain/supabase-legacy-hydration.js");
+        for (let dependency of dependencies) {
+          if (
+            !["src/core/persistence.js", "src/core/migrations.js"].includes(
+              dependency,
+            )
+          )
+            await loadScript(dependency);
+        }
+      });
+    }
+    if (window.OSKARS_STATS_COMPACT) {
+      /** Loads bundled Academy results only when the compact read has no live Academy source. @returns {Promise<void>} Resolves when bundled defaults are available. */
+      window.loadStatsOfficialFallback = () =>
+        loadScript("src/core/bundled-official-results.js");
+    }
     window.renderSiteHeader?.();
     if (supabaseBackedEntries.has(entry)) {
       for (let dependency of pageDependencies) await loadScript(dependency);
     } else {
       for (let dependency of pageDependencies) await loadScript(dependency);
-      if (["film", "period", "data"].includes(entry))
+      // Pre-existing gap found while building #597's compact-read cutover
+      // (issue #613): completion.js's official-results "add unseen films
+      // to the watchlist" action calls window.save?.(), but "completion"
+      // was missing from this list - window.save was genuinely undefined
+      // on completion.html, so that write silently no-op'd in production.
+      if (["film", "period", "data", "completion"].includes(entry))
         await loadScript("src/core/supabase-legacy-writes.js");
-      if (entry === "data") {
-        // Owner-only live Google Sheets → Supabase import (issue #469) -
-        // only ever functional when the owner's own gitignored
-        // config.local.js configures it, but loaded unconditionally here
-        // since data.js decides visibility, matching this file's own
-        // "load then let the page decide" pattern elsewhere.
-        await loadScript("src/data/google-sheets.js");
-        await loadScript("src/data/google-sheets-supabase-import.js");
-      }
     }
     let pageLoadsOwnData =
       ["home", "data", "community", "collections"].includes(entry) ||
       supabaseBackedEntries.has(entry) ||
-      supabaseFullDependencyEntries.has(entry);
+      supabaseFullDependencyEntries.has(entry) ||
+      // Compact Watchlist (issue #598): period.js manages its own lazy
+      // hydration for this one view (fetching read_watchlist_page() first,
+      // then falling back to a real ensureFocusedShellData() call before
+      // any write or unsupported-sort-axis interaction) - unlike stats/
+      // profile above, it keeps its full page dependency list (it's not in
+      // supabaseBackedEntries), only the automatic eager hydration below is
+      // skipped.
+      window.OSKARS_WATCHLIST_COMPACT ||
+      // Compact Completion (issue #597): completion.js manages its own
+      // lazy hydration (fetching the compact projection first, then
+      // falling back to a real ensureFocusedShellData() call before any
+      // write or once known-collections data is actually needed) - it
+      // keeps its full page dependency list, unlike stats/profile above,
+      // since it's not in supabaseBackedEntries.
+      window.OSKARS_COMPLETION_COMPACT ||
+      // Compact film detail (issue #617): film.js manages its own lazy
+      // hydration - fetching loadSupabaseFilmDetail() first, then falling
+      // back to a real ensureFocusedShellData() call before any write -
+      // it keeps its full page dependency list (it's not in
+      // supabaseBackedEntries), only the automatic eager hydration below
+      // is skipped.
+      window.OSKARS_FILM_COMPACT;
     // "home" calls ensureOskarsData() itself (src/pages/home.js), so it's
     // correctly excluded here even though it's Supabase-hydrated (issue
     // #438). "community" never calls it at all.

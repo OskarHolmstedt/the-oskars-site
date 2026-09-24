@@ -13,12 +13,7 @@
 window.createClearedLocalState = function () {
   let cleared = window.createEmptyState();
   cleared.dataVersion = window.OSKARS_BUNDLED_DATA_VERSION;
-  cleared.centuryRangeVersion = 1;
-  cleared.adaptationSourceVersion = 1;
-  cleared.watchlistOrderVersion = 1;
-  cleared.groupedRankProjectionVersion = 1;
-  cleared.watchedDateVersion = 1;
-  cleared.viewingFactsVersion = 1;
+  Object.assign(cleared, window.CURRENT_MIGRATION_FLAGS);
   return cleared;
 };
 
@@ -54,8 +49,7 @@ window.repairWatchedDates = function () {
  */
 window.repairViewingFacts = function () {
   if ((window.state.viewingFactsVersion || 0) >= 1) return false;
-  let placeholder = (value) =>
-    /^(?:-|–|—|n\/?a|none)$/i.test(String(value || "").trim());
+  let placeholder = (value) => window.isPlaceholderValue(value);
   Object.values(window.state.years || {}).forEach((period) => {
     (period.films || []).forEach((film) => {
       ["platform", "type", "country"].forEach((field) => {
@@ -160,9 +154,24 @@ window.repairGroupedRankProjections = function () {
   assignRank(orderedAllTimeFilms, "allTimeRank");
 
   let identityRanks = new Map();
-  let yearGroups = new Map();
-  let decadeGroups = new Map();
-  let centuryGroups = new Map();
+  let periodBuckets = [
+    {
+      field: "yearRank",
+      getKey: (y) => String(y),
+      groups: new Map(),
+    },
+    {
+      field: "decadeRank",
+      getKey: (y) => window.getDecadeKey(y),
+      groups: new Map(),
+    },
+    {
+      field: "centuryRank",
+      getKey: (y) => window.getCenturyKey(y),
+      groups: new Map(),
+    },
+  ];
+
   orderedAllTimeFilms.forEach((film) => {
     let year = window.filmConcreteYear?.(film.year) || String(film.year || "");
     identityRanks.set(identity(film), {
@@ -172,15 +181,11 @@ window.repairGroupedRankProjections = function () {
       centuryRank: null,
     });
     if (!/^\d{4}$/.test(year)) return;
-    let yearKey = String(year);
-    let decadeKey = window.getDecadeKey(year);
-    let centuryKey = window.getCenturyKey(year);
-    if (!yearGroups.has(yearKey)) yearGroups.set(yearKey, []);
-    if (!decadeGroups.has(decadeKey)) decadeGroups.set(decadeKey, []);
-    if (!centuryGroups.has(centuryKey)) centuryGroups.set(centuryKey, []);
-    yearGroups.get(yearKey).push(film);
-    decadeGroups.get(decadeKey).push(film);
-    centuryGroups.get(centuryKey).push(film);
+    periodBuckets.forEach(({ getKey, groups }) => {
+      let key = getKey(year);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(film);
+    });
   });
 
   function assignPeriodRanks(groups, field) {
@@ -192,9 +197,9 @@ window.repairGroupedRankProjections = function () {
       });
     });
   }
-  assignPeriodRanks(yearGroups, "yearRank");
-  assignPeriodRanks(decadeGroups, "decadeRank");
-  assignPeriodRanks(centuryGroups, "centuryRank");
+  periodBuckets.forEach(({ groups, field }) => {
+    assignPeriodRanks(groups, field);
+  });
 
   Object.values(window.state.years || {}).forEach((period) => {
     (period.films || []).forEach((film) => {
@@ -204,10 +209,10 @@ window.repairGroupedRankProjections = function () {
       film.yearRank = ranks.yearRank;
       film.decadeRank = ranks.decadeRank;
       film.centuryRank = ranks.centuryRank;
-      if (period.periodType === "years") film.rank = ranks.yearRank;
-      else if (period.periodType === "decades") film.rank = ranks.decadeRank;
-      else if (period.periodType === "centuries") film.rank = ranks.centuryRank;
-      else if (period.periodType === "allTime") film.rank = ranks.allTimeRank;
+      let rankField = window.getRankFieldForPeriodType(period.periodType);
+      if (ranks[rankField] !== undefined) {
+        film.rank = ranks[rankField];
+      }
     });
   });
 

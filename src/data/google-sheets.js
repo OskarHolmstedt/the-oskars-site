@@ -5,14 +5,16 @@
 
 (function () {
   let GOOGLE_IDENTITY_SCRIPT = "https://accounts.google.com/gsi/client";
-  let GOOGLE_SHEETS_SCOPE =
+  let GOOGLE_SHEETS_READ_SCOPE =
     "https://www.googleapis.com/auth/spreadsheets.readonly";
+  let GOOGLE_SHEETS_WRITE_SCOPE =
+    "https://www.googleapis.com/auth/spreadsheets";
   let googleIdentityPromise = null;
   let googleAccessToken = "";
   let OAUTH_STATE_KEY = "oskarsGoogleSheetsOAuthState";
   let OAUTH_TOKEN_KEY = "oskarsGoogleSheetsAccessToken";
   let OAUTH_TOKEN_EXPIRES_KEY = "oskarsGoogleSheetsAccessTokenExpiresAt";
-  let OAUTH_PENDING_IMPORT_KEY = "oskarsGoogleSheetsPendingImport";
+  let OAUTH_TOKEN_SCOPE_KEY = "oskarsGoogleSheetsAccessTokenScope";
 
   function googleSheetsConfig() {
     return window.OSKARS_LOCAL_CONFIG?.googleSheets || {};
@@ -34,11 +36,20 @@
     return googleSheetsSignInMode() === "oneTap";
   }
 
-  function getStoredGoogleAccessToken() {
+  function getStoredGoogleAccessToken(requiredScope = GOOGLE_SHEETS_READ_SCOPE) {
     let token = sessionStorage.getItem(OAUTH_TOKEN_KEY);
     let expiresAt = Number(
       sessionStorage.getItem(OAUTH_TOKEN_EXPIRES_KEY) || 0,
     );
+    let storedScope =
+      sessionStorage.getItem(OAUTH_TOKEN_SCOPE_KEY) || GOOGLE_SHEETS_READ_SCOPE;
+    if (
+      requiredScope === GOOGLE_SHEETS_WRITE_SCOPE &&
+      storedScope !== GOOGLE_SHEETS_WRITE_SCOPE
+    ) {
+      clearStoredGoogleAccessToken();
+      return null;
+    }
     if (token && expiresAt > Date.now() + 30000) {
       googleAccessToken = token;
       return token;
@@ -47,13 +58,18 @@
     return null;
   }
 
-  function storeGoogleAccessToken(token, expiresIn) {
+  function storeGoogleAccessToken(
+    token,
+    expiresIn,
+    scope = GOOGLE_SHEETS_READ_SCOPE,
+  ) {
     googleAccessToken = String(token || "");
     sessionStorage.setItem(OAUTH_TOKEN_KEY, googleAccessToken);
     sessionStorage.setItem(
       OAUTH_TOKEN_EXPIRES_KEY,
       String(Date.now() + (Number(expiresIn) || 0) * 1000),
     );
+    sessionStorage.setItem(OAUTH_TOKEN_SCOPE_KEY, scope);
     sessionStorage.removeItem(OAUTH_STATE_KEY);
   }
 
@@ -61,6 +77,7 @@
     googleAccessToken = "";
     sessionStorage.removeItem(OAUTH_TOKEN_KEY);
     sessionStorage.removeItem(OAUTH_TOKEN_EXPIRES_KEY);
+    sessionStorage.removeItem(OAUTH_TOKEN_SCOPE_KEY);
     sessionStorage.removeItem(OAUTH_STATE_KEY);
   }
 
@@ -101,60 +118,26 @@
     }
   }
 
-  function storePendingGoogleSheetsImport(options) {
-    if (!options) return;
-    sessionStorage.setItem(
-      OAUTH_PENDING_IMPORT_KEY,
-      JSON.stringify({
-        replace: Boolean(options.replace),
-        merge: Boolean(options.merge),
-        foundation: Boolean(options.foundation),
-      }),
-    );
+  let OAUTH_PENDING_ACTION_KEY = "oskars_google_sheets_pending_action";
+
+  function setPendingGoogleSheetsRedirectAction(action = "preview") {
+    try {
+      sessionStorage.setItem(OAUTH_PENDING_ACTION_KEY, String(action));
+    } catch (err) {}
   }
 
-  function consumePendingGoogleSheetsImport() {
-    let raw = sessionStorage.getItem(OAUTH_PENDING_IMPORT_KEY);
-    sessionStorage.removeItem(OAUTH_PENDING_IMPORT_KEY);
-    if (!raw) return null;
+  function consumePendingGoogleSheetsRedirectAction() {
     try {
-      return JSON.parse(raw);
+      let action = sessionStorage.getItem(OAUTH_PENDING_ACTION_KEY);
+      sessionStorage.removeItem(OAUTH_PENDING_ACTION_KEY);
+      return action || null;
     } catch (err) {
       return null;
     }
   }
 
-  function configuredRanges() {
-    let ranges = googleSheetsConfig().ranges || {};
-    let combinedBracketRange =
-      ranges.bracketBlocks || ranges.brackets || ranges.yearBrackets;
-    let combinedBracketKey = ranges.bracketBlocks
-      ? "bracketBlocks"
-      : ranges.brackets
-        ? "brackets"
-        : ranges.yearBrackets
-          ? "yearBrackets"
-          : "";
-    let bracketRanges = combinedBracketRange
-      ? [[combinedBracketKey, "table", null, combinedBracketRange]]
-      : [];
-    return [
-      ["allTimeRankedList", "list"],
-      ["diary", "diary"],
-      ...bracketRanges,
-      ["watchlist", "watchlist"],
-      ["franchises", "franchises"],
-      ["directors", "directors"],
-      ["collectionAwards", "collection-awards"],
-    ]
-      .map(([key, importType, periodTypeHint, explicitRange]) => ({
-        key,
-        importType,
-        periodTypeHint,
-        range: explicitRange || ranges[key],
-      }))
-      .filter((item) => item.range);
-  }
+  window.consumePendingGoogleSheetsAction =
+    consumePendingGoogleSheetsRedirectAction;
 
   function loadGoogleIdentity() {
     if (window.google?.accounts?.oauth2) return Promise.resolve();
@@ -172,7 +155,7 @@
     return googleIdentityPromise;
   }
 
-  let GOOGLE_SIGN_IN_TIMEOUT_MS = 20000;
+  let GOOGLE_SIGN_IN_TIMEOUT_MS = 60000;
 
   // Google's token-client callback fires from deep inside its own script, not
   // synchronously from our call — if a consent popup gets silently blocked, or
@@ -212,64 +195,72 @@
     });
   }
 
-  async function requestGoogleAccessToken() {
+  async function requestGoogleAccessToken(options = {}) {
     let clientId = window.OSKARS_LOCAL_CONFIG?.googleClientId;
     if (!clientId)
       throw new Error("Missing googleClientId in config.local.js.");
+    let requestedScope = options.write
+      ? GOOGLE_SHEETS_WRITE_SCOPE
+      : options.scope || GOOGLE_SHEETS_READ_SCOPE;
     if (isOneTapSignIn()) {
-      let token = getStoredGoogleAccessToken();
+      let token =
+        options.prompt === "consent"
+          ? null
+          : getStoredGoogleAccessToken(requestedScope);
       if (token) return token;
       await loadGoogleIdentity();
 
       if (window.google?.accounts?.oauth2) {
+        // Trigger token request synchronously within user gesture (issue #564).
+        // Google Identity Services prompt: "" skips consent if already granted,
+        // or opens the consent popup directly within the active gesture call stack
+        // so Safari (ITP) and Chrome do not silently block the popup.
+        let promptMode = options.prompt ?? "";
         return withSignInTimeout(
           new Promise((resolve, reject) => {
-            let escalated = false;
-            let escalateTimer;
+            let settled = false;
             let tokenClient = window.google.accounts.oauth2.initTokenClient({
               client_id: clientId,
-              scope: GOOGLE_SHEETS_SCOPE,
+              scope: requestedScope,
               callback: (response) => {
+                if (settled) return;
                 console.debug(
                   "Google Sheets sign-in: token client response",
                   response,
                 );
-                clearTimeout(escalateTimer);
                 if (response?.error) {
-                  escalateToConsent();
+                  settled = true;
+                  let message =
+                    response.error_description ||
+                    response.error ||
+                    "Google did not grant Sheets access.";
+                  if (response.error === "popup_blocked_by_browser") {
+                    message =
+                      "Google sign-in popup was blocked by your browser. Please allow popups for this site and try again.";
+                  }
+                  reject(new Error(message));
                   return;
                 }
                 googleAccessToken = response.access_token;
-                storeGoogleAccessToken(googleAccessToken, response.expires_in);
+                storeGoogleAccessToken(
+                  googleAccessToken,
+                  response.expires_in,
+                  requestedScope,
+                );
+                settled = true;
                 resolve(googleAccessToken);
               },
             });
-            function escalateToConsent() {
-              clearTimeout(escalateTimer);
-              if (escalated) {
-                reject(new Error("Google did not grant Sheets access."));
-                return;
-              }
-              escalated = true;
-              tokenClient.requestAccessToken({ prompt: "consent" });
-            }
-            // Try silently first — succeeds instantly for a returning user
-            // with an active Google session. Some browsers (Safari's ITP,
-            // Chrome's third-party-cookie phase-out) block the silent iframe
-            // this uses from ever calling back at all — no success, no
-            // error — so also escalate to a visible consent popup if nothing
-            // has happened after a few seconds, rather than silently waiting
-            // out the full sign-in timeout for a response that won't come.
-            tokenClient.requestAccessToken({ prompt: "none" });
-            escalateTimer = setTimeout(escalateToConsent, 4000);
+            tokenClient.requestAccessToken({ prompt: promptMode });
           }),
+          options.timeoutMs || GOOGLE_SIGN_IN_TIMEOUT_MS,
         );
       }
       // Falls through to the redirect/popup flow below if oauth2 never loaded.
     }
 
     if (isRedirectSignIn()) {
-      let token = getStoredGoogleAccessToken();
+      let token = getStoredGoogleAccessToken(requestedScope);
       if (token) return Promise.resolve(token);
 
       let response = parseGoogleOAuthResponse();
@@ -287,7 +278,11 @@
           return Promise.reject(
             new Error("Google OAuth response missing access token."),
           );
-        storeGoogleAccessToken(response.accessToken, response.expiresIn);
+        storeGoogleAccessToken(
+          response.accessToken,
+          response.expiresIn,
+          requestedScope,
+        );
         return Promise.resolve(response.accessToken);
       }
 
@@ -301,12 +296,13 @@
           "Missing googleSheets.redirectUri in config.local.js or unable to determine current page URL for redirect.",
         );
 
+      setPendingGoogleSheetsRedirectAction(options.action || "preview");
       let state = buildGoogleOAuthState();
       let authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
       authUrl.searchParams.set("client_id", clientId);
       authUrl.searchParams.set("redirect_uri", redirectUri);
       authUrl.searchParams.set("response_type", "token");
-      authUrl.searchParams.set("scope", GOOGLE_SHEETS_SCOPE);
+      authUrl.searchParams.set("scope", requestedScope);
       authUrl.searchParams.set("include_granted_scopes", "true");
       authUrl.searchParams.set("state", state);
       authUrl.searchParams.set("prompt", googleAccessToken ? "" : "consent");
@@ -323,7 +319,7 @@
         }
         let tokenClient = window.google.accounts.oauth2.initTokenClient({
           client_id: clientId,
-          scope: GOOGLE_SHEETS_SCOPE,
+          scope: requestedScope,
           callback: (response) => {
             console.debug(
               "Google Sheets sign-in: token client response",
@@ -333,6 +329,11 @@
               reject(new Error(response.error_description || response.error));
             else {
               googleAccessToken = response.access_token;
+              storeGoogleAccessToken(
+                googleAccessToken,
+                response.expires_in,
+                requestedScope,
+              );
               resolve(googleAccessToken);
             }
           },
@@ -374,13 +375,6 @@
           .join(delimiter),
       )
       .join("\n");
-  }
-
-  function rangeStartRow(range) {
-    let match =
-      String(range || "").match(/![A-Z]+(\d+)(?::|$)/i) ||
-      String(range || "").match(/^[A-Z]+(\d+)(?::|$)/i);
-    return match ? Math.max(1, Number(match[1]) || 1) : 1;
   }
 
   function normalizeHeaderCell(value) {
@@ -781,11 +775,14 @@
     return [];
   };
 
-  async function fetchSheetValues(spreadsheetId, ranges, accessToken) {
+  async function fetchSheetValues(spreadsheetId, ranges, accessToken, options = {}) {
     let params = new URLSearchParams();
     ranges.forEach((range) => params.append("ranges", range));
-    params.set("majorDimension", "ROWS");
-    params.set("valueRenderOption", "FORMATTED_VALUE");
+    params.set("majorDimension", options.majorDimension || "ROWS");
+    params.set(
+      "valueRenderOption",
+      options.valueRenderOption || "FORMATTED_VALUE",
+    );
     let response = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values:batchGet?${params}`,
       {
@@ -796,6 +793,118 @@
       let text = await response.text().catch(() => "");
       throw new Error(
         `Google Sheets request failed (${response.status}). ${text}`.trim(),
+      );
+    }
+    return response.json();
+  }
+
+  /**
+   * Writes values to a single Google Sheets range.
+   * @param {string} spreadsheetId Target spreadsheet ID.
+   * @param {string} range A1 notation range.
+   * @param {Array<Array<*>>} values Two-dimensional row values.
+   * @param {string} accessToken Active Google OAuth access token.
+   * @param {Object} [options] Write options including valueInputOption.
+   * @returns {Promise<Object>} API response object.
+   */
+  async function writeSheetValues(
+    spreadsheetId,
+    range,
+    values,
+    accessToken,
+    options = {},
+  ) {
+    let params = new URLSearchParams();
+    params.set("valueInputOption", options.valueInputOption || "USER_ENTERED");
+    let response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}?${params}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          range,
+          majorDimension: options.majorDimension || "ROWS",
+          values,
+        }),
+      },
+    );
+    if (!response.ok) {
+      let text = await response.text().catch(() => "");
+      throw new Error(
+        `Google Sheets write failed (${response.status}). ${text}`.trim(),
+      );
+    }
+    return response.json();
+  }
+
+  /**
+   * Batch updates multiple Google Sheets value ranges.
+   * @param {string} spreadsheetId Target spreadsheet ID.
+   * @param {Array<{range: string, values: Array<Array<*>>, majorDimension?: string}>} data Value ranges.
+   * @param {string} accessToken Active Google OAuth access token.
+   * @param {Object} [options] Write options including valueInputOption.
+   * @returns {Promise<Object>} API response object.
+   */
+  async function batchUpdateSheetValues(
+    spreadsheetId,
+    data,
+    accessToken,
+    options = {},
+  ) {
+    let payload = {
+      valueInputOption: options.valueInputOption || "USER_ENTERED",
+      data: (data || []).map((entry) => ({
+        range: entry.range,
+        majorDimension: entry.majorDimension || "ROWS",
+        values: entry.values,
+      })),
+    };
+    let response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values:batchUpdate`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+    if (!response.ok) {
+      let text = await response.text().catch(() => "");
+      throw new Error(
+        `Google Sheets batch update failed (${response.status}). ${text}`.trim(),
+      );
+    }
+    return response.json();
+  }
+
+  /**
+   * Executes structural batchUpdate requests on a Google Spreadsheet.
+   * @param {string} spreadsheetId Target spreadsheet ID.
+   * @param {Array<Object>} requests Spreadsheets API request objects.
+   * @param {string} accessToken Active Google OAuth access token.
+   * @returns {Promise<Object>} API response object.
+   */
+  async function batchUpdateSpreadsheet(spreadsheetId, requests, accessToken) {
+    let response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}:batchUpdate`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ requests }),
+      },
+    );
+    if (!response.ok) {
+      let text = await response.text().catch(() => "");
+      throw new Error(
+        `Google Sheets spreadsheet batch update failed (${response.status}). ${text}`.trim(),
       );
     }
     return response.json();
@@ -1037,293 +1146,18 @@
   // Exposed for src/data/google-sheets-supabase-import.js (issue #469) -
   // that file reuses this OAuth/fetch plumbing directly rather than
   // duplicating it, but writes to Supabase instead of merging into
-  // window.state the way window.importFromGoogleSheets below does. No
-  // behavior change to any of these functions themselves.
+  // window.state (issue #565). No behavior change to any of these
+  // functions themselves.
   window.loadGoogleIdentity = loadGoogleIdentity;
   window.requestGoogleAccessToken = requestGoogleAccessToken;
   window.fetchGoogleSheetValues = fetchSheetValues;
+  window.writeGoogleSheetValues = writeSheetValues;
+  window.batchUpdateGoogleSheetValues = batchUpdateSheetValues;
+  window.batchUpdateGoogleSpreadsheet = batchUpdateSpreadsheet;
   window.rowsToDelimited = rowsToDelimited;
   window.rowsToPlainDelimited = rowsToPlainDelimited;
 
-  /**
-   * Authenticates and builds a session-only proposal from every configured range.
-   * @param {Object} [options] Import mode controls.
-   * @param {boolean} [options.replace] Whether to clear state before importing.
-   * @param {boolean} [options.merge] Whether to preserve local-only state and metadata.
-   * @param {boolean} [options.foundation] Whether this is the one-time foundation proposal.
-   * @returns {Promise<ImportProposal>} Reviewed candidate and per-range diagnostics.
-   */
-  window.importFromGoogleSheets = async function (options = {}) {
-    let config = googleSheetsConfig();
-    let spreadsheetId = String(config.spreadsheetId || "").trim();
-    if (!spreadsheetId)
-      throw new Error("Missing googleSheets.spreadsheetId in config.local.js.");
-    let rangeSpecs = configuredRanges();
-    if (!rangeSpecs.length)
-      throw new Error("Missing googleSheets.ranges in config.local.js.");
-
-    if (isRedirectSignIn()) {
-      storePendingGoogleSheetsImport(options);
-    } else {
-      await loadGoogleIdentity();
-    }
-    let accessToken = await requestGoogleAccessToken();
-    let data = await fetchSheetValues(
-      spreadsheetId,
-      rangeSpecs.map((item) => item.range),
-      accessToken,
-    );
-    let valueRanges = data.valueRanges || [];
-    let reports = [];
-    let originalState = window.cloneRecord(window.state);
-    let sourceConfig = {
-      spreadsheetId,
-      ranges: rangeSpecs.map((spec) => ({
-        key: spec.key,
-        range: spec.range,
-        importType: spec.importType,
-        periodTypeHint: spec.periodTypeHint || "",
-      })),
-    };
-    let sourceRevision = window.canonicalDataRevision({
-      sourceConfig,
-      values: valueRanges.map((entry) => entry.values || []),
-    });
-
-    try {
-      if (options.replace || options.merge) {
-        window.state = window.createClearedLocalState();
-        window.rebuildAggregates?.();
-      }
-
-      rangeSpecs.forEach((spec, index) => {
-        let values = valueRanges[index]?.values || [];
-        let schemaWarnings = window.validateGoogleSheetRangeForImport(
-          values,
-          spec,
-        );
-        let raw = [
-          "table",
-          "collection-awards",
-          "franchises",
-          "directors",
-        ].includes(spec.importType)
-          ? rowsToPlainDelimited(values, "\t")
-          : rowsToDelimited(values, "\t");
-        if (!raw.trim()) {
-          reports.push({
-            source: `Google Sheets · ${spec.key}`,
-            rangeKey: spec.key,
-            sheetRange: spec.range,
-            sheetRows: values.length,
-            filmsParsed: 0,
-            filmsAdded: 0,
-            filmsMerged: 0,
-            awardsAdded: 0,
-            awardsRejected: 0,
-            skipped: 0,
-            periods: [],
-            warnings: [
-              ...schemaWarnings,
-              `${spec.key} returned no visible cell values from ${spec.range}.`,
-            ],
-            titleVariants: [],
-            ruleViolations: [],
-            ruleWarningDetails: [],
-            skippedDetails: [],
-          });
-          return;
-        }
-        let report = window.importData(raw, spec.importType, {
-          render: false,
-          silentReport: true,
-          tableRows: spec.importType === "table" ? values : null,
-          collectionAwardRows:
-            spec.importType === "collection-awards" ? values : null,
-          franchiseRows: spec.importType === "franchises" ? values : null,
-          directorRows: spec.importType === "directors" ? values : null,
-          sheetStartRow: rangeStartRow(spec.range),
-          tablePeriodType: spec.periodTypeHint,
-          requireAllTimeMembership: spec.importType === "table",
-          sourceLabel: `Google Sheets ${spec.key}`,
-        });
-        if (report) {
-          report.source = `Google Sheets · ${spec.key}`;
-          report.rangeKey = spec.key;
-          report.sheetRange = spec.range;
-          report.sheetRows = values.length;
-          if (schemaWarnings.length) {
-            report.warnings ||= [];
-            report.warnings.unshift(...schemaWarnings);
-          }
-          report.skippedDetails = (report.skippedDetails || []).map((detail) =>
-            Object.assign(
-              {
-                source: spec.key,
-                range: spec.range,
-              },
-              detail,
-            ),
-          );
-          report.ruleWarningDetails = (report.ruleWarningDetails || []).map(
-            (detail) =>
-              Object.assign(
-                {
-                  source: spec.key,
-                  range: spec.range,
-                },
-                detail,
-              ),
-          );
-          if (!report.filmsParsed && !report.periods?.length) {
-            report.warnings ||= [];
-            report.warnings.push(
-              `${spec.key} returned ${values.length} row(s), but no films were parsed from ${spec.range}.`,
-            );
-          }
-          reports.push(report);
-        } else {
-          reports.push({
-            source: `Google Sheets · ${spec.key}`,
-            rangeKey: spec.key,
-            sheetRange: spec.range,
-            sheetRows: values.length,
-            filmsParsed: 0,
-            filmsAdded: 0,
-            filmsMerged: 0,
-            awardsAdded: 0,
-            awardsRejected: 0,
-            skipped: values.length,
-            periods: [],
-            warnings: [
-              ...schemaWarnings,
-              `${spec.key} returned ${values.length} row(s), but import failed for ${spec.range}.`,
-            ],
-            titleVariants: [],
-            ruleViolations: [],
-            ruleWarningDetails: [],
-            skippedDetails: [
-              {
-                source: spec.key,
-                range: spec.range,
-                rowNumber: "",
-                reason: "Import failed for range.",
-                values: [spec.range],
-              },
-            ],
-          });
-        }
-      });
-
-      enrichGoogleImportedStateFromSharedArchive(window.state, reports);
-
-      if (options.merge) {
-        window.state = mergeImportedGoogleState(
-          originalState,
-          window.state,
-          reports,
-        );
-        window.recomputeWatchlistOrder?.();
-        window.state.watchlistOrderVersion = 1;
-        window.rebuildAggregates?.();
-        reports.push({
-          source: "Google Sheets · merge",
-          rangeKey: "merge",
-          sheetRange: "",
-          sheetRows: 0,
-          filmsParsed: 0,
-          filmsAdded: 0,
-          filmsMerged: 0,
-          awardsAdded: 0,
-          awardsRejected: 0,
-          skipped: 0,
-          periods: [],
-          warnings: [
-            "Merge mode replaced imported Google Sheets periods and preserved local metadata for matching films.",
-          ],
-          titleVariants: [],
-          ruleViolations: [],
-          ruleWarningDetails: [],
-          skippedDetails: [],
-        });
-      }
-
-      // Import consistency checks (issue #41): with the final state in place
-      // (including merge mode's merged result), re-read each range's raw rows
-      // with the independent checker and verify that source-row fields landed.
-      // Aggregates must be fresh first so findFilmByTitleYear sees the result.
-      window.rebuildAggregates?.();
-      if (window.collectImportConsistency) {
-        reports.forEach((report) => {
-          let index = rangeSpecs.findIndex(
-            (spec) => spec.key === report.rangeKey,
-          );
-          if (index < 0) return;
-          let checks = window.collectImportConsistency(
-            rangeSpecs[index],
-            valueRanges[index]?.values || [],
-          );
-          if (!checks.length) return;
-          report.consistency = checks;
-          let missingTotal = checks.reduce(
-            (sum, check) => sum + check.missingCount,
-            0,
-          );
-          if (missingTotal) {
-            report.warnings ||= [];
-            report.warnings.push(
-              `${missingTotal} field value(s) present in ${report.rangeKey} source rows are missing after import; possible parser bug or schema drift.`,
-            );
-          }
-        });
-        window.state.importConsistency = {
-          checkedAt: new Date().toISOString(),
-          ranges: reports
-            .filter((report) => report.consistency?.length)
-            .map((report) => ({
-              key: report.rangeKey,
-              checks: report.consistency,
-            })),
-        };
-      }
-
-      let mode = options.foundation
-        ? "foundation"
-        : options.replace
-          ? "replace"
-          : "merge";
-      let summary = window.summarizeGoogleSheetsReports?.(
-        reports,
-        `Google Sheets ${mode} proposal`,
-      );
-      return window.createImportProposal({
-        sourceKind: "google-sheets",
-        mode,
-        baseState: originalState,
-        candidateState: window.state,
-        report: summary || reports[0] || {},
-        sourceRevision,
-        sourceConfig,
-      });
-    } finally {
-      window.state = originalState;
-      window.rebuildAggregates?.();
-    }
-  };
-
-  /**
-   * Reports whether OAuth, spreadsheet, and range configuration is complete.
-   * @returns {boolean} Whether Google Sheets import can start.
-   */
-  window.googleSheetsImportConfigured = function () {
-    return Boolean(
-      window.OSKARS_LOCAL_CONFIG?.googleClientId &&
-      googleSheetsConfig().spreadsheetId &&
-      configuredRanges().length,
-    );
-  };
-
-  function maybeResumeGoogleSheetsImport() {
+  function maybeResumeGoogleSheetsRedirect() {
     if (!isRedirectSignIn()) return;
     let response = parseGoogleOAuthResponse();
     if (!response || !response.accessToken) return;
@@ -1334,10 +1168,8 @@
     }
     storeGoogleAccessToken(response.accessToken, response.expiresIn);
     clearGoogleOAuthResponseFromUrl();
-    let pendingOptions = consumePendingGoogleSheetsImport();
-    if (pendingOptions)
-      window.OSKARS_RESUMED_GOOGLE_PROPOSAL_OPTIONS = pendingOptions;
   }
 
-  maybeResumeGoogleSheetsImport();
+  maybeResumeGoogleSheetsRedirect();
 })();
+

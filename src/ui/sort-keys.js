@@ -78,13 +78,7 @@ window.compareEnglishTitles = function (left, right) {
 
 /** Builds a deterministic unsigned shuffle value. @param {*} key Item key. @param {string} [seed] Shuffle seed. @returns {number} */
 window.seededShuffleValue = function (key, seed = "") {
-  let text = `${seed}::${key}`;
-  let hash = 2166136261;
-  for (let index = 0; index < text.length; index++) {
-    hash ^= text.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
+  return window.fnv1a32(`${seed}::${key}`);
 };
 
 // A fresh, unique-enough seed for a "reshuffle" action - every multi-film

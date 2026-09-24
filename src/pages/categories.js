@@ -7,7 +7,7 @@
 
   function categoryPosterFilms(category) {
     let candidates = new Map();
-    Object.values(state.filmsById || {}).forEach((film) => {
+    Object.values(window.state.filmsById || {}).forEach((film) => {
       (film.awards || []).forEach((award) => {
         if (award.category !== category) return;
         let candidate = candidates.get(film.id) || {

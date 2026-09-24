@@ -8,11 +8,38 @@
  */
 
 /**
+ * A catalog collection reference used by the Films view's URL state.
+ * @typedef {Object} CollectionFilterItem
+ * @property {'tag'|'franchise'|'person'|'period'} type Collection kind.
+ * @property {string} id Stable collection identifier.
+ */
+/**
+ * A union or intersection of collection references.
+ * @typedef {Object} CollectionFilterGroup
+ * @property {'any'|'all'} mode Set operation.
+ * @property {CollectionFilterItem[]} items Collection references.
+ */
+/**
+ * A union or intersection of collection groups, stored only in view URLs.
+ * @typedef {Object} CollectionFilterExpression
+ * @property {'any'|'all'} mode Set operation across groups.
+ * @property {CollectionFilterGroup[]} groups Collection groups.
+ */
+/**
+ * A named collection with membership over the merged film catalog.
+ * @typedef {Object} CatalogCollectionChoice
+ * @property {'tag'|'franchise'|'person'|'period'} type Collection kind.
+ * @property {string} id Stable collection identifier.
+ * @property {string} name Display name.
+ * @property {Set<FilmRecord>} members Matching catalog records.
+ */
+
+/**
  * Normalized poster or portrait image reference. Produced by
  * `normalizePosterRecord` (src/domain/posters.js); never hand-built.
  * @typedef {Object} PosterRecord
  * @property {string} url Image URL (always http/https).
- * @property {'tmdb'|'wikimedia'|'manual'} source Which provider supplied it.
+ * @property {'tmdb'|'manual'} source Which provider supplied it.
  * @property {string} sourceUrl Human-facing page for the image, or ''.
  * @property {string} providerId Provider-side id (e.g. TMDB id), or ''.
  * @property {string} fetchedAt ISO timestamp of when it was fetched.
@@ -74,6 +101,7 @@
  * @property {string} year Four-digit year as a string.
  * @property {string} [director] Raw credited director text.
  * @property {string[]} [directors] Split director names.
+ * @property {(string|null)[]} [directorIds] `people.id` per `directors` entry, index-aligned (issue #633) - null where unresolved.
  * @property {string} [rating] Star rating text (e.g. "★★★★—").
  * @property {number} [ratingValue] Numeric star count.
  * @property {string} [ratingModifier] Rating suffix/modifier, if any.
@@ -191,6 +219,18 @@
  * @property {string} collectionName Imported display name.
  * @property {string} sourceUrl Optional source-list URL.
  * @property {CollectionAwardNomination[]} nominations Ranked nominations.
+ */
+
+/**
+ * One private live director/franchise ballot, independent of period awards.
+ * @typedef {Object} CollectionBallotRecord
+ * @property {string} [id] Supabase row id.
+ * @property {'director'|'franchise'} collection_type Collection kind.
+ * @property {string} collection_id Normalized collection-page identifier.
+ * @property {string} collection_name Display name.
+ * @property {Object[]} nominations Ranked nominations with stable ids, film UUIDs, display snapshots, and recipient names.
+ * @property {Record<string, 'complete'|'none'>} reviews Explicit category outcomes.
+ * @property {number} [revision] Server-incremented optimistic concurrency version.
  */
 
 /**
@@ -347,6 +387,7 @@
  * @property {number} [order] Optional numeric global watchlist order.
  * @property {string} [director]
  * @property {string[]} [directors]
+ * @property {(string|null)[]} [directorIds] `people.id` per `directors` entry, index-aligned (issue #633) - null where unresolved.
  * @property {string} [country]
  * @property {number|string} [runtimeMinutes]
  * @property {string} [adaptationSource]
@@ -1251,6 +1292,97 @@ window.createEmptyState = function () {
 
 /** @type {OskarsState} */
 window.state = window.createEmptyState();
+
+/**
+ * Mapping from ranking scope type to the corresponding FilmRecord rank property name.
+ * Canonical single source of truth for Supabase scope mappings and period projections.
+ * @type {Record<string, string>}
+ */
+/**
+ * Canonical current completed migration version flags.
+ * @type {Readonly<Record<string, number>>}
+ */
+window.CURRENT_MIGRATION_FLAGS = Object.freeze({
+  centuryRangeVersion: 1,
+  adaptationSourceVersion: 1,
+  watchlistOrderVersion: 1,
+  groupedRankProjectionVersion: 1,
+  watchedDateVersion: 1,
+  viewingFactsVersion: 1,
+});
+
+window.RANK_FIELD_BY_SCOPE_TYPE = {
+  years: "yearRank",
+  decades: "decadeRank",
+  centuries: "centuryRank",
+  allTime: "allTimeRank",
+};
+
+/**
+ * Mapping from period type to the corresponding FilmRecord rank property name.
+ * @type {Record<string, string>}
+ */
+window.RANK_FIELD_BY_PERIOD_TYPE = window.RANK_FIELD_BY_SCOPE_TYPE;
+
+/**
+ * Resolves the rank field name on FilmRecord for a given periodType.
+ * @param {string} periodType Period type ('years'|'decades'|'centuries'|'allTime').
+ * @returns {string} Matching rank field name or 'rank' fallback.
+ */
+window.getRankFieldForPeriodType = function (periodType) {
+  return window.RANK_FIELD_BY_PERIOD_TYPE[periodType] || "rank";
+};
+
+/**
+ * Tests whether a value represents a placeholder or blank cell (e.g. dash, N/A, none).
+ * @param {*} value The value to test.
+ * @param {RegExp} [extraPattern] Optional additional pattern to match domain-specific placeholders.
+ * @returns {boolean} True if the value is a placeholder or blank.
+ */
+window.isPlaceholderValue = function (value, extraPattern) {
+  let text = String(value || "")
+    .normalize("NFKC")
+    .replace(/[\u200E\u200F\u202A-\u202E]/g, "")
+    .trim();
+  if (/^(?:-+|–|—|n\/?a|none|unknown)$/i.test(text)) return true;
+  if (extraPattern && extraPattern.test(text)) return true;
+  return false;
+};
+
+/**
+ * Serializes a value to a deterministic JSON string with sorted object keys.
+ * @param {*} value Any JSON-serializable value.
+ * @returns {string} Stable canonical JSON string.
+ */
+window.stableJson = function (value) {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value ?? null);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(window.stableJson).join(",")}]`;
+  }
+  return `{${Object.keys(value)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${window.stableJson(value[key])}`)
+    .join(",")}}`;
+};
+
+/**
+ * Computes a 32-bit FNV-1a hash over a string.
+ * @param {string} text Text to hash.
+ * @param {number} [offsetBasis=2166136261] Initial offset basis.
+ * @param {number} [prime=16777619] FNV prime multiplier.
+ * @returns {number} Unsigned 32-bit integer hash.
+ */
+window.fnv1a32 = function (text, offsetBasis = 2166136261, prime = 16777619) {
+  let hash = offsetBasis;
+  let s = String(text || "");
+  for (let index = 0; index < s.length; index += 1) {
+    hash ^= s.charCodeAt(index);
+    hash = Math.imul(hash, prime);
+  }
+  return hash >>> 0;
+};
 
 /**
  * Deep-clones a plain-data record via JSON round-trip.

@@ -27,6 +27,7 @@
   let session = null;
   let orderedFilmIds = [];
   let applyResult = null;
+  let isMutating = false;
 
   function renderPickStep() {
     let tagList = tagOptions.length
@@ -70,10 +71,11 @@
         <button type="button" class="sort-order-button" data-merge-back>Back</button>
       </div>`;
     let mid = Math.ceil(films.length / 2);
+    let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
     return `<section class="watchlist-merge-setup" data-watchlist-merge-setup>
       <p>Splits ${escape(collection.name)}'s current local order into two groups, then decides film by film which one ranks higher until both are interleaved.</p>
       <p class="watchlist-merge-scope-count">Group A: ${escape(mid)} films · Group B: ${escape(films.length - mid)} films</p>
-      <button type="button" class="sort-order-button" data-merge-start>Start merge</button>
+      <button type="button" class="sort-order-button" data-merge-start${canEdit ? "" : " disabled"}>Start merge</button>
     </section>`;
   }
 
@@ -202,6 +204,8 @@
   });
 
   function startMerge() {
+    let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
+    if (!canEdit) return;
     let films = orderedFilmIds;
     if (films.length < 2) return;
     let mid = Math.ceil(films.length / 2);
@@ -225,7 +229,9 @@
   }
 
   async function applyMerge() {
-    if (!session) return;
+    let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
+    if (!canEdit || isMutating || !session) return;
+    isMutating = true;
     let applyButton = container.querySelector("[data-merge-apply]");
     if (applyButton) applyButton.disabled = true;
     try {
@@ -241,6 +247,8 @@
     } catch (error) {
       if (applyButton) applyButton.disabled = false;
       alert(error.message || String(error));
+    } finally {
+      isMutating = false;
     }
   }
 

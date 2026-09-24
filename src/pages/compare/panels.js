@@ -1,6 +1,9 @@
 /**
  * @file Renders the compare page's 13 independent panels (film-only metrics/awards, universal overview/collaborators/awards/facets/actions, the mixed-target relationship panel, and the people/collection/period specialized profile panels) plus their shared table/formatting helpers. Target-state, search, and page orchestration stay in src/pages/compare.js.
  */
+/* exported initials -- true top-level global, called bare from
+ * src/pages/people.js and src/pages/compare.js; no-unused-vars can't see
+ * those cross-file calls. */
 
 let escape = window.pageEscape;
 let ui = window.uiText || ((text) => text);
@@ -186,15 +189,7 @@ function rankLink(type, key, rank) {
 }
 
 function initials(name) {
-  return (
-    String(name || "")
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase() || "?"
-  );
+  return window.initialsFor(name) || "?";
 }
 
 // --- Film-only panels (every target is a film) ------------------------------

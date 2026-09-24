@@ -223,11 +223,9 @@ window.recordImageImportFailure = function (type, count = 1) {
   return window.state.imageImportStats[field];
 };
 
-/** Tests whether a film needs a poster or TMDB upgrade. @param {FilmRecord} film Film. @returns {boolean} Whether lookup is needed. */
+/** Tests whether a film needs a poster. @param {FilmRecord} film Film. @returns {boolean} Whether lookup is needed. */
 window.filmNeedsPosterLookup = function (film) {
-  return (
-    Boolean(film?.id) && (!film.poster || film.poster.source === "wikimedia")
-  );
+  return Boolean(film?.id) && !film.poster;
 };
 
 /** Fetches bounded film posters concurrently. @param {FilmRecord[]} films Films. @param {Object} [options] Batch controls. @returns {Promise<MetadataBatchResult>} Batch result. */

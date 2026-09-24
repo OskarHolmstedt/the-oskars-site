@@ -91,14 +91,12 @@
     return result;
   }
 
-  function watchedRecords() {
-    let records = Object.values(window.state?.filmsById || {});
-    (window.state?.watchedFilms || window.state?.watchedOther || []).forEach(
-      (film) => {
-        if (film?.id && !records.some((record) => record.id === film.id))
-          records.push(film);
-      },
-    );
+  function watchedRecords(state) {
+    let records = Object.values(state?.filmsById || {});
+    (state?.watchedFilms || state?.watchedOther || []).forEach((film) => {
+      if (film?.id && !records.some((record) => record.id === film.id))
+        records.push(film);
+    });
     return records;
   }
 
@@ -143,13 +141,15 @@
     return `${sourceId}:period:${period}:${scope}`;
   }
 
-  /** Builds the current overall and per-category film-completion model for one official-results source. @param {string} [sourceId] Official source id, defaults to Academy Awards. @returns {OfficialCollectionCompletion} Completion model. */
+  /** Builds the current overall and per-category film-completion model for one official-results source. @param {string} [sourceId] Official source id, defaults to Academy Awards. @param {Object} [options] Overrides. @param {Object} [options.state] Isolated state to read instead of window.state (issue #597's compact projection uses this to avoid mutating the shared shell). @returns {OfficialCollectionCompletion} Completion model. */
   window.officialCollectionCompletion = function (
     sourceId = DEFAULT_SOURCE_ID,
+    options = {},
   ) {
-    let source = window.state?.officialResults?.[sourceId];
-    let watchedByTitle = recordsByTitle(watchedRecords());
-    let watchlistByTitle = recordsByTitle(window.state?.watchlist || []);
+    let state = options.state || window.state;
+    let source = state?.officialResults?.[sourceId];
+    let watchedByTitle = recordsByTitle(watchedRecords(state));
+    let watchlistByTitle = recordsByTitle(state?.watchlist || []);
     let filmsById = new Map();
     let periodKeys = [];
 
@@ -212,7 +212,7 @@
       if (watched) {
         film.watched = true;
         film.watchedFilm = watched;
-        film.watchedType = window.state?.filmsById?.[watched.id]
+        film.watchedType = state?.filmsById?.[watched.id]
           ? "archive"
           : "watched";
         film.year = String(watched.year || film.year);

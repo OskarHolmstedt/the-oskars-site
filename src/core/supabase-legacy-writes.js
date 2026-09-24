@@ -4,23 +4,7 @@
  */
 
 (function () {
-  const RANK_FIELD_BY_SCOPE_TYPE = {
-    years: "yearRank",
-    decades: "decadeRank",
-    centuries: "centuryRank",
-    allTime: "allTimeRank",
-  };
   let saveChain = Promise.resolve();
-
-  function stable(value) {
-    if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
-    if (value && typeof value === "object")
-      return `{${Object.keys(value)
-        .sort()
-        .map((key) => `${JSON.stringify(key)}:${stable(value[key])}`)
-        .join(",")}}`;
-    return JSON.stringify(value ?? null);
-  }
 
   function positionFor(index) {
     return String((index + 1) * 1000).padStart(12, "0");
@@ -92,6 +76,7 @@
   async function resolveFilmId(client, record) {
     if (record?.supabaseFilmId) return record.supabaseFilmId;
     let tmdbId = Number(record?.tmdbId);
+    let filmId;
     if (tmdbId) {
       let { data, error } = await client
         .from("films")
@@ -100,19 +85,39 @@
         .maybeSingle();
       if (error) throw error;
       if (data?.id) {
-        record.supabaseFilmId = data.id;
-        return data.id;
+        filmId = data.id;
       }
     }
-    if (!String(record?.title || "").trim())
-      throw new Error("A film title is required before it can be saved.");
-    let { data, error } = await client.rpc(
-      "find_or_create_film",
-      catalogPayload(record),
-    );
-    if (error) throw error;
-    record.supabaseFilmId = data;
-    return data;
+    if (!filmId) {
+      if (!String(record?.title || "").trim())
+        throw new Error("A film title is required before it can be saved.");
+      let { data, error } = await client.rpc(
+        "find_or_create_film",
+        catalogPayload(record),
+      );
+      if (error) throw error;
+      filmId = data;
+    }
+    record.supabaseFilmId = filmId;
+    let directors = record?.directors?.length
+      ? record.directors
+      : typeof record?.director === "string" && record.director.trim()
+        ? record.director
+            .split(",")
+            .map((s) => ({ name: s.trim() }))
+            .filter((d) => d.name)
+        : null;
+    if (directors?.length && window.persistSupabaseFilmCredits) {
+      try {
+        await window.persistSupabaseFilmCredits(filmId, "director", directors);
+      } catch (err) {
+        console.warn(
+          `Could not persist directors for film "${record.title}"`,
+          err,
+        );
+      }
+    }
+    return filmId;
   }
 
   async function syncWatched(client, source, films) {
@@ -138,7 +143,10 @@
             { onConflict: "user_id,film_id" },
           );
         if (error) throw error;
-      } else if (stable(payload) !== stable(sourceWatchedPayload(existing))) {
+      } else if (
+        window.stableJson(payload) !==
+        window.stableJson(sourceWatchedPayload(existing))
+      ) {
         let query = client
           .from("watched")
           .update({ ...payload, updated_at: new Date().toISOString() })
@@ -173,7 +181,11 @@
       let desired = [
         ...new Set(window.parseFilmTags?.(film.tags) || []),
       ].sort();
-      if (stable(desired) === stable(sourceTags.get(filmId) || [])) continue;
+      if (
+        window.stableJson(desired) ===
+        window.stableJson(sourceTags.get(filmId) || [])
+      )
+        continue;
 
       let desiredTagIds = [];
       for (let name of desired) {
@@ -220,17 +232,8 @@
     }
   }
 
-  function slugify(value) {
-    return String(value || "")
-      .toLowerCase()
-      .normalize("NFKD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-  }
-
   async function findOrCreateFranchise(client, name, parentId) {
-    let slug = slugify(name);
+    let slug = window.publicProfileSlugify(name);
     let { data: existing, error: selectError } = await client
       .from("franchises")
       .select("id,parent_id")
@@ -338,7 +341,10 @@
     let keys = new Set([...desired.keys(), ...original.keys()]);
     for (let key of keys) {
       let next = desired.get(key) || [];
-      if (stable(next) === stable(original.get(key) || [])) continue;
+      if (
+        window.stableJson(next) === window.stableJson(original.get(key) || [])
+      )
+        continue;
       let [scopeType, scope, category] = key.split("\n");
       let { error } = await client.rpc("replace_personal_award_category", {
         p_scope: scope,
@@ -365,7 +371,10 @@
         ["allTime", "alltime"],
       ];
       scopes.forEach(([scopeType, scope]) => {
-        if (!scope || !(Number(film[RANK_FIELD_BY_SCOPE_TYPE[scopeType]]) > 0))
+        if (
+          !scope ||
+          !(Number(film[window.RANK_FIELD_BY_SCOPE_TYPE[scopeType]]) > 0)
+        )
           return;
         let key = `${scopeType}\n${scope}`;
         if (!rankings.has(key))
@@ -377,7 +386,7 @@
       });
     });
     for (let ranking of rankings.values()) {
-      let rankField = RANK_FIELD_BY_SCOPE_TYPE[ranking.scope_type];
+      let rankField = window.RANK_FIELD_BY_SCOPE_TYPE[ranking.scope_type];
       if (!rankField) continue;
       let originalIds = (ranking.ranking_entries || []).map(
         (entry) => entry.film_id,
@@ -395,7 +404,8 @@
         })
         .sort((a, b) => Number(a[rankField]) - Number(b[rankField]));
       let desiredIds = desiredFilms.map((film) => film.supabaseFilmId);
-      if (stable(originalIds) === stable(desiredIds)) continue;
+      if (window.stableJson(originalIds) === window.stableJson(desiredIds))
+        continue;
       let originalByFilm = new Map(
         (ranking.ranking_entries || []).map((entry) => [entry.film_id, entry]),
       );
@@ -449,7 +459,7 @@
         };
         let comparable = { ...payload };
         delete comparable.updated_at;
-        if (stable(before) !== stable(comparable)) {
+        if (window.stableJson(before) !== window.stableJson(comparable)) {
           let query = client
             .from("watchlist")
             .update(payload)
@@ -486,6 +496,21 @@
     if (!ready) throw new Error("Supabase not configured.");
     let auth = await window.resolveSupabaseAuthState();
     if (auth.status !== "signed-in") throw new Error("Sign in before editing.");
+    // syncAwards/syncRankings/syncWatchlist below all diff window.state
+    // against window.OSKARS_SUPABASE_HYDRATION_SOURCE and delete anything
+    // present in the source but absent from state - correct only when
+    // state holds the complete archive, not a partial/compact read. Refuse
+    // outright rather than risk silently deleting records outside a
+    // partial set (issue #607); every legitimate save() caller today goes
+    // through the full hydration in bootstrap.js's ensureOskarsData(),
+    // which sets this flag once its reshape actually completes.
+    if (window.OSKARS_STATE_HYDRATION_COMPLETE !== true) {
+      let incomplete = new Error(
+        "Archive not fully loaded — reload before saving.",
+      );
+      incomplete.code = "OSKARS_INCOMPLETE_STATE";
+      throw incomplete;
+    }
     let source = window.OSKARS_SUPABASE_HYDRATION_SOURCE || {};
     window.ensureAggregatesFresh?.();
     let films = Object.values(window.state?.filmsById || {});

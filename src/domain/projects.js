@@ -169,14 +169,12 @@ window.projectRefsForWatchlistItemIds = function (itemIds) {
 /** Resolves a supported source into label, references, and URL. @param {string} sourceType Source type. @param {string} sourceId Source id. @returns {Object|null} Source record. */
 window.projectSourceRecord = function (sourceType, sourceId) {
   if (sourceType === "person") {
-    let person = (window.ensurePeopleIndex?.() || state.peopleById || {})[
-      sourceId
-    ];
+    let person = window.findPersonByKey(sourceId);
     if (!person) return null;
     return {
       name: person.name,
       sourceLabel: person.name,
-      filmRefs: window.projectRefsForPerson(sourceId),
+      filmRefs: window.projectRefsForPerson(person.id),
     };
   }
   if (sourceType === "franchise") {
@@ -366,11 +364,17 @@ window.findProjectById = function (projectId) {
 
 /** Finds a project by source identity. @param {string} sourceType Source type. @param {string} sourceId Source id. @returns {ProjectRecord|null} Project. */
 window.projectForSource = function (sourceType, sourceId) {
-  return (
-    window.OSKARS_PROJECT_SOURCE_INDEX_BY_SOURCE?.[
-      `${sourceType}::${sourceId}`
-    ] || null
-  );
+  let index = window.OSKARS_PROJECT_SOURCE_INDEX_BY_SOURCE || {};
+  let found = index[`${sourceType}::${sourceId}`];
+  if (found || sourceType !== "person") return found || null;
+  // A person project may still be stored under the other key form (issue
+  // #633's lazy slug -> people.id migration) - try the person's other key.
+  let person = window.findPersonByKey?.(sourceId);
+  if (!person) return null;
+  for (let key of [person.supabasePersonId, person.id])
+    if (key && key !== sourceId && index[`person::${key}`])
+      return index[`person::${key}`];
+  return null;
 };
 
 /** Renders the create/open action for a source-backed project. @param {string} sourceType Source type. @param {string} sourceId Source id. @param {Object} [options] Rendering controls. @returns {string} HTML. */

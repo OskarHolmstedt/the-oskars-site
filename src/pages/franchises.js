@@ -6,7 +6,7 @@
   window.load();
   let container = document.getElementById("franchisesPage");
   let franchiseIndex =
-    window.ensureFranchiseIndex?.() || state.franchisesById || {};
+    window.ensureFranchiseIndex?.() || window.state.franchisesById || {};
 
   let sortValues = new Set([
     "total",
@@ -71,7 +71,7 @@
       franchise.ratingStatistics ||
       window.collectionRatingStatistics(
         (franchise.films || [])
-          .map((entry) => state.filmsById?.[entry.filmId])
+          .map((entry) => window.state.filmsById?.[entry.filmId])
           .filter(Boolean),
       )
     );
@@ -167,12 +167,13 @@
 
   function franchiseYearRange(franchise) {
     let years = (franchise.films || [])
-      .map((entry) => state.filmsById?.[entry.filmId]?.year)
+      .map((entry) => window.state.filmsById?.[entry.filmId]?.year)
       .concat(
         (franchise.otherFilms || []).map(
           (entry) =>
-            (state.watchedOther || []).find((film) => film.id === entry.filmId)
-              ?.year,
+            (window.state.watchedOther || []).find(
+              (film) => film.id === entry.filmId,
+            )?.year,
         ),
       )
       .concat(
@@ -226,7 +227,7 @@
     let finishRenderTimer =
       window.startOskarsPerformance?.("franchises:render");
     franchiseIndex =
-      window.ensureFranchiseIndex?.() || state.franchisesById || {};
+      window.ensureFranchiseIndex?.() || window.state.franchisesById || {};
     let allFranchises = Object.values(franchiseIndex || {});
     let browseableRoots = allRoots();
     let roots = sortRoots(filteredRoots(browseableRoots));

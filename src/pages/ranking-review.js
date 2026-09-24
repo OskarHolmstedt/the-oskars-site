@@ -124,19 +124,7 @@
   }
 
   function renderHeaderAuthStatus(user) {
-    let statusContainer = document.querySelector("[data-auth-status]");
-    if (!statusContainer) return;
-    window.renderSignedInHeaderAccount?.(
-      statusContainer,
-      user,
-      user.email || "Signed in",
-    );
-    statusContainer
-      .querySelector("[data-supabase-sign-out]")
-      ?.addEventListener("click", async () => {
-        await window.signOutOfSupabase?.();
-        window.location.reload();
-      });
+    window.renderHeaderAuthStatus?.(user);
   }
 
   // Swaps two overall-adjacent entries' positions both in Supabase and in

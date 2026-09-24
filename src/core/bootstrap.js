@@ -76,11 +76,26 @@ async function ensurePublicProfileData(slug) {
  * has already resolved the
  * Supabase account gate by the time this runs, so no account-access
  * recheck is needed here.
+ * @param {Object} [options] Deferred-shell freshness and stale-request guard.
+ * @param {boolean} [options.forceRefresh] Whether to bypass the raw session cache.
+ * @param {Function} [options.isCurrent] Whether this deferred request still owns its scope.
  * @returns {Promise<OskarsState>} The ready global application state.
  */
-window.ensureOskarsData = async function () {
+window.ensureOskarsData = async function (options = {}) {
   let doneEnsure = window.startOskarsPerformance?.("ensureOskarsData");
+  // reconcile() in supabase-legacy-writes.js diffs window.state against
+  // window.OSKARS_SUPABASE_HYDRATION_SOURCE and deletes anything present in
+  // the source but absent from state (awards, rankings, watchlist rows) -
+  // safe only when state was built from the *complete* archive. Cleared
+  // for the duration of every (re)hydration and only set true once that
+  // full reshape below actually finishes, so a save mid-load, or from any
+  // future page that populates window.state from a partial/compact read
+  // instead, fails loudly here rather than silently deleting records
+  // outside that partial set (issue #607).
+  window.OSKARS_STATE_HYDRATION_COMPLETE = false;
   let activeSlug = window.resolveActiveProfileSlug?.();
+  if (options.isCurrent && (activeSlug || !options.isCurrent()))
+    throw new Error("Archive request is no longer current.");
   if (activeSlug) {
     if (await ensurePublicProfileData(activeSlug)) {
       window.refreshOskarsBackdrop?.();
@@ -104,26 +119,42 @@ window.ensureOskarsData = async function () {
   // and gets the same already-resolved promise.
   let authState = await window.resolveSupabaseAuthState?.();
   let hydrationUserId = authState?.user?.id;
-  let source =
-    window.readCachedSupabaseHydrationSource?.(hydrationUserId) ||
-    (await window.loadSupabaseLegacyHydrationSource());
+  let finishCacheRead = window.startOskarsPerformance?.("hydration:cacheRead");
+  let source = options.forceRefresh
+    ? null
+    : window.readCachedSupabaseHydrationSource?.(hydrationUserId);
+  finishCacheRead?.(source ? "hit" : "miss");
+  if (!source) {
+    let finishSource = window.startOskarsPerformance?.("hydration:source");
+    source = await window.loadSupabaseLegacyHydrationSource();
+    finishSource?.();
+  }
+  if (options.isCurrent && !options.isCurrent())
+    throw new Error("Archive request is no longer current.");
   if (hydrationUserId)
     window.writeCachedSupabaseHydrationSource?.(hydrationUserId, source);
   window.OSKARS_SUPABASE_HYDRATION_SOURCE = source;
+  let finishSharedArchive = window.startOskarsPerformance?.(
+    "hydration:sharedArchive",
+  );
   window.applySharedFilmArchive?.(
     window.buildSharedFilmArchiveFromSupabase(
       source.catalogFilms,
       source.franchises,
     ),
   );
+  finishSharedArchive?.();
+  let finishReshape = window.startOskarsPerformance?.("hydration:reshape");
   Object.assign(
     window.state,
     window.buildLegacyStateFromSupabaseHydration(source),
   );
+  finishReshape?.();
   window.rebuildAggregates();
   // Needs state.filmsById/state.watchlist already rebuilt above, since it
   // classifies each project item's film_id against them (issue #458).
   window.applyProjectSourceIndex?.(source.ownProjects);
+  window.OSKARS_STATE_HYDRATION_COMPLETE = true;
   doneEnsure?.(`${Object.keys(window.state.filmsById || {}).length} films`);
   return window.state;
 };

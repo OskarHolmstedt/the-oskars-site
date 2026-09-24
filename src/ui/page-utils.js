@@ -406,3 +406,57 @@ window.renderTop250Marker = function (film) {
 window.pagePeriodNumber = function (value) {
   return Number(String(value || "").replace(/[^0-9]/g, "")) || 0;
 };
+
+/**
+ * Triggers a browser download of a JSON-serializable value.
+ * @param {*} value Data to serialize and download.
+ * @param {string} filename Output file name.
+ */
+window.downloadJson = function (value, filename) {
+  let url = URL.createObjectURL(
+    new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }),
+  );
+  let link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+};
+
+/**
+ * Builds a deterministic timestamped filename.
+ * @param {string} prefix Filename prefix.
+ * @param {string} [extension="json"] File extension without dot.
+ * @returns {string} Timestamped filename.
+ */
+window.stampedFilename = function (prefix, extension = "json") {
+  let stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `${prefix}-${stamp}.${extension}`;
+};
+
+/**
+ * Derives up to two uppercase initials from a person or entity name.
+ * @param {string} [name] Name string.
+ * @returns {string} 1-2 uppercase characters, or empty string.
+ */
+window.initialsFor = function (name) {
+  return String(name || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => Array.from(part)[0] || "")
+    .join("")
+    .toLocaleUpperCase();
+};
+
+/**
+ * Formats a numeric star rating with a star symbol (e.g. 4★, 4.5★).
+ * @param {number} value Star rating value.
+ * @returns {string} Formatted star rating string.
+ */
+window.formatStarRating = function (value) {
+  if (value == null || value === "") return "";
+  let num = Number(value);
+  if (!Number.isFinite(num)) return "";
+  return `${num % 1 ? num : num.toFixed(0)}★`;
+};

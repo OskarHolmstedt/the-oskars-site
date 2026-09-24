@@ -42,7 +42,9 @@
    * section. `noteState` is a small mutable box ({note, editing, busy}) the
    * caller owns and reads back in its own render(); this function updates
    * it directly and calls `rerender` after every change.
-   * @param {{container: Element, entityKind: string, entityKey: string, state: {note: string, editing: boolean, busy: boolean}, rerender: function}} options
+   * @param {{container: Element, entityKind: string, entityKey: string|function(): string, state: {note: string, editing: boolean, busy: boolean}, rerender: function}} options
+   *   `entityKey` may be a function, read at save time, for a page whose
+   *   key is only known after it loads.
    */
   window.bindSupabaseEntityNoteEditor = function (options) {
     let {
@@ -72,7 +74,11 @@
       noteState.busy = true;
       rerender();
       try {
-        await window.setSupabaseEntityNote(entityKind, entityKey, value);
+        await window.setSupabaseEntityNote(
+          entityKind,
+          typeof entityKey === "function" ? entityKey() : entityKey,
+          value,
+        );
         noteState.note = value;
         noteState.editing = false;
         noteState.draft = undefined;

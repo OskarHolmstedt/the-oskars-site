@@ -1,25 +1,24 @@
 /**
- * @file Builds one year's Oskars ballot category by category, cut over to
- * Supabase for real (issue #435), continuing #420/.../#432's pattern:
- * gate check -> loadSupabaseWorkspace() +
- * supabaseAnnualAwardReviewProgress(year) -> render -> each action calls
- * its supabase-workspace.js function directly.
+ * @file Builds annual and director/franchise Oskars ballots through one
+ * category editor. Annual progress and mutations use supabase-workspace;
+ * collection membership, progress, and isolated persistence use
+ * supabase-collection-ballots. Both paths require the signed-in account gate.
  *
- * Deliberate, documented scope cut from the previous implementation this
- * replaces: category-specific eligibility rules (Best Animated Picture
- * requires animation medium, Best Original/Adapted Screenplay requires a
- * matching screenplay type, Best International Picture's US/UK warning,
- * Best Director's credited-recipient-matches-director check) are not
- * ported. films.medium/screenplay_type/adaptation_source columns do
- * exist (issue #406's field audit), but no real write path populates
- * them yet - find_or_create_film accepts them, but nothing in src/ calls
- * it with real values today, so every row's value would be null
- * regardless. Previously, unknown metadata already degraded
- * every one of these rules to a non-blocking warning, never a hard block
- * - dropping them here means every watched film is eligible for every
- * category, the same practical outcome as today's all-null data. Real
- * gap, not silently dropped - once a real import path populates these
- * columns, this page should read them back and restore the rules.
+ * Category-specific eligibility pre-filtering (issue #589): Best Animated
+ * Picture, Best Original/Adapted Screenplay, and Best International Picture
+ * each use TMDB-derived signals (films.medium, films.screenplay_type,
+ * films.original_language, films.primary_country) to pre-filter the pool.
+ * Only confirmed mismatches hide films; missing/unknown metadata leaves
+ * a film eligible, mirroring validateAward()'s "unknown -> warning, not
+ * error" posture (src/domain/awards.js). A "Show N <filtered-reason>"
+ * button in each category's pool heading toggles visibility of the
+ * filtered-out films, letting the user reveal and nominate them when
+ * the TMDB metadata is wrong.
+ *
+ * Each pool card also has a global exclude button (⊗) that hides the film
+ * from every category's pool at once for the session - useful when a film
+ * is not a contender for any award that year. A separate restore control
+ * returns globally hidden films to every category. Both pools use title order.
  *
  * Also drops tie support (two nominees sharing one placement) - confirmed
  * by reading the previous implementation in full that this page never sets
@@ -38,11 +37,19 @@
   let container = document.getElementById("awardsYearPage");
   let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let year = String(window.pageQueryParam?.("year") || "").trim();
-  let valid = /^\d{4}$/.test(year);
+  let collectionType = String(window.pageQueryParam?.("collection") || "");
+  let collectionId = String(window.pageQueryParam?.("id") || "");
+  let isCollection = Boolean(collectionType);
+  let valid = isCollection
+    ? ["director", "franchise"].includes(collectionType) &&
+      Boolean(collectionId)
+    : /^\d{4}$/.test(year);
+  let collectionSession = null;
+  let ballotLabel = year;
+  let collectionReturnUrl = "";
 
   let personalAwardId = null;
   let progress = null; // supabaseAnnualAwardReviewProgress(year) result
-  let watchedByFilmId = new Map();
   let candidateCreditIndex = new Map();
   let tmdbCreditCache = new Map(); // "filmId\ncategory" -> {role, people}|null
   let tmdbCreditFetching = new Set();
@@ -53,10 +60,12 @@
 
   // ---- Bracket state (session-only) ----
   let expandedCategory;
-  let pendingNominee = null; // { category, filmId, placement }
+  let pendingNominee = null; // { category, filmId, placement, creditStatus? }
   let pendingNomineeGeneration = 0; // bumped on every pendingNominee reassignment, incl. null
   let editingNominee = null; // { category, nominationId, placement }
   let excludedFromPool = new Map(); // category -> Set<filmId>
+  let showRestCategories = new Set(); // categories where filtered-out films are currently visible
+  let globallyExcluded = new Set(); // filmIds hidden from ALL category pools for this session
 
   let CAPACITIES = { picture: 10, category: 5 };
 
@@ -87,9 +96,19 @@
 
   function yearWatchedFilms() {
     let workspace = window.getSupabaseWorkspace();
-    return (workspace?.watched || [])
-      .filter((row) => String(row.films?.year) === year)
-      .map((row) => row.films);
+    return (
+      isCollection
+        ? (collectionSession?.films || []).slice()
+        : (workspace?.watched || [])
+            .filter((row) => String(row.films?.year) === year)
+            .map((row) => row.films)
+    ).sort(
+      (a, b) =>
+        String(a.title || "").localeCompare(String(b.title || ""), undefined, {
+          sensitivity: "base",
+          numeric: true,
+        }) || String(a.id).localeCompare(String(b.id)),
+    );
   }
 
   function filmPrimaryCountry(film) {
@@ -101,11 +120,11 @@
   }
 
   // Only a *confirmed* mismatch hides a film from a category's pool - a
-  // film with no screenplay_type/medium recorded yet (most of the
-  // archive, since this data has only recently started being imported)
-  // stays eligible rather than disappearing outright, mirroring
-  // validateAward()'s existing "unknown -> warning, not error" posture
-  // (src/domain/awards.js) rather than inventing a stricter rule here.
+  // film with no screenplay_type/medium/language recorded yet (most of the
+  // archive before TMDB classification signals are populated) stays eligible
+  // rather than disappearing outright, mirroring validateAward()'s existing
+  // "unknown -> warning, not error" posture (src/domain/awards.js) rather
+  // than inventing a stricter rule here.
   function categoryEligible(film, category) {
     if (category === "Best Original Screenplay")
       return film.screenplay_type !== "adapted";
@@ -115,7 +134,62 @@
       return (
         !film.medium || film.medium === "unknown" || film.medium === "animation"
       );
+    if (category === "Best International Picture") {
+      // Pre-filter confirmed English-language or US/UK primary-country films.
+      // A film with no language or country data stays eligible (unknown =
+      // not hidden), matching the same unknown-is-eligible rule above.
+      let lang = film.original_language;
+      let country = filmPrimaryCountry(film);
+      let isEnglish = lang === "en";
+      let isUsOrUk =
+        country &&
+        (country.includes("United States") ||
+          country.includes("United Kingdom"));
+      if (isEnglish || isUsOrUk) return false;
+    }
     return true;
+  }
+
+  // Returns a short reason badge explaining why a film was pre-filtered out
+  // of this category's pool (e.g. "Live-action", "Adapted", "English").
+  // Returns null when the film passes (shouldn't appear in filtered pool).
+  function filterLabel(film, category) {
+    if (category === "Best Animated Picture") {
+      if (
+        film.medium &&
+        film.medium !== "unknown" &&
+        film.medium !== "animation"
+      )
+        return film.medium === "hybrid" ? "Hybrid" : "Live-action";
+    }
+    if (category === "Best Original Screenplay") {
+      if (film.screenplay_type === "adapted") return "Adapted";
+    }
+    if (category === "Best Adapted Screenplay") {
+      if (film.screenplay_type === "original") return "Original";
+    }
+    if (category === "Best International Picture") {
+      let lang = film.original_language;
+      let country = filmPrimaryCountry(film);
+      if (lang === "en") return "English";
+      if (country && country.includes("United States")) return "US";
+      if (country && country.includes("United Kingdom")) return "UK";
+    }
+    return null;
+  }
+
+  // Returns the category-specific label for the "show filtered films" button,
+  // e.g. "Show 5 live-action films" instead of a generic "Show the rest".
+  function filteredPoolButtonLabel(count, category) {
+    if (category === "Best Animated Picture")
+      return `Show ${count} live-action film${count === 1 ? "" : "s"}`;
+    if (category === "Best Original Screenplay")
+      return `Show ${count} adapted screenplay${count === 1 ? "" : "s"}`;
+    if (category === "Best Adapted Screenplay")
+      return `Show ${count} original screenplay${count === 1 ? "" : "s"}`;
+    if (category === "Best International Picture")
+      return `Show ${count} English-language film${count === 1 ? "" : "s"}`;
+    return `Show ${count} filtered out`;
   }
 
   function candidateCreditOptions(filmId, category) {
@@ -314,16 +388,21 @@
     return escape(recipient || detail);
   }
 
-  function renderPoolCard(film, category) {
+  function renderPoolCard(film, category, filterBadge) {
     let knownCredits = candidateCreditOptions(film.id, category);
     let creditHint = knownCredits.length
       ? `<span class="setup-year-pool-credit">${knownCredits.map((option) => `${escape(option.recipient)}${option.detail ? ` · ${escape(option.detail)}` : ""}`).join("<br>")}</span>`
       : "";
-    return `<article class="film-card setup-year-pool-card" draggable="true" data-setup-award-film="${escape(film.id)}" data-setup-award-add="${escape(category)}" tabindex="0" role="button">
+    let filterBadgeHtml = filterBadge
+      ? `<span class="setup-year-pool-filter-badge">${escape(filterBadge)}</span>`
+      : "";
+    return `<article class="film-card setup-year-pool-card${filterBadge ? " is-filtered-out" : ""}" draggable="true" data-setup-award-film="${escape(film.id)}" data-setup-award-add="${escape(category)}" tabindex="0" role="button">
       <span class="setup-year-pool-poster">${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="">` : `<span aria-hidden="true">${escape(String(film.title || "?").charAt(0))}</span>`}</span>
       <span class="setup-year-pool-title">${escape(film.title)}</span>
+      ${filterBadgeHtml}
       ${creditHint}
       <button type="button" class="card-remove-button" aria-label="Hide ${escape(film.title)} from this category" title="Not a contender - hide from this pool" data-setup-pool-exclude>×</button>
+      <button type="button" class="card-remove-button card-super-exclude-button" aria-label="Hide ${escape(film.title)} from all categories" title="Remove from all award pools" data-setup-pool-super-exclude="${escape(film.id)}">⊗</button>
     </article>`;
   }
 
@@ -401,18 +480,31 @@
       ? new Set()
       : new Set(nominations.map((n) => n.film_id));
     let excludedIds = excludedFromPoolFor(category);
-    let pool = films.filter(
+    // Films the user globally excluded (⊗ button) are hidden from every pool.
+    let eligibleFilms = films.filter((film) => !globallyExcluded.has(film.id));
+    let pool = eligibleFilms.filter(
       (film) =>
         !nominatedIds.has(film.id) &&
         !excludedIds.has(film.id) &&
         categoryEligible(film, category),
     );
+    // Films pre-filtered by category rules — not user-hidden, not nominated,
+    // but failing categoryEligible. Shown in a separate sub-section when the
+    // user toggles "Show N live-action films" (or equivalent).
+    let filteredPool = eligibleFilms.filter(
+      (film) =>
+        !nominatedIds.has(film.id) &&
+        !excludedIds.has(film.id) &&
+        !categoryEligible(film, category),
+    );
     let isPending = pendingNominee?.category === category;
-    let poolHtml = isPending
-      ? renderPendingNomineeForm(films)
-      : pool.length
-        ? `<div class="film-grid setup-year-pool-grid">${pool.map((film) => renderPoolCard(film, category)).join("")}</div>`
-        : `<p class="setup-year-section-empty">No more of ${escape(year)}'s watched films are eligible for this category.</p>`;
+    let isAutomatic = isPending && pendingNominee.creditStatus;
+    let poolHtml =
+      isPending && !isAutomatic
+        ? renderPendingNomineeForm(films)
+        : pool.length
+          ? `<div class="film-grid setup-year-pool-grid">${pool.map((film) => renderPoolCard(film, category)).join("")}</div>`
+          : `<p class="setup-year-section-empty">No more of ${escape(ballotLabel)}'s watched films are eligible for this category.</p>`;
     let fullNotice =
       nominations.length >= capacity
         ? `<p class="setup-year-category-full">${escape(window.localizedCategoryName?.(category) || category)} is full. Drop a film onto a nominee above to bump it in, or remove one first.</p>`
@@ -421,11 +513,28 @@
       excludedIds.size && canEdit
         ? `<button type="button" class="sort-order-button" data-setup-pool-restore="${escape(category)}">Show ${escape(excludedIds.size)} hidden</button>`
         : "";
+    let restoreAllHtml =
+      globallyExcluded.size && canEdit
+        ? `<button type="button" class="sort-order-button" data-setup-pool-restore-all>Restore films hidden from all categories (${escape(globallyExcluded.size)})</button>`
+        : "";
+    // "Show N live-action films" / "Show N adapted screenplays" etc.
+    let showRestHtml =
+      filteredPool.length && canEdit
+        ? `<button type="button" class="sort-order-button setup-year-show-filtered${showRestCategories.has(category) ? " is-active" : ""}" data-setup-pool-show-filtered="${escape(category)}">${escape(filteredPoolButtonLabel(filteredPool.length, category))}</button>`
+        : "";
+    // When toggled, render the filtered sub-section with reason badges.
+    let filteredPoolHtml =
+      showRestCategories.has(category) && filteredPool.length
+        ? `<div class="setup-year-filtered-pool">
+            <div class="film-grid setup-year-pool-grid setup-year-pool-grid--filtered">${filteredPool.map((film) => renderPoolCard(film, category, filterLabel(film, category))).join("")}</div>
+          </div>`
+        : "";
+    let pendingStatus = isAutomatic ? renderPendingNomineeStatus(films) : "";
     let ballotActions = canEdit
-      ? `<div class="setup-ballot-actions">${nominations.length ? `<button type="button" data-setup-award-finish="${escape(category)}">Finish category</button>` : `<button type="button" class="button-secondary" data-setup-award-none="${escape(category)}">No award this year</button>`}</div>`
+      ? `<div class="setup-ballot-actions">${nominations.length ? `<button type="button" data-setup-award-finish="${escape(category)}">Finish category</button>` : `<button type="button" class="button-secondary" data-setup-award-none="${escape(category)}">${isCollection ? "No award for this collection" : "No award this year"}</button>`}${pendingStatus}</div>`
       : "";
     let poolSection = canEdit
-      ? `<h4>Eligible films from ${escape(year)} ${restoreHtml}</h4>${poolHtml}`
+      ? `<h4>Eligible films from ${escape(ballotLabel)} · A–Z ${restoreHtml}${restoreAllHtml}${showRestHtml}</h4>${poolHtml}${filteredPoolHtml}`
       : "";
 
     return `<div class="setup-year-category-row is-expanded">
@@ -460,10 +569,22 @@
         return `<button type="button" class="setup-ballot-nav-item${entry.reviewed ? " is-complete" : ""}${entry.category === progress.nextCategory ? " is-next" : ""}${entry.category === expandedCategory ? " is-active" : ""}" style="--ballot-progress:${percent}%" data-setup-award-toggle="${escape(entry.category)}"${entry.category === expandedCategory ? ' aria-expanded="true"' : ' aria-expanded="false"'}><span class="setup-ballot-progress-ring" role="img" aria-label="${escape(progressLabel)}" title="${escape(progressLabel)}"><b>${escape(filled)}</b></span><span class="setup-ballot-nav-label">${escape(label)}</span></button>`;
       })
       .join("");
-    let ceremony = progress.complete
-      ? `<section class="setup-ceremony-summary"><span class="eyebrow">The envelope is sealed</span><h3>Your ${escape(year)} ceremony is ready</h3><div class="setup-ballot-actions"><a class="button-link" href="presentation.html?scope=period&amp;id=year:${escape(year)}">Run the ceremony →</a><a class="button-link" href="${escape(window.periodPageUrl?.("decade", window.getDecadeKey(year)) || "#")}&amp;view=awards">Continue to decade awards</a></div></section>`
-      : `<p class="setup-ballot-next">Next: ${escape(window.localizedCategoryName?.(progress.nextCategory) || progress.nextCategory)} · ${escape(progress.reviewed)} / ${escape(progress.total)} reviewed</p>`;
+    let ceremony =
+      isCollection && progress.complete
+        ? `<section class="setup-ceremony-summary"><h3>Your ${escape(ballotLabel)} ballot is complete</h3><a class="button-link" href="${escape(collectionReturnUrl)}">View collection awards</a></section>`
+        : progress.complete
+          ? `<section class="setup-ceremony-summary"><span class="eyebrow">The envelope is sealed</span><h3>Your ${escape(year)} ceremony is ready</h3><div class="setup-ballot-actions"><a class="button-link" href="presentation.html?scope=period&amp;id=year:${escape(year)}">Run the ceremony →</a><a class="button-link" href="${escape(window.periodPageUrl?.("decade", window.getDecadeKey(year)) || "#")}&amp;view=awards">Continue to decade awards</a></div></section>`
+          : `<p class="setup-ballot-next">Next: ${escape(window.localizedCategoryName?.(progress.nextCategory) || progress.nextCategory)} · ${escape(progress.reviewed)} / ${escape(progress.total)} reviewed</p>`;
     return `<nav class="setup-ballot-nav" aria-label="Ballot categories">${nav}</nav><div class="setup-year-category-list">${rows}</div>${ceremony}`;
+  }
+
+  function renderPendingNomineeStatus(films) {
+    let film = films.find(
+      (candidate) => candidate.id === pendingNominee.filmId,
+    );
+    let saving = pendingNominee.creditStatus === "saving";
+    return `<span role="status">${saving ? "Adding nomination" : "Finding recipient"}… ${escape(film?.title || pendingNominee.filmId)}</span>
+      ${saving ? "" : '<button type="button" data-setup-award-credit-cancel>Cancel</button>'}`;
   }
 
   function renderPendingNomineeForm(films) {
@@ -504,6 +625,8 @@
     if (generation !== pendingNomineeGeneration) return;
     let suggestions = combinedCreditSuggestions(filmId, category);
     if (suggestions.length === 1) {
+      pendingNominee.creditStatus = "saving";
+      render();
       await addNominee(
         category,
         filmId,
@@ -513,13 +636,14 @@
       );
     } else {
       // TMDB had no match (missing tmdb_id, no crew data) - fall back to
-      // the ordinary form for manual entry, same as before this existed.
+      // the ordinary form for manual entry.
+      pendingNominee.creditStatus = null;
       render();
     }
   }
 
   function beginNominee(category, filmId, placement) {
-    if (!canEdit) return;
+    if (!canEdit || pendingNominee?.creditStatus) return;
     if (category === "Best Picture") {
       addNominee(category, filmId, placement, "", "");
       return;
@@ -545,7 +669,12 @@
         return;
       }
       if (!known.length) {
-        let generation = setPendingNominee({ category, filmId, placement });
+        let generation = setPendingNominee({
+          category,
+          filmId,
+          placement,
+          creditStatus: "loading",
+        });
         editingNominee = null;
         resetCastListState();
         render();
@@ -565,7 +694,9 @@
   }
 
   async function refreshProgress() {
-    progress = await window.supabaseAnnualAwardReviewProgress(year);
+    progress = isCollection
+      ? window.collectionBallotProgress(collectionSession)
+      : await window.supabaseAnnualAwardReviewProgress(year);
     personalAwardId = progress.personalAwardId;
   }
 
@@ -575,21 +706,39 @@
       let recipients = recipient
         ? window.splitRecipientNames?.(recipient) || [recipient]
         : [];
-      await window.insertSupabasePersonalNomination(
-        personalAwardId,
-        category,
-        placement,
-        capacityFor(category),
-        filmId,
-        detail || "",
-        recipients,
-      );
-      await window.reopenSupabaseAwardReview(year, category);
+      if (isCollection)
+        await window.changeSupabaseCollectionBallot(collectionSession, {
+          type: "insert",
+          category,
+          placement,
+          filmId,
+          detail: detail || "",
+          recipients,
+        });
+      else
+        await window.insertSupabasePersonalNomination(
+          personalAwardId,
+          category,
+          placement,
+          capacityFor(category),
+          filmId,
+          detail || "",
+          recipients,
+        );
+      if (!isCollection) await window.reopenSupabaseAwardReview(year, category);
       setPendingNominee(null);
       if (recipient) persistMatchedTmdbCredit(filmId, category, recipient);
       await refreshProgress();
       render();
     } catch (error) {
+      if (
+        pendingNominee?.category === category &&
+        pendingNominee.filmId === filmId &&
+        pendingNominee.placement === placement
+      ) {
+        pendingNominee.creditStatus = null;
+        render();
+      }
       alert(error.message || String(error));
     }
   }
@@ -606,9 +755,22 @@
       let recipients = recipient
         ? window.splitRecipientNames?.(recipient) || [recipient]
         : [];
-      await window.updateSupabaseNominationRecipients(nominationId, recipients);
-      if (detail !== undefined)
-        await window.updateSupabaseNominationDetail(nominationId, detail);
+      if (isCollection)
+        await window.changeSupabaseCollectionBallot(collectionSession, {
+          type: "credit",
+          category,
+          nominationId,
+          recipients,
+          detail,
+        });
+      else {
+        await window.updateSupabaseNominationRecipients(
+          nominationId,
+          recipients,
+        );
+        if (detail !== undefined)
+          await window.updateSupabaseNominationDetail(nominationId, detail);
+      }
       editingNominee = null;
       if (recipient) persistMatchedTmdbCredit(filmId, category, recipient);
       await refreshProgress();
@@ -621,13 +783,22 @@
   async function moveNominee(category, filmId, fromPlacement, toPlacement) {
     if (!canEdit || fromPlacement === toPlacement) return;
     try {
-      await window.moveSupabasePersonalNomination(
-        personalAwardId,
-        category,
-        fromPlacement,
-        toPlacement,
-        filmId,
-      );
+      if (isCollection)
+        await window.changeSupabaseCollectionBallot(collectionSession, {
+          type: "move",
+          category,
+          filmId,
+          placement: fromPlacement,
+          toPlacement,
+        });
+      else
+        await window.moveSupabasePersonalNomination(
+          personalAwardId,
+          category,
+          fromPlacement,
+          toPlacement,
+          filmId,
+        );
       await refreshProgress();
       render();
     } catch (error) {
@@ -669,14 +840,22 @@
 
     let deletionPersisted = false;
     try {
-      await window.deleteSupabasePersonalNomination(
-        personalAwardId,
-        category,
-        numericPlacement,
-        filmId,
-      );
+      if (isCollection)
+        await window.changeSupabaseCollectionBallot(collectionSession, {
+          type: "delete",
+          category,
+          filmId,
+          placement: numericPlacement,
+        });
+      else
+        await window.deleteSupabasePersonalNomination(
+          personalAwardId,
+          category,
+          numericPlacement,
+          filmId,
+        );
       deletionPersisted = true;
-      await window.reopenSupabaseAwardReview(year, category);
+      if (!isCollection) await window.reopenSupabaseAwardReview(year, category);
       await refreshProgress();
       render();
     } catch (error) {
@@ -705,20 +884,23 @@
   function render() {
     let finish = window.startOskarsPerformance?.("awardsYear:render");
     let header = window.renderDetailHeader({
-      mainHtml: `<span class="eyebrow">Annual awards</span><h1>${escape(year)}</h1><p>Build the ballot category by category, then run the ceremony.</p>`,
-      actionsHtml: `<a class="button-link" href="build.html">Build your Oskars</a><a class="button-link" href="${escape(window.yearRankingPageUrl?.(year) || "#")}">Rank this year</a><a class="button-link" href="${escape(window.periodPageUrl?.("years", year) || "#")}">View ${escape(year)}</a>`,
+      mainHtml: `<span class="eyebrow">${isCollection ? "Collection awards" : "Annual awards"}</span><h1>${escape(ballotLabel)}</h1><p>${isCollection ? "Build an independent ballot from this collection’s watched films." : "Build the ballot category by category, then run the ceremony."}</p>`,
+      actionsHtml: isCollection
+        ? `<a class="button-link" href="${escape(collectionReturnUrl)}">View collection awards</a><a class="button-link" href="build.html">Build your Oskars</a>`
+        : `<a class="button-link" href="build.html">Build your Oskars</a><a class="button-link" href="${escape(window.yearRankingPageUrl?.(year) || "#")}">Rank this year</a><a class="button-link" href="${escape(window.periodPageUrl?.("years", year) || "#")}">View ${escape(year)}</a>`,
     });
     container.innerHTML = `${header}
       <section class="setup-year-section">
-        <h2>Annual ballot</h2>
+        <h2>${isCollection ? "Collection ballot" : "Annual ballot"}</h2>
         ${renderBracketSection()}
       </section>`;
-    finish?.(`${year} · ${progress.reviewed} reviewed`);
+    finish?.(`${ballotLabel} · ${progress.reviewed} reviewed`);
   }
 
   container.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     if (event.target.closest("[data-setup-pool-exclude]")) return;
+    if (event.target.closest("[data-setup-pool-super-exclude]")) return;
     let addTarget = event.target.closest("[data-setup-award-add]");
     if (addTarget) {
       event.preventDefault();
@@ -748,11 +930,20 @@
         (finishTarget || noneTarget).dataset.setupAwardNone;
       (async () => {
         try {
-          await window.setSupabaseAwardReview(
-            year,
-            category,
-            finishTarget ? "complete" : "none",
-          );
+          if (isCollection)
+            await window.changeSupabaseCollectionBallot(collectionSession, {
+              type: "review",
+              category:
+                target.dataset.setupAwardFinish ||
+                target.dataset.setupAwardNone,
+              status: finishTarget ? "complete" : "none",
+            });
+          else
+            await window.setSupabaseAwardReview(
+              year,
+              category,
+              finishTarget ? "complete" : "none",
+            );
           expandedCategory = undefined;
           await refreshProgress();
           render();
@@ -778,9 +969,45 @@
       return;
     }
 
+    // Super-exclude: hide this film from every category pool for the session.
+    // Checked before the card's own add-to-board handler below, since this
+    // button sits inside the card element and would otherwise trigger a nomination.
+    let superExcludeTarget = event.target.closest(
+      "[data-setup-pool-super-exclude]",
+    );
+    if (superExcludeTarget) {
+      let filmId = superExcludeTarget.dataset.setupPoolSuperExclude;
+      if (filmId) {
+        globallyExcluded.add(filmId);
+        render();
+      }
+      return;
+    }
+
+    if (event.target.closest("[data-setup-pool-restore-all]")) {
+      globallyExcluded.clear();
+      render();
+      return;
+    }
+
     let poolRestoreTarget = event.target.closest("[data-setup-pool-restore]");
     if (poolRestoreTarget) {
       excludedFromPool.delete(poolRestoreTarget.dataset.setupPoolRestore);
+      render();
+      return;
+    }
+
+    // Toggle filtered-pool visibility for this category.
+    let showFilteredTarget = event.target.closest(
+      "[data-setup-pool-show-filtered]",
+    );
+    if (showFilteredTarget) {
+      let cat = showFilteredTarget.dataset.setupPoolShowFiltered;
+      if (showRestCategories.has(cat)) {
+        showRestCategories.delete(cat);
+      } else {
+        showRestCategories.add(cat);
+      }
       render();
       return;
     }
@@ -955,7 +1182,7 @@
   async function boot() {
     if (!valid) {
       document.title = "Build annual awards · The Oskars";
-      container.innerHTML = `<div class="detail-empty"><h1>Year not found</h1><a href="index.html">Return home</a></div>`;
+      container.innerHTML = `<div class="detail-empty"><h1>${isCollection ? "Collection not found" : "Year not found"}</h1><a href="index.html">Return home</a></div>`;
       return;
     }
     document.title = `Build ${year} awards · The Oskars`;
@@ -965,7 +1192,15 @@
       return;
     }
     try {
-      await window.loadSupabaseWorkspace();
+      if (isCollection) {
+        collectionSession = await window.loadSupabaseCollectionBallotSession(
+          collectionType,
+          collectionId,
+        );
+        ballotLabel = collectionSession.name;
+        collectionReturnUrl = `${collectionType === "director" ? window.personPageUrl(collectionId) : window.franchisePageUrl(collectionId)}&collection-view=awards`;
+        document.title = `Build ${ballotLabel} awards · The Oskars`;
+      } else await window.loadSupabaseWorkspace();
       let filmIds = yearWatchedFilms().map((film) => film.id);
       let [creditSource] = await Promise.all([
         window.loadSupabaseAwardCandidateCredits(filmIds),
@@ -975,7 +1210,7 @@
         window.buildAwardCandidateCreditIndex(creditSource);
       render();
     } catch (error) {
-      container.innerHTML = `<section class="detail-empty"><h2>Could not load this year's ballot</h2><p>${escape(error.message || String(error))}</p></section>`;
+      container.innerHTML = `<section class="detail-empty"><h2>Could not load this ballot</h2><p>${escape(error.message || String(error))}</p></section>`;
     }
   }
 

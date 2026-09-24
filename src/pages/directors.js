@@ -66,7 +66,7 @@
     let ids = new Set();
     (person.credits || []).forEach((credit) => {
       if (credit.source !== "film" || credit.profession !== "Director") return;
-      let film = state.filmsById?.[credit.filmId];
+      let film = window.state.filmsById?.[credit.filmId];
       if (!film || ids.has(film.id)) return;
       ids.add(film.id);
       films.push(film);
@@ -94,15 +94,17 @@
 
   function directorRecords() {
     let watchedOtherById = new Map(
-      (state.watchedOther || []).map((film) => [film.id, film]),
+      (window.state.watchedOther || []).map((film) => [film.id, film]),
     );
     let watchlistById = new Map(
-      (state.watchlist || []).map((item) => [
+      (window.state.watchlist || []).map((item) => [
         item.id || window.watchlistItemId?.(item),
         item,
       ]),
     );
-    return Object.values(window.ensurePeopleIndex?.() || state.peopleById || {})
+    return Object.values(
+      window.ensurePeopleIndex?.() || window.state.peopleById || {},
+    )
       .filter((person) => person.professions?.includes("Director"))
       .map((person) => {
         let films = directorFilms(person, watchedOtherById);
@@ -115,7 +117,10 @@
           watchlist,
           completion: window.directorCompletion(person),
           ratings: window.collectionRatingStatistics(films),
-          project: window.projectForSource("person", person.id),
+          project: window.projectForSource(
+            "person",
+            window.personStorageKey(person),
+          ),
         };
       });
   }

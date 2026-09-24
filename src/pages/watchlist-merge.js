@@ -28,6 +28,7 @@
   let step = "setup";
   let session = null;
   let applyResult = null;
+  let isMutating = false;
 
   function scopeTypeLabel(type) {
     if (type === "year") return "Year";
@@ -123,6 +124,7 @@
           `<option value="${escape(tier)}"${picker.tier === tier ? " selected" : ""}>${escape(tier)}</option>`,
       )
       .join("");
+    let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
     return `<section class="watchlist-merge-setup" data-watchlist-merge-setup>
       <p>Pick an interest tier and two groups within it, then decide film by film which one ranks higher. Everything outside the two groups keeps its exact position.</p>
       <label class="watchlist-merge-tier-picker">Interest tier <select data-merge-tier>${tierOptions}</select></label>
@@ -131,7 +133,7 @@
         ${renderScopeFieldset("b", "Group B")}
       </div>
       ${validation ? `<p class="watchlist-merge-validation">${escape(validation)}</p>` : ""}
-      <button type="button" class="sort-order-button" data-merge-start${validation ? " disabled" : ""}>Start merge</button>
+      <button type="button" class="sort-order-button" data-merge-start${validation || !canEdit ? " disabled" : ""}>Start merge</button>
     </section>`;
   }
 
@@ -187,7 +189,8 @@
   }
 
   function startMerge() {
-    if (pickerValidation()) return;
+    let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
+    if (!canEdit || pickerValidation()) return;
     let { listA, listB } = effectiveScopeItems();
     session = window.createMergeSession(listA, listB);
     session.tier = picker.tier;
@@ -209,6 +212,9 @@
   }
 
   async function applyMerge() {
+    let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
+    if (!canEdit || isMutating || !session) return;
+    isMutating = true;
     let ids = session.merged.map((row) => row.film_id);
     let applyButton = container.querySelector("[data-merge-apply]");
     if (applyButton) applyButton.disabled = true;
@@ -228,6 +234,8 @@
     } catch (error) {
       alert(error.message || String(error));
       if (applyButton) applyButton.disabled = false;
+    } finally {
+      isMutating = false;
     }
   }
 

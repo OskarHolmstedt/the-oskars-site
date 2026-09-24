@@ -20,7 +20,6 @@ window.officialResultsPeriod = function (
  * @param {Object} input Official period rendering context.
  * @param {OfficialResultsSource} input.source Official source metadata.
  * @param {OfficialResultsPeriod} input.period Official source period.
- * @param {string} [input.year] Release year this period represents - official results only render on `type === "year"` period pages, so every nomination shares this same year.
  * @param {OfficialAwardPeriodComparison|null} [input.personalComparison] Personal winner comparison.
  * @param {(value:*) => string} [input.escape] HTML escaper.
  * @returns {string} Official-results HTML.
@@ -28,7 +27,6 @@ window.officialResultsPeriod = function (
 window.renderPeriodOfficialResults = function ({
   source,
   period,
-  year = "",
   canEdit = true,
   personalComparison = null,
   escape = window.pageEscape,

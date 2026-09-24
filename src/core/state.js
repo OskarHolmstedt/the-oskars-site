@@ -78,6 +78,9 @@ window.publicProfileSlugify = function (name) {
     .replace(/^-+|-+$/g, "");
 };
 
+/** Compatibility alias for publicProfileSlugify. */
+window.slugify = window.publicProfileSlugify;
+
 /**
  * Builds the canonical year-and-title film identifier.
  * @param {string|number} year Film year or an empty value.
@@ -175,11 +178,11 @@ window.addToPeriod = function (periodType, key, id, meta) {
   }
 };
 
-function filmStoreLookup() {
-  let lookup = window.state._filmStoreLookup;
-  if (lookup?.source === window.state.filmsById) return lookup;
-  lookup = { source: window.state.filmsById, byTitle: new Map() };
-  Object.values(window.state.filmsById || {}).forEach((film) => {
+function filmStoreLookup(store = window.state) {
+  let lookup = store._filmStoreLookup;
+  if (lookup?.source === store.filmsById) return lookup;
+  lookup = { source: store.filmsById, byTitle: new Map() };
+  Object.values(store.filmsById || {}).forEach((film) => {
     let title = film.normalizedTitle || normalizeTitle(film.title);
     if (!title) return;
     film.normalizedTitle ||= title;
@@ -187,15 +190,15 @@ function filmStoreLookup() {
     candidates.push(film);
     lookup.byTitle.set(title, candidates);
   });
-  window.state._filmStoreLookup = lookup;
+  store._filmStoreLookup = lookup;
   return lookup;
 }
 
-function addFilmStoreLookupRecord(film) {
+function addFilmStoreLookupRecord(film, store = window.state) {
   let title = film?.normalizedTitle || normalizeTitle(film?.title);
   if (!title) return;
   film.normalizedTitle ||= title;
-  let lookup = filmStoreLookup();
+  let lookup = filmStoreLookup(store);
   let candidates = lookup.byTitle.get(title) || [];
   if (!candidates.includes(film)) candidates.push(film);
   lookup.byTitle.set(title, candidates);
@@ -204,12 +207,13 @@ function addFilmStoreLookupRecord(film) {
 /**
  * Finds canonical films sharing a normalized title.
  * @param {*} title Title-like value to normalize.
+ * @param {Object} [store] Isolated canonical store, or the application state.
  * @returns {FilmRecord[]} Matching canonical records.
  */
-window.filmStoreCandidatesByTitle = function (title) {
+window.filmStoreCandidatesByTitle = function (title, store = window.state) {
   let normalizedTitle = normalizeTitle(title || "");
   if (!normalizedTitle) return [];
-  return filmStoreLookup().byTitle.get(normalizedTitle) || [];
+  return filmStoreLookup(store).byTitle.get(normalizedTitle) || [];
 };
 
 /**
@@ -217,6 +221,7 @@ window.filmStoreCandidatesByTitle = function (title) {
  * @param {string|number} year Source period or concrete year.
  * @param {FilmRecord} film Source film record.
  * @param {Object} [options] Merge and period-membership controls.
+ * @param {Object} [options.store] Isolated canonical store; skips derived period indexing.
  * @param {boolean} [options.replaceRanks] Whether incoming ranks replace existing ranks.
  * @param {boolean} [options.addToDerivedPeriods] Whether concrete year, decade, and century entries are added.
  * @param {boolean} [options.addToAllTime] Whether an all-time entry is added.
@@ -225,9 +230,10 @@ window.filmStoreCandidatesByTitle = function (title) {
  * @returns {FilmRecord} Canonical merged film record.
  */
 window.addFilmToStore = function (year, film, options = {}) {
+  let store = options.store || window.state;
   // A film has one canonical object; periods contain lightweight ID/rank entries.
-  window.state.filmsById ||= {};
-  window.state.periods ||= {
+  store.filmsById ||= {};
+  store.periods ||= {
     years: {},
     decades: {},
     centuries: {},
@@ -252,7 +258,7 @@ window.addFilmToStore = function (year, film, options = {}) {
     existing.rank =
       options.replaceRanks && !preserveExistingRankForUnrankedMetadata
         ? film.rank || null
-        : existing.rank || film.rank;
+        : film.rank || existing.rank;
     existing.yearRank =
       options.replaceRanks && !preserveExistingRankForUnrankedMetadata
         ? film.yearRank || null
@@ -277,7 +283,9 @@ window.addFilmToStore = function (year, film, options = {}) {
     existing.director = existing.director || film.director;
     existing.directors = existing.directors?.length
       ? existing.directors
-      : film.directors;
+      : film.directors
+        ? [...film.directors]
+        : film.directors;
     existing.country = existing.country || film.country || "";
     existing.medium =
       existing.medium && existing.medium !== "unknown"
@@ -319,9 +327,14 @@ window.addFilmToStore = function (year, film, options = {}) {
       existing.rankConfirmed = film.rankConfirmed;
     }
     if (film.compositeParts?.length)
-      existing.compositeParts = film.compositeParts;
+      existing.compositeParts = film.compositeParts.map((part) =>
+        typeof part === "object" && part ? { ...part } : part,
+      );
     if (film.canonicalComposite)
-      existing.canonicalComposite = film.canonicalComposite;
+      existing.canonicalComposite =
+        typeof film.canonicalComposite === "object" && film.canonicalComposite
+          ? { ...film.canonicalComposite }
+          : film.canonicalComposite;
     if (
       Object.prototype.hasOwnProperty.call(film, "suppressAllTimeRank") &&
       !preserveExistingRankForUnrankedMetadata
@@ -331,7 +344,9 @@ window.addFilmToStore = function (year, film, options = {}) {
     existing.poster =
       existing.poster ||
       window.normalizePosterRecord?.(film.poster) ||
-      film.poster;
+      (film.poster && typeof film.poster === "object"
+        ? { ...film.poster }
+        : film.poster);
     existing.tags =
       existing.tags?.length || film.tags?.length
         ? window.parseFilmTags?.([
@@ -339,9 +354,8 @@ window.addFilmToStore = function (year, film, options = {}) {
             ...(film.tags || []),
           ]) ||
           existing.tags ||
-          film.tags ||
-          []
-        : existing.tags || film.tags || [];
+          (film.tags ? [...film.tags] : [])
+        : existing.tags || (film.tags ? [...film.tags] : []);
     existing.review = existing.review || film.review || "";
     if (effectiveYear && !/^\d{4}$/.test(String(existing.year || ""))) {
       existing.year = effectiveYear;
@@ -351,7 +365,7 @@ window.addFilmToStore = function (year, film, options = {}) {
       // concrete one (issue #454).
       if (!existing.supabaseFilmId) {
         existing.id = window.makeFilmId(effectiveYear, existing.title);
-        window.replaceFilmStoreId(oldId, existing.id, existing);
+        window.replaceFilmStoreId(oldId, existing.id, existing, store);
       }
     } else {
       existing.year = existing.year || effectiveYear || film.year || year;
@@ -363,10 +377,10 @@ window.addFilmToStore = function (year, film, options = {}) {
       (!filmYearIsConcrete ||
         window.periodKeyContainsYear(film.year, existing.year))
     ) {
-      window.replaceFilmStoreId(film.id, existing.id, existing);
+      window.replaceFilmStoreId(film.id, existing.id, existing, store);
       film.id = existing.id;
     }
-    mergeAwardsSimple((existing.awards ||= []), (film.awards ||= []));
+    window.mergeAwards((existing.awards ||= []), (film.awards ||= []));
     window.normalizeFilmRatingFields?.(existing);
   } else {
     // Prefer the real Supabase films.id (issue #454) over the legacy
@@ -383,10 +397,12 @@ window.addFilmToStore = function (year, film, options = {}) {
     copy.normalizedTitle = norm;
     copy.year ||= effectiveYear || year;
     copy.awards ||= [];
-    window.state.filmsById[idNew] = copy;
-    addFilmStoreLookupRecord(copy);
+    store.filmsById[idNew] = copy;
+    addFilmStoreLookupRecord(copy, store);
     existing = copy;
   }
+
+  if (options.store) return existing;
 
   if (effectiveYear && options.addToDerivedPeriods !== false) {
     addToPeriod("years", effectiveYear, existing.id, {
@@ -401,14 +417,8 @@ window.addFilmToStore = function (year, film, options = {}) {
   }
 
   if (options.periodType && options.periodKey) {
-    let rankField =
-      options.periodType === "decades"
-        ? film.decadeRank
-        : options.periodType === "centuries"
-          ? film.centuryRank
-          : options.periodType === "allTime"
-            ? film.allTimeRank
-            : film.yearRank;
+    let rankProp = window.getRankFieldForPeriodType(options.periodType);
+    let rankField = film[rankProp];
     addToPeriod(options.periodType, options.periodKey, existing.id, {
       rank: rankField || film.rank,
     });
@@ -423,12 +433,20 @@ window.addFilmToStore = function (year, film, options = {}) {
   return existing;
 };
 
-function mergeAwardsSimple(existingAwards, newAwards) {
+/**
+ * Deduplicating award merger that appends new awards without duplicates.
+ * @param {AwardRecord[]} existingAwards Target awards list.
+ * @param {AwardRecord[]} newAwards Awards to merge in.
+ * @returns {AwardRecord[]} The existingAwards array.
+ */
+window.mergeAwards = function (existingAwards, newAwards) {
+  let list = existingAwards || [];
   (newAwards || []).forEach((a) => {
-    let found = existingAwards.find((x) => window.sameAward(x, a));
-    if (!found) existingAwards.push(a);
+    let found = list.find((x) => window.sameAward(x, a));
+    if (!found) list.push(a);
   });
-}
+  return list;
+};
 
 // Period is part of award identity: first place in a year, decade, and century
 // are three distinct results even when every other field is identical.

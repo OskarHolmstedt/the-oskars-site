@@ -20,6 +20,7 @@
 (function () {
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
+  let savedCollectionBallot = null;
   let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let container = document.getElementById("franchisePage");
 
@@ -102,10 +103,9 @@
       container.innerHTML = `<div class="detail-empty"><h1>${escape(ui("Franchise not found"))}</h1><a href="franchises.html">${escape(ui("Browse franchises"))}</a></div>`;
       return;
     }
-    let collectionAwardModel = window.collectionAwardViewModel?.(
-      "franchise",
-      franchise.id,
-    );
+    let collectionAwardModel =
+      window.supabaseCollectionBallotViewModel?.(savedCollectionBallot) ||
+      window.collectionAwardViewModel?.("franchise", franchise.id);
     let finishRenderTimer = window.startOskarsPerformance?.("franchise:render");
     let parents = (
       franchise.parentIds?.length
@@ -520,7 +520,7 @@
     ${watchlistRows ? `<h2>Watchlist</h2>${watchlistBulkTierControls}${watchlistOrderControls}${filmView === "grid" ? `<div class="film-grid franchise-film-grid">${watchlistGrid}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Interest"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Tier"))}</th></tr></thead><tbody>${watchlistRows}</tbody></table></div>`}` : ""}`
     }
     ${otherRows ? `<section class="franchise-other-watched"><h2>${escape(ui("Other watched"))}</h2>${filmView === "grid" ? `<div class="film-grid franchise-film-grid">${otherGrid}</div>` : window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Director"), ui("Type"), ui("Rating")].map(escape), rows: otherRows })}</section>` : ""}</div>
-    <div data-collection-page-view="awards" ${collectionPageView === "awards" ? "" : "hidden"}>${window.renderCollectionAwardsView(collectionAwardModel, { escape, ui })}</div>`;
+    <div data-collection-page-view="awards" ${collectionPageView === "awards" ? "" : "hidden"}>${window.renderCollectionAwardsView(collectionAwardModel, { escape, ui, buildUrl: canEdit ? window.collectionBallotUrl("franchise", franchise.id) : "" })}</div>`;
     container
       .querySelectorAll("[data-start-project-source]")
       .forEach((button) => {
@@ -700,6 +700,11 @@
       }
       if (franchise)
         noteState.note = await window.loadSupabaseEntityNote(
+          "franchise",
+          franchise.id,
+        );
+      if (franchise && collectionPageView === "awards")
+        savedCollectionBallot = await window.loadSupabaseCollectionBallot(
           "franchise",
           franchise.id,
         );

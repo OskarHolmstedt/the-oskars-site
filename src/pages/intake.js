@@ -299,7 +299,6 @@
 
   function awardForm(workflow) {
     let { level, category, loaded } = awardGuide;
-    let film = workflowFilm(workflow);
     let existing = loaded.nominations.find(
       (nomination) => nomination.film_id === workflow.watched.film_id,
     );
@@ -607,19 +606,7 @@
   });
 
   function renderHeaderAuthStatus(user) {
-    let status = document.querySelector("[data-auth-status]");
-    if (!status) return;
-    window.renderSignedInHeaderAccount?.(
-      status,
-      user,
-      user.email || "Signed in",
-    );
-    status
-      .querySelector("[data-supabase-sign-out]")
-      ?.addEventListener("click", async () => {
-        await window.signOutOfSupabase?.();
-        window.location.reload();
-      });
+    window.renderHeaderAuthStatus?.(user);
   }
 
   async function boot() {

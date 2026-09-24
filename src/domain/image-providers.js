@@ -394,7 +394,7 @@ window.lookupTmdbMovieDetails = async function (tmdbId, fetchFn) {
  * which would badly understate a multi-episode entry's real watch time.
  * @param {{mediaType: "tv", id: string, season: number|null, episode: number|null}} reference
  * @param {Function} fetchFn
- * @returns {Promise<{country: string|null, primaryCountry: string|null, runtimeMinutes: number|null}>}
+ * @returns {Promise<{country: string|null, primaryCountry: string|null, runtimeMinutes: number|null, director: string|null, directors: {tmdbId: number|null, name: string, profilePath: string|null}[]}>}
  */
 window.lookupTmdbTvMetadataFields = async function (reference, fetchFn) {
   let show = await window.lookupTmdbMovieDetails(`TV:${reference.id}`, fetchFn);
@@ -414,7 +414,15 @@ window.lookupTmdbTvMetadataFields = async function (reference, fetchFn) {
     );
   }
 
-  let runtimeMinutes = null;
+  let directors = (show?.created_by || [])
+    .map((person) => ({
+      tmdbId: person.id ? Number(person.id) : null,
+      name: String(person.name || "").trim(),
+      profilePath: person.profile_path || null,
+    }))
+    .filter((person) => person.name);
+
+  let runtimeMinutes;
   if (reference.episode !== null) {
     let episode = await window.lookupTmdbMovieDetails(
       `TV:${reference.id}/S${reference.season}E${reference.episode}`,
@@ -422,6 +430,15 @@ window.lookupTmdbTvMetadataFields = async function (reference, fetchFn) {
     );
     runtimeMinutes =
       Number(episode?.runtime) > 0 ? Number(episode.runtime) : null;
+    let epDirectors = (episode?.crew || [])
+      .filter((person) => person.job === "Director")
+      .map((person) => ({
+        tmdbId: person.id ? Number(person.id) : null,
+        name: String(person.name || "").trim(),
+        profilePath: person.profile_path || null,
+      }))
+      .filter((person) => person.name);
+    if (epDirectors.length) directors = epDirectors;
   } else if (reference.season !== null) {
     let total = (await seasonEpisodeRuntimes(reference.season)).reduce(
       (sum, minutes) => sum + minutes,
@@ -439,7 +456,8 @@ window.lookupTmdbTvMetadataFields = async function (reference, fetchFn) {
     runtimeMinutes = total > 0 ? total : null;
   }
 
-  return { country, primaryCountry, runtimeMinutes };
+  let director = directors.map((d) => d.name).join(", ") || null;
+  return { country, primaryCountry, runtimeMinutes, director, directors };
 };
 
 /**

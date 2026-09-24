@@ -126,11 +126,11 @@
 
   function renderHome() {
     let doneRender = window.startOskarsPerformance?.("home:render");
-    let films = Object.values(state.filmsById || {});
+    let films = Object.values(window.state.filmsById || {});
     let people = Object.values(
-      window.ensurePeopleIndex?.() || state.peopleById || {},
+      window.ensurePeopleIndex?.() || window.state.peopleById || {},
     );
-    let years = Object.keys(state.years || {})
+    let years = Object.keys(window.state.years || {})
       .filter((key) => /^\d{4}$/.test(key))
       .sort((a, b) => Number(a) - Number(b));
     let annualAwardCount = 0;
@@ -142,10 +142,10 @@
     let doneDaily = window.startOskarsPerformance?.("home:dailyDashboard");
     let projects = homeProjectPicks();
     let publicProfile = Boolean(
-      state.isPublicProfileView || window.resolveActiveProfileSlug?.(),
+      window.state.isPublicProfileView || window.resolveActiveProfileSlug?.(),
     );
     let memory = window.homeArchiveMemory(films);
-    let watchlistPick = window.homeWatchlistPick(state.watchlist || []);
+    let watchlistPick = window.homeWatchlistPick(window.state.watchlist || []);
     homeDashboardContext = { films, projects, publicProfile };
     doneDaily?.();
     let sortLabels = {
@@ -159,10 +159,17 @@
       nominations: ui("nominations"),
     };
     function scoreStats(film, periodType) {
-      return calculateAwardStats(
-        (film.awards || []).filter(
-          (award) => window.awardScorePeriodType(award) === periodType,
-        ),
+      return (
+        window.calculateAwardStats?.(
+          (film.awards || []).filter(
+            (award) => window.awardScorePeriodType(award) === periodType,
+          ),
+        ) || {
+          awardScore: 0,
+          normalizedAwardScore: 0,
+          wins: 0,
+          nominations: 0,
+        }
       );
     }
     function sortValue(entry, key) {
@@ -206,7 +213,12 @@
               decadeScoreStats,
               centuryScoreStats,
               allTimeScoreStats,
-              allStats: calculateAwardStats(film.awards || []),
+              allStats: window.calculateAwardStats?.(film.awards || []) || {
+                awardScore: 0,
+                normalizedAwardScore: 0,
+                wins: 0,
+                nominations: 0,
+              },
             };
           })
           .filter(
@@ -259,7 +271,7 @@
       .slice(0, 5)
       .map((entry, index) => {
         let film = entry.film;
-        return `<article class="home-top-preview-card">${window.renderFilmPoster(film, "hub")}<div><span class="leaderboard-position">#${index + 1}</span><h3><a href="${homeEscape(filmPageUrl(film.id))}">${homeEscape(window.localizedFilmTitle?.(film) || film.title)}</a></h3><p>${homeFilmMeta(film)}</p><strong class="home-top-preview-metric">${topMetricHtml(entry)}</strong></div></article>`;
+        return `<article class="home-top-preview-card">${window.renderFilmPoster(film, "hub")}<div><span class="leaderboard-position">#${index + 1}</span><h3><a href="${homeEscape(window.filmPageUrl(film.id))}">${homeEscape(window.localizedFilmTitle?.(film) || film.title)}</a></h3><p>${homeFilmMeta(film)}</p><strong class="home-top-preview-metric">${topMetricHtml(entry)}</strong></div></article>`;
       })
       .join("");
 
@@ -267,7 +279,7 @@
       .map(
         (entry, index) => `<tr>
     <td class="leaderboard-position">${index + 1}</td>
-    <td class="film-table-cell">${window.renderFilmPoster(entry.film, "thumb")}<span><a class="table-film-link" href="${homeEscape(filmPageUrl(entry.film.id))}"><strong>${homeEscape(window.localizedFilmTitle?.(entry.film) || entry.film.title)}</strong></a><span class="leaderboard-meta">${homeEscape(entry.film.year || "")}${entry.film.director ? ` · ${window.renderCompactNameListText(entry.film.director, { escape: homeEscape })}` : ""}</span></span></td>
+    <td class="film-table-cell">${window.renderFilmPoster(entry.film, "thumb")}<span><a class="table-film-link" href="${homeEscape(window.filmPageUrl(entry.film.id))}"><strong>${homeEscape(window.localizedFilmTitle?.(entry.film) || entry.film.title)}</strong></a><span class="leaderboard-meta">${homeEscape(entry.film.year || "")}${entry.film.director ? ` · ${window.renderCompactNameListText(entry.film.director, { escape: homeEscape })}` : ""}</span></span></td>
     <td>${allTimeRankCell(entry.film)}</td>
     <td>${homeEscape(entry.film.rating || "")}</td>
     <td><strong>${entry.yearScoreStats.awardScore}</strong><span class="normalized-score">${window.formatNormalizedAwardScore(entry.yearScoreStats.normalizedAwardScore)}</span></td>
@@ -302,7 +314,7 @@
     <section class="home-today" aria-labelledby="homeTodayHeading">
       <header class="home-today-header"><span class="eyebrow">${homeEscape(ui("Today"))}</span><h1 id="homeTodayHeading">${homeEscape(ui("What will you explore?"))}</h1><p>${homeEscape(ui("One next step, one memory, and one film waiting for you."))}</p></header>
       <section class="home-summary" aria-label="${homeEscape(ui("Archive summary"))}"><span><b>${films.length}</b> ${homeEscape(ui("Films"))}</span><span><b>${people.length}</b> ${homeEscape(ui("People"))}</span><span><b>${years.length}</b> ${homeEscape(ui("Years"))}</span><span><b>${annualAwardCount}</b> ${homeEscape(ui("Annual nominations"))}</span></section>
-      <div class="home-daily-grid">${homePrimaryActionHtml(homeDashboardContext)}${homeMemoryHtml(memory, films.length)}${homeWatchlistHtml(watchlistPick, (state.watchlist || []).length)}</div>
+      <div class="home-daily-grid">${homePrimaryActionHtml(homeDashboardContext)}${homeMemoryHtml(memory, films.length)}${homeWatchlistHtml(watchlistPick, (window.state.watchlist || []).length)}</div>
     </section>
     <section class="home-top-films" id="top-films"><header class="home-top-films-header"><div><span class="eyebrow">${homeEscape(ui("Your rankings"))}</span><h2>${homeEscape(ui("Top films"))}</h2></div><span>${homeEscape(ui("Sorted by {sort}", { sort: sortLabel }))}</span></header><div class="home-top-preview">${topPreview}</div><details class="home-top-details"${homeTopExpanded ? " open" : ""}><summary>${homeEscape(ui("Explore the full Top 25 score table"))}</summary><div data-home-top-table>${homeTopExpanded ? topTable : ""}</div></details></section>`;
     window.enhanceCollapsibles?.(document.getElementById("homeContent"));

@@ -364,13 +364,13 @@ function setUniqueLookupValue(map, key, film) {
   }
 }
 
-function watchlistArchiveLookup() {
-  let version = Number(state.aggregateVersion) || 0;
-  let cache = state._watchlistArchiveLookup;
+function watchlistArchiveLookup(stateRef) {
+  let version = Number(stateRef.aggregateVersion) || 0;
+  let cache = stateRef._watchlistArchiveLookup;
   if (cache?.version === version) return cache;
   let byTmdb = new Map();
   let byYearTitle = new Map();
-  Object.values(state.filmsById || {}).forEach((film) => {
+  Object.values(stateRef.filmsById || {}).forEach((film) => {
     let tmdbId = String(film.tmdbId || "").trim();
     if (tmdbId) setUniqueLookupValue(byTmdb, tmdbId, film);
     let title = window.normalizeTitle(film.title);
@@ -379,22 +379,25 @@ function watchlistArchiveLookup() {
       setUniqueLookupValue(byYearTitle, `${year}\n${title}`, film);
   });
   cache = { version, byTmdb, byYearTitle };
-  state._watchlistArchiveLookup = cache;
+  stateRef._watchlistArchiveLookup = cache;
   return cache;
 }
 
 /**
  * Finds the unique archive film matching a watchlist item by TMDB id or title/year.
  * @param {WatchlistItem} item Watchlist item.
+ * @param {Object} [stateRef] Explicit state to read instead of window.state
+ *   (issue #597's compact-read cutover) - every existing call site omits
+ *   this and is unaffected.
  * @returns {FilmRecord|null}
  */
-window.findWatchlistArchiveFilm = function (item) {
+window.findWatchlistArchiveFilm = function (item, stateRef = state) {
   let title = window.normalizeTitle(item?.title);
   let year =
     window.filmConcreteYear?.(item?.year) ||
     (/^\d{4}$/.test(String(item?.year || "")) ? String(item.year) : "");
   let tmdbId = String(item?.tmdbId || "").trim();
-  let lookup = watchlistArchiveLookup();
+  let lookup = watchlistArchiveLookup(stateRef);
   if (tmdbId) {
     let match = uniqueLookupValue(lookup.byTmdb, tmdbId);
     if (match) return match;
@@ -1145,7 +1148,7 @@ window.compareWatchlistItemsBy = function (
     window.watchlistTierRank(left?.tier) -
     window.watchlistTierRank(right?.tier);
   if (tierComparison) return tierComparison;
-  let result = 0;
+  let result;
   if (sort === "title") {
     result =
       window.compareEnglishTitles(left?.title, right?.title) ||
@@ -1209,9 +1212,7 @@ window.watchlistSessionAttemptCount = function (type) {
  */
 window.watchlistNeedsPosterLookup = function (item) {
   let film = window.watchlistFilmLike(item);
-  return (
-    Boolean(item?.title) && (!film.poster || film.poster.source === "wikimedia")
-  );
+  return Boolean(item?.title) && !film.poster;
 };
 
 /**

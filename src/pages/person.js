@@ -36,6 +36,10 @@
   let personPageEscape = window.pageEscape;
   let personPagePlacement = window.pagePlacement;
   let ui = window.uiText || ((text) => text);
+  let savedCollectionBallot = null;
+  let collectionBallotLoaded = false;
+  let collectionBallotLoading = false;
+  let collectionBallotError = "";
   let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let container = document.getElementById("personPage");
 
@@ -133,6 +137,121 @@
   let watchlistItems = [];
   let directorPosition = new Map();
 
+  function collectionViewUrl(view) {
+    let url = new URL(personViewUrl(), window.location.href);
+    if (view === "awards") url.searchParams.set("collection-view", "awards");
+    else url.searchParams.delete("collection-view");
+    return `${url.pathname}${url.search}${url.hash}`;
+  }
+
+  function collectionViewControlsHtml() {
+    return window.renderCollectionViewController({
+      view: collectionPageView,
+      overviewUrl: collectionViewUrl("films"),
+      awardsUrl: collectionViewUrl("awards"),
+      escape: personPageEscape,
+      ui,
+    });
+  }
+
+  function collectionAwardsHtml() {
+    let model =
+      window.supabaseCollectionBallotViewModel?.(savedCollectionBallot) ||
+      window.collectionAwardViewModel?.("director", person.id);
+    let status = collectionBallotLoading
+      ? `<p role="status">${personPageEscape(ui("Loading collection awards…"))}</p>`
+      : collectionBallotError
+        ? `<p role="alert">${personPageEscape(ui("Could not load collection awards."))} ${personPageEscape(collectionBallotError)} <button type="button" data-retry-collection-awards>${personPageEscape(ui("Retry"))}</button></p>`
+        : "";
+    return `${status}${window.renderCollectionAwardsView(model, {
+      escape: personPageEscape,
+      ui,
+      buildUrl: canEdit
+        ? window.collectionBallotUrl(
+            "director",
+            window.personStorageKey(person),
+          )
+        : "",
+      pending: collectionBallotLoading || Boolean(collectionBallotError),
+    })}`;
+  }
+
+  function refreshCollectionAwards() {
+    let panel = container.querySelector('[data-collection-page-view="awards"]');
+    if (panel) {
+      panel.innerHTML = collectionAwardsHtml();
+      window.enhanceCollapsibles?.(panel);
+    }
+  }
+
+  async function ensureCollectionBallot() {
+    if (
+      !isDirector ||
+      !canEdit ||
+      collectionBallotLoaded ||
+      collectionBallotLoading
+    )
+      return;
+    collectionBallotLoading = true;
+    collectionBallotError = "";
+    refreshCollectionAwards();
+    try {
+      savedCollectionBallot = await window.loadSupabaseCollectionBallot(
+        "director",
+        window.personStorageKey(person),
+      );
+      collectionBallotLoaded = true;
+    } catch (error) {
+      collectionBallotError = error.message || String(error);
+    } finally {
+      collectionBallotLoading = false;
+      refreshCollectionAwards();
+    }
+  }
+
+  function switchCollectionView(view) {
+    collectionPageView = isDirector && view === "awards" ? "awards" : "films";
+    container
+      .querySelectorAll("[data-collection-page-view]")
+      .forEach((panel) => {
+        panel.hidden = panel.dataset.collectionPageView !== collectionPageView;
+      });
+    let controls = container.querySelector(".collection-page-view-controls");
+    if (controls) controls.outerHTML = collectionViewControlsHtml();
+    if (collectionPageView === "awards") void ensureCollectionBallot();
+  }
+
+  container.addEventListener("click", (event) => {
+    if (event.target.closest("[data-retry-collection-awards]")) {
+      void ensureCollectionBallot();
+      return;
+    }
+    let link = event.target.closest(".collection-page-view-controls a");
+    if (
+      !link ||
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
+    event.preventDefault();
+    let url = new URL(link.href, window.location.href);
+    window.history.pushState(null, "", url.href);
+    switchCollectionView(url.searchParams.get("collection-view"));
+    container
+      .querySelector('.collection-page-view-controls [aria-current="page"]')
+      ?.setAttribute("tabindex", "-1");
+    container
+      .querySelector('.collection-page-view-controls [aria-current="page"]')
+      ?.focus();
+  });
+  window.addEventListener("popstate", () => {
+    if (person) switchCollectionView(window.pageQueryParam("collection-view"));
+  });
+
   function render() {
     if (!person) {
       document.title = `${ui("Person not found")} · The Oskars`;
@@ -142,9 +261,6 @@
     let finishRenderTimer = window.startOskarsPerformance?.("person:render");
     document.title = `${person.name} · The Oskars`;
     isDirector = person.professions.includes("Director");
-    let collectionAwardModel = isDirector
-      ? window.collectionAwardViewModel?.("director", person.id)
-      : null;
     if (!isDirector) collectionPageView = "films";
     let requestedFilmographySort = window.pageQueryParam("sort");
     filmographySort =
@@ -944,12 +1060,19 @@
       ${signatureFilmsHtml}
       <div class="person-hero-metrics">${personMetadataHtml ? `<dl class="film-metadata">${personMetadataHtml}</dl>` : ""}
       ${personStatsHtml}</div>
-      ${window.renderSupabaseEntityNote({ entityKind: "person", entityKey: person.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Person note"), escape: personPageEscape })}`,
+      ${window.renderSupabaseEntityNote({ entityKind: "person", entityKey: window.personStorageKey(person), note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Person note"), escape: personPageEscape })}`,
       actionsHtml: [
-        window.renderSourceProjectAction("person", person.id, {
-          escape: personPageEscape,
-          buttonClass: "button-link",
-        }),
+        isDirector && canEdit
+          ? `<a class="button-link" href="${personPageEscape(window.collectionBallotUrl("director", window.personStorageKey(person)))}">${personPageEscape(ui("Build your Oskars"))}</a>`
+          : "",
+        window.renderSourceProjectAction(
+          "person",
+          window.personStorageKey(person),
+          {
+            escape: personPageEscape,
+            buttonClass: "button-link",
+          },
+        ),
         primaryAction
           ? `<a class="button-link person-hero-primary-action" href="${personPageEscape(primaryAction.href)}">${personPageEscape(primaryAction.label)}</a>`
           : "",
@@ -957,7 +1080,7 @@
         .filter(Boolean)
         .join(""),
     })}
-  ${isDirector ? window.renderCollectionViewController({ view: collectionPageView, overviewUrl: window.personPageUrl(person.id), awardsUrl: `${window.personPageUrl(person.id)}&collection-view=awards`, escape: personPageEscape, ui }) : ""}
+  ${isDirector ? collectionViewControlsHtml() : ""}
   <div data-collection-page-view="films" ${collectionPageView === "films" ? "" : "hidden"}>
   <h2 id="person-filmography">${personPageEscape(ui("Filmography"))}</h2>
   <div class="person-filmography-toolbar collection-film-toolbar detail-toolbar"><div class="detail-toolbar-controls">${personSortAxisControl}${window.renderChronologyControl({ order: chronologyOrder, href: personViewUrl(chronologyOrder === "asc" ? "desc" : "asc", personReverseTargetSort), ascLabel: reverseLabel, descLabel: reverseLabel, title: ui("Reverse current order"), escape: personPageEscape, iconOnly: true })}${window.renderShuffleControl({ href: personViewUrl(chronologyOrder, "shuffle", filmographyView, window.freshShuffleSeed()), escape: personPageEscape, label: ui("Shuffle") })}${watchlistItems.length ? window.renderCombinedSectionsControl({ combined: combinedView, href: personViewUrl(chronologyOrder, filmographySort, filmographyView, filmographySeed, combinedView ? "split" : "combined"), escape: personPageEscape }) : ""}${personSortNote}</div>${window.renderFilmViewToggle(
@@ -980,7 +1103,7 @@
   <div data-person-awards="periods" ${personAwardsView === "periods" ? "" : "hidden"}><div class="film-award-period-grid person-award-period-grid">${renderPersonAwardGroups() || `<div class="detail-empty">${personPageEscape(ui("No nominations"))}</div>`}</div></div>
   <div data-person-awards="progression" ${personAwardsView === "progression" ? "" : "hidden"}>${renderPersonProgression()}</div>
   ${officialPersonRecords.map(renderOfficialSection).join("")}</div>
-  ${isDirector ? `<div data-collection-page-view="awards" ${collectionPageView === "awards" ? "" : "hidden"}>${window.renderCollectionAwardsView(collectionAwardModel, { escape: personPageEscape, ui })}</div>` : ""}`;
+  ${isDirector ? `<div data-collection-page-view="awards" ${collectionPageView === "awards" ? "" : "hidden"}>${collectionAwardsHtml()}</div>` : ""}`;
     window.enhanceCollapsibles?.(container);
 
     container
@@ -1068,6 +1191,10 @@
           position === "after" ? target.id : tierItems[toIndex - 1]?.id || null;
         let afterId =
           position === "after" ? tierItems[toIndex + 1]?.id || null : target.id;
+        // The move places this item between neighbours in the *whole*
+        // watchlist's tier, not just this person's items - loaded on
+        // demand (cached) rather than on every page visit.
+        await window.loadSupabaseWorkspace();
         await window.moveSupabaseWatchlistItemWithinTier(
           from.id,
           window.getSupabaseWorkspace()?.watchlist || [],
@@ -1085,7 +1212,7 @@
       commit: async (from, target, position) => {
         let ok = await window.moveSupabaseLocalRankFilm(
           "person",
-          person.id,
+          window.personStorageKey(person),
           localRankFilms.map((film) => film.supabaseFilmId),
           from.id,
           target.id,
@@ -1114,6 +1241,36 @@
     );
   }
 
+  /**
+   * Resolves the ?id= param to a people-index record (issue #633). A
+   * people.id uuid is the canonical form; a legacy name slug still works
+   * and is rewritten in place to the uuid URL once that person's database
+   * id is known. A uuid the index can't match on its own (its slug is
+   * shared by two database rows, so the index keeps no single id for it)
+   * is resolved through the person's stored name.
+   * @param {string} requested
+   * @returns {Promise<Object|null>}
+   */
+  async function resolveRequestedPerson(requested) {
+    if (!window.isUuid(requested)) {
+      let bySlug = peopleById[requested] || null;
+      if (bySlug?.supabasePersonId && window.history?.replaceState) {
+        let params = new URLSearchParams(window.location.search);
+        params.set("id", bySlug.supabasePersonId);
+        window.history.replaceState(null, "", `person.html?${params}`);
+      }
+      return bySlug;
+    }
+    let byUuid = Object.values(peopleById).find(
+      (candidate) => candidate.supabasePersonId === requested,
+    );
+    if (byUuid) return byUuid;
+    let stored = await window.loadSupabasePersonName?.(requested);
+    return stored
+      ? peopleById[window.normalizePersonName(stored.name)] || null
+      : null;
+  }
+
   async function boot() {
     let access = await window.resolveSupabaseAccountGate();
     if (!access.allowed) {
@@ -1123,7 +1280,9 @@
     window.bindSupabaseEntityNoteEditor({
       container,
       entityKind: "person",
-      entityKey: personId,
+      // The resolved person's own key, not the raw URL param - the URL now
+      // carries a people.id uuid while stored keys are still the name slug.
+      entityKey: () => (person ? window.personStorageKey(person) : personId),
       state: noteState,
       rerender: render,
     });
@@ -1142,11 +1301,24 @@
       rerender: reload,
     });
     try {
-      let source = await window.loadSupabaseLegacyHydrationSource();
+      // Compact read (issue #633): a canonical uuid visit loads only this
+      // person's slice of the archive; the same reshape/index pipeline
+      // below turns it into the same person record the complete read
+      // would. Every write on this page goes straight to Supabase (no
+      // window.save()/reconcile diff), so a partial window.state is safe.
+      let compact = Boolean(window.OSKARS_PERSON_COMPACT);
+      let source = compact
+        ? await window.loadSupabasePersonDetail(personId)
+        : await window.loadSupabaseLegacyHydrationSource();
+      if (!source) {
+        container.innerHTML = `<section class="detail-empty"><h1>${personPageEscape(ui("Person not found"))}</h1></section>`;
+        return;
+      }
       Object.assign(
         window.state,
         window.buildLegacyStateFromSupabaseHydration(source),
       );
+      if (compact) window.applyProjectSourceIndex?.(source.ownProjects);
       // ensureOskarsData() normally does this (bootstrap.js) - needed here
       // too since person.html hydrates itself directly rather than going
       // through that shared path, and rebuildPeopleIndex()'s Unseen bucket
@@ -1159,11 +1331,20 @@
         ),
       );
       window.rebuildAggregates();
-      await window.hydrateOfficialResultsFromSupabase();
-      await window.loadSupabaseWorkspace();
+      if (!compact) await window.hydrateOfficialResultsFromSupabase();
       peopleById = window.ensurePeopleIndex();
-      person = peopleById[personId] || null;
+      person = await resolveRequestedPerson(personId);
+      if (compact && person)
+        await window.hydrateOfficialResultsForPerson(person);
       if (person) {
+        // This person's own stored data moves from the legacy name slug to
+        // their people.id the first time they're opened under it (issue
+        // #633), before anything below reads it.
+        if (person.supabasePersonId)
+          await window.adoptLegacyPersonKeys(
+            person.id,
+            person.supabasePersonId,
+          );
         let requestedFilmographySort = window.pageQueryParam("sort");
         if (
           person.professions.includes("Director") &&
@@ -1188,7 +1369,7 @@
             .map((film) => film.supabaseFilmId);
           let stored = await window.loadSupabaseLocalRankOrder(
             "person",
-            person.id,
+            window.personStorageKey(person),
           );
           let order = window.mergeSupabaseLocalRankOrder(
             stored,
@@ -1200,10 +1381,11 @@
         }
         noteState.note = await window.loadSupabaseEntityNote(
           "person",
-          person.id,
+          window.personStorageKey(person),
         );
       }
       render();
+      if (collectionPageView === "awards") void ensureCollectionBallot();
     } catch (error) {
       container.innerHTML = `<section class="detail-empty"><h2>${personPageEscape(ui("Could not load this person"))}</h2><p>${personPageEscape(error.message || String(error))}</p></section>`;
     }
