@@ -1,0 +1,144 @@
+/* PDF slide export for the presentation showcase (issue #60). Loaded with
+   media="print" by presentation.html ONLY, so the @page rule below cannot
+   leak into any other page's printing. Each showcase section becomes one
+   A4-landscape slide; the hero is the title slide. */
+@page {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
+body {
+  background: #fff;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.app-header,
+[data-presentation-print],
+[data-presentation-nav],
+[data-ceremony-stage],
+[data-copy-view-link],
+[data-presentation-scope-picker],
+.presentation-back-link,
+.storage-status {
+  display: none !important;
+}
+.film-page-body main {
+  max-width: none;
+}
+
+/* The PDF export must always show every section fully revealed, regardless
+   of whatever live presenter state (issue #58's full mode or an in-progress
+   ceremony run) happens to be on screen when Export/window.print() fires. */
+[data-presentation-slide] {
+  display: block !important;
+}
+[data-ceremony-board] {
+  display: block !important;
+}
+.ceremony-category-card {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* One slide per section: the hero centers itself on the title page, every
+   section starts on a fresh page, and the last one doesn't force a blank
+   trailing sheet. */
+.presentation-hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 180mm;
+  margin: 0;
+  page-break-after: always;
+}
+.presentation-hero h1 {
+  font-size: 34pt;
+}
+.presentation-hero p {
+  font-size: 13pt;
+}
+.presentation-stats {
+  margin-top: 10mm;
+  font-size: 12pt;
+}
+.presentation-section {
+  margin: 0;
+  page-break-after: always;
+}
+.presentation-section:last-child {
+  page-break-after: auto;
+}
+
+/* TMDB requires attribution wherever its artwork appears, so the footer
+   stays in the deck. Chrome demotes position:fixed to static when
+   printing, so it can't repeat per page - style it as a deliberate
+   closing credits slide instead of a stray line on a mostly blank page. */
+.data-attribution {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 175mm;
+  margin: 0;
+  font-size: 10pt;
+  text-align: center;
+}
+.presentation-section > header {
+  margin: 0 0 4mm;
+}
+.presentation-section > header h2 {
+  font-size: 22pt;
+}
+.presentation-section > header p {
+  font-size: 11pt;
+}
+
+/* Keep individual cards intact across page breaks and drop hover-only
+   affordances (shadows print muddy). */
+.film-card,
+.presentation-decade-card,
+.presentation-franchise-card,
+.presentation-person-card {
+  box-shadow: none;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Fixed physical column widths so the two-row grids provably fit one
+   sheet (printable area is about 277x190mm): a 44mm poster card is ~66mm
+   of 2:3 poster plus ~16mm of caption, so two rows plus the section
+   header stay under 190mm. Percent-based columns would track the page
+   width and overflow again. */
+.film-grid.presentation-top-grid {
+  grid-template-columns: repeat(5, 40mm);
+  justify-content: center;
+  gap: 3mm;
+}
+.presentation-film-card .film-title {
+  font-size: 9pt;
+}
+.presentation-film-card .film-director {
+  font-size: 8pt;
+}
+.presentation-decade-rail {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4mm;
+}
+.presentation-franchise-grid {
+  grid-template-columns: repeat(6, 42mm);
+  justify-content: center;
+  gap: 3mm;
+}
+.presentation-people-grid {
+  grid-template-columns: repeat(4, 48mm);
+  justify-content: center;
+  gap: 3mm;
+}
+.presentation-person-card {
+  padding: 3mm;
+}
+.presentation-person-card img {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 58mm;
+}
