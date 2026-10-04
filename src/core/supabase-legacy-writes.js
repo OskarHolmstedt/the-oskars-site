@@ -67,37 +67,32 @@
       p_poster_url: posterUrl,
       p_swedish_title: record?.swedishTitle || null,
       p_genre: record?.genre || null,
-      p_screenplay_type: record?.screenplayType || null,
+      p_screenplay_type: ["original", "adapted"].includes(
+        record?.screenplayType,
+      )
+        ? record.screenplayType
+        : null,
       p_adaptation_source: record?.adaptationSource || null,
       p_letterboxd_url: record?.letterboxdUrl || null,
     };
   }
 
-  async function resolveFilmId(client, record) {
+  /**
+   * Returns the film's catalog id, adding it to the catalog only when it has
+   * a TMDB identity or one can be found (see resolveSupabaseCatalogFilm).
+   * Returns null for a film that could not be added. Directors that match no
+   * catalog or TMDB person are appended to `peopleNotAdded`.
+   */
+  async function resolveFilmId(client, record, peopleNotAdded = []) {
     if (record?.supabaseFilmId) return record.supabaseFilmId;
-    let tmdbId = Number(record?.tmdbId);
-    let filmId;
-    if (tmdbId) {
-      let { data, error } = await client
-        .from("films")
-        .select("id")
-        .eq("tmdb_id", tmdbId)
-        .maybeSingle();
-      if (error) throw error;
-      if (data?.id) {
-        filmId = data.id;
-      }
-    }
-    if (!filmId) {
-      if (!String(record?.title || "").trim())
-        throw new Error("A film title is required before it can be saved.");
-      let { data, error } = await client.rpc(
-        "find_or_create_film",
-        catalogPayload(record),
-      );
-      if (error) throw error;
-      filmId = data;
-    }
+    if (!String(record?.title || "").trim())
+      throw new Error("A film title is required before it can be saved.");
+    let { filmId } = await window.resolveSupabaseCatalogFilm(
+      client,
+      record,
+      catalogPayload(record),
+    );
+    if (!filmId) return null;
     record.supabaseFilmId = filmId;
     let directors = record?.directors?.length
       ? record.directors
@@ -109,7 +104,13 @@
         : null;
     if (directors?.length && window.persistSupabaseFilmCredits) {
       try {
-        await window.persistSupabaseFilmCredits(filmId, "director", directors);
+        peopleNotAdded.push(
+          ...((await window.persistSupabaseFilmCredits(
+            filmId,
+            "director",
+            directors,
+          )) || []),
+        );
       } catch (err) {
         console.warn(
           `Could not persist directors for film "${record.title}"`,
@@ -437,14 +438,29 @@
       (source.watchlist || []).map((row) => [row.id, row]),
     );
     let desiredIds = new Set();
-    for (let [index, item] of items.entries()) {
+    let sortedItems = [...items].sort((left, right) => {
+      let orderLeft = Number(left?.order);
+      let orderRight = Number(right?.order);
+      let leftRanked = Number.isFinite(orderLeft) && orderLeft > 0;
+      let rightRanked = Number.isFinite(orderRight) && orderRight > 0;
+      if (leftRanked && rightRanked && orderLeft !== orderRight) {
+        return orderLeft - orderRight;
+      }
+      if (leftRanked && !rightRanked) return -1;
+      if (!leftRanked && rightRanked) return 1;
+      return 0;
+    });
+    let rankedIndex = 0;
+    for (let item of sortedItems) {
+      let order = Number(item?.order);
+      let isRanked = Number.isFinite(order) && order > 0;
       let original = originalById.get(item.id);
       let filmId = original?.film_id || (await resolveFilmId(client, item));
       let payload = {
         film_id: filmId,
         tier: item.tier || null,
         tier_modifier: item.tierModifier || null,
-        position: positionFor(index),
+        position: isRanked ? positionFor(rankedIndex++) : null,
         reason: item.reason || null,
         updated_at: new Date().toISOString(),
       };
@@ -513,7 +529,25 @@
     }
     let source = window.OSKARS_SUPABASE_HYDRATION_SOURCE || {};
     window.ensureAggregatesFresh?.();
-    let films = Object.values(window.state?.filmsById || {});
+    // Every film is resolved up front so a film with no catalog or TMDB
+    // match is left out of every stage below and reported afterwards,
+    // instead of failing the whole save.
+    await window.ensureCatalogIdentity?.();
+    let films = [];
+    let notAdded = [];
+    let peopleNotAdded = [];
+    for (let film of Object.values(window.state?.filmsById || {})) {
+      if (await resolveFilmId(ready.client, film, peopleNotAdded))
+        films.push(film);
+      else notAdded.push(window.catalogFilmLabel(film));
+    }
+    let watchlist = [];
+    for (let item of window.state?.watchlist || []) {
+      let original = (source.watchlist || []).some((row) => row.id === item.id);
+      if (original || (await resolveFilmId(ready.client, item, peopleNotAdded)))
+        watchlist.push(item);
+      else notAdded.push(window.catalogFilmLabel(item));
+    }
     // Coarse per-stage progress, not per-film: this is the shared write
     // path behind every window.save() call in the app (single-edit saves
     // included), so reporting stays a cheap optional hook here rather than
@@ -527,11 +561,7 @@
       ],
       ["Awards", () => syncAwards(ready.client, source, films)],
       ["Rankings", () => syncRankings(ready.client, source, films)],
-      [
-        "Watchlist",
-        () =>
-          syncWatchlist(ready.client, source, window.state?.watchlist || []),
-      ],
+      ["Watchlist", () => syncWatchlist(ready.client, source, watchlist)],
     ];
     for (let index = 0; index < stages.length; index++) {
       let [label, run] = stages[index];
@@ -550,7 +580,18 @@
         window.OSKARS_SUPABASE_HYDRATION_SOURCE.franchises,
       ),
     );
-    window.showStorageStatus?.("Saved to Supabase", "saved");
+    let warning = [
+      window.catalogIdentityWarning("film", notAdded),
+      window.catalogIdentityWarning("person", peopleNotAdded),
+    ]
+      .filter(Boolean)
+      .join("\n");
+    if (warning) {
+      window.showStorageStatus?.(warning, "error");
+      window.alert?.(warning);
+    } else {
+      window.showStorageStatus?.("Saved to Supabase", "saved");
+    }
     return true;
   }
 
@@ -558,7 +599,7 @@
    * Saves the current film/period view model straight through to Supabase.
    * Calls are serialized so rapid UI actions cannot interleave writes.
    * @param {Object} [options] Save options.
-   * @param {function(string, number, number): void} [options.onProgress]
+   * @param {(label: string, doneStages: number, totalStages: number) => void} [options.onProgress]
    *   Called once per reconcile stage as (label, doneStages, totalStages) -
    *   optional, for callers doing a large bulk save (e.g. an import apply)
    *   that want to show real progress instead of a silent wait.
@@ -608,7 +649,7 @@
       return {
         ok: true,
         filmId: result.watched.film_id,
-        intakeId: result.workflow.id,
+        intakeId: result.id,
       };
     } catch (error) {
       return { ok: false, reason: error.message || String(error) };

@@ -162,6 +162,9 @@
           awardStarted: reviewedCategories > 0,
           awardComplete,
           posterFilms: representativeFilms(yearRows, rankingPositionByFilmId),
+          thresholdStats: window.periodThresholdStats
+            ? window.periodThresholdStats(films, "year")
+            : null,
           stage,
         };
       });

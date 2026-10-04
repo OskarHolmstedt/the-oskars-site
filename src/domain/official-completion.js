@@ -71,12 +71,101 @@
       : { film: null, ambiguous: matches.length > 1 };
   };
 
-  function officialResultFilmTitles(sourceTitle) {
-    return String(sourceTitle || "")
-      .split("|")
-      .map((title) => title.trim())
-      .filter(Boolean);
+  function listParts(items) {
+    try {
+      return new Intl.ListFormat(window.oskarsLocale?.() || "en", {
+        type: "conjunction",
+      }).formatToParts(items);
+    } catch (err) {
+      return items.flatMap((item, index) =>
+        index
+          ? [
+              { type: "literal", value: ", " },
+              { type: "element", value: item },
+            ]
+          : [{ type: "element", value: item }],
+      );
+    }
   }
+
+  /**
+   * Joins values as a list in the application locale ("A, B and C").
+   * @param {string[]} values Values in order.
+   * @returns {string} The list.
+   */
+  window.formatDisplayList = function (values) {
+    let items = (values || []).map(String).filter(Boolean);
+    return listParts(items)
+      .map((part) => part.value)
+      .join("");
+  };
+
+  /**
+   * Joins already-rendered HTML items as a list in the application locale,
+   * escaping only the connecting words.
+   * @param {string[]} htmlItems Rendered items in order.
+   * @param {(text: string) => string} escape HTML escaper for the connecting words.
+   * @returns {string} The list HTML.
+   */
+  window.formatDisplayListHtml = function (htmlItems, escape) {
+    let items = htmlItems || [];
+    let next = 0;
+    return listParts(items.map((item, index) => String(index)))
+      .map((part) =>
+        part.type === "element" ? items[next++] : escape(part.value),
+      )
+      .join("");
+  };
+
+  /**
+   * Splits an official multi-value field into its values. Imported official
+   * data separates several titles, recipients or roles in one field with "|".
+   * @param {string} value Field value.
+   * @returns {string[]} Values in order.
+   */
+  window.officialFieldValues = function (value) {
+    return String(value || "")
+      .split("|")
+      .map((part) => part.trim())
+      .filter(Boolean);
+  };
+
+  /**
+   * Formats an official multi-value field for display as a list in the
+   * application locale ("Ulf Hultberg and Åsa Faringer").
+   * @param {string} value Field value.
+   * @returns {string} Display text.
+   */
+  window.formatOfficialField = function (value) {
+    return window.formatDisplayList(window.officialFieldValues(value));
+  };
+
+  /**
+   * Lists every film an official nomination credits, one per title in its
+   * sourceTitle ("The Last Command|The Way of All Flesh" names two). The
+   * first title's link is the nomination's own tmdbId/filmRef; each further
+   * title's is the additionalFilms entry at its position. A title without a
+   * linked film carries its title alone.
+   * @param {OfficialNomination} nomination Official nomination.
+   * @returns {{title: string, tmdbId?: string, filmRef?: {id: string, title: string, year: string}}[]} Films in source order.
+   */
+  window.officialNominationFilms = function (nomination) {
+    let titles = window.officialFieldValues(nomination?.sourceTitle);
+    if (!titles.length) titles = [""];
+    let extras = new Map(
+      (nomination?.additionalFilms || []).map((film) => [
+        Number(film.position),
+        film,
+      ]),
+    );
+    return titles.map((title, index) => {
+      let link = index === 0 ? nomination : extras.get(index + 1) || {};
+      let film = { title };
+      if (link.tmdbId) film.tmdbId = String(link.tmdbId);
+      if (link.filmRef) film.filmRef = link.filmRef;
+      return film;
+    });
+  };
 
   function recordsByTitle(records) {
     let result = new Map();
@@ -158,7 +247,8 @@
       periodKeys.push(periodKey);
       let years = window.officialResultPeriodYears(periodKey);
       period.nominations.forEach((nomination) => {
-        officialResultFilmTitles(nomination.sourceTitle).forEach((title) => {
+        window.officialNominationFilms(nomination).forEach((entry) => {
+          let title = entry.title;
           let titleKey = window.normalizeTitle(title);
           if (!titleKey) return;
           let id = `${periodKey}::${titleKey}`;
@@ -182,7 +272,7 @@
             filmsById.set(id, film);
           }
           film.winner ||= Boolean(nomination.winner);
-          film.tmdbId ||= String(nomination.tmdbId || "");
+          film.tmdbId ||= entry.tmdbId || "";
           if (
             nomination.category &&
             !film.categories.includes(nomination.category)

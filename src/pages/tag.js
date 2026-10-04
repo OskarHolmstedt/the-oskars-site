@@ -52,6 +52,12 @@
       : "";
   let combinedView = sections === "combined";
 
+  // A shared catalog tag (issue #797) is requested with catalog=1, or is
+  // found when no personal tag has the name (a converted personal tag now
+  // exists only in the catalog). Catalog tags are read-only here: no note,
+  // local order, or project source, which are keyed to personal tags.
+  let isCatalog = window.pageQueryParam("catalog") === "1";
+  let catalogKind = "";
   let tagId = null;
   let noteState = { note: "", editing: false, busy: false };
   let tagFilms = [];
@@ -120,7 +126,7 @@
       nextSections !== "combined"
     )
       parts.push("edit=local-rank");
-    return `${window.tagPageUrl(canonicalTag)}${parts.length ? `&${parts.join("&")}` : ""}`;
+    return `${isCatalog ? window.catalogTagPageUrl(canonicalTag) : window.tagPageUrl(canonicalTag)}${parts.length ? `&${parts.join("&")}` : ""}`;
   }
 
   function reload() {
@@ -284,7 +290,7 @@
           },
           escape,
         );
-        return `<tr${attributes}><td class="leaderboard-position">${escape(item.order ?? "—")}</td>${window.renderFilmIdentityCell(
+        return `<tr${attributes}><td class="leaderboard-position">${escape(item.order ? `${item.order}` : "NR")}</td>${window.renderFilmIdentityCell(
           film,
           { escape, href: window.filmPageUrl(item.supabaseFilmId), year: true },
         )}<td class="film-people-cell">${directorHtml}</td>${window.renderRatingTierCell({ item }, { escape })}</tr>`;
@@ -315,7 +321,9 @@
       attribute: "data-tag-sort",
       axes: [
         { value: "year", label: "Release year" },
-        ...(combinedView ? [] : [{ value: "local", label: "Local rank" }]),
+        ...(combinedView || isCatalog
+          ? []
+          : [{ value: "local", label: "Local rank" }]),
         { value: "title", label: "Title" },
         { value: "rating", label: "Rating" },
         { value: "wins", label: "Wins" },
@@ -388,7 +396,7 @@
     let ratingStatistics = window.collectionRatingStatistics(tagFilms);
 
     document.title = `${canonicalTag} · ${ui("Tags")} · The Oskars`;
-    container.innerHTML = `${window.renderBreadcrumbs([{ label: ui("Tags"), href: "tags.html" }, { label: canonicalTag }], { escape })}${window.renderDetailHeader({ mainHtml: `<h1>${escape(canonicalTag)}</h1>`, actionsHtml: window.renderSourceProjectAction("tag", canonicalTag, { escape, buttonClass: "button-link" }) })}${window.renderDetailStats({ itemsHtml: `<span><b>${films.length}</b> ${escape(ui(films.length === 1 ? "Film" : "Films"))}</span>${sortedWatchlistItems.length ? `<span><b>${sortedWatchlistItems.length}</b> ${escape(ui("Watchlist"))}</span>` : ""}${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}${window.renderSupabaseEntityNote({ entityKind: "tag", entityKey: canonicalTag, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Tag note"), escape })}${toolbarHtml}${combinedView ? combinedContentHtml : splitContentHtml}`;
+    container.innerHTML = `${window.renderBreadcrumbs([{ label: ui("Tags"), href: "tags.html" }, { label: canonicalTag }], { escape })}${window.renderDetailHeader({ mainHtml: `<h1>${escape(canonicalTag)}</h1>${isCatalog ? `<p>${escape(ui("Catalog tag"))} · ${escape(ui({ genre: "Genre", theme: "Theme", form: "Form", source: "Source" }[catalogKind] || "Genre"))}</p>` : ""}`, actionsHtml: isCatalog ? "" : window.renderSourceProjectAction("tag", canonicalTag, { escape, buttonClass: "button-link" }) })}${window.renderDetailStats({ itemsHtml: `<span><b>${films.length}</b> ${escape(ui(films.length === 1 ? "Film" : "Films"))}</span>${sortedWatchlistItems.length ? `<span><b>${sortedWatchlistItems.length}</b> ${escape(ui("Watchlist"))}</span>` : ""}${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}${isCatalog ? "" : window.renderSupabaseEntityNote({ entityKind: "tag", entityKey: canonicalTag, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Tag note"), escape })}${toolbarHtml}${combinedView ? combinedContentHtml : splitContentHtml}`;
 
     container
       .querySelectorAll?.("[data-start-project-source]")
@@ -478,7 +486,7 @@
         try {
           await window.moveSupabaseWatchlistItemWithinTier(
             from.id,
-            window.getSupabaseWorkspace()?.watchlist || [],
+            tierItems,
             beforeId,
             afterId,
           );
@@ -528,13 +536,14 @@
     // Bound once (not inside render()) since both delegate to `container`
     // itself, which survives every innerHTML rebuild - rebinding per
     // render would stack duplicate listeners and double-fire the write.
-    window.bindSupabaseEntityNoteEditor({
-      container,
-      entityKind: "tag",
-      entityKey: canonicalTag,
-      state: noteState,
-      rerender: render,
-    });
+    if (!isCatalog)
+      window.bindSupabaseEntityNoteEditor({
+        container,
+        entityKind: "tag",
+        entityKey: canonicalTag,
+        state: noteState,
+        rerender: render,
+      });
     window.bindSupabaseWatchlistBulkTierControl({
       container,
       entries: () => watchlistItems,
@@ -550,11 +559,22 @@
       rerender: reload,
     });
     try {
-      let [collection, franchiseCatalog] = await Promise.all([
-        window.loadSupabaseTagCollection(canonicalTag),
+      let [personal, franchiseCatalog] = await Promise.all([
+        isCatalog ? null : window.loadSupabaseTagCollection(canonicalTag),
         window.loadSupabaseFranchiseCatalog(),
-        window.loadSupabaseWorkspace(),
       ]);
+      let collection = personal;
+      if (!collection) {
+        collection =
+          await window.loadSupabaseCatalogTagCollection(canonicalTag);
+        if (collection) {
+          isCatalog = true;
+          catalogKind = collection.kind;
+          canonicalTag = collection.name;
+          localRankEditMode = false;
+          if (sort === "local") sort = "year";
+        }
+      }
       if (!collection) {
         canonicalTag = "";
         render();
@@ -572,19 +592,22 @@
           window.supabaseLegacyHydrationWatchlistItem(row, index, chains),
         )
         .filter(Boolean);
-      window.registerTransientProjectSource?.("tag", canonicalTag, {
-        name: canonicalTag,
-        sourceLabel: canonicalTag,
-        filmRefs: [
-          ...tagFilms.map((film) => window.projectFilmRef("archive", film.id)),
-          ...watchlistItems.map((item) =>
-            window.projectFilmRef(
-              "watchlist",
-              item.id || window.watchlistItemId(item),
+      if (!isCatalog)
+        window.registerTransientProjectSource?.("tag", canonicalTag, {
+          name: canonicalTag,
+          sourceLabel: canonicalTag,
+          filmRefs: [
+            ...tagFilms.map((film) =>
+              window.projectFilmRef("archive", film.id),
             ),
-          ),
-        ],
-      });
+            ...watchlistItems.map((item) =>
+              window.projectFilmRef(
+                "watchlist",
+                item.id || window.watchlistItemId(item),
+              ),
+            ),
+          ],
+        });
       implicitTagFilmIds = [...tagFilms]
         .sort(
           (left, right) =>
@@ -602,7 +625,11 @@
           order.map((filmId, index) => [filmId, index + 1]),
         );
       }
-      noteState.note = await window.loadSupabaseEntityNote("tag", canonicalTag);
+      if (!isCatalog)
+        noteState.note = await window.loadSupabaseEntityNote(
+          "tag",
+          canonicalTag,
+        );
       render();
     } catch (error) {
       container.innerHTML = `<section class="detail-empty"><h2>${escape(ui("Could not load this tag"))}</h2><p>${escape(error.message || String(error))}</p></section>`;

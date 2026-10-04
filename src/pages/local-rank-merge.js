@@ -79,10 +79,58 @@
     </section>`;
   }
 
-  function renderCompareCard(film, side) {
-    return `<article class="film-card watchlist-card watchlist-merge-choice-card" data-watchlist-merge-pick="${side}" tabindex="0" role="button">
-      <h3>${escape(film.title)}</h3>
-      <span class="film-year">(${escape(film.year || "—")})</span>
+  function renderCompareCard(film, side, meta = {}) {
+    let posterUrl = film.poster_url || film.poster?.url;
+    let posterHtml = posterUrl
+      ? `<figure class="film-poster film-poster--card"><img src="${escape(posterUrl)}" alt="Poster for ${escape(film.title || "film")}" loading="lazy" decoding="async"></figure>`
+      : `<figure class="film-poster film-poster--card film-poster--fallback"><div class="film-poster-placeholder-art" aria-hidden="true">🎬</div></figure>`;
+    let remaining = meta.remaining;
+    let upcoming = meta.upcoming || [];
+    let groupLabel = side === "a" ? "Group A" : "Group B";
+    let keyHint = side === "a" ? "←" : "→";
+    let stackClass = remaining > 1 ? "watchlist-merge-deck-stack" : "";
+    let countLabel = Number.isInteger(remaining)
+      ? window.uiCount?.(remaining, "film", "films") || `${remaining} films`
+      : "";
+
+    let deckUnderlayHtml = "";
+    if (upcoming.length > 0) {
+      let cardsHtml = upcoming
+        .slice(0, 2)
+        .map((upItem, idx) => {
+          let upFilm = upItem?.films || upItem?.film || upItem || {};
+          let upPosterUrl = upFilm.poster_url || upFilm.poster?.url;
+          let upIndex = idx + 1;
+          let artHtml = upPosterUrl
+            ? `<img src="${escape(upPosterUrl)}" alt="" loading="lazy" decoding="async">`
+            : `<div class="film-poster-placeholder-art" aria-hidden="true">🎬</div>`;
+          return `<div class="watchlist-merge-deck-underlay-card watchlist-merge-deck-underlay-card--${upIndex} watchlist-merge-deck-underlay-card--${side}" aria-hidden="true">
+            <div class="watchlist-merge-deck-underlay-poster">${artHtml}</div>
+          </div>`;
+        })
+        .reverse()
+        .join("");
+      deckUnderlayHtml = `<div class="watchlist-merge-deck-underlay" aria-hidden="true">${cardsHtml}</div>`;
+    }
+
+    return `<article class="film-card watchlist-card watchlist-merge-choice-card ${stackClass}" data-watchlist-merge-pick="${side}" tabindex="0" role="button" aria-label="${escape(film.title || "film")}">
+      ${deckUnderlayHtml}
+      <div class="watchlist-merge-card-header">
+        <span class="watchlist-merge-group-badge">${escape(groupLabel)}</span>
+        ${countLabel ? `<span class="watchlist-merge-deck-count">${escape(countLabel)}</span>` : ""}
+      </div>
+      <div class="watchlist-merge-card-poster">
+        ${posterHtml}
+      </div>
+      <div class="watchlist-merge-card-meta">
+        <h3>${escape(film.title || "Unknown film")}</h3>
+        <div class="watchlist-merge-card-subline">
+          <span class="film-year">(${escape(film.year || "—")})</span>
+        </div>
+      </div>
+      <div class="watchlist-merge-card-footer">
+        <span class="watchlist-merge-pick-cue"><kbd>${keyHint}</kbd> Choose</span>
+      </div>
     </article>`;
   }
 

@@ -605,14 +605,18 @@ function projectSortValue(record, sort) {
     ];
   if (sort === "rating")
     return [window.filmRatingSortValue?.(film.rating) || 0, titleKey];
-  if (sort === "tier")
-    return [
-      window.watchlistTierRank?.(
-        record.item?.tier ?? record.film?.rewatchTier,
-      ) ?? 999,
-      Number(film.year || 9999),
-      titleKey,
-    ];
+  if (sort === "tier") {
+    let tier = record.item?.tier ?? record.film?.rewatchTier;
+    let modifier =
+      record.item?.tier_modifier ??
+      record.item?.tierModifier ??
+      record.film?.rewatchTierModifier ??
+      "";
+    let grade = window.watchlistTierGrade
+      ? window.watchlistTierGrade(tier, modifier)
+      : (window.watchlistTierRank?.(tier) ?? 999);
+    return [grade, Number(film.year || 9999), titleKey];
+  }
   if (sort === "wins")
     return [
       (window.calculateAwardStats?.(film.awards || []) || {}).wins || 0,
@@ -790,7 +794,9 @@ window.directorCompletion = function (person) {
       )
       .map((credit) => credit.filmId),
   );
-  let watchlistItems = window.watchlistItemsByDirector?.(person?.name) || [];
+  let watchlistItems = window.peopleDirectoryEdgesInUse?.()
+    ? window.personWatchlistItems(person).sort(window.compareWatchlistItems)
+    : window.watchlistItemsByDirector?.(person?.name) || [];
   let watchedCount =
     directedIds.size + new Set(person?.watchedOtherIds || []).size;
   let watchlistCount = watchlistItems.length;

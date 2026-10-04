@@ -1584,8 +1584,10 @@ window.importData = function (raw, importType, options = {}) {
     if (!options.silentReport) window.showImportReport?.(report);
     return report;
   } catch (err) {
-    console.error(err);
-    alert("Import failed: " + (err && err.message ? err.message : String(err)));
+    console.error?.(err);
+    alert?.(
+      "Import failed: " + (err && err.message ? err.message : String(err)),
+    );
     return null;
   }
 };

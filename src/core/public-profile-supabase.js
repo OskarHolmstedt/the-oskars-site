@@ -250,7 +250,8 @@
         id: row.film_id,
         title: row.title,
         year: row.year != null ? String(row.year) : "",
-        tmdbId: row.tmdb_id != null ? String(row.tmdb_id) : "",
+        tmdbId:
+          row.tmdb_tv_ref || (row.tmdb_id != null ? String(row.tmdb_id) : ""),
         director: directors.join(", "),
         directors,
         country: row.country || "",
@@ -262,7 +263,7 @@
         type: row.type || "",
         runtimeMinutes: row.runtime_minutes || null,
         letterboxdUrl: row.letterboxd_url || "",
-        poster: posterFromUrl(row.poster_url, row.tmdb_id),
+        poster: posterFromUrl(row.poster_url, row.tmdb_tv_ref || row.tmdb_id),
         ratingValue: row.rating != null ? Number(row.rating) : null,
         ratingModifier: row.rating_modifier || "",
         rating:
@@ -455,11 +456,13 @@
    * into browsable state. Same result contract: `{ok:true, meta}` or
    * `{ok:false, error, detail}`.
    * @param {string} slug Profile slug to load.
+   * @param {Function} [isCurrent] Guard against a delayed request publishing into another account or profile.
    * @returns {Promise<{ok: boolean, meta?: Object, error?: string, detail?: string}>}
    */
-  window.loadSupabasePublicProfile = async function (slug) {
+  window.loadSupabasePublicProfile = async function (slug, isCurrent) {
     let result = await window.fetchSupabasePublicProfileProjection(slug);
     if (!result.ok) return result;
+    if (isCurrent && !isCurrent()) return { ok: false, error: "unavailable" };
     try {
       window.hydratePublicProfileState(result.data, {
         slug,

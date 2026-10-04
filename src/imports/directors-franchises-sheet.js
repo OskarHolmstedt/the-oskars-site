@@ -48,7 +48,7 @@ window.splitDirectorsFranchisesCell = function (raw) {
 /**
  * Parses the combined Directors and Franchises sheet into one item per film.
  * @param {string|string[][]} input Raw tab-delimited text, or already-split rows (e.g. from the Sheets API).
- * @returns {Object[]} Parsed items with title, year, director, franchises, and tier.
+ * @returns {Object[]} Parsed items with title, year, director, franchises, tier, and tierModifier.
  */
 window.parseDirectorsFranchisesSheet = function (input) {
   let rows = Array.isArray(input) ? input : window.parseTabbedSheetRows(input);
@@ -69,13 +69,15 @@ window.parseDirectorsFranchisesSheet = function (input) {
     if (!row || !row.some((cell) => String(cell || "").trim())) continue;
     let title = window.cleanSheetCell(row[titleIdx]);
     if (!title) continue;
+    let tierCell = row[tierIdx];
     items.push({
       rowNumber: index + 1,
       year: window.cleanSheetCell(row[yearIdx]),
       title,
       director: window.cleanSheetCell(row[directorIdx]),
       franchises: window.splitDirectorsFranchisesCell(row[franchiseIdx]),
-      tier: window.sheetTier(row[tierIdx]),
+      tier: window.sheetTier(tierCell),
+      tierModifier: window.sheetTierModifier(tierCell),
     });
   }
   return items;

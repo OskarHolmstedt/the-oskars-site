@@ -220,13 +220,6 @@
   }
 
   function primaryPreviewHtml(section, escape) {
-    if (
-      window.ensureFocusedShellData &&
-      !window.focusedShellDataFresh() &&
-      ["periods", "categories"].includes(section)
-    )
-      return `<div class="primary-nav-preview primary-nav-preview--${section}"><div class="primary-nav-preview-panel"><a href="${section}.html">${escape(headerText(section === "periods" ? "menu.browsePeriods" : "menu.browseCategories", section === "periods" ? "Browse all periods" : "Browse all categories"))} →</a><p>${escape(headerText("shell.onDemand", "Open to load your archive."))}</p></div></div>`;
-
     // The outer .primary-nav-preview box starts flush against the nav link
     // (no gap) and its top padding stands in for the visual gap, so that
     // whole padded area stays part of the hoverable region — otherwise a
@@ -288,7 +281,7 @@
         true) &&
       !window.resolveActiveProfileSlug?.();
     let ownerLinks = allowOwnerPages
-      ? `<a href="build.html">${escape(headerText("nav.build", "Build your Oskars"))}</a><a href="intake.html">${escape(headerText("nav.intake", "Intake"))}</a><a href="rate-watched.html">${escape(headerText("nav.rateWatched", "Rate watched"))}</a><a href="data.html">${escape(headerText("nav.data", "Data"))}</a><a href="profile.html">${escape(headerText("nav.profile", "Profile"))}</a>`
+      ? `<a href="build.html">${escape(headerText("nav.build", "Build your Oskars"))}</a><a href="intake.html">${escape(headerText("nav.intake", "Intake"))}</a><a href="rate-watched.html">${escape(headerText("nav.rateWatched", "Rate watched"))}</a><a href="rankings.html">${escape(headerText("nav.rankings", "Rankings"))}</a><a href="data.html">${escape(headerText("nav.data", "Data"))}</a><a href="profile.html">${escape(headerText("nav.profile", "Profile"))}</a>`
       : "";
     return `<section><h2>${escape(headerText("menu.elsewhere", "Elsewhere"))}</h2><div class="site-menu-links"><a href="community.html">${escape(headerText("menu.community", "Community"))}</a><a href="discover.html">${escape(headerText("menu.discover", "Discover"))}</a><a href="compare.html">${escape(headerText("nav.compare", "Compare"))}</a><a href="presentation.html">${escape(headerText("menu.showcase", "Showcase"))}</a><a href="completion.html">${escape(headerText("menu.completion", "Completion"))}</a><a href="stats.html">${escape(headerText("menu.statistics", "Statistics"))}</a><a href="people.html">${escape(headerText("menu.people", "People"))}</a>${ownerLinks}</div></section>`;
   }
@@ -315,42 +308,6 @@
       previewCloseTimers.delete(item);
     }
     item.classList.add("is-preview-open");
-    if (
-      !window.ensureFocusedShellData ||
-      window.focusedShellDataFresh() ||
-      item.dataset.shellLoading
-    )
-      return;
-    let section = item.classList.contains("primary-nav-item--periods")
-      ? "periods"
-      : item.classList.contains("primary-nav-item--categories")
-        ? "categories"
-        : null;
-    if (!section) return;
-    item.dataset.shellLoading = "true";
-    let panel = item.querySelector(".primary-nav-preview-panel");
-    if (panel)
-      panel.innerHTML = `<p role="status">${defaultHeaderEscape(headerText("shell.loading", "Loading archive…"))}</p>`;
-    window
-      .ensureFocusedShellData()
-      .then(
-        () => {
-          if (item.isConnected === false) return;
-          let preview = item.querySelector(".primary-nav-preview");
-          if (preview)
-            preview.outerHTML = primaryPreviewHtml(
-              section,
-              defaultHeaderEscape,
-            );
-        },
-        () => {
-          if (item.isConnected === false || !panel) return;
-          panel.innerHTML = `<p role="status">${defaultHeaderEscape(headerText("shell.error", "Could not load the archive."))}</p><button type="button" data-shell-preview-retry>${defaultHeaderEscape(headerText("shell.retry", "Try again"))}</button>`;
-        },
-      )
-      .finally(() => {
-        delete item.dataset.shellLoading;
-      });
   }
   function schedulePreviewClose(item) {
     let pending = previewCloseTimers.get(item);
@@ -374,8 +331,6 @@
         schedulePreviewClose(item);
     });
     header.addEventListener("click", (event) => {
-      if (event.target.closest("[data-shell-preview-retry]"))
-        openPreviewItem(event.target.closest(".primary-nav-item"));
       if (event.target.closest("[data-focused-backdrop-retry]"))
         window.refreshFocusedShellBackdrop?.();
     });
@@ -583,20 +538,6 @@
       }
     });
     if (window.ensureFocusedShellData) {
-      if (header._shellReady)
-        window.removeEventListener(
-          "oskars:focused-shell-ready",
-          header._shellReady,
-        );
-      header._shellReady = () => {
-        for (let section of ["periods", "categories"]) {
-          let preview = header.querySelector(
-            ".primary-nav-item--" + section + " .primary-nav-preview",
-          );
-          if (preview) preview.outerHTML = primaryPreviewHtml(section, escape);
-        }
-      };
-      window.addEventListener("oskars:focused-shell-ready", header._shellReady);
       if (header._shellInvalidated)
         window.removeEventListener(
           "oskars:focused-shell-invalidated",

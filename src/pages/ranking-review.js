@@ -60,7 +60,7 @@
   function renderConsistencyCard(entry, side, caption) {
     let film = entry.films || {};
     return `<article class="film-card ranking-consistency-card" data-ranking-consistency-pick="${side}" tabindex="0" role="button">
-      ${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" class="rate-watched-poster-thumb">` : ""}
+      ${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" class="rate-watched-poster-thumb" loading="lazy" decoding="async">` : ""}
       <div class="ranking-consistency-card-kicker">${escape(caption)}</div>
       <h3>${escape(film.title || "Unknown film")}</h3>
       <span class="film-year">(${escape(film.year || "—")})</span>
@@ -272,7 +272,7 @@
     }
     renderHeaderAuthStatus(access.user);
     try {
-      await window.loadSupabaseWorkspace();
+      await window.loadSupabaseWorkspace({ parts: ["watched"] });
       let workspace = window.getSupabaseWorkspace();
       watchedByFilmId = new Map(
         (workspace?.watched || []).map((row) => [row.film_id, row]),

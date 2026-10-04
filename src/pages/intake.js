@@ -20,8 +20,11 @@
     return workflow?.watched?.films || {};
   }
 
+  let startFresh = window.pageQueryParam?.("start") === "fresh";
+  let ui = window.uiText || ((text) => text);
+
   function workflowUrl(id) {
-    return `intake.html?intake=${encodeURIComponent(id)}`;
+    return `intake.html?intake=${encodeURIComponent(id)}${startFresh ? "&start=fresh" : ""}`;
   }
 
   function replaceWorkflow(updated) {
@@ -40,7 +43,7 @@
   }
 
   function poster(film, classes = "") {
-    return `<span class="intake-poster ${classes}">${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" loading="lazy">` : `<span aria-hidden="true">${escape((film.title || "★").slice(0, 1))}</span>`}</span>`;
+    return `<span class="intake-poster ${classes}">${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" loading="lazy" decoding="async">` : `<span aria-hidden="true">${escape((film.title || "★").slice(0, 1))}</span>`}</span>`;
   }
 
   function progressMeter(workflow) {
@@ -95,7 +98,7 @@
 
   function filmLookupCardHtml(kind, id, title, year, posterUrl, tmdbId) {
     return `<button type="button" class="intake-lookup-card" data-pick-${kind}-film="${escape(id)}" data-pick-title="${escape(title)}" data-pick-year="${escape(year || "")}" data-pick-tmdbid="${escape(tmdbId || "")}">
-      ${posterUrl ? `<img src="${escape(posterUrl)}" alt="">` : '<span class="intake-lookup-card-noposter" aria-hidden="true"></span>'}
+      ${posterUrl ? `<img src="${escape(posterUrl)}" alt="" loading="lazy" decoding="async">` : '<span class="intake-lookup-card-noposter" aria-hidden="true"></span>'}
       <span>${escape(title)}${year ? ` (${escape(year)})` : ""}</span>
     </button>`;
   }
@@ -126,13 +129,14 @@
     let results = lookupResultsEl(form);
     results.innerHTML = `<p class="data-panel-status">Searching TMDB…</p>`;
     try {
+      await window.ensureCatalogIdentity?.();
       let match = await window.lookupTmdbMovieMetadata({ title, year });
       if (!match) {
-        results.innerHTML = `<p class="data-panel-status">No TMDB match found for "${escape(title)}". You can still add it by hand.</p>`;
+        results.innerHTML = `<p class="data-panel-status">No TMDB match found for "${escape(title)}". Check the title and year: a film that is neither in the catalog nor on TMDB can’t be added.</p>`;
         return;
       }
       results.innerHTML = `<div class="intake-lookup-confirm">
-        ${match.poster?.url ? `<img src="${escape(match.poster.url)}" alt="">` : ""}
+        ${match.poster?.url ? `<img src="${escape(match.poster.url)}" alt="" loading="lazy" decoding="async">` : ""}
         <div>
           <p>Is this it? <strong>${escape(match.matchedTitle || title)}</strong>${match.matchedYear ? ` (${escape(match.matchedYear)})` : ""}${match.director ? ` · ${escape(match.director)}` : ""}</p>
           <div class="data-form-actions">
@@ -276,7 +280,7 @@
     let cards = rankingGuide.candidates
       .map(
         (entry) => `<article class="film-card intake-ranking-card">
-          ${entry.films?.poster_url ? `<img src="${escape(entry.films.poster_url)}" alt="" class="rate-watched-poster-thumb">` : ""}
+          ${entry.films?.poster_url ? `<img src="${escape(entry.films.poster_url)}" alt="" class="rate-watched-poster-thumb" loading="lazy" decoding="async">` : ""}
           <span>${escape(entry.films?.title || "Unknown film")}</span>
         </article>`,
       )
@@ -372,6 +376,7 @@
             }</div>`
           : ""
       }
+      ${startFresh ? `<section class="films-start-fresh"><h2>${escape(ui(selected ? "Your archive has begun" : "Start with films you remember"))}</h2><p>${escape(ui(selected ? "Your film is saved. Continue your verdict now, or come back to it later." : "Find a film by title. Ratings and viewing dates can wait."))}</p><div class="home-daily-actions"><a href="films.html?start=fresh">${escape(ui("Explore a year"))}</a><a href="index.html">${escape(ui("View your archive"))}</a></div></section>` : ""}
       ${freshForm()}
       ${selected ? `${progressMeter(selected)}<section class="intake-focus">${filmHero(selected)}<div class="intake-stage-panel intake-step-enter">${guideHtml(selected)}</div></section>` : `<ol class="intake-welcome-steps" aria-label="Your film journey"><li>Rate</li><li>Rank</li><li>Awards</li><li>Done</li></ol>`}
       <p class="intake-save-status" role="status">${busy ? "Saving your verdict…" : ""}</p>
@@ -458,6 +463,11 @@
       if (fresh) {
         let values = parsedForm(fresh, submitted);
         let created = await window.createSupabaseFreshWatchedIntake(values);
+        let warning = window.catalogIdentityWarning(
+          "person",
+          created.notAddedPeople,
+        );
+        if (warning) alert(warning);
         workflows.unshift(created);
         selected = created;
         history.replaceState(null, "", workflowUrl(created.id));
@@ -618,16 +628,18 @@
     renderHeaderAuthStatus(access.user);
     try {
       let [, loadedWorkflows] = await Promise.all([
-        window.loadSupabaseWorkspace(),
+        window.loadSupabaseWorkspace({ parts: ["watched"] }),
         window.loadSupabaseIntakeWorkflows(),
       ]);
       workflows = loadedWorkflows;
       let requested = window.pageQueryParam?.("intake") || "";
       selected =
-        workflows.find((workflow) => workflow.id === requested) ||
-        workflows.find((workflow) => !workflow.completed_at) ||
-        workflows[0] ||
-        null;
+        startFresh && !requested
+          ? null
+          : workflows.find((workflow) => workflow.id === requested) ||
+            workflows.find((workflow) => !workflow.completed_at) ||
+            workflows[0] ||
+            null;
       await loadSelectedGuide();
       render();
     } catch (error) {
@@ -638,5 +650,6 @@
     }
   }
 
+  window.addEventListener?.("oskars:localechange", render);
   boot();
 })();

@@ -94,7 +94,7 @@
         client
           .from("watched")
           .select(
-            "id, films(id, tmdb_id, title, year, poster_url, primary_country, country, medium, screenplay_type, original_language, credits(role, people(id, name)), film_franchises(franchise_id))",
+            "id, films(id, tmdb_id, tmdb_tv_ref, title, year, poster_url, primary_country, country, medium, screenplay_type, original_language, credits(role, uncredited, people(id, name)), film_franchises(franchise_id))",
             count ? { count: "exact" } : undefined,
           )
           .order("id"),
@@ -171,16 +171,16 @@
       group.push(nomination);
       groups.set(nomination.category, group);
     }
-    for (let [category, group] of groups) {
+    for (let group of groups.values()) {
       group.sort((a, b) => a.placement - b.placement);
-      if (
-        group.length > capacity(category) ||
-        group.some((n, i) => n.placement !== i + 1)
-      )
+      if (group.some((n, i) => n.placement !== i + 1))
         throw new Error("Invalid collection placements.");
     }
-    for (let status of Object.values(ballot.reviews))
-      if (!["complete", "none"].includes(status))
+    for (let [category, status] of Object.entries(ballot.reviews))
+      if (
+        !["complete", "none"].includes(status) ||
+        (groups.get(category)?.length || 0) > capacity(category)
+      )
         throw new Error("Invalid collection review.");
   };
 
@@ -239,7 +239,8 @@
       if (
         !["complete", "none"].includes(action.status) ||
         (action.status === "none" && group.length) ||
-        (action.status === "complete" && !group.length)
+        (action.status === "complete" &&
+          (!group.length || group.length > capacity(category)))
       )
         throw new Error(
           "Review outcome does not match this category's nominees.",
@@ -273,7 +274,6 @@
           detail: action.detail || "",
           recipients: action.recipients || [],
         });
-        group = group.slice(0, capacity(category));
       } else {
         let index = group.findIndex((n) =>
           action.nominationId

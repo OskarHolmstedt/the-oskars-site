@@ -24,13 +24,19 @@ function defaultPosterEscape(value) {
  * Renders a film poster, linking detail variants to their external source.
  * @param {FilmRecord} film Film carrying the poster.
  * @param {string} [variant] Presentation variant.
+ * @param {{priority?: string, hero?: boolean}} [options] Priority and presentation options.
  * @returns {string}
  */
-window.renderFilmPoster = function (film, variant = "card") {
+window.renderFilmPoster = function (film, variant = "card", options = {}) {
   let poster = window.normalizePosterRecord?.(film?.poster);
   if (!poster) return "";
   let escape = window.pageEscape || defaultPosterEscape;
-  let image = `<img src="${escape(poster.url)}" alt="Poster for ${escape(film.title)}" loading="lazy" decoding="async">`;
+  let isPriority =
+    options.priority === "high" || options.hero || variant === "detail";
+  let imgAttrs = isPriority
+    ? 'fetchpriority="high" decoding="async"'
+    : 'loading="lazy" decoding="async"';
+  let image = `<img src="${escape(poster.url)}" alt="Poster for ${escape(film.title)}" ${imgAttrs}>`;
   if (variant !== "detail")
     return `<figure class="film-poster film-poster--${escape(variant)}">${image}</figure>`;
   let label = window.posterSourceLabel(poster);
@@ -80,24 +86,34 @@ function stablePortraitPlaceholder(personId) {
  * to a stable placeholder sketch when the person has none.
  * @param {PersonRecord} person Person to render.
  * @param {string} [variant] Presentation variant.
+ * @param {{priority?: string, hero?: boolean}} [options] Priority and presentation options.
  * @returns {string}
  */
-window.renderPersonPortrait = function (person, variant = "detail") {
+window.renderPersonPortrait = function (
+  person,
+  variant = "detail",
+  options = {},
+) {
   let escape = window.pageEscape || defaultPosterEscape;
+  let isPriority =
+    options.priority === "high" || options.hero || variant === "detail";
+  let imgAttrs = isPriority
+    ? 'fetchpriority="high" decoding="async"'
+    : 'loading="lazy" decoding="async"';
   let portrait =
     window.normalizePosterRecord?.(person?.portrait) ||
     window.normalizePosterRecord?.(state.personPortraits?.[person?.id]);
   if (!portrait) {
     if (!person) return "";
     let sketch = stablePortraitPlaceholder(person.id);
-    let image = `<img src="${escape(sketch)}" alt="" loading="lazy" decoding="async">`;
+    let image = `<img src="${escape(sketch)}" alt="" ${imgAttrs}>`;
     let figureClass = `person-portrait person-portrait--${escape(variant)} person-portrait--placeholder-sketch`;
     if (variant !== "detail")
       return `<figure class="${figureClass}">${image}</figure>`;
     let personLink = window.personPageUrl?.(person.id) || "";
     return `<figure class="${figureClass}">${personLink ? `<a href="${escape(personLink)}">${image}</a>` : image}</figure>`;
   }
-  let image = `<img src="${escape(portrait.url)}" alt="Portrait of ${escape(person.name)}" loading="lazy" decoding="async">`;
+  let image = `<img src="${escape(portrait.url)}" alt="Portrait of ${escape(person.name)}" ${imgAttrs}>`;
   if (variant !== "detail")
     return `<figure class="person-portrait person-portrait--${escape(variant)}">${image}</figure>`;
   let personLink = window.personPageUrl?.(person.id) || "";
@@ -133,26 +149,33 @@ window.awardRecipientPeople = function (award) {
  * @param {FilmRecord} film Awarded film.
  * @param {AwardRecord} award Award record.
  * @param {string} [variant] Presentation variant.
+ * @param {{priority?: string, hero?: boolean}} [options] Priority and presentation options.
  * @returns {string}
  */
-window.renderAwardWinnerImage = function (film, award, variant = "winner") {
+window.renderAwardWinnerImage = function (
+  film,
+  award,
+  variant = "winner",
+  options = {},
+) {
   let recipients = window.awardRecipients(award);
-  if (!recipients.length) return window.renderFilmPoster(film, variant);
+  if (!recipients.length)
+    return window.renderFilmPoster(film, variant, options);
   let people = window.awardRecipientPeople(award);
   let withPortraits = people.filter(
     (person) =>
       window.normalizePosterRecord?.(person.portrait) ||
       window.normalizePosterRecord?.(state.personPortraits?.[person.id]),
   );
-  let filmPoster = window.renderFilmPoster(film, variant);
+  let filmPoster = window.renderFilmPoster(film, variant, options);
   if (!withPortraits.length && filmPoster) return filmPoster;
   let portraits = (withPortraits.length ? withPortraits : people)
-    .map((person) => window.renderPersonPortrait(person, variant))
+    .map((person) => window.renderPersonPortrait(person, variant, options))
     .filter(Boolean)
     .slice(0, 6);
   return portraits.length
     ? `<div class="recipient-portraits recipient-portraits--${variant}${portraits.length === 1 ? " single" : ` multi count-${portraits.length}`}" data-portrait-count="${portraits.length}">${portraits.join("")}</div>`
-    : window.renderFilmPoster(film, variant);
+    : window.renderFilmPoster(film, variant, options);
 };
 
 /**
@@ -166,9 +189,14 @@ window.renderAwardWinnerImage = function (film, award, variant = "winner") {
  * invoke this for `nomination.winner === true`.
  * @param {OfficialNomination} nomination Winning nomination.
  * @param {string} [variant] Presentation variant.
+ * @param {{priority?: string, hero?: boolean}} [options] Priority and presentation options.
  * @returns {string}
  */
-window.renderOfficialWinnerImage = function (nomination, variant = "winner") {
+window.renderOfficialWinnerImage = function (
+  nomination,
+  variant = "winner",
+  options = {},
+) {
   let peopleMetadata = window.OSKARS_BUNDLED_OFFICIAL_PEOPLE_METADATA || {};
   let portraits = window
     .splitRecipientNames(nomination?.recipient)
@@ -178,6 +206,7 @@ window.renderOfficialWinnerImage = function (nomination, variant = "winner") {
       window.renderPersonPortrait(
         { name: entry.name, portrait: entry.portrait },
         variant,
+        options,
       ),
     )
     .filter(Boolean)
@@ -193,6 +222,7 @@ window.renderOfficialWinnerImage = function (nomination, variant = "winner") {
       title: nomination?.originalTitle || nomination?.sourceTitle,
     },
     variant,
+    options,
   );
 };
 

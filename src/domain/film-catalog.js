@@ -138,3 +138,190 @@ window.buildFullFilmCatalog = function (
   });
   return [...byKey.values()];
 };
+
+// The Films browse's own predicates and ordering (issue #642), shared by
+// films.html's complete-archive path and the parity tests for
+// read_film_catalog_page(), which applies the same rules in SQL.
+
+/** Counts a film's personal award wins (placement 1). @param {FilmRecord} film Film. @returns {number} Wins. */
+window.filmPersonalAwardWins = function (film) {
+  return (film?.awards || []).filter((award) => Number(award.placement) === 1)
+    .length;
+};
+
+/**
+ * Tests the Films "Personal award" filter.
+ * @param {Object} film Catalog record.
+ * @param {''|'won'|'nominated'} value Filter value.
+ * @returns {boolean} Whether the film matches.
+ */
+window.filmMatchesPersonalAward = function (film, value) {
+  if (!value) return true;
+  return value === "won"
+    ? window.filmPersonalAwardWins(film) > 0
+    : (film?.awards || []).length > 0;
+};
+
+/**
+ * Tests the Films "Tag" filter against the viewer's own tags on the film;
+ * shared-catalog records carry none.
+ * @param {Object} film Catalog record.
+ * @param {string} value Tag name.
+ * @returns {boolean} Whether the film matches.
+ */
+window.filmMatchesCatalogTag = function (film, value) {
+  if (!value) return true;
+  let needle = window.normalizeFilmTag(value).toLocaleLowerCase();
+  return window
+    .parseFilmTags(film?.tags)
+    .some((tag) => tag.toLocaleLowerCase() === needle);
+};
+
+/**
+ * Tests the Films free-text search: a case-insensitive substring of the
+ * title or of any credited director's name.
+ * @param {Object} film Catalog record.
+ * @param {string} query Search text.
+ * @returns {boolean} Whether the film matches.
+ */
+window.filmMatchesCatalogSearch = function (film, query) {
+  let needle = String(query || "")
+    .trim()
+    .toLowerCase();
+  if (!needle) return true;
+  if (
+    String(film?.title || "")
+      .toLowerCase()
+      .includes(needle)
+  )
+    return true;
+  let directors = film?.director
+    ? [film.director]
+    : Object.values(film?.people || {})
+        .filter((person) => person.professions?.includes("Director"))
+        .map((person) => person.name);
+  return directors.some((name) =>
+    String(name || "")
+      .toLowerCase()
+      .includes(needle),
+  );
+};
+
+/**
+ * Returns a catalog record's primary value for a Films sort axis.
+ * @param {Object} film Catalog record.
+ * @param {'title'|'year'|'rating'|'runtime'|'tier'|'awards'} sort Sort axis.
+ * @returns {number|string} Sort value.
+ */
+window.filmCatalogSortValue = function (film, sort) {
+  if (sort === "year") return Number(film?.year) || -Infinity;
+  if (sort === "rating") return window.filmRatingSortValue?.(film) || 0;
+  if (sort === "runtime") return Number(film?.runtimeMinutes) || -Infinity;
+  if (sort === "tier") {
+    let tier = film?.tier;
+    let modifier = film?.tier_modifier || film?.tierModifier || "";
+    return window.watchlistTierGrade
+      ? window.watchlistTierGrade(tier, modifier)
+      : window.watchlistTierRank(tier);
+  }
+  if (sort === "awards") return window.filmPersonalAwardWins(film);
+  return String(film?.title || "").toLowerCase();
+};
+
+// English, numeric, case- and accent-insensitive, and independent of the
+// viewer's locale, so the database's ICU collation (english_title_order)
+// orders ties the same way.
+const catalogTitleCollator = new Intl.Collator("en", {
+  numeric: true,
+  sensitivity: "base",
+});
+
+/**
+ * Orders two catalog records for the Films browse: the sort axis (reversed
+ * for "desc"), then the English title with leading articles moved last,
+ * then the title itself, then the film id - so every tie has one defined
+ * order.
+ * @param {Object} left Catalog record.
+ * @param {Object} right Catalog record.
+ * @param {string} sort Sort axis.
+ * @param {'asc'|'desc'} order Direction.
+ * @returns {number} Comparison result.
+ */
+window.compareFilmCatalogEntries = function (left, right, sort, order) {
+  let leftValue = window.filmCatalogSortValue(left, sort);
+  let rightValue = window.filmCatalogSortValue(right, sort);
+  let primary = leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0;
+  if (primary) return order === "desc" ? -primary : primary;
+  let leftId = String(left?.supabaseFilmId || left?.id || "");
+  let rightId = String(right?.supabaseFilmId || right?.id || "");
+  return (
+    catalogTitleCollator.compare(
+      window.englishTitleSortKey(left?.title),
+      window.englishTitleSortKey(right?.title),
+    ) ||
+    catalogTitleCollator.compare(
+      String(left?.title || ""),
+      String(right?.title || ""),
+    ) ||
+    (leftId < rightId ? -1 : leftId > rightId ? 1 : 0)
+  );
+};
+
+// The shared film-filters.js vocabulary entries the Films browse uses.
+const FILM_CATALOG_FILTERS = [
+  "period",
+  "medium",
+  "screenplay",
+  "adaptationSource",
+  "country",
+  "minimumRating",
+  "maximumRating",
+  "minimumRuntime",
+  "maximumRuntime",
+  "watchlistTier",
+  "category",
+];
+
+/**
+ * Filters catalog records by a Films view: the shared film filters,
+ * status, search, tag and personal award, plus any predicate the caller
+ * adds for filters that need its own indexes (franchise, official result,
+ * collection expressions).
+ * @param {Object[]} films Catalog records.
+ * @param {Object} view films.html's URL state.
+ * @param {(film: Object) => boolean} [extraMatch] Additional predicate.
+ * @returns {Object[]} Matching records.
+ */
+window.filterFilmCatalog = function (films, view, extraMatch) {
+  let filmFilters = Object.fromEntries(
+    FILM_CATALOG_FILTERS.map((name) => [name, view?.[name] || ""]),
+  );
+  return (films || []).filter(
+    (film) =>
+      window.filmMatchesFilters(film, filmFilters, {
+        period: { alltimeMatchesAll: true },
+      }) &&
+      (!view?.status || film.catalogStatus === view.status) &&
+      window.filmMatchesCatalogSearch(film, view?.q) &&
+      window.filmMatchesCatalogTag(film, view?.tags) &&
+      window.filmMatchesPersonalAward(film, view?.personalAward) &&
+      (!extraMatch || extraMatch(film)),
+  );
+};
+
+/**
+ * Sorts catalog records by a Films view's sort axis and direction.
+ * @param {Object[]} films Catalog records.
+ * @param {Object} view films.html's URL state.
+ * @returns {Object[]} A sorted copy.
+ */
+window.sortFilmCatalog = function (films, view) {
+  return [...(films || [])].sort((left, right) =>
+    window.compareFilmCatalogEntries(
+      left,
+      right,
+      view?.sort || "title",
+      view?.order || "asc",
+    ),
+  );
+};

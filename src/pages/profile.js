@@ -83,6 +83,25 @@
     </section>`;
   }
 
+  function letterboxdSyncHtml(profileRecord) {
+    let username = profileRecord?.letterboxd_username || "";
+    let lastSynced = profileRecord?.letterboxd_last_synced_at;
+    let lastSyncedText = lastSynced
+      ? `Last synced with Letterboxd on ${new Date(lastSynced).toLocaleDateString()}.`
+      : "Never synced yet. Enter your Letterboxd username to start.";
+    return `<section id="letterboxdProfilePanel" class="data-panel">
+      <h2>Letterboxd sync</h2>
+      <p>Automatically detect new diary watches from your public Letterboxd RSS feed and start an Intake for them.</p>
+      <label>Letterboxd username<input type="text" id="letterboxdUsernameInput" value="${escape(username)}" placeholder="e.g. username" autocomplete="off" spellcheck="false"></label>
+      <p class="data-panel-status" id="letterboxdSyncDescription">${escape(lastSyncedText)}</p>
+      <div class="data-actions">
+        <button id="letterboxdUsernameSaveBtn" type="button">Save</button>
+        ${username ? `<button id="letterboxdSyncNowBtn" type="button" class="button-secondary">Sync now</button><button id="letterboxdDisconnectBtn" type="button" class="button-secondary button-danger-subtle">Disconnect</button>` : ""}
+      </div>
+      <p id="letterboxdProfileStatus" class="data-panel-status" role="status"></p>
+    </section>`;
+  }
+
   function deleteProfileHtml(profileRecord) {
     return `<section id="profileDeletePanel" class="data-panel profile-danger-panel">
       <h2>Delete profile</h2>
@@ -110,6 +129,7 @@
         ${authSectionHtml(user)}
         ${publicProfileNameHtml(user)}
         ${publicProfilePublishHtml()}
+        ${letterboxdSyncHtml(profile)}
         ${deleteProfileHtml(profile)}
       </div>`;
     wireEvents(user);
@@ -228,6 +248,86 @@
         window.alert(error.message || String(error));
       }
     });
+
+    document
+      .getElementById("letterboxdUsernameSaveBtn")
+      ?.addEventListener("click", async () => {
+        let value =
+          document.getElementById("letterboxdUsernameInput")?.value.trim() ||
+          "";
+        let button = document.getElementById("letterboxdUsernameSaveBtn");
+        let status = document.getElementById("letterboxdProfileStatus");
+        button.disabled = true;
+        try {
+          profile = await window.setSupabaseProfileLetterboxd(value);
+          render(user);
+          let newStatus = document.getElementById("letterboxdProfileStatus");
+          if (newStatus)
+            newStatus.textContent = value
+              ? "Letterboxd settings saved."
+              : "Letterboxd username cleared.";
+        } catch (error) {
+          button.disabled = false;
+          if (status) status.textContent = error.message || String(error);
+        }
+      });
+
+    document
+      .getElementById("letterboxdDisconnectBtn")
+      ?.addEventListener("click", async () => {
+        let confirmMsg =
+          "Disconnect Letterboxd RSS sync? This stops automatic intake sync and removes your saved username. Previously imported films and ratings will stay in your archive.";
+        if (!window.confirm(confirmMsg)) return;
+        let button = document.getElementById("letterboxdDisconnectBtn");
+        let status = document.getElementById("letterboxdProfileStatus");
+        button.disabled = true;
+        if (status) status.textContent = "Disconnecting Letterboxd RSS sync…";
+        try {
+          profile = await window.setSupabaseProfileLetterboxd("");
+          render(user);
+          let newStatus = document.getElementById("letterboxdProfileStatus");
+          if (newStatus)
+            newStatus.textContent = "Letterboxd RSS sync disconnected.";
+        } catch (error) {
+          button.disabled = false;
+          if (status) status.textContent = error.message || String(error);
+        }
+      });
+
+    document
+      .getElementById("letterboxdSyncNowBtn")
+      ?.addEventListener("click", async () => {
+        let button = document.getElementById("letterboxdSyncNowBtn");
+        let status = document.getElementById("letterboxdProfileStatus");
+        button.disabled = true;
+        if (status) status.textContent = "Syncing from Letterboxd…";
+        try {
+          let result = await window.syncLetterboxdIntakes?.({ force: true });
+          if (result?.status === "synced") {
+            if (status) {
+              status.textContent =
+                result.createdCount > 0
+                  ? `Synced ${result.createdCount} new watch(es) into Intake.`
+                  : "All caught up — no new Letterboxd watches found.";
+            }
+            profile = await window.loadSupabaseProfile();
+            let desc = document.getElementById("letterboxdSyncDescription");
+            if (desc && profile?.letterboxd_last_synced_at) {
+              desc.textContent = `Last synced with Letterboxd on ${new Date(profile.letterboxd_last_synced_at).toLocaleDateString()}.`;
+            }
+          } else if (result?.status === "fetch_failed") {
+            if (status)
+              status.textContent =
+                "Could not fetch Letterboxd feed (check username or profile privacy).";
+          } else {
+            if (status) status.textContent = result?.reason || "Sync finished.";
+          }
+        } catch (error) {
+          if (status) status.textContent = error.message || String(error);
+        } finally {
+          button.disabled = false;
+        }
+      });
   }
 
   function renderHeaderAuthStatus(user, profileRecord) {

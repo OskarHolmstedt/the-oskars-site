@@ -215,9 +215,7 @@ window.updateFilmMetadata = function (id, values, options = {}) {
         ? "Animation"
         : source.medium === "live-action"
           ? "Live action"
-          : source.medium === "hybrid"
-            ? "Hybrid"
-            : "";
+          : "";
     source.adaptation =
       source.screenplayType === "original"
         ? "Original"

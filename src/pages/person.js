@@ -540,8 +540,18 @@
         if (left.film) return -1;
         if (right.film) return 1;
         return (
-          (window.watchlistTierRank?.(left.item.tier) ?? 999) -
-            (window.watchlistTierRank?.(right.item.tier) ?? 999) ||
+          (window.watchlistTierGrade?.(
+            left.item.tier,
+            left.item.tier_modifier || left.item.tierModifier,
+          ) ??
+            window.watchlistTierRank?.(left.item.tier) ??
+            999) -
+            (window.watchlistTierGrade?.(
+              right.item.tier,
+              right.item.tier_modifier || right.item.tierModifier,
+            ) ??
+              window.watchlistTierRank?.(right.item.tier) ??
+              999) ||
           chronologyFactor *
             (Number(left.item.year || 0) - Number(right.item.year || 0)) ||
           window.compareEnglishTitles(left.item.title, right.item.title)
@@ -629,6 +639,7 @@
             ? `<a class="table-film-link" href="${personPageEscape(window.filmPageUrl(credit.filmId))}"><strong>${personPageEscape(credit.filmTitle)}</strong></a>`
             : `<strong>${personPageEscape(credit.filmTitle)}</strong>`;
           let creditContext = [credit.recipient, credit.detail]
+            .map((value) => window.formatOfficialField(value))
             .filter(Boolean)
             .map(personPageEscape)
             .join(' <span aria-hidden="true">·</span> ');
@@ -1095,8 +1106,8 @@
   )}</div>
   ${!combinedView ? `<h3 id="person-watched" class="person-filmography-subheading">${personPageEscape(ui("Watched"))}</h3>` : ""}
   <section data-person-filmography-films>${personFilmographyFilmsHtml()}</section>
-  ${otherWatched.length && filmographySort !== "local-rank" ? `<section class="person-other-watched"><h3 class="person-filmography-subheading">${personPageEscape(ui("Other watched"))}</h3><div data-person-other-watched="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Type"), ui("Rating")].map(personPageEscape), rows: otherWatched.map(personOtherWatchedRow).join("") })}</div><div data-person-other-watched="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${otherWatched.map(personOtherWatchedCard).join("")}</div></div></section>` : ""}
-  ${unseenFilms.length ? `<section class="person-unseen"><h3 class="person-filmography-subheading">${personPageEscape(ui("Unseen"))}</h3><div data-person-unseen="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title")].map(personPageEscape), rows: unseenFilms.map(personUnseenRow).join("") })}</div><div data-person-unseen="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${unseenFilms.map(personUnseenCard).join("")}</div></div></section>` : ""}
+  ${otherWatched.length && filmographySort !== "local-rank" ? `<section class="person-other-watched"><h3 class="person-filmography-subheading">${personPageEscape(ui("Other watched"))}</h3><p class="section-description">${personPageEscape(ui("Shorts, specials, and standalone works watched outside the main award competition."))}</p><div data-person-other-watched="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Type"), ui("Rating")].map(personPageEscape), rows: otherWatched.map(personOtherWatchedRow).join("") })}</div><div data-person-other-watched="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${otherWatched.map(personOtherWatchedCard).join("")}</div></div></section>` : ""}
+  ${unseenFilms.length ? `<section class="person-unseen"><h3 class="person-filmography-subheading">${personPageEscape(ui("Unseen"))}</h3><p class="section-description">${personPageEscape(ui("Films with this person that are not yet watched or on your watchlist."))}</p><div data-person-unseen="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title")].map(personPageEscape), rows: unseenFilms.map(personUnseenRow).join("") })}</div><div data-person-unseen="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${unseenFilms.map(personUnseenCard).join("")}</div></div></section>` : ""}
   ${!combinedView && watchlistItems.length ? `<section data-person-watchlist-section>${personWatchlistContentHtml()}</section>` : ""}
   <h2 id="person-awards">${personPageEscape(ui("Awards"))}</h2>
   <fieldset class="person-awards-view-controls"><legend>${personPageEscape(ui("Display"))}</legend><label><input type="radio" name="personAwardsView" value="periods" ${personAwardsView === "periods" ? "checked" : ""}> ${personPageEscape(ui("Period tables"))}</label><label><input type="radio" name="personAwardsView" value="progression" ${personAwardsView === "progression" ? "checked" : ""}> ${personPageEscape(ui("Progression table"))}</label></fieldset>
@@ -1194,7 +1205,7 @@
         // The move places this item between neighbours in the *whole*
         // watchlist's tier, not just this person's items - loaded on
         // demand (cached) rather than on every page visit.
-        await window.loadSupabaseWorkspace();
+        await window.loadSupabaseWorkspace({ parts: ["watchlist"] });
         await window.moveSupabaseWatchlistItemWithinTier(
           from.id,
           window.getSupabaseWorkspace()?.watchlist || [],

@@ -517,7 +517,6 @@ function rankedListMediumKind(value) {
     return "animation";
   if (/\b(?:live action|liveaction|spelfilm)\b/.test(text))
     return "live-action";
-  if (/\b(?:hybrid|mixed|mixad)\b/.test(text)) return "hybrid";
   return "";
 }
 
@@ -771,4 +770,8 @@ function parseRankedListDelimitedRows(raw) {
   }
 
   return rows;
+}
+
+if (typeof window !== "undefined") {
+  window.parseRankedList = parseRankedList;
 }

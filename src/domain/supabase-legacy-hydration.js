@@ -43,7 +43,7 @@
     let archive = {};
     let franchiseChains = buildFranchiseChains(franchiseRows);
     (films || []).forEach((film) => {
-      let tmdbId = String(film.tmdb_id || "");
+      let tmdbId = String(film.tmdb_tv_ref || film.tmdb_id || "");
       if (!tmdbId) return;
       let people = {};
       (film.credits || []).forEach((credit) => {
@@ -181,6 +181,11 @@
     let directorIds = directorCredits
       .filter((credit) => credit.people?.name)
       .map((credit) => credit.people?.id || null);
+    // Index-aligned with directors/directorIds (issue #784): true for a
+    // director credit the owner added that TMDB's credits don't list.
+    let directorUncredited = directorCredits
+      .filter((credit) => credit.people?.name)
+      .map((credit) => Boolean(credit.uncredited));
     let tags = (film.film_tags || [])
       .map((entry) => entry.tags?.name)
       .filter(Boolean);
@@ -202,7 +207,9 @@
       director: directors.join(", "),
       directors,
       directorIds,
-      tmdbId: film.tmdb_id != null ? String(film.tmdb_id) : "",
+      directorUncredited,
+      tmdbId:
+        film.tmdb_tv_ref || (film.tmdb_id != null ? String(film.tmdb_id) : ""),
       country: film.country || "",
       primaryCountry: film.primary_country || "",
       medium: film.medium || "unknown",
@@ -217,7 +224,9 @@
             url: film.poster_url,
             source: "tmdb",
             sourceUrl: "",
-            providerId: film.tmdb_id != null ? String(film.tmdb_id) : "",
+            providerId:
+              film.tmdb_tv_ref ||
+              (film.tmdb_id != null ? String(film.tmdb_id) : ""),
             fetchedAt: "",
           }
         : null,
@@ -259,8 +268,10 @@
 
   /**
    * Reshapes one `watchlist` row (with its joined `films`) into a
-   * `WatchlistItem`, using its array position (already sorted ascending by
-   * the fractional `position` key) as the legacy numeric `order` - 1-based,
+   * `WatchlistItem`. The legacy numeric `order` is the row's own `order`
+   * when a subset read supplies its whole-watchlist position, and otherwise
+   * its array position (already sorted ascending by the fractional
+   * `position` key) - 1-based,
    * matching every other WatchlistItem producer in the codebase
    * (watchlists.js/watched-films.js's own `index + 1`). compareWatchlistItemsBy's
    * default "order" sort does `Number(item.order || 999999)` - a 0-based
@@ -289,10 +300,18 @@
       swedishTitle: shared.swedishTitle,
       tier: row.tier || "",
       tierModifier: row.tier_modifier || "",
-      order: index + 1,
+      order:
+        row.order !== undefined
+          ? row.order
+          : row.position != null && row.position !== ""
+            ? index != null
+              ? index + 1
+              : null
+            : null,
       director: shared.director,
       directors: shared.directors,
       directorIds: shared.directorIds,
+      directorUncredited: shared.directorUncredited,
       country: shared.country,
       medium: shared.medium,
       screenplayType: shared.screenplayType,
@@ -424,10 +443,24 @@
       films: allTimeFilms.filter((film) => !isOther(film)),
     };
 
-    let watchlist = (source.watchlist || [])
-      .map((row, index) =>
-        window.supabaseLegacyHydrationWatchlistItem(row, index, chains),
-      )
+    // A subset of the watchlist when that is all this page loaded (issue
+    // #633), kept in Postgres's order so tier/order sorting is unchanged.
+    // A page loads at most one subset: merging two would need the
+    // database's collation-dependent position order.
+    let watchlistRows = source.watchlist;
+    if (source.domains && !source.domains.includes("watchlist")) {
+      let subset = Object.keys(
+        window.SUPABASE_HYDRATION_SUBSET_DOMAINS || {},
+      ).find((domain) => source.domains.includes(domain));
+      watchlistRows = subset ? source[subset] : [];
+    }
+    let rankedIndex = 0;
+    let watchlist = (watchlistRows || [])
+      .map((row) => {
+        let index =
+          row.position != null && row.position !== "" ? rankedIndex++ : null;
+        return window.supabaseLegacyHydrationWatchlistItem(row, index, chains);
+      })
       .filter(Boolean);
 
     let personPortraits = {};

@@ -17,6 +17,20 @@
  */
 
 (function () {
+  // One film's link in the OfficialNomination shape: its TMDB identity and
+  // its catalog film.
+  function filmLink(film) {
+    let link = {};
+    if (film.tmdb_tv_ref || film.tmdb_id != null)
+      link.tmdbId = film.tmdb_tv_ref || String(film.tmdb_id);
+    link.filmRef = {
+      id: film.id,
+      title: film.title,
+      year: film.year != null ? String(film.year) : "",
+    };
+    return link;
+  }
+
   /**
    * Reshapes `{ceremonies, categories, nominations}` (the result of
    * `window.loadSupabaseOfficialResultsSource()`) into
@@ -81,17 +95,19 @@
       if (nomination.country) record.country = nomination.country;
       if (nomination.original_title)
         record.originalTitle = nomination.original_title;
-      if (film?.tmdb_id != null) record.tmdbId = String(film.tmdb_id);
       // film.id is the real Supabase films.id uuid - the same id
       // addFilmToStore() keys state.filmsById by (issue #454 made it
       // prefer film.supabaseFilmId over the legacy year::title primitive),
       // so no id translation is needed here.
-      if (nomination.film_id && film)
-        record.filmRef = {
-          id: film.id,
-          title: film.title,
-          year: film.year != null ? String(film.year) : "",
-        };
+      if (nomination.film_id && film) Object.assign(record, filmLink(film));
+      let additionalFilms = (nomination.official_nomination_extra_films || [])
+        .filter((extra) => extra?.films)
+        .sort((left, right) => left.position - right.position)
+        .map((extra) => ({
+          position: extra.position,
+          ...filmLink(extra.films),
+        }));
+      if (additionalFilms.length) record.additionalFilms = additionalFilms;
       period.nominations.push(record);
     });
 
@@ -119,6 +135,25 @@
     return sources;
   };
 
+  // Fetches through `load`, reshapes, and merges every returned source into
+  // window.state.officialResults. Never throws, and never overwrites a
+  // working default with nothing.
+  async function hydrateOfficialResults(load, failureMessage) {
+    try {
+      let live = window.buildOfficialResultsFromSupabase(await load());
+      if (!Object.keys(live).length) return false;
+      window.state.officialResults = Object.assign(
+        {},
+        window.state.officialResults || {},
+        live,
+      );
+      return true;
+    } catch (err) {
+      console.warn(failureMessage, err);
+      return false;
+    }
+  }
+
   /**
    * Fetches and reshapes live official-results data, then overwrites
    * `window.state.officialResults` in place. Called by the page
@@ -130,58 +165,28 @@
    * working page.
    * @returns {Promise<boolean>} Whether state.officialResults was replaced with live data.
    */
-  window.hydrateOfficialResultsFromSupabase = async function () {
-    try {
-      let source = await window.loadSupabaseOfficialResultsSource();
-      let live = window.buildOfficialResultsFromSupabase(source);
-      let liveKeys = Object.keys(live);
-      if (!liveKeys.length) return false;
-      window.state.officialResults = Object.assign(
-        {},
-        window.state.officialResults || {},
-        live,
-      );
-      return true;
-    } catch (err) {
-      console.warn("Could not load live official results from Supabase.", err);
-      return false;
-    }
+  window.hydrateOfficialResultsFromSupabase = function () {
+    return hydrateOfficialResults(
+      () => window.loadSupabaseOfficialResultsSource(),
+      "Could not load live official results from Supabase.",
+    );
   };
 
   /**
    * Same contract as hydrateOfficialResultsFromSupabase(), scoped to one
    * film's Academy Awards nominations (issue #633) - film.html's
-   * officialFilmContext() only ever reads this one film's own
-   * nominations, so there's no reason to pull ~1,900 categories/~9,300
-   * nominations across every source just to look at one film's slice of
-   * one of them. Reuses buildOfficialResultsFromSupabase() completely
-   * unchanged; only the query is different. Replaces (not merges) this
-   * one page visit's state.officialResults["academy-awards"] with the
-   * scoped result - safe because every page in this app re-boots
-   * window.state fresh on navigation (no SPA-style persistence across
-   * pages), and film.html's own renderView() is officialFilmContext()'s
-   * only caller.
+   * officialFilmContext() only reads this one film's own nominations.
+   * Replaces this page visit's state.officialResults["academy-awards"]
+   * with the scoped result - safe because every page re-boots
+   * window.state fresh on navigation.
    * @param {string} filmId
    * @returns {Promise<boolean>} Whether state.officialResults was updated with live data.
    */
-  window.hydrateOfficialResultsForFilm = async function (filmId) {
-    try {
-      let source = await window.loadSupabaseOfficialResultsForFilm(filmId);
-      let live = window.buildOfficialResultsFromSupabase(source);
-      if (!Object.keys(live).length) return false;
-      window.state.officialResults = Object.assign(
-        {},
-        window.state.officialResults || {},
-        live,
-      );
-      return true;
-    } catch (err) {
-      console.warn(
-        "Could not load this film's live official results from Supabase.",
-        err,
-      );
-      return false;
-    }
+  window.hydrateOfficialResultsForFilm = function (filmId) {
+    return hydrateOfficialResults(
+      () => window.loadSupabaseOfficialResultsForFilm(filmId),
+      "Could not load this film's live official results from Supabase.",
+    );
   };
 
   /**
@@ -195,27 +200,88 @@
    * @param {{id: string, name: string, aliases?: string[]}} person
    * @returns {Promise<boolean>} Whether state.officialResults was updated with live data.
    */
-  window.hydrateOfficialResultsForPerson = async function (person) {
-    try {
-      let source = await window.loadSupabaseOfficialResultsForRecipients([
-        person?.name,
-        person?.id,
-        ...(person?.aliases || []),
-      ]);
-      let live = window.buildOfficialResultsFromSupabase(source);
-      if (!Object.keys(live).length) return false;
-      window.state.officialResults = Object.assign(
-        {},
-        window.state.officialResults || {},
-        live,
-      );
-      return true;
-    } catch (err) {
-      console.warn(
-        "Could not load this person's live official results from Supabase.",
-        err,
-      );
+  window.hydrateOfficialResultsForPerson = function (person) {
+    return hydrateOfficialResults(
+      () =>
+        window.loadSupabaseOfficialResultsForRecipients([
+          person?.name,
+          person?.id,
+          ...(person?.aliases || []),
+        ]),
+      "Could not load this person's live official results from Supabase.",
+    );
+  };
+
+  let categoryHydrationCache = new Map();
+
+  /**
+   * Resets the in-memory category official results cache (issue #719).
+   */
+  window.clearOfficialCategoryResultsCache = function () {
+    categoryHydrationCache.clear();
+  };
+
+  /**
+   * Same contract as hydrateOfficialResultsFromSupabase(), scoped to one
+   * category name across every source (issue #633) - all category.html
+   * reads. Every live source is still replaced. Cached in memory per session (issue #719).
+   * @param {string} categoryName
+   * @returns {Promise<boolean>} Whether state.officialResults was updated with live data.
+   */
+  window.hydrateOfficialResultsForCategory = async function (categoryName) {
+    let key = String(categoryName || "");
+    if (categoryHydrationCache.has(key)) {
+      let cached = await categoryHydrationCache.get(key);
+      if (cached && Object.keys(cached).length) {
+        window.state.officialResults = Object.assign(
+          {},
+          window.state.officialResults || {},
+          cached,
+        );
+        return true;
+      }
+    }
+    let fetchPromise = (async () => {
+      try {
+        let raw =
+          await window.loadSupabaseOfficialResultsForCategory(categoryName);
+        let live = window.buildOfficialResultsFromSupabase(raw);
+        if (!Object.keys(live).length) return null;
+        return live;
+      } catch (err) {
+        console.warn(
+          "Could not load this category's live official results from Supabase.",
+          err,
+        );
+        return null;
+      }
+    })();
+    categoryHydrationCache.set(key, fetchPromise);
+    let live = await fetchPromise;
+    if (!live) {
+      categoryHydrationCache.delete(key);
       return false;
     }
+    categoryHydrationCache.set(key, live);
+    window.state.officialResults = Object.assign(
+      {},
+      window.state.officialResults || {},
+      live,
+    );
+    return true;
+  };
+
+  /**
+   * Same contract as hydrateOfficialResultsFromSupabase(), scoped to one
+   * period key across every source (issue #633) - all period.html's year
+   * view reads. Every live source is still replaced.
+   * @param {string} periodKey
+   * @returns {Promise<boolean>} Whether state.officialResults was updated with live data.
+   */
+  window.hydrateOfficialResultsForPeriod = function (periodKey) {
+    return hydrateOfficialResults(
+      () => window.loadSupabaseOfficialResultsForPeriod(periodKey),
+      "Could not load this period's live official results from Supabase.",
+    );
   };
 })();

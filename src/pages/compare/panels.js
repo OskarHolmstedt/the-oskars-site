@@ -161,8 +161,18 @@ function topWatchlistItems(target, limit = 2) {
     .compareTargetWatchlistItems(target)
     .sort(
       (left, right) =>
-        (window.watchlistTierRank?.(left.tier) ?? 999) -
-          (window.watchlistTierRank?.(right.tier) ?? 999) ||
+        (window.watchlistTierGrade?.(
+          left.tier,
+          left.tier_modifier || left.tierModifier,
+        ) ??
+          window.watchlistTierRank?.(left.tier) ??
+          999) -
+          (window.watchlistTierGrade?.(
+            right.tier,
+            right.tier_modifier || right.tierModifier,
+          ) ??
+            window.watchlistTierRank?.(right.tier) ??
+            999) ||
         Number(left.order || 999999) - Number(right.order || 999999) ||
         Number(left.year || 9999) - Number(right.year || 9999) ||
         window.compareEnglishTitles(left.title, right.title),

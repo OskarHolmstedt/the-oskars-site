@@ -13,6 +13,10 @@ function directorSheetTier(value) {
   return window.sheetTier(value);
 }
 
+function directorSheetTierModifier(value) {
+  return window.sheetTierModifier(value);
+}
+
 /**
  * Parses director spreadsheet lanes into importable film entries.
  * @param {string} raw Raw tab-delimited sheet text.
@@ -91,6 +95,9 @@ window.parseDirectorWatchlistSheet = function (raw, options = {}) {
       let hasYear = window.isFourDigitYearCell(year);
       let parsedRating = window.parseFilmRating?.(interest) || { value: 0 };
       let tier = parsedRating.value ? "" : directorSheetTier(interest);
+      let tierModifier = parsedRating.value
+        ? ""
+        : directorSheetTierModifier(interest);
 
       if (hasYear) diagnostics.itemsWithYear += 1;
       else diagnostics.itemsWithoutYear += 1;
@@ -103,6 +110,7 @@ window.parseDirectorWatchlistSheet = function (raw, options = {}) {
         year: hasYear ? year : "",
         title,
         tier,
+        tierModifier,
         rating: interest,
         ratingValue: parsedRating.value || 0,
         rawInterest: interest,

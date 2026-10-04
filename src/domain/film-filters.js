@@ -8,7 +8,7 @@
  */
 
 (function () {
-  const mediumValues = new Set(["live-action", "animation", "hybrid"]);
+  const mediumValues = new Set(["live-action", "animation"]);
   const screenplayValues = new Set(["original", "adapted"]);
 
   function inactive(value) {

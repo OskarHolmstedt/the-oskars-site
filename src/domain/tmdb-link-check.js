@@ -272,29 +272,18 @@ window.checkTmdbMediaTypes = async function (options = {}) {
 let supabaseLinkCheckAttempts = new Set();
 
 /**
- * Batch-checks stored film tmdb_ids for movie identity and media-type
- * mismatches (an id that silently resolves as TV, or resolves as an
- * unrelated movie with a different title/year/runtime) - operates
- * directly on the raw Supabase film shape data-tools.html already has
- * loaded, unlike checkTmdbMediaTypes above (built for the legacy
- * window.state.filmsById shape, and currently unreachable from any page's
- * UI since #216 stripped data.html's ad-hoc batch tools down to pure
- * account maintenance). Session-attempt tracking is in-memory only, but a
- * film's own pass/fail state persists across sessions via tmdb_verified_at
- * (a caller's job to write - this function only reports, it never
- * persists anything itself): a film already marked verified is skipped by
- * default, so a re-run only spends real TMDB requests on films that
- * haven't been confirmed correct yet, not the whole catalog every time. A
- * `limit` also bounds how many NEW films get checked per call so the
- * owner can work through a large catalog in several clicks rather than
- * one very long-running request. `force` widens that session's queue to
- * already-verified films too, but the attempt set still advances through
- * the queue instead of rechecking its first page on every click.
- * @param {Object[]} films Raw Supabase film rows (id, tmdb_id, title, year, swedish_title, runtime_minutes, tmdb_verified_at).
- * @param {{fetchFn?: Function, limit?: number, concurrency?: number, force?: boolean, onProgress?: (done:number, total:number, film:Object) => void}} [options]
- * @returns {Promise<{attempted: number, ok: number, okFilms: Object[], issues: {film: Object, status: string, detail: string}[], failed: number, remaining: number}>}
+ * Runs expanded metadata reviews when that page-specific module is loaded,
+ * otherwise performs the narrow movie identity check for compatibility.
+ * Expanded reviews persist through options.onResult and use versioned input
+ * snapshots; the narrow fallback uses the legacy verification timestamp.
+ * Both modes advance through bounded batches during the current session.
+ * @param {Object[]} films Raw Supabase film rows.
+ * @param {Object} [options] Fetch, limit, concurrency, force, progress and result callbacks.
+ * @returns {Promise<Object>} Batch results and remaining work.
  */
 window.checkSupabaseFilmTmdbLinks = async function (films, options = {}) {
+  if (window.checkCatalogFilmMetadata)
+    return window.checkCatalogFilmMetadata(films, options);
   let fetchFn = options.fetchFn || window.fetch?.bind(window);
   if (!fetchFn)
     throw new Error("TMDB link checks require browser network access.");

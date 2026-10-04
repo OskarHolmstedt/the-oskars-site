@@ -7,6 +7,9 @@
   let pending = null;
   let readyAt = null;
   let pageReady = false;
+  let publicSlug = window.OSKARS_HOME_COMPACT
+    ? window.resolveActiveProfileSlug?.() || ""
+    : "";
 
   function changedError() {
     let error = new Error("The account or archive changed. Please try again.");
@@ -40,10 +43,11 @@
   window.focusedShellDataFresh = function () {
     return Boolean(
       readyAt !== null &&
-      owner &&
-      owner === (window.getSupabaseCurrentUser?.()?.id || null) &&
-      !window.resolveActiveProfileSlug?.() &&
-      !window.state?.isPublicProfileView &&
+      ((publicSlug && publicSlug === window.resolveActiveProfileSlug?.()) ||
+        (owner &&
+          owner === (window.getSupabaseCurrentUser?.()?.id || null) &&
+          !window.resolveActiveProfileSlug?.() &&
+          !window.state?.isPublicProfileView)) &&
       Date.now() - readyAt < window.OSKARS_HYDRATION_CACHE_TTL_MS,
     );
   };
@@ -51,8 +55,8 @@
   /** Loads complete shared-shell data on demand, sharing concurrent requests and rejecting stale account/write results. @returns {Promise<void>} Resolves when existing search and preview builders can run. */
   window.ensureFocusedShellData = function () {
     if (
-      window.resolveActiveProfileSlug?.() ||
-      window.state?.isPublicProfileView
+      !publicSlug &&
+      (window.resolveActiveProfileSlug?.() || window.state?.isPublicProfileView)
     )
       return Promise.reject(changedError());
     if (window.focusedShellDataFresh()) return Promise.resolve();
@@ -61,16 +65,18 @@
     let requestOwner = owner;
     let isCurrent = () =>
       generation === requestGeneration &&
-      requestOwner &&
-      requestOwner === (window.getSupabaseCurrentUser?.()?.id || null) &&
-      !window.resolveActiveProfileSlug?.() &&
-      !window.state?.isPublicProfileView;
+      (publicSlug
+        ? publicSlug === window.resolveActiveProfileSlug?.()
+        : requestOwner &&
+          requestOwner === (window.getSupabaseCurrentUser?.()?.id || null) &&
+          !window.resolveActiveProfileSlug?.() &&
+          !window.state?.isPublicProfileView);
     let finish = window.startOskarsPerformance?.("focusedShell:load");
     let request = (async () => {
-      let auth = await window.resolveSupabaseAuthState();
+      let auth = publicSlug ? null : await window.resolveSupabaseAuthState();
       if (
-        auth.status !== "signed-in" ||
-        auth.user.id !== requestOwner ||
+        (!publicSlug &&
+          (auth.status !== "signed-in" || auth.user.id !== requestOwner)) ||
         !isCurrent()
       )
         throw changedError();
@@ -78,7 +84,13 @@
       if (!isCurrent()) throw changedError();
       // Fresh on each deferred load: do not extend a session-cache timestamp
       // into another freshness window. Repeated interactions reuse this model.
-      await window.ensureOskarsData({ isCurrent, forceRefresh: true });
+      if (publicSlug) {
+        let result = await window.loadSupabasePublicProfile(
+          publicSlug,
+          isCurrent,
+        );
+        if (!result.ok) throw changedError();
+      } else await window.ensureOskarsData({ isCurrent, forceRefresh: true });
       if (!isCurrent()) throw changedError();
       readyAt = Date.now();
       window.dispatchEvent(new CustomEvent("oskars:focused-shell-ready"));
@@ -107,6 +119,7 @@
   };
 
   window.onSupabaseAuthChange?.((user) => {
+    if (publicSlug) return;
     let nextOwner = user?.id || null;
     if (owner === nextOwner) return;
     owner = nextOwner;

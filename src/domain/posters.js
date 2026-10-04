@@ -60,7 +60,7 @@ window.classifyTmdbFilmType = function (reference, details) {
   if ((details.genres || []).some((genre) => genre?.name === "Documentary"))
     return "Documentary";
   let runtime = Number(details.runtime) || 0;
-  if (runtime > 0 && runtime <= 40) return "Short film";
+  if (runtime > 0 && runtime <= 40) return "Short";
   return "Film";
 };
 

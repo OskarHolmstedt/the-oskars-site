@@ -76,8 +76,17 @@
   // the same film - excluding them stops e.g. "The Cars That Ate Paris"
   // vs "Pat Garrett & Billy the Kid" from spuriously sharing "the".
   const TITLE_MATCH_STOPWORDS = new Set([
-    "the", "and", "for", "with", "into", "from", "that", "this", "are",
-    "was", "were",
+    "the",
+    "and",
+    "for",
+    "with",
+    "into",
+    "from",
+    "that",
+    "this",
+    "are",
+    "was",
+    "were",
   ]);
 
   /** Whether two titles share at least one real (non-stopword, 3+ char) word - a cheap plausibility check for an id-based match, not a full similarity score. @param {string} a Title. @param {string} b Title. @returns {boolean} */
@@ -200,7 +209,8 @@
     let numbersMatch = (a, b) => (a ?? null) === (b ?? null);
     return (
       numbersMatch(incoming.rating, existing.rating) &&
-      (incoming.rating_modifier || null) === (existing.rating_modifier || null) &&
+      (incoming.rating_modifier || null) ===
+        (existing.rating_modifier || null) &&
       (incoming.date_watched || null) === (existing.date_watched || null) &&
       numbersMatch(incoming.views, existing.views) &&
       (incoming.platform || null) === (existing.platform || null) &&
@@ -308,7 +318,9 @@
         if (awards?.length && Number.isFinite(currentRank) && currentRank > 0) {
           let immediateScope = PERIOD_BY_RANK[currentRank - 1];
           let withCategory = candidates.filter((film) => {
-            let categoryMap = filmCategoryHistory.get(film.id)?.get(immediateScope);
+            let categoryMap = filmCategoryHistory
+              .get(film.id)
+              ?.get(immediateScope);
             if (!categoryMap) return false;
             return awards.some(({ category, recipients }) => {
               let recipientSet = categoryMap.get(category);
@@ -333,7 +345,11 @@
         }
       }
       if (candidates.length === 1)
-        return { status: "resolved", film: candidates[0], via: via || "title-only" };
+        return {
+          status: "resolved",
+          film: candidates[0],
+          via: via || "title-only",
+        };
       if (candidates.length > 1) return { status: "ambiguous", candidates };
       return { status: "missing" };
     }
@@ -397,7 +413,6 @@
 
   function buildPersonResolver(existingPeople) {
     let byName = new Map();
-    let nextPendingId = 1;
 
     function remember(person) {
       let key = normalizedPersonName(person.name);
@@ -409,17 +424,7 @@
       return byName.get(normalizedPersonName(name)) || null;
     }
 
-    function createPlaceholder(name) {
-      let person = {
-        id: `pending:person:${nextPendingId++}`,
-        name,
-        _pending: true,
-      };
-      remember(person);
-      return person;
-    }
-
-    return { resolve, remember, createPlaceholder };
+    return { resolve, remember };
   }
 
   function buildFranchiseResolver(existingFranchises) {
@@ -450,37 +455,72 @@
     return { resolve, remember, createPlaceholder };
   }
 
+  /**
+   * Resolves a sheet film against the working catalog. A film missing from
+   * it is created only with a TMDB identity: the sheet's own, or one a TMDB
+   * title search finds (which may also turn out to be a catalog film).
+   * Without one the film is not added ("not-created").
+   */
   async function resolveOrCreateFilm(resolver, source, ctx) {
     let resolution = resolver.resolve(source);
     if (resolution.status !== "missing") return resolution;
+    let identity = window.filmTmdbIdentity(source.tmdbId);
+    if (!identity) {
+      let key = `${String(source.title || "")
+        .trim()
+        .toLowerCase()}::${numericOrNull(source.year) ?? ""}`;
+      ctx.tmdbFilmLookups ??= new Map();
+      if (!ctx.tmdbFilmLookups.has(key))
+        ctx.tmdbFilmLookups.set(
+          key,
+          await window.lookupTmdbFilmIdentity({
+            title: source.title,
+            year: numericOrNull(source.year),
+            type: source.type,
+          }),
+        );
+      identity = ctx.tmdbFilmLookups.get(key);
+      if (!identity) return { status: "not-created" };
+      if (cleanTmdbId(identity) !== null) {
+        let known = resolver.resolve({ ...source, tmdbId: identity });
+        if (known.status === "resolved")
+          return { ...known, via: "tmdb-search" };
+        if (known.status !== "missing") return known;
+      }
+    }
+    let identified = { ...source, tmdbId: identity };
     if (!ctx.confirm) {
       return {
         status: "would-create",
-        film: resolver.createPlaceholder(source),
+        film: resolver.createPlaceholder(identified),
       };
     }
     let normalized = Object.assign({}, source);
     window.normalizeFilmMetadata(normalized);
-    let { data: filmId, error } = await ctx.client.rpc("find_or_create_film", {
-      p_tmdb_id: cleanTmdbId(source.tmdbId),
-      p_title: source.title,
-      p_year: numericOrNull(source.year),
-      p_medium: normalized.medium || null,
-      p_type: source.type || null,
-      p_runtime_minutes: integerOrNull(source.runtimeMinutes),
-      p_country: normalized.country || null,
-      p_primary_country: normalized.primaryCountry || null,
-      p_poster_url: null,
-      p_swedish_title: null,
-      p_genre: null,
-      p_screenplay_type: normalized.screenplayType || null,
-      p_adaptation_source: normalized.adaptationSource || null,
-      p_letterboxd_url: textOrNull(source.letterboxdUrl),
-    });
-    if (error) throw error;
+    let { filmId } = await window.resolveSupabaseCatalogFilm(
+      ctx.client,
+      identified,
+      {
+        p_medium: normalized.medium || null,
+        p_type: source.type || null,
+        p_runtime_minutes: integerOrNull(source.runtimeMinutes),
+        p_country: normalized.country || null,
+        p_primary_country: normalized.primaryCountry || null,
+        p_poster_url: null,
+        p_swedish_title: null,
+        p_genre: null,
+        p_screenplay_type: ["original", "adapted"].includes(
+          normalized.screenplayType,
+        )
+          ? normalized.screenplayType
+          : null,
+        p_adaptation_source: normalized.adaptationSource || null,
+        p_letterboxd_url: textOrNull(source.letterboxdUrl),
+      },
+    );
     let film = {
       id: filmId,
-      tmdb_id: cleanTmdbId(source.tmdbId),
+      tmdb_id: cleanTmdbId(identity),
       title: source.title,
       year: numericOrNull(source.year),
     };
@@ -488,26 +528,55 @@
     return { status: "created", film };
   }
 
-  /** Resolves/creates a person by name - never via find_or_create_person, which only dedups by tmdb_id (useless for sheet-sourced names). */
-  async function resolveOrCreatePerson(resolver, name, ctx) {
+  /**
+   * Resolves a person by name among existing people, then on TMDB. A TMDB
+   * match is added to the catalog (a placeholder in a dry run); a name with
+   * neither match is not added: it is counted under `noteKey`, listed in
+   * `report.notCreatedPeople`, and stays as text (recipients) or goes
+   * unrecorded (directors).
+   */
+  async function resolvePerson(resolver, name, report, noteKey, ctx) {
     let cleaned = textOrNull(name);
     if (!cleaned) return null;
     let existing = resolver.resolve(cleaned);
-    if (existing) return { status: "resolved", person: existing };
-    if (!ctx.confirm) {
-      return {
-        status: "would-create",
-        person: resolver.createPlaceholder(cleaned),
-      };
+    if (existing) return existing;
+    let key = normalizedPersonName(cleaned);
+    ctx.tmdbPersonLookups ??= new Map();
+    if (!ctx.tmdbPersonLookups.has(key))
+      ctx.tmdbPersonLookups.set(
+        key,
+        await window.lookupTmdbPersonIdentity(
+          { name: cleaned },
+          window.fetch.bind(window),
+        ),
+      );
+    let match = ctx.tmdbPersonLookups.get(key);
+    if (!match) {
+      if (report) {
+        report.notes[noteKey] = (report.notes[noteKey] || 0) + 1;
+        report.notCreatedPeople.push(cleaned);
+      }
+      return null;
     }
-    let { data, error } = await ctx.client
-      .from("people")
-      .insert({ name: cleaned, created_by: ctx.userId })
-      .select("id,name")
-      .single();
-    if (error) throw error;
-    resolver.remember(data);
-    return { status: "created", person: data };
+    let person;
+    if (!ctx.confirm) {
+      person = {
+        id: `pending:person:${match.tmdbId}`,
+        name: cleaned,
+        _pending: true,
+      };
+      if (report) report.wouldCreatePeople += 1;
+    } else {
+      let { personId } = await window.resolveSupabaseCatalogPerson(ctx.client, {
+        name: match.name,
+        tmdbId: match.tmdbId,
+        profilePath: match.profilePath,
+      });
+      person = { id: personId, name: cleaned };
+      if (report) report.createdPeople += 1;
+    }
+    resolver.remember(person);
+    return person;
   }
 
   /** Walks an arbitrary-depth franchise chain root-first, resolving/creating each level, and returns the leaf. */
@@ -572,6 +641,10 @@
       viaCategoryHistory: 0,
       wouldCreateFilms: 0,
       createdFilms: 0,
+      wouldCreatePeople: 0,
+      createdPeople: 0,
+      notCreatedFilms: [],
+      notCreatedPeople: [],
       ambiguous: [],
       skipped: [],
       tmdbMismatches: [],
@@ -579,10 +652,15 @@
     };
   }
 
-  function noteFilmResolution(report, resolution) {
+  function noteFilmResolution(report, resolution, source) {
+    if (resolution.status === "not-created") {
+      report.notCreatedFilms.push(window.catalogFilmLabel(source));
+      return;
+    }
     if (resolution.status === "resolved") {
       report.resolved += 1;
-      if (resolution.via === "tmdb") report.viaTmdb += 1;
+      if (resolution.via === "tmdb" || resolution.via === "tmdb-search")
+        report.viaTmdb += 1;
       else if (resolution.via === "fuzzy-title-year") report.viaFuzzy += 1;
       else if (resolution.via === "title-only-category-history")
         report.viaCategoryHistory += 1;
@@ -716,13 +794,15 @@
     ctx,
     report,
   ) {
-    let directorResolution = await resolveOrCreatePerson(
+    let director = await resolvePerson(
       personResolver,
       directorName,
+      report,
+      "director names with no catalog or TMDB person (no credit)",
       ctx,
     );
-    if (!directorResolution || !ctx.confirm) return;
-    let key = `${filmId}:${directorResolution.person.id}`;
+    if (!director || !ctx.confirm) return;
+    let key = `${filmId}:${director.id}`;
     if (ctx.existingDirectorCreditKeys?.has(key)) {
       if (report)
         report.notes["director credits already recorded"] =
@@ -731,7 +811,7 @@
     }
     let { error } = await ctx.client.from("credits").insert({
       film_id: filmId,
-      person_id: directorResolution.person.id,
+      person_id: director.id,
       role: "director",
     });
     // authenticated only has select+insert on credits (a shared,
@@ -782,13 +862,16 @@
         film,
         ctx,
       );
-      noteFilmResolution(report, resolution);
+      noteFilmResolution(report, resolution, film);
       if (resolution.status === "tmdb-mismatch") {
         noteTmdbMismatch(report, film, resolution);
         continue;
       }
       if (resolution.status === "ambiguous") {
         noteAmbiguous(report, film, resolution);
+        continue;
+      }
+      if (resolution.status === "not-created") {
         continue;
       }
       let filmId = resolution.film.id;
@@ -861,9 +944,7 @@
           tieGroupId:
             scopeType === "allTime" ? textOrNull(film.rankingGroupId) : null,
           tieGroupTitle:
-            scopeType === "allTime"
-              ? textOrNull(film.rankingGroupTitle)
-              : null,
+            scopeType === "allTime" ? textOrNull(film.rankingGroupTitle) : null,
         });
       }
 
@@ -948,12 +1029,15 @@
     report.notes["tags"] = tagNames.size;
     report.notes["film-tag relations"] = filmTagRelations.length;
     if (ctx.confirm && tagNames.size) {
-      await writeBatches([...tagNames].map((name) => ({ name })), async (batch) => {
-        let { error } = await ctx.client
-          .from("tags")
-          .upsert(batch, { onConflict: "user_id,name" });
-        if (error) throw error;
-      });
+      await writeBatches(
+        [...tagNames].map((name) => ({ name })),
+        async (batch) => {
+          let { error } = await ctx.client
+            .from("tags")
+            .upsert(batch, { onConflict: "user_id,name" });
+          if (error) throw error;
+        },
+      );
       let tags = (await fetchAll(ctx.client, "tags", "id,user_id,name")).filter(
         (row) => row.user_id === ctx.userId,
       );
@@ -1022,13 +1106,16 @@
         entry,
         ctx,
       );
-      noteFilmResolution(report, resolution);
+      noteFilmResolution(report, resolution, entry);
       if (resolution.status === "tmdb-mismatch") {
         noteTmdbMismatch(report, entry, resolution);
         continue;
       }
       if (resolution.status === "ambiguous") {
         noteAmbiguous(report, entry, resolution);
+        continue;
+      }
+      if (resolution.status === "not-created") {
         continue;
       }
       let filmId = resolution.film.id;
@@ -1114,7 +1201,13 @@
      Stage 2: Watchlist
   =========================== */
 
-  async function runWatchlistStage(raw, resolvers, watchedFilmIds, ctx) {
+  async function runWatchlistStage(
+    raw,
+    resolvers,
+    watchedFilmIds,
+    ctx,
+    staleWatchlistCount = 0,
+  ) {
     let report = newStageReport("Watchlist");
     let parsed = window.parseWatchlist(raw);
     report.totalRows = parsed.items.length;
@@ -1137,13 +1230,16 @@
         item,
         ctx,
       );
-      noteFilmResolution(report, resolution);
+      noteFilmResolution(report, resolution, item);
       if (resolution.status === "tmdb-mismatch") {
         noteTmdbMismatch(report, item, resolution);
         continue;
       }
       if (resolution.status === "ambiguous") {
         noteAmbiguous(report, item, resolution);
+        continue;
+      }
+      if (resolution.status === "not-created") {
         continue;
       }
       let filmId = resolution.film.id;
@@ -1159,16 +1255,19 @@
       let row = {
         film_id: filmId,
         tier: null,
-        position: String(nextPosition).padStart(10, "0"),
+        position: null,
         reason: null,
       };
       if (addedAt) row.added_at = addedAt;
       rows.push(row);
-      nextPosition += 1;
     }
 
     rows = dedupeByKey(rows, (row) => row.film_id);
     report.notes["skipped (already watched)"] = skippedAlreadyWatched;
+    if (staleWatchlistCount > 0) {
+      report.notes["stale watchlist rows removed (now watched)"] =
+        staleWatchlistCount;
+    }
     report.notes["would-write watchlist rows"] = rows.length;
     if (ctx.confirm && rows.length) {
       await writeBatches(rows, async (batch) => {
@@ -1220,7 +1319,6 @@
     let tierUpdatesSkippedUnchanged = 0;
     let changedTierRows = [];
     let newWatchlistRows = [];
-    let nextPosition = startPosition;
 
     let index = 0;
     for (let item of items) {
@@ -1231,13 +1329,16 @@
         item,
         ctx,
       );
-      noteFilmResolution(report, resolution);
+      noteFilmResolution(report, resolution, item);
       if (resolution.status === "tmdb-mismatch") {
         noteTmdbMismatch(report, item, resolution);
         continue;
       }
       if (resolution.status === "ambiguous") {
         noteAmbiguous(report, item, resolution);
+        continue;
+      }
+      if (resolution.status === "not-created") {
         continue;
       }
       let filmId = resolution.film.id;
@@ -1276,24 +1377,32 @@
           // in Supabase yet (see the comment above this function).
           if (item.tier) {
             let pendingRow = pendingNewWatchlistRowsByFilmId.get(filmId);
-            if (pendingRow) pendingRow.tier = item.tier;
+            if (pendingRow) {
+              pendingRow.tier = item.tier;
+              pendingRow.tier_modifier = item.tierModifier || null;
+            }
           }
           continue;
         }
         if (ctx.confirm && item.tier) {
           let existingTier = ctx.existingWatchlistTierByFilmId?.get(filmId);
-          if ((existingTier || null) === (item.tier || null)) {
+          let existingModifier =
+            ctx.existingWatchlistTierModifierByFilmId?.get(filmId) ?? null;
+          let targetModifier = item.tierModifier || null;
+          if (
+            (existingTier || null) === (item.tier || null) &&
+            (existingModifier || null) === targetModifier
+          ) {
             tierUpdatesSkippedUnchanged += 1;
           } else {
             tierUpdates += 1;
             let existingPosition =
               ctx.existingWatchlistPositionByFilmId?.get(filmId);
-            let position =
-              existingPosition ||
-              String(nextPosition++).padStart(10, "0");
+            let position = existingPosition ?? null;
             changedTierRows.push({
               film_id: filmId,
               tier: item.tier,
+              tier_modifier: targetModifier,
               position,
             });
           }
@@ -1306,12 +1415,12 @@
       let newRow = {
         film_id: filmId,
         tier: item.tier || null,
-        position: String(nextPosition).padStart(10, "0"),
+        tier_modifier: item.tierModifier || null,
+        position: null,
         reason: null,
       };
       newWatchlistRows.push(newRow);
       pendingNewWatchlistRowsByFilmId.set(filmId, newRow);
-      nextPosition += 1;
     }
 
     newWatchlistRows = dedupeByKey(newWatchlistRows, (row) => row.film_id);
@@ -1349,7 +1458,9 @@
   async function runOskarsStage(input, resolvers, existingNominations, ctx) {
     let report = newStageReport("The Oskars");
     let blocks = window.splitBracketSheetBlocks(ensureRows(input));
-    let periods = blocks.map((block) => window.parseTable("", { rows: block.rows }));
+    let periods = blocks.map((block) =>
+      window.parseTable("", { rows: block.rows }),
+    );
     // Process narrow-to-broad (years, then decades, then centuries, then
     // allTime) regardless of sheet layout order, so a decade nomination
     // resolved earlier in this same run can inform that film's century/
@@ -1357,7 +1468,8 @@
     // filmCategoryHistory below). Array.prototype.sort is stable, so blocks
     // sharing a rank keep their original sheet order.
     periods.sort(
-      (a, b) => (PERIOD_RANK[a.periodType] ?? 0) - (PERIOD_RANK[b.periodType] ?? 0),
+      (a, b) =>
+        (PERIOD_RANK[a.periodType] ?? 0) - (PERIOD_RANK[b.periodType] ?? 0),
     );
 
     let scopeKeys = new Set();
@@ -1378,7 +1490,11 @@
     // *same category* being resolved is stronger evidence than history in
     // any category at all (issue #473).
     let priorAwards = (
-      await fetchAll(ctx.client, "personal_awards", "id,user_id,scope_type,scope")
+      await fetchAll(
+        ctx.client,
+        "personal_awards",
+        "id,user_id,scope_type,scope",
+      )
     ).filter((row) => row.user_id === ctx.userId);
     let scopeTypeByAwardId = new Map(
       priorAwards.map((row) => [row.id, row.scope_type]),
@@ -1402,9 +1518,7 @@
     }
     let recipientNamesByNominationId = new Map();
     if (existingNominations.length) {
-      let existingNominationIds = new Set(
-        existingNominations.map((n) => n.id),
-      );
+      let existingNominationIds = new Set(existingNominations.map((n) => n.id));
       let recipientRows = (
         await fetchAll(
           ctx.client,
@@ -1458,7 +1572,7 @@
                 recipients: awardRecipientNames(award),
               })),
             );
-        noteFilmResolution(report, resolution);
+        noteFilmResolution(report, resolution, film);
         if (resolution.status === "tmdb-mismatch") {
           noteTmdbMismatch(report, film, resolution);
           skippedNominations += (film.awards || []).length;
@@ -1466,6 +1580,10 @@
         }
         if (resolution.status === "ambiguous") {
           noteAmbiguous(report, film, resolution);
+          skippedNominations += (film.awards || []).length;
+          continue;
+        }
+        if (resolution.status === "not-created") {
           skippedNominations += (film.awards || []).length;
           continue;
         }
@@ -1630,18 +1748,16 @@
         nominationIdByNormalizedSourceKey.get(sourceKey);
       if (!nominationId) continue;
       for (let name of nomination.recipients) {
-        let personResolution = await resolveOrCreatePerson(
+        let person = await resolvePerson(
           resolvers.personResolver,
           name,
+          report,
+          "recipients with no catalog or TMDB person (kept as text)",
           ctx,
         );
         recipientRows.push({
           nomination_id: nominationId,
-          person_id:
-            personResolution?.person &&
-            !String(personResolution.person.id).startsWith("pending:")
-              ? personResolution.person.id
-              : null,
+          person_id: person?.id || null,
           recipient_name: name,
         });
       }
@@ -1673,7 +1789,7 @@
       bracket: ranges.bracket,
       watchlist: ranges.watchlist,
       directorsAndFranchises: ranges.directorsAndFranchises,
-      diary: ranges.diary,
+      diary: ranges.diary || "'Diary'!A:R",
     };
   }
 
@@ -1682,8 +1798,8 @@
     let config = window.OSKARS_LOCAL_CONFIG?.googleSheets;
     return Boolean(
       window.OSKARS_LOCAL_CONFIG?.googleClientId &&
-        config?.spreadsheetId &&
-        Object.values(googleSheetsSupabaseRanges()).some(Boolean),
+      config?.spreadsheetId &&
+      Object.values(googleSheetsSupabaseRanges()).some(Boolean),
     );
   };
 
@@ -1735,7 +1851,14 @@
    * @returns {Promise<{reports: Object[]}>}
    */
   window.runGoogleSheetsSupabaseImport = async function (source, options = {}) {
-    let { client, user } = await readyClient();
+    let client = options.client;
+    let user = options.user || (options.userId ? { id: options.userId } : null);
+    if (!client || !user) {
+      let ready = await readyClient();
+      client = client || ready.client;
+      user = user || ready.user;
+    }
+    await window.ensureCatalogIdentity?.();
     let ctx = {
       confirm: Boolean(options.confirm),
       client,
@@ -1778,7 +1901,11 @@
       // instead of always issuing an update (issue: same "Directors and
       // Franchises still going through basically every row" report the
       // credits/franchise-membership skips above were fixing).
-      fetchAll(client, "watchlist", "user_id,film_id,tier,position"),
+      fetchAll(
+        client,
+        "watchlist",
+        "user_id,film_id,tier,tier_modifier,position",
+      ),
       fetchAll(
         client,
         "personal_nominations",
@@ -1820,6 +1947,9 @@
     ctx.existingWatchlistTierByFilmId = new Map(
       watchlist.map((row) => [row.film_id, row.tier ?? null]),
     );
+    ctx.existingWatchlistTierModifierByFilmId = new Map(
+      watchlist.map((row) => [row.film_id, row.tier_modifier ?? null]),
+    );
     // Belt-and-suspenders for a tier-only update: always carries a real
     // `position` (a NOT NULL column with no default) sourced from the
     // film's own existing row when there is one, so a genuine update
@@ -1852,11 +1982,52 @@
     reports.push(stage1b.report);
     stage1b.watchedFilmIds.forEach((id) => ownedWatchedFilmIds.add(id));
 
+    // Stale watchlist cleanup (issue #634): any film that was on the user's
+    // watchlist before this run, and was newly marked watched by All-time
+    // or Diary in this run, must have its watchlist row deleted so it
+    // doesn't persist in both tables simultaneously.
+    let newlyWatchedFilmIds = new Set([
+      ...stage1.watchedFilmIds,
+      ...stage1b.watchedFilmIds,
+    ]);
+    let staleWatchlistFilmIds = [];
+    for (let filmId of ownedWatchlistFilmIds) {
+      if (newlyWatchedFilmIds.has(filmId)) {
+        staleWatchlistFilmIds.push(filmId);
+      }
+    }
+
+    if (staleWatchlistFilmIds.length) {
+      if (ctx.confirm) {
+        const DELETE_CHUNK_SIZE = 100;
+        for (
+          let i = 0;
+          i < staleWatchlistFilmIds.length;
+          i += DELETE_CHUNK_SIZE
+        ) {
+          let chunk = staleWatchlistFilmIds.slice(i, i + DELETE_CHUNK_SIZE);
+          let query = ctx.client
+            .from("watchlist")
+            .delete()
+            .in("film_id", chunk);
+          if (ctx.userId) query = query.eq("user_id", ctx.userId);
+          let { error } = await query;
+          if (error) throw error;
+        }
+      }
+      for (let filmId of staleWatchlistFilmIds) {
+        ownedWatchlistFilmIds.delete(filmId);
+        ctx.existingWatchlistTierByFilmId?.delete(filmId);
+        ctx.existingWatchlistPositionByFilmId?.delete(filmId);
+      }
+    }
+
     let stage2 = await runWatchlistStage(
       source.watchlistRaw,
       resolvers,
       ownedWatchedFilmIds,
       ctx,
+      staleWatchlistFilmIds.length,
     );
     reports.push(stage2.report);
     stage2.watchlistFilmIds.forEach((id) => ownedWatchlistFilmIds.add(id));

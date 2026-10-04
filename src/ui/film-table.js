@@ -81,6 +81,148 @@ window.renderTierModifierToggle = function (name, modifier, options = {}) {
 };
 
 /**
+ * Renders a segmented tier and modifier setter block:
+ * [[[F][E][D][C][B][A][S]] [[−][＋]]]
+ * Backed by hidden inputs so standard FormData reads and change events
+ * capture both the base tier and its minus/plus refinement.
+ * @param {Object} [options] Rendering options.
+ * @param {string} [options.tierName="tier"] Name for hidden tier input.
+ * @param {string} [options.tier=""] Current base tier value (e.g. "B").
+ * @param {string} [options.modifierName="tierModifier"] Name for hidden modifier input.
+ * @param {string} [options.modifier=""] Current modifier value (e.g. "plus").
+ * @param {string} [options.tierAttributes=""] Extra attributes for tier input.
+ * @param {string} [options.modifierAttributes=""] Extra attributes for modifier input.
+ * @param {boolean} [options.disabled=false] Whether the control is disabled.
+ * @param {Function} [options.escape] HTML-escaping function.
+ * @param {Function} [options.ui] Localized-text function.
+ * @returns {string} Setter widget HTML.
+ */
+window.renderTierSetter = function (options = {}) {
+  let escape = options.escape || window.pageEscape || ((s) => s);
+  let ui = options.ui || window.uiText || ((text) => text);
+  let tierName = options.tierName || "tier";
+  let modifierName = options.modifierName || "tierModifier";
+  let normalizedTier = window.normalizeWatchlistTier?.(options.tier) || "";
+  let normalizedMod =
+    window.normalizeTierModifierValue?.(options.modifier) || "";
+  let disabled = Boolean(options.disabled);
+  let tierAttrs = options.tierAttributes ? ` ${options.tierAttributes}` : "";
+  let modAttrs = options.modifierAttributes
+    ? ` ${options.modifierAttributes}`
+    : "";
+
+  let tiers = ["F", "E", "D", "C", "B", "A", "S"];
+  let tierButtons = tiers
+    .map((tier) => {
+      let active = normalizedTier === tier;
+      let lower = tier.toLowerCase();
+      let disAttr = disabled ? " disabled" : "";
+      return `<button type="button" class="tier-setter-btn tier-${lower}${active ? " is-active" : ""}" data-tier-setter-tier="${tier}" aria-pressed="${active ? "true" : "false"}" tabindex="-1"${disAttr}>${tier}</button>`;
+    })
+    .join("");
+
+  let modButtons = [
+    ["minus", "−", ui("Slightly lower priority")],
+    ["plus", "＋", ui("Slightly higher priority")],
+  ]
+    .map(([mod, glyph, label]) => {
+      let active = normalizedMod === mod;
+      let disAttr = disabled || !normalizedTier ? " disabled" : "";
+      return `<button type="button" class="tier-setter-btn tier-setter-mod${active ? " is-active" : ""}" data-tier-setter-mod="${mod}" data-tier-modifier-toggle="${mod}" aria-pressed="${active ? "true" : "false"}" aria-label="${escape(label)}" tabindex="-1"${disAttr}>${glyph}</button>`;
+    })
+    .join("");
+
+  return `<span class="tier-setter${disabled ? " is-disabled" : ""}" data-tier-setter><input type="hidden" name="${escape(tierName)}" value="${escape(normalizedTier)}" data-tier-setter-input="tier"${tierAttrs}><span class="tier-setter-group tier-setter-tiers" role="group" aria-label="${escape(ui("Interest tier"))}">${tierButtons}</span><span class="tier-setter-group tier-setter-mods tier-modifier-toggle" data-tier-modifier-input role="group" aria-label="${escape(ui("Tier refinement"))}"><input type="hidden" name="${escape(modifierName)}" value="${escape(normalizedMod)}" data-tier-setter-input="modifier"${modAttrs}>${modButtons}</span></span>`;
+};
+
+/**
+ * Wires up every segmented tier setter block within a container so
+ * clicking a tier button selects it (or deselects on second click), and
+ * clicking minus/plus toggles refinement (disabled when tier is unset).
+ * Dispatches a bubbling 'change' event from the affected hidden input.
+ * Idempotent (safe to call again after a re-render).
+ * @param {Element} container Root element containing rendered tier setters.
+ */
+window.enhanceTierSetters = function (container) {
+  (container?.querySelectorAll?.("[data-tier-setter]") || []).forEach(
+    (widget) => {
+      if (widget.dataset.tierSetterReady) return;
+      widget.dataset.tierSetterReady = "1";
+      let tierInput = widget.querySelector(
+        'input[data-tier-setter-input="tier"]',
+      );
+      let modInput = widget.querySelector(
+        'input[data-tier-setter-input="modifier"]',
+      );
+      let tierButtons = Array.from(
+        widget.querySelectorAll("[data-tier-setter-tier]"),
+      );
+      let modButtons = Array.from(
+        widget.querySelectorAll("[data-tier-setter-mod]"),
+      );
+
+      function sync() {
+        let curTier = (tierInput?.value || "").toUpperCase();
+        let curMod = modInput?.value || "";
+        let isDisabled = widget.classList.contains("is-disabled");
+
+        tierButtons.forEach((btn) => {
+          let active = btn.dataset.tierSetterTier === curTier;
+          btn.classList.toggle("is-active", active);
+          btn.setAttribute("aria-pressed", active ? "true" : "false");
+          btn.disabled = isDisabled;
+        });
+
+        modButtons.forEach((btn) => {
+          let active = curTier && btn.dataset.tierSetterMod === curMod;
+          btn.classList.toggle("is-active", Boolean(active));
+          btn.setAttribute("aria-pressed", active ? "true" : "false");
+          btn.disabled = isDisabled || !curTier;
+        });
+      }
+
+      function dispatchChangeEvent(element) {
+        if (!element?.dispatchEvent) return;
+        let event =
+          typeof Event === "function"
+            ? new Event("change", { bubbles: true })
+            : { type: "change", bubbles: true };
+        element.dispatchEvent(event);
+      }
+
+      tierButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (widget.classList.contains("is-disabled") || btn.disabled) return;
+          let clicked = btn.dataset.tierSetterTier;
+          let nextTier =
+            (tierInput?.value || "").toUpperCase() === clicked ? "" : clicked;
+          if (tierInput) tierInput.value = nextTier;
+          if (!nextTier && modInput) {
+            modInput.value = "";
+          }
+          sync();
+          dispatchChangeEvent(tierInput);
+        });
+      });
+
+      modButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (widget.classList.contains("is-disabled") || btn.disabled) return;
+          if (!tierInput?.value) return;
+          let clicked = btn.dataset.tierSetterMod;
+          let nextMod = (modInput?.value || "") === clicked ? "" : clicked;
+          if (modInput) modInput.value = nextMod;
+          sync();
+          dispatchChangeEvent(modInput);
+        });
+      });
+
+      sync();
+    },
+  );
+};
+
+/**
  * Wires up every tier-modifier toggle within a container so clicking
  * minus/plus updates the paired hidden input (toggling it off, back to
  * "", on a second click of the same button) and dispatches a `change`
@@ -88,9 +230,14 @@ window.renderTierModifierToggle = function (name, modifier, options = {}) {
  * @param {Element} container Root element containing rendered toggle widgets.
  */
 window.enhanceTierModifierToggles = function (container) {
+  window.enhanceTierSetters?.(container);
   (container?.querySelectorAll?.("[data-tier-modifier-input]") || []).forEach(
     (widget) => {
-      if (widget.dataset.tierModifierReady) return;
+      if (
+        widget.dataset.tierModifierReady ||
+        widget.closest("[data-tier-setter]")
+      )
+        return;
       widget.dataset.tierModifierReady = "1";
       let input = widget.querySelector("input[type=hidden]");
       let buttons = Array.from(
@@ -106,7 +253,13 @@ window.enhanceTierModifierToggles = function (container) {
             candidate.classList.toggle("is-active", active);
             candidate.setAttribute("aria-pressed", active ? "true" : "false");
           });
-          input.dispatchEvent(new Event("change", { bubbles: true }));
+          if (input?.dispatchEvent) {
+            let event =
+              typeof Event === "function"
+                ? new Event("change", { bubbles: true })
+                : { type: "change", bubbles: true };
+            input.dispatchEvent(event);
+          }
         });
       });
     },

@@ -253,7 +253,7 @@ window.importProposalDraftMetadata = function (
  * Applies the exact reviewed proposal after recovery, revalidation, and a stale check.
  * @param {ImportProposal} proposal Session proposal.
  * @param {Object} [options] Apply options.
- * @param {function(string, number, number): void} [options.onProgress]
+ * @param {(label: string, doneStages: number, totalStages: number) => void} [options.onProgress]
  *   Forwarded to window.save() - see saveSupabaseHydratedState's onProgress.
  * @returns {Promise<{ok: boolean, errors?: string[], report?: ImportReport}>} Apply result.
  */

@@ -8,11 +8,17 @@
     );
   }
 
-  function compatibleFilmId(nomination, representedYears) {
-    let filmRef = nomination?.filmRef;
-    return filmRef?.id && representedYears.has(String(filmRef.year || ""))
-      ? filmRef.id
-      : "";
+  // Every catalog film the nomination credits that was released in one of
+  // the period's represented years.
+  function compatibleFilmIds(nomination, representedYears) {
+    return window
+      .officialNominationFilms(nomination)
+      .map((entry) => entry.filmRef)
+      .filter(
+        (filmRef) =>
+          filmRef?.id && representedYears.has(String(filmRef.year || "")),
+      )
+      .map((filmRef) => filmRef.id);
   }
 
   /**
@@ -75,16 +81,17 @@
           value ? values.indexOf(value) === index : false,
         );
       let officialWinners = officialWinnersByCategory.get(category) || [];
-      let comparableOfficialWinners = officialWinners.filter((nomination) =>
-        Boolean(compatibleFilmId(nomination, representedYears)),
+      let comparableOfficialWinners = officialWinners.filter(
+        (nomination) =>
+          compatibleFilmIds(nomination, representedYears).length > 0,
       );
       let comparable =
         personalFilmIds.length > 0 && comparableOfficialWinners.length > 0;
       let agreement =
         comparable &&
         comparableOfficialWinners.some((nomination) =>
-          personalFilmIds.includes(
-            compatibleFilmId(nomination, representedYears),
+          compatibleFilmIds(nomination, representedYears).some((id) =>
+            personalFilmIds.includes(id),
           ),
         );
       return {
@@ -265,14 +272,39 @@
           (category) => category.status !== "unresolved",
         );
         if (comparedCategories.length) comparedPeriodKeys.add(periodKey);
-        comparedCategories.forEach((category) =>
+        comparedCategories.forEach((category) => {
+          let personalWinners = (
+            category.personalWinners?.length
+              ? category.personalWinners
+              : category.personalWinner
+                ? [category.personalWinner]
+                : []
+          ).map((entry) => ({
+            filmId: entry.film?.supabaseFilmId || entry.film?.id || "",
+            title: entry.film?.title || "",
+            year: entry.film?.year != null ? String(entry.film.year) : "",
+            recipient: entry.award?.recipientText || entry.recipient || "",
+          }));
+          let officialWinners = (
+            category.comparableOfficialWinners?.length
+              ? category.comparableOfficialWinners
+              : category.officialWinners || []
+          ).map((nom) => ({
+            filmId: nom.filmRef?.id || "",
+            title: nom.filmRef?.title || nom.sourceTitle || "",
+            year: nom.filmRef?.year != null ? String(nom.filmRef.year) : "",
+            recipient: nom.recipient || "",
+            sourceTitle: nom.sourceTitle || "",
+          }));
           records.push({
             periodKey,
             representedYears: comparison.representedYears,
             category: category.category,
             status: category.status,
-          }),
-        );
+            personalWinners,
+            officialWinners,
+          });
+        });
       });
     let matches = records.filter(
       (record) => record.status === "agreement",
@@ -306,6 +338,7 @@
       periodCount: comparedPeriodKeys.size,
       categoryRows,
       decadeRows,
+      records,
     };
   };
 
@@ -318,10 +351,9 @@
   window.officialNominationIsPersonalPick = function (nomination, comparison) {
     let category = comparison?.categoriesByName?.get(nomination?.category);
     if (!category?.personalFilmIds?.length) return false;
-    let filmId = compatibleFilmId(
+    return compatibleFilmIds(
       nomination,
       new Set(comparison.representedYears || []),
-    );
-    return Boolean(filmId && category.personalFilmIds.includes(filmId));
+    ).some((filmId) => category.personalFilmIds.includes(filmId));
   };
 })();

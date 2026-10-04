@@ -114,9 +114,11 @@ function scoreTmdbTvMatch(film, result, index) {
   );
 }
 
-/** Selects the best TMDB TV series. @param {FilmRecord} film Film-like record. @param {Object[]} results Results. @returns {Object|null} Result. */
+/** Selects the best TMDB TV series, requiring its first-air year to equal the film's year when one is known. @param {FilmRecord} film Film-like record. @param {Object[]} results Results. @returns {Object|null} Result. */
 window.selectTmdbTvShow = function (film, results) {
+  let year = String(film?.year || "");
   let matches = (results || [])
+    .filter((result) => !year || posterYear(result?.first_air_date) === year)
     .map((result, index) => ({
       result,
       score: scoreTmdbTvMatch(film, result, index),

@@ -22,6 +22,14 @@
     };
   }
 
+  // The complete filtered, ordered id list depends only on the filters and
+  // sort, so it is fetched once per filter/sort (issue #636) and reused for
+  // later pages until any write invalidates the archive.
+  let orderedIdsByKey = new Map();
+  window.addEventListener?.("oskars:hydration-invalidated", () =>
+    orderedIdsByKey.clear(),
+  );
+
   /**
    * Reshapes a raw `read_watchlist_page()` response into the same
    * `{item, index, archiveFilm}` entry shape `periodWatchlistEntries()`
@@ -98,15 +106,40 @@
       throw new Error("Sign in to view your watchlist.");
     let ready = await window.ensureSupabaseClient();
     if (!ready) throw new Error("Supabase not configured.");
-    let { data, error } = await ready.client.rpc("read_watchlist_page", {
+    let args = {
       p_filters: rpcFilters(filters),
       p_order: filters.order,
       p_direction: filters.direction || "asc",
       p_shuffle_seed: filters.shuffleSeed || "",
       p_limit: Number(options.limit) || 60,
       p_offset: Number(options.offset) || 0,
-    });
+    };
+    let idsKey = JSON.stringify([
+      auth.user.id,
+      args.p_filters,
+      args.p_order,
+      args.p_direction,
+      args.p_shuffle_seed,
+    ]);
+    let cachedIds = orderedIdsByKey.get(idsKey);
+    let { data, error } = await ready.client.rpc(
+      "read_watchlist_page",
+      cachedIds ? { ...args, p_include_ids: false } : args,
+    );
+    // A database without p_include_ids yet: ask the old way.
+    if (error && cachedIds) {
+      cachedIds = null;
+      ({ data, error } = await ready.client.rpc("read_watchlist_page", args));
+    }
     if (error) throw error;
+    if (Array.isArray(data?.orderedIds)) {
+      orderedIdsByKey.set(idsKey, data.orderedIds);
+    } else if (cachedIds && cachedIds.length === Number(data?.totalCount)) {
+      data = { ...data, orderedIds: cachedIds };
+    } else {
+      orderedIdsByKey.delete(idsKey);
+      return window.loadSupabaseWatchlistPage(filters, options);
+    }
     return window.buildSupabaseWatchlistPageModel(data);
   };
 })();

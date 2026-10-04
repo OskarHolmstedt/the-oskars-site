@@ -58,48 +58,45 @@ window.requestPosterJson = async function (
   provider,
   attempts,
 ) {
-  let lastError;
-  for (let attempt = 0; attempt < attempts; attempt++) {
-    let controller =
-      typeof AbortController === "function" ? new AbortController() : null;
-    let timeout = controller
-      ? setTimeout(() => controller.abort(), 9000)
-      : null;
-    try {
-      let response = await fetchFn(
-        url,
-        Object.assign(
-          {},
-          options,
-          controller ? { signal: controller.signal } : {},
-        ),
-      );
-      if (!response.ok) {
-        let error = new Error(
-          `${provider} request failed (${response.status})`,
+  return window.withRetry(
+    async () => {
+      let controller =
+        typeof AbortController === "function" ? new AbortController() : null;
+      let timeout = controller
+        ? setTimeout(() => controller.abort(), 9000)
+        : null;
+      try {
+        let response = await fetchFn(
+          url,
+          Object.assign(
+            {},
+            options,
+            controller ? { signal: controller.signal } : {},
+          ),
         );
-        if (response.status < 500 && response.status !== 429) throw error;
-        lastError = error;
-      } else {
+        if (!response.ok) {
+          let error = new Error(
+            `${provider} request failed (${response.status})`,
+          );
+          error.status = response.status;
+          throw error;
+        }
         return await response.json();
+      } catch (err) {
+        if (err.name === "AbortError") {
+          let timeoutError = new Error(`${provider} request timed out`, {
+            cause: err,
+          });
+          timeoutError.name = "AbortError";
+          throw timeoutError;
+        }
+        throw err;
+      } finally {
+        if (timeout) clearTimeout(timeout);
       }
-    } catch (err) {
-      lastError =
-        err.name === "AbortError"
-          ? new Error(`${provider} request timed out`)
-          : err;
-      if (
-        /\(4\d\d\)$/.test(lastError.message) &&
-        !/\(429\)$/.test(lastError.message)
-      )
-        throw lastError;
-    } finally {
-      if (timeout) clearTimeout(timeout);
-    }
-    if (attempt + 1 < attempts)
-      await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
-  }
-  throw lastError || new Error(`${provider} request failed`);
+    },
+    { maxAttempts: attempts, baseDelayMs: 300 },
+  );
 };
 
 /** Returns deduplicated title variants for TMDB search. @param {string} title Film title. @returns {string[]} Variants. */
@@ -364,7 +361,8 @@ window.lookupTmdbMovieDetails = async function (tmdbId, fetchFn) {
     // TMDB often lists several equally real release years/runtimes
     // across regions, and the local value matching any one of them is
     // not a mistake to correct.
-    append_to_response: "credits,alternative_titles,translations,release_dates",
+    append_to_response:
+      "credits,alternative_titles,translations,release_dates,keywords",
   });
   return window.requestPosterJson(
     fetchFn,
@@ -394,10 +392,16 @@ window.lookupTmdbMovieDetails = async function (tmdbId, fetchFn) {
  * which would badly understate a multi-episode entry's real watch time.
  * @param {{mediaType: "tv", id: string, season: number|null, episode: number|null}} reference
  * @param {Function} fetchFn
+ * @param {string[]} [requestedFields] Fields eligible for fetching; skips aggregate runtime requests when excluded.
  * @returns {Promise<{country: string|null, primaryCountry: string|null, runtimeMinutes: number|null, director: string|null, directors: {tmdbId: number|null, name: string, profilePath: string|null}[]}>}
  */
-window.lookupTmdbTvMetadataFields = async function (reference, fetchFn) {
+window.lookupTmdbTvMetadataFields = async function (
+  reference,
+  fetchFn,
+  requestedFields,
+) {
   let show = await window.lookupTmdbMovieDetails(`TV:${reference.id}`, fetchFn);
+  if (!show?.id) throw new Error("TV series details unavailable");
   let countries = (show?.production_countries || [])
     .map((country) => String(country.name || "").trim())
     .filter(Boolean);
@@ -409,6 +413,7 @@ window.lookupTmdbTvMetadataFields = async function (reference, fetchFn) {
       `TV:${reference.id}/S${seasonNumber}`,
       fetchFn,
     );
+    if (!season?.id) throw new Error("TV season details unavailable");
     return (season?.episodes || []).map(
       (episode) => Number(episode.runtime) || 0,
     );
@@ -423,11 +428,14 @@ window.lookupTmdbTvMetadataFields = async function (reference, fetchFn) {
     .filter((person) => person.name);
 
   let runtimeMinutes;
+  let wantsRuntime =
+    !requestedFields || requestedFields.includes("runtime_minutes");
   if (reference.episode !== null) {
     let episode = await window.lookupTmdbMovieDetails(
       `TV:${reference.id}/S${reference.season}E${reference.episode}`,
       fetchFn,
     );
+    if (!episode?.id) throw new Error("TV episode details unavailable");
     runtimeMinutes =
       Number(episode?.runtime) > 0 ? Number(episode.runtime) : null;
     let epDirectors = (episode?.crew || [])
@@ -439,6 +447,8 @@ window.lookupTmdbTvMetadataFields = async function (reference, fetchFn) {
       }))
       .filter((person) => person.name);
     if (epDirectors.length) directors = epDirectors;
+  } else if (!wantsRuntime) {
+    runtimeMinutes = null;
   } else if (reference.season !== null) {
     let total = (await seasonEpisodeRuntimes(reference.season)).reduce(
       (sum, minutes) => sum + minutes,
@@ -457,7 +467,14 @@ window.lookupTmdbTvMetadataFields = async function (reference, fetchFn) {
   }
 
   let director = directors.map((d) => d.name).join(", ") || null;
-  return { country, primaryCountry, runtimeMinutes, director, directors };
+  return {
+    country,
+    primaryCountry,
+    runtimeMinutes,
+    director,
+    directors,
+    originalLanguage: show.original_language || null,
+  };
 };
 
 /**
@@ -495,26 +512,13 @@ async function confirmTmdbPersonByLocalCredit(
   return null;
 }
 
-/** Finds a TMDB portrait for a person. @param {PersonRecord & {creditedFilmTmdbIds?: (number|string)[]}} person Person. @param {Function} fetchFn Fetch implementation. @returns {Promise<PosterRecord|null>} Portrait. */
-window.lookupTmdbPersonPortrait = async function (person, fetchFn) {
-  let knownId = person.tmdbId || person.tmdb_id;
-  if (/^[1-9][0-9]*$/.test(String(knownId || ""))) {
-    let match = await window.requestPosterJson(
-      fetchFn,
-      `${window.TMDB_API_BASE}/person/${knownId}?language=en-US`,
-      { headers: { accept: "application/json" } },
-      "TMDB",
-      2,
-    );
-    if (!match?.profile_path || Number(match.id) !== Number(knownId))
-      return null;
-    return window.normalizePosterRecord({
-      url: `https://image.tmdb.org/t/p/h632${match.profile_path}`,
-      source: "tmdb",
-      sourceUrl: `https://www.themoviedb.org/person/${match.id}`,
-      providerId: match.id,
-    });
-  }
+/**
+ * Searches TMDB for people named exactly like `person` and narrows several
+ * namesakes to one: the one credited on a film this person is known for, or
+ * else the only one with a profile photo. Returns every search result for
+ * that single person, or none when the namesakes stay ambiguous.
+ */
+async function tmdbSameNamedPeople(person, fetchFn) {
   let params = new URLSearchParams({
     query: person.name,
     include_adult: "false",
@@ -546,10 +550,53 @@ window.lookupTmdbPersonPortrait = async function (person, fetchFn) {
       // unlinked record, but a namesake with no profile photo at all is
       // never a plausible rival to one that has one.
       let withPhoto = exact.filter((result) => result.profile_path);
-      if (new Set(withPhoto.map((result) => result.id)).size !== 1) return null;
+      if (new Set(withPhoto.map((result) => result.id)).size !== 1) return [];
       exact = withPhoto;
     }
   }
+  return exact;
+}
+
+/**
+ * Identifies a person on TMDB by exact name, telling namesakes apart the same
+ * way portrait lookup does.
+ * @param {{name: string, creditedFilmTmdbIds?: (number|string)[]}} person Person to identify.
+ * @param {Function} fetchFn Fetch implementation.
+ * @returns {Promise<{tmdbId: number, name: string, profilePath: string|null}|null>} The match, or null when none or several remain.
+ */
+window.lookupTmdbPersonIdentity = async function (person, fetchFn) {
+  if (!String(person?.name || "").trim()) return null;
+  let exact = await tmdbSameNamedPeople(person, fetchFn);
+  if (new Set(exact.map((result) => result.id)).size !== 1) return null;
+  let match = exact.find((result) => result.profile_path) || exact[0];
+  return {
+    tmdbId: Number(match.id),
+    name: String(match.name || person.name).trim(),
+    profilePath: match.profile_path || null,
+  };
+};
+
+/** Finds a TMDB portrait for a person. @param {PersonRecord & {creditedFilmTmdbIds?: (number|string)[]}} person Person. @param {Function} fetchFn Fetch implementation. @returns {Promise<PosterRecord|null>} Portrait. */
+window.lookupTmdbPersonPortrait = async function (person, fetchFn) {
+  let knownId = person.tmdbId || person.tmdb_id;
+  if (/^[1-9][0-9]*$/.test(String(knownId || ""))) {
+    let match = await window.requestPosterJson(
+      fetchFn,
+      `${window.TMDB_API_BASE}/person/${knownId}?language=en-US`,
+      { headers: { accept: "application/json" } },
+      "TMDB",
+      2,
+    );
+    if (!match?.profile_path || Number(match.id) !== Number(knownId))
+      return null;
+    return window.normalizePosterRecord({
+      url: `https://image.tmdb.org/t/p/h632${match.profile_path}`,
+      source: "tmdb",
+      sourceUrl: `https://www.themoviedb.org/person/${match.id}`,
+      providerId: match.id,
+    });
+  }
+  let exact = await tmdbSameNamedPeople(person, fetchFn);
   if (!exact.length) return null;
   let match = window.selectTmdbPersonPortrait(person, exact);
   if (!match) return null;

@@ -216,6 +216,30 @@ window.filmStoreCandidatesByTitle = function (title, store = window.state) {
   return filmStoreLookup(store).byTitle.get(normalizedTitle) || [];
 };
 
+function cloneFilmRecord(film) {
+  let copy = { ...film };
+  if (copy.directors) copy.directors = copy.directors.slice();
+  if (copy.directorIds) copy.directorIds = copy.directorIds.slice();
+  if (copy.directorUncredited)
+    copy.directorUncredited = copy.directorUncredited.slice();
+  if (copy.rankConfirmedByScope)
+    copy.rankConfirmedByScope = { ...copy.rankConfirmedByScope };
+  if (copy.canonicalComposite)
+    copy.canonicalComposite = { ...copy.canonicalComposite };
+  if (copy.compositeParts)
+    copy.compositeParts = copy.compositeParts.map((part) =>
+      typeof part === "object" && part ? { ...part } : part,
+    );
+  if (copy.poster && typeof copy.poster === "object")
+    copy.poster = { ...copy.poster };
+  if (copy.tags)
+    copy.tags = copy.tags.map((tag) =>
+      typeof tag === "object" && tag ? { ...tag } : tag,
+    );
+  if (copy.awards) copy.awards = copy.awards.map((award) => ({ ...award }));
+  return copy;
+}
+
 /**
  * Merges a source film into the canonical store and requested derived periods.
  * @param {string|number} year Source period or concrete year.
@@ -239,7 +263,7 @@ window.addFilmToStore = function (year, film, options = {}) {
     centuries: {},
     allTime: { films: [] },
   };
-  window.normalizeFilmMetadata?.(film);
+  window.normalizeFilmMetadata?.(film, { skipUnchanged: true });
 
   let norm = normalizeTitle(film.title);
   let filmYearIsConcrete = window.filmConcreteYear(film.year);
@@ -392,7 +416,7 @@ window.addFilmToStore = function (year, film, options = {}) {
     let idNew =
       film.supabaseFilmId ||
       window.makeFilmId(effectiveYear || year, film.title);
-    let copy = window.cloneRecord(film);
+    let copy = cloneFilmRecord(film);
     copy.id = idNew;
     copy.normalizedTitle = norm;
     copy.year ||= effectiveYear || year;
@@ -440,11 +464,20 @@ window.addFilmToStore = function (year, film, options = {}) {
  * @returns {AwardRecord[]} The existingAwards array.
  */
 window.mergeAwards = function (existingAwards, newAwards) {
+  if (!newAwards || !newAwards.length) return existingAwards || [];
   let list = existingAwards || [];
-  (newAwards || []).forEach((a) => {
-    let found = list.find((x) => window.sameAward(x, a));
+  if (list === newAwards) return list;
+  for (let i = 0; i < newAwards.length; i++) {
+    let a = newAwards[i];
+    let found = false;
+    for (let j = 0; j < list.length; j++) {
+      if (window.sameAward(list[j], a)) {
+        found = true;
+        break;
+      }
+    }
     if (!found) list.push(a);
-  });
+  }
   return list;
 };
 
@@ -457,6 +490,17 @@ window.mergeAwards = function (existingAwards, newAwards) {
  * @returns {boolean} Whether the awards represent the same result.
  */
 window.sameAward = function (a, b) {
+  if (a === b) return true;
+  if (
+    a.supabaseNominationId &&
+    b.supabaseNominationId &&
+    a.supabaseNominationId === b.supabaseNominationId
+  ) {
+    return true;
+  }
+  if (a.category !== b.category) return false;
+  if (a.year !== b.year && String(a.year || "") !== String(b.year || ""))
+    return false;
   let placementA = Number(a.placement);
   let placementB = Number(b.placement);
   // Number(a.placement) === Number(b.placement) is false for two "not
@@ -465,14 +509,11 @@ window.sameAward = function (a, b) {
   let samePlacement =
     placementA === placementB ||
     (Number.isNaN(placementA) && Number.isNaN(placementB));
-  return (
-    a.category === b.category &&
-    samePlacement &&
-    String(a.year || "") === String(b.year || "") &&
-    window.getAwardPeriodType(a) === window.getAwardPeriodType(b) &&
-    window.awardRecipientKey(a) === window.awardRecipientKey(b) &&
-    window.awardDetail(a) === window.awardDetail(b)
-  );
+  if (!samePlacement) return false;
+  if (window.awardDetail(a) !== window.awardDetail(b)) return false;
+  if (window.getAwardPeriodType(a) !== window.getAwardPeriodType(b))
+    return false;
+  return window.awardRecipientKey(a) === window.awardRecipientKey(b);
 };
 
 /**

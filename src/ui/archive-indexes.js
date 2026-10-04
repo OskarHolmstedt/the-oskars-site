@@ -52,7 +52,7 @@
     let href = window.categoryPageUrl(category);
     let fullWidth = category === "Best Picture";
     if (options.compact) {
-      return `<a class="category-preview-link${fullWidth ? " full-width" : ""}" href="${escape(href)}"><span>${escape(name)}</span><small>${escape(ui("{count} winners", { count: summary.winners }))}</small></a>`;
+      return `<a class="category-preview-link${fullWidth ? " full-width" : ""}" href="${escape(href)}"><span>${escape(name)}</span></a>`;
     }
     let latest = summary.latestWinner;
     let latestHtml = latest
@@ -132,9 +132,9 @@
     return `<div class="period-year-grid-wrap${options.compact ? " period-year-grid-wrap--compact" : ""}"><table class="period-year-grid"><thead><tr><th scope="col">${escape(ui("All-time"))}</th><th scope="col">${escape(ui("Century"))}</th><th scope="col">${escape(ui("Decade"))}</th>${digitHeaders}</tr></thead><tbody>${rows}</tbody></table></div>`;
   };
 
-  /** Renders the canonical category board with compact-preview or visual-card treatment. @param {{compact?: boolean, visual?: boolean, posterFilmsForCategory?: function(string): FilmRecord[]}} [options] Presentation options. @returns {string} Category board HTML. */
+  /** Renders the canonical category board with compact-preview or visual-card treatment. @param {{compact?: boolean, visual?: boolean, posterFilmsForCategory?: (category: string) => FilmRecord[]}} [options] Presentation options. @returns {string} Category board HTML. */
   window.renderCategoryIndexBoard = function (options = {}) {
-    let summaries = categorySummaries();
+    let summaries = options.compact ? null : categorySummaries();
     let empty = {
       nominations: 0,
       winners: 0,
@@ -143,12 +143,12 @@
     };
     let bestPicture = categoryCard(
       "Best Picture",
-      summaries.get("Best Picture") || empty,
+      summaries?.get("Best Picture") || empty,
       options,
     );
     let paired = (window.getCategoryPresentationSlots?.() || [])
       .map((category) =>
-        categoryCard(category, summaries.get(category) || empty, options),
+        categoryCard(category, summaries?.get(category) || empty, options),
       )
       .join("");
     return `<div class="category-index-grid${options.compact ? " category-index-grid--compact" : ""}${options.visual ? " category-index-grid--visual" : ""}">${bestPicture}${paired}</div>`;

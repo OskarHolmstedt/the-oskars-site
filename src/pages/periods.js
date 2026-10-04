@@ -86,7 +86,14 @@
     let awards = record.nominations
       ? `<span><b>${record.nominations}</b> ${escape(ui("nominations"))}</span><span><b>${record.winners}</b> ${escape(ui("winners"))}</span>`
       : "";
-    return `<div class="period-gallery-card-stats"><span><b>${record.films.length}</b> ${escape(ui("films"))}</span>${awards}</div>`;
+    let thresholdBadges = window.renderPeriodThresholdBadges
+      ? window.renderPeriodThresholdBadges(record.films, {
+          escape,
+          ui,
+          periodType: record.type,
+        })
+      : "";
+    return `<div class="period-gallery-card-stats"><span><b>${record.films.length}</b> ${escape(ui("films"))}</span>${awards}</div>${thresholdBadges}`;
   }
 
   function periodCard(record, options = {}) {
@@ -101,13 +108,22 @@
       classes: options.featured
         ? "period-gallery-poster-deck poster-deck--featured"
         : "period-gallery-poster-deck",
+      priority: options.priority || (options.featured ? "high" : undefined),
     });
     return `<article class="period-gallery-card${options.featured ? " period-gallery-card--featured" : ""}"><a class="period-gallery-card-link" href="${escape(href)}">${deck || ""}<div class="period-gallery-card-body"><span class="eyebrow">${escape(label)}</span><h2>${escape(record.type === "alltime" ? ui("All-time") : record.key)}</h2>${periodStats(record)}<span class="period-gallery-card-action">${escape(ui("Open period"))} →</span></div></a></article>`;
   }
 
-  function gallerySection(id, eyebrow, title, text, records, classes = "") {
+  function gallerySection(
+    id,
+    eyebrow,
+    title,
+    text,
+    records,
+    classes = "",
+    priorityCount = 0,
+  ) {
     if (!records.length) return "";
-    return `<section class="period-gallery-section" aria-labelledby="${escape(id)}"><div class="section-heading"><div><span class="eyebrow">${escape(ui(eyebrow))}</span><h2 id="${escape(id)}">${escape(ui(title))}</h2></div><p>${escape(ui(text))}</p></div><div class="period-gallery-grid ${escape(classes)}">${records.map((record) => periodCard(record)).join("")}</div></section>`;
+    return `<section class="period-gallery-section" aria-labelledby="${escape(id)}"><div class="section-heading"><div><span class="eyebrow">${escape(ui(eyebrow))}</span><h2 id="${escape(id)}">${escape(ui(title))}</h2></div><p>${escape(ui(text))}</p></div><div class="period-gallery-grid ${escape(classes)}">${records.map((record, index) => periodCard(record, { priority: index < priorityCount ? "high" : undefined })).join("")}</div></section>`;
   }
 
   function render() {
@@ -117,9 +133,9 @@
     let decades = periodRecords("decade");
     document.title = `${ui("Periods")} · The Oskars`;
     container.innerHTML = `${window.renderDetailHeader({ classes: "periods-header", mainHtml: `<h1>${escape(ui("Periods"))}</h1><p>${escape(ui("Move through the archive one cinematic era at a time."))}</p>` })}
-    ${allTime ? `<section class="period-gallery-feature" aria-label="${escape(ui("All-time"))}">${periodCard(allTime, { featured: true })}</section>` : ""}
-    ${gallerySection("periodCenturyHeading", "Big picture", "Centuries", "Open a century to see its films, brackets, and watchlist together.", centuries, "period-gallery-grid--centuries")}
-    ${gallerySection("periodDecadeHeading", "Era by era", "Decades", "Each deck is drawn from the strongest ranked films in that decade.", decades, "period-gallery-grid--decades")}`;
+    ${allTime ? `<section class="period-gallery-feature" aria-label="${escape(ui("All-time"))}">${periodCard(allTime, { featured: true, priority: "high" })}</section>` : ""}
+    ${gallerySection("periodCenturyHeading", "Big picture", "Centuries", "Open a century to see its films, brackets, and watchlist together.", centuries, "period-gallery-grid--centuries", 2)}
+    ${gallerySection("periodDecadeHeading", "Era by era", "Decades", "Each deck is drawn from the strongest ranked films in that decade.", decades, "period-gallery-grid--decades", 0)}`;
     doneRender?.();
   }
 

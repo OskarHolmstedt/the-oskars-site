@@ -119,6 +119,7 @@ window.setAwardRecipients = function (award, value, options = {}) {
   award.recipients = window.awardRecipients(award);
   award.recipientText = String(options.recipientText ?? originalText).trim();
   delete award.recipient;
+  if (award && typeof award === "object") awardRecipientKeyMap.delete(award);
   return award;
 };
 
@@ -214,13 +215,20 @@ window.normalizeAwardRecipients = function (award) {
   );
 };
 
+let awardRecipientKeyMap = new WeakMap();
+
 /** Builds an order-independent recipient identity key. @param {AwardRecord} award Award. @returns {string} Recipient key. */
 window.awardRecipientKey = function (award) {
-  return window
+  if (award && typeof award === "object" && awardRecipientKeyMap.has(award)) {
+    return awardRecipientKeyMap.get(award);
+  }
+  let key = window
     .resolveAwardRecipients(award)
     .map((record) => record.personId)
     .sort()
     .join("\n");
+  if (award && typeof award === "object") awardRecipientKeyMap.set(award, key);
+  return key;
 };
 
 /** Migrates stored award credits to the current schema. @param {OskarsState|null} data State. @returns {OskarsState|null} Migrated state. */

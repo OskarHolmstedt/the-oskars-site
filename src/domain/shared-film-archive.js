@@ -254,21 +254,23 @@ window.officialNomineeSharedFilmRecords = function () {
       let years = window.officialResultPeriodYears?.(periodKey) || [];
       if (!years.length) return;
       (period?.nominations || []).forEach((nomination) => {
-        let tmdbId = String(nomination.tmdbId || "");
-        if (!tmdbId) return;
-        if (!nominationsByTmdbId.has(tmdbId)) {
-          nominationsByTmdbId.set(tmdbId, []);
-          firstSeenByTmdbId.set(tmdbId, {
-            title: nomination.sourceTitle || "",
-            years: [...years],
-          });
-        } else {
-          let entry = firstSeenByTmdbId.get(tmdbId);
-          years.forEach((year) => {
-            if (!entry.years.includes(year)) entry.years.push(year);
-          });
-        }
-        nominationsByTmdbId.get(tmdbId).push(nomination);
+        window.officialNominationFilms(nomination).forEach((film) => {
+          let tmdbId = String(film.tmdbId || "");
+          if (!tmdbId) return;
+          if (!nominationsByTmdbId.has(tmdbId)) {
+            nominationsByTmdbId.set(tmdbId, []);
+            firstSeenByTmdbId.set(tmdbId, {
+              title: film.title,
+              years: [...years],
+            });
+          } else {
+            let entry = firstSeenByTmdbId.get(tmdbId);
+            years.forEach((year) => {
+              if (!entry.years.includes(year)) entry.years.push(year);
+            });
+          }
+          nominationsByTmdbId.get(tmdbId).push(nomination);
+        });
       });
     });
   });

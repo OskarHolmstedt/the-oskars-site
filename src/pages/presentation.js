@@ -704,25 +704,31 @@
         );
       return candidates;
     }
+    let searchTimer = null;
     input.addEventListener("input", () => {
       let query = input.value.trim();
       if (!query) {
+        if (searchTimer) clearTimeout(searchTimer);
         results.innerHTML = "";
         results.hidden = true;
         return;
       }
-      let matches = window.searchMatches(getCandidates(), query, {
-        limit: 8,
-      });
-      results.innerHTML = matches.length
-        ? matches
-            .map(
-              (entry) =>
-                `<a href="presentation.html?scope=${escape(entry.target.type)}&amp;id=${escape(encodeURIComponent(entry.target.id))}"><strong>${escape(entry.name)}</strong><span>${escape(entry.type)}${entry.meta ? ` · ${escape(entry.meta)}` : ""}</span></a>`,
-            )
-            .join("")
-        : `<p class="presentation-scope-empty">${escape(ui("No matches"))}</p>`;
-      results.hidden = false;
+      if (searchTimer) clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        searchTimer = null;
+        let matches = window.searchMatches(getCandidates(), query, {
+          limit: 8,
+        });
+        results.innerHTML = matches.length
+          ? matches
+              .map(
+                (entry) =>
+                  `<a href="presentation.html?scope=${escape(entry.target.type)}&amp;id=${escape(encodeURIComponent(entry.target.id))}"><strong>${escape(entry.name)}</strong><span>${escape(entry.type)}${entry.meta ? ` · ${escape(entry.meta)}` : ""}</span></a>`,
+              )
+              .join("")
+          : `<p class="presentation-scope-empty">${escape(ui("No matches"))}</p>`;
+        results.hidden = false;
+      }, 120);
     });
   }
   setupScopePicker();

@@ -5,6 +5,11 @@
   let escape = window.pageEscape;
   let pendingLetterboxd = null;
   let pendingBackup = null;
+  let pendingImdb = null;
+  let pendingImdbFiles = {};
+  let pendingSpreadsheet = null;
+  let pendingGoogleSpreadsheet = null;
+  const GOOGLE_SHEETS_STORAGE_KEY = "oskars-google-sheets-spreadsheet-id";
   let legacyIntakeId = window.pageQueryParam?.("intake") || "";
   if (legacyIntakeId) {
     window.location.replace(window.intakePageUrl(legacyIntakeId));
@@ -39,27 +44,35 @@
 
   async function backupValue() {
     let { client } = await readyClient();
-    let [awardReviews, entityNotes, collectionBallots] = await Promise.all([
-      client
-        .from("award_reviews")
-        .select("year, category, status, reviewed_at")
-        .order("year")
-        .order("category"),
-      client
-        .from("entity_notes")
-        .select("entity_kind, entity_key, note, updated_at")
-        .order("entity_kind")
-        .order("entity_key"),
-      window.fetchAllSupabaseRows((count) =>
+    let [awardReviews, entityNotes, collectionBallots, awardPoolExclusions] =
+      await Promise.all([
         client
-          .from("collection_ballots")
-          .select(
-            "collection_type, collection_id, collection_name, nominations, reviews",
-            count ? { count: "exact" } : undefined,
-          )
-          .order("id"),
-      ),
-    ]);
+          .from("award_reviews")
+          .select("year, category, status, reviewed_at")
+          .order("year")
+          .order("category"),
+        client
+          .from("entity_notes")
+          .select("entity_kind, entity_key, note, updated_at")
+          .order("entity_kind")
+          .order("entity_key"),
+        window.fetchAllSupabaseRows((count) =>
+          client
+            .from("collection_ballots")
+            .select(
+              "collection_type, collection_id, collection_name, nominations, reviews",
+              count ? { count: "exact" } : undefined,
+            )
+            .order("id"),
+        ),
+        window.fetchAllSupabaseRows((count) =>
+          client
+            .from("award_pool_exclusions")
+            .select("year, film_id", count ? { count: "exact" } : undefined)
+            .order("year")
+            .order("film_id"),
+        ),
+      ]);
     if (awardReviews.error) throw awardReviews.error;
     if (entityNotes.error) throw entityNotes.error;
     return {
@@ -71,6 +84,11 @@
         awardReviews: awardReviews.data,
         entityNotes: entityNotes.data,
         collectionBallots,
+        awardPoolExclusions,
+        googleSheetsSpreadsheetId:
+          (typeof localStorage !== "undefined"
+            ? localStorage.getItem(GOOGLE_SHEETS_STORAGE_KEY)
+            : null) || undefined,
       },
     };
   }
@@ -131,6 +149,7 @@
     for (let table of [
       "entity_notes",
       "collection_ballots",
+      "award_pool_exclusions",
       "tags",
       "personal_awards",
       "rankings",
@@ -205,6 +224,12 @@
     if (data.entityNotes != null && !Array.isArray(data.entityNotes)) {
       throw new Error(ui("This is not a supported backup."));
     }
+    if (
+      data.googleSheetsSpreadsheetId != null &&
+      typeof data.googleSheetsSpreadsheetId !== "string"
+    ) {
+      throw new Error(ui("This is not a supported backup."));
+    }
 
     if (
       data.collectionBallots != null &&
@@ -213,6 +238,24 @@
       throw new Error(ui("This is not a supported backup."));
     for (let ballot of data.collectionBallots || [])
       window.validateCollectionBallot(ballot);
+
+    if (
+      data.awardPoolExclusions != null &&
+      !Array.isArray(data.awardPoolExclusions)
+    )
+      throw new Error(ui("This is not a supported backup."));
+    for (let row of data.awardPoolExclusions || []) {
+      if (
+        !Number.isInteger(row?.year) ||
+        row.year < 0 ||
+        row.year > 9999 ||
+        typeof row.film_id !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          row.film_id,
+        )
+      )
+        throw new Error(ui("This is not a supported backup."));
+    }
 
     for (let row of data.watched || []) {
       if (!row || typeof row !== "object" || !row.film_id) {
@@ -381,6 +424,16 @@
         if (error) throw error;
       }
     }
+    if (data.awardPoolExclusions?.length) {
+      let { error } = await client.from("award_pool_exclusions").upsert(
+        data.awardPoolExclusions.map((row) => ({
+          year: row.year,
+          film_id: row.film_id,
+        })),
+        { onConflict: "user_id,year,film_id", ignoreDuplicates: true },
+      );
+      if (error) throw error;
+    }
     if (data.awardReviews?.length) {
       let { error } = await client.from("award_reviews").upsert(
         data.awardReviews.map((row) => ({
@@ -418,6 +471,263 @@
       );
       if (error) throw error;
     }
+    if (data.googleSheetsSpreadsheetId) {
+      persistConnectedSheet(data.googleSheetsSpreadsheetId);
+    }
+  }
+
+  let dataSourcesProfile = null;
+
+  async function handleLetterboxdDisconnect() {
+    let confirmMsg = ui(
+      "Disconnect Letterboxd RSS sync? This stops automatic intake sync and removes your saved username. Previously imported films and ratings will stay in your archive.",
+    );
+    if (!window.confirm(confirmMsg)) return;
+    let status = document.getElementById("dataSourcesStatus");
+    if (status) {
+      status.style.display = "block";
+      status.textContent = ui("Disconnecting Letterboxd RSS sync…");
+    }
+    try {
+      dataSourcesProfile = await window.setSupabaseProfileLetterboxd("");
+      renderDataSources(dataSourcesProfile);
+      if (status) {
+        status.textContent = ui("Letterboxd RSS sync disconnected.");
+      }
+    } catch (err) {
+      if (status) status.textContent = err.message || String(err);
+    }
+  }
+
+  async function handleGoogleSheetDisconnect() {
+    let confirmMsg = ui(
+      "Disconnect Google Sheet? This removes the connected spreadsheet link and stops syncing. Previously imported films and archive data will stay in your account.",
+    );
+    if (!window.confirm(confirmMsg)) return;
+    persistConnectedSheet("");
+    let status = document.getElementById("dataSourcesStatus");
+    if (status) {
+      status.style.display = "block";
+      status.textContent = ui("Google Sheet disconnected.");
+    }
+    let syncStatus = document.getElementById("syncGoogleSheetStatus");
+    if (syncStatus) {
+      syncStatus.style.display = "block";
+      syncStatus.textContent = ui("Google Sheet disconnected.");
+    }
+    renderDataSources();
+  }
+
+  function renderDataSources(profile) {
+    if (profile !== undefined) dataSourcesProfile = profile;
+    let grid = document.getElementById("dataSourcesGrid");
+    if (!grid) return;
+
+    let val = source();
+    let currentProf = dataSourcesProfile;
+    let lbUsername = currentProf?.letterboxd_username || "";
+    let lbLastSync = currentProf?.letterboxd_last_synced_at;
+    let lbSyncText = lbLastSync
+      ? ui("Last synced on {date}.", {
+          date: new Date(lbLastSync).toLocaleDateString(),
+        })
+      : ui("Never synced yet.");
+
+    let imdbCount =
+      (val.watched || []).filter(
+        (f) =>
+          f.url?.includes("imdb.com") ||
+          f.imdbId ||
+          f.sourceKind === "imdb" ||
+          f.source === "imdb",
+      ).length +
+      (val.watchlist || []).filter(
+        (w) =>
+          w.url?.includes("imdb.com") || w.imdbId || w.sourceKind === "imdb",
+      ).length;
+
+    let sheetId =
+      (typeof localStorage !== "undefined"
+        ? localStorage.getItem(GOOGLE_SHEETS_STORAGE_KEY)
+        : null) || "";
+
+    grid.innerHTML = `
+      <article class="data-source-card" id="dataSourceCardFresh">
+        <div class="data-source-card-header">
+          <span class="eyebrow">${escape(ui("Path 1 · Start fresh"))}</span>
+          <span class="data-source-badge data-source-badge--active">${escape(ui("Active"))}</span>
+        </div>
+        <h3>${escape(ui("Manual logging & Intake"))}</h3>
+        <p>${escape(ui("Direct logging via Intake and catalog. Always available with no persistent connection needed."))}</p>
+        <div class="data-actions">
+          <a href="intake.html" class="button-link button-secondary">${escape(ui("Open Intake"))}</a>
+          <a href="films.html?start=fresh" class="button-link button-secondary">${escape(ui("Explore years"))}</a>
+        </div>
+      </article>
+
+      <article class="data-source-card" id="dataSourceCardLetterboxd">
+        <div class="data-source-card-header">
+          <span class="eyebrow">${escape(ui("Path 2 · Letterboxd"))}</span>
+          <span class="data-source-badge ${lbUsername ? "data-source-badge--connected" : "data-source-badge--disconnected"}">
+            ${escape(lbUsername ? ui("Connected") : ui("Not connected"))}
+          </span>
+        </div>
+        <h3>${escape(ui("Letterboxd sync"))}</h3>
+        <p>${escape(
+          lbUsername
+            ? ui("RSS auto-sync active for @{user}. {syncInfo}", {
+                user: lbUsername,
+                syncInfo: lbSyncText,
+              })
+            : ui(
+                "Public RSS sync is not connected. Enter your username to auto-sync future watches.",
+              ),
+        )}</p>
+        <div class="data-actions">
+          ${
+            lbUsername
+              ? `<button id="disconnectLetterboxdSourceBtn" type="button" class="button-secondary button-danger-subtle">${escape(ui("Disconnect RSS"))}</button>
+                 <a href="profile.html#letterboxdProfilePanel" class="button-link button-secondary">${escape(ui("Profile settings"))}</a>
+                 <a href="#letterboxdImport" class="button-link">${escape(ui("Re-import ZIP"))}</a>`
+              : `<a href="profile.html#letterboxdProfilePanel" class="button-link button-secondary">${escape(ui("Connect username"))}</a>
+                 <a href="#letterboxdImport" class="button-link">${escape(ui("Import ZIP"))}</a>`
+          }
+        </div>
+      </article>
+
+      <article class="data-source-card" id="dataSourceCardImdb">
+        <div class="data-source-card-header">
+          <span class="eyebrow">${escape(ui("Path 3 · IMDb"))}</span>
+          <span class="data-source-badge ${imdbCount > 0 ? "data-source-badge--connected" : "data-source-badge--disconnected"}">
+            ${escape(imdbCount > 0 ? ui("Imported ({count})", { count: imdbCount }) : ui("Not imported"))}
+          </span>
+        </div>
+        <h3>${escape(ui("IMDb import"))}</h3>
+        <p>${escape(
+          imdbCount > 0
+            ? ui(
+                "{count} IMDb-sourced film(s) and watchlist item(s) in your archive.",
+                { count: imdbCount },
+              )
+            : ui(
+                "Import your ratings.csv and watchlist.csv exports with linear 1–10 to star rating conversion.",
+              ),
+        )}</p>
+        <div class="data-actions">
+          <a href="#imdbImport" class="button-link">${escape(ui(imdbCount > 0 ? "Re-import CSVs" : "Import CSVs"))}</a>
+        </div>
+      </article>
+
+      <article class="data-source-card" id="dataSourceCardSheets">
+        <div class="data-source-card-header">
+          <span class="eyebrow">${escape(ui("Path 4 · Spreadsheets"))}</span>
+          <span class="data-source-badge ${sheetId ? "data-source-badge--connected" : "data-source-badge--disconnected"}">
+            ${escape(sheetId ? ui("Connected") : ui("Not connected"))}
+          </span>
+        </div>
+        <h3>${escape(ui("Google Sheets & Excel"))}</h3>
+        <p>${escape(
+          sheetId
+            ? ui("Connected spreadsheet ID: {id}. Two-way sync ready.", {
+                id: sheetId.length > 20 ? sheetId.slice(0, 16) + "…" : sheetId,
+              })
+            : ui(
+                "Create a workbook on Google Drive, connect a sheet ID, or download offline CSV templates.",
+              ),
+        )}</p>
+        <div class="data-actions">
+          ${
+            sheetId
+              ? `<button id="disconnectGoogleSheetSourceBtn" type="button" class="button-secondary button-danger-subtle">${escape(ui("Disconnect"))}</button>
+                 <a href="https://docs.google.com/spreadsheets/d/${encodeURIComponent(sheetId)}/edit" target="_blank" rel="noopener noreferrer" class="button-link button-secondary">${escape(ui("Open in Sheets ↗"))}</a>
+                 <a href="#spreadsheetTemplates" class="button-link">${escape(ui("Sync / Push"))}</a>`
+              : `<a href="#spreadsheetTemplates" class="button-link">${escape(ui("Connect sheet"))}</a>`
+          }
+        </div>
+      </article>
+    `;
+
+    document
+      .getElementById("disconnectLetterboxdSourceBtn")
+      ?.addEventListener("click", handleLetterboxdDisconnect);
+    document
+      .getElementById("disconnectGoogleSheetSourceBtn")
+      ?.addEventListener("click", handleGoogleSheetDisconnect);
+  }
+
+  function updateConnectedSheetUI(id) {
+    let connectedSheetInput = document.getElementById("connectedSheetInput");
+    let openConnectedSheetLink = document.getElementById(
+      "openConnectedSheetLink",
+    );
+    let disconnectConnectedSheetBtn = document.getElementById(
+      "disconnectConnectedSheetBtn",
+    );
+    let connectedSheetWorkflow = document.getElementById(
+      "connectedSheetWorkflow",
+    );
+    let syncGoogleSheetBtn = document.getElementById("syncGoogleSheetBtn");
+    let syncGoogleSheetApplyBtn = document.getElementById(
+      "syncGoogleSheetApplyBtn",
+    );
+    let pushToGoogleSheetBtn = document.getElementById("pushToGoogleSheetBtn");
+
+    if (connectedSheetInput) connectedSheetInput.value = id || "";
+    if (id) {
+      let sheetUrl = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/edit`;
+      if (openConnectedSheetLink) {
+        openConnectedSheetLink.href = sheetUrl;
+        if (openConnectedSheetLink.style) {
+          openConnectedSheetLink.style.display = "inline-flex";
+        }
+      }
+      if (disconnectConnectedSheetBtn) {
+        disconnectConnectedSheetBtn.style.display = "inline-flex";
+      }
+      if (connectedSheetWorkflow?.style) {
+        connectedSheetWorkflow.style.display = "block";
+      }
+      if (syncGoogleSheetBtn) syncGoogleSheetBtn.disabled = false;
+      if (pushToGoogleSheetBtn) pushToGoogleSheetBtn.disabled = false;
+    } else {
+      if (openConnectedSheetLink) {
+        openConnectedSheetLink.href = "#";
+        if (openConnectedSheetLink.style) {
+          openConnectedSheetLink.style.display = "none";
+        }
+      }
+      if (disconnectConnectedSheetBtn) {
+        disconnectConnectedSheetBtn.style.display = "none";
+      }
+      if (connectedSheetWorkflow?.style) {
+        connectedSheetWorkflow.style.display = "none";
+      }
+      if (syncGoogleSheetBtn) syncGoogleSheetBtn.disabled = true;
+      if (syncGoogleSheetApplyBtn) syncGoogleSheetApplyBtn.disabled = true;
+      if (pushToGoogleSheetBtn) pushToGoogleSheetBtn.disabled = true;
+    }
+  }
+
+  function persistConnectedSheet(id) {
+    if (typeof localStorage !== "undefined") {
+      if (id) {
+        localStorage.setItem(GOOGLE_SHEETS_STORAGE_KEY, id);
+      } else {
+        localStorage.removeItem(GOOGLE_SHEETS_STORAGE_KEY);
+      }
+    }
+    updateConnectedSheetUI(id || "");
+    renderDataSources();
+    window
+      .ensureSupabaseClient?.()
+      .then((ready) => {
+        ready?.client?.auth
+          ?.updateUser?.({
+            data: { googleSheetsSpreadsheetId: id || null },
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
   }
 
   // Each entry covers one piece of the archive so a user can delete just
@@ -535,12 +845,13 @@
       id: "awards",
       label: "Awards",
       description:
-        "Deletes every personal award ballot, its nominations, and its reviewed status.",
+        "Deletes every personal award ballot, its nominations, reviewed status, and hidden annual candidate films.",
       opinion: true,
       async run(client) {
         await deleteAll(client, "personal_awards");
         await deleteAll(client, "award_reviews", "category");
         await deleteAll(client, "collection_ballots");
+        await deleteAll(client, "award_pool_exclusions");
       },
     },
     {
@@ -676,12 +987,18 @@
     );
     window.rebuildAggregates();
     renderHealth();
+    renderDataSources();
   }
 
   async function initialize() {
     await window.ensureOskarsData();
     renderHealth();
+    renderDataSources();
     renderDeleteDataRows();
+    window
+      .loadSupabaseProfile?.()
+      .then((profile) => renderDataSources(profile))
+      .catch(() => {});
 
     document
       .getElementById("downloadBtn")
@@ -823,11 +1140,555 @@
           if (!result?.ok)
             throw new Error(result?.errors?.join(" ") || ui("Import failed."));
           await refreshSource();
-          status.textContent = ui("Letterboxd import saved to your account.");
+          try {
+            await window.updateSupabaseProfileLetterboxdLastSynced?.(
+              new Date().toISOString(),
+            );
+          } catch (syncErr) {
+            console.warn(
+              "Could not update Letterboxd last synced date",
+              syncErr,
+            );
+          }
+          let importedCount =
+            pendingLetterboxd?.report?.archiveAdded ||
+            pendingLetterboxd?.report?.filmsAdded ||
+            0;
+          let profile = await window.loadSupabaseProfile?.();
+          let celebrationText =
+            importedCount > 0
+              ? ui(
+                  "Your {count} films are in! Explore your decades or head to Home.",
+                  { count: importedCount },
+                )
+              : ui("Letterboxd import saved to your account.");
+          let connectCta = !profile?.letterboxd_username
+            ? `<a class="button-link button-secondary" href="profile.html#letterboxdProfilePanel">${escape(ui("Connect username for RSS sync"))}</a>`
+            : "";
+          status.innerHTML = `<div class="data-import-success"><strong>${escape(celebrationText)}</strong><div class="data-actions" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;"><a class="button-link" href="periods.html">${escape(ui("Explore your decades →"))}</a><a class="button-link button-secondary" href="index.html">${escape(ui("Go to Home"))}</a>${connectCta}</div></div>`;
         } catch (error) {
           status.textContent = error.message || String(error);
         } finally {
           progress.hidden = true;
+          button.disabled = false;
+        }
+      });
+
+    document
+      .getElementById("imdbCsvInput")
+      ?.addEventListener("change", async (event) => {
+        let status = document.getElementById("imdbImportStatus");
+        let progress = document.getElementById("imdbImportProgress");
+        let applyBtn = document.getElementById("imdbImportApplyBtn");
+        applyBtn.disabled = true;
+        status.textContent = ui("Parsing your export…");
+        try {
+          let fileList = Array.from(event.target.files || []);
+          if (!fileList.length) return;
+          for (let file of fileList) {
+            pendingImdbFiles[file.name] = await file.text();
+          }
+          pendingImdb = window.proposeImdbImport(pendingImdbFiles, {
+            baseState: window.state,
+            fileName: Object.keys(pendingImdbFiles).join(", "),
+          });
+          let freshCount = pendingImdb.report.freshArchiveFilms?.length || 0;
+          if (freshCount) {
+            status.textContent = ui(
+              "Looking up film details for {count} new film(s)…",
+              { count: freshCount },
+            );
+            await window.enrichImdbProposalMetadata(pendingImdb, {
+              onProgress(done, total) {
+                progress.hidden = false;
+                progress.max = total || 1;
+                progress.value = done;
+                status.textContent = ui(
+                  "Looking up film details ({done}/{total})…",
+                  { done, total },
+                );
+              },
+            });
+          }
+          status.textContent = JSON.stringify(pendingImdb.report, null, 2);
+          applyBtn.disabled = !pendingImdb.allowed;
+        } catch (error) {
+          pendingImdb = null;
+          status.textContent = error.message || String(error);
+        } finally {
+          progress.hidden = true;
+        }
+      });
+
+    document
+      .getElementById("imdbImportApplyBtn")
+      ?.addEventListener("click", async (event) => {
+        if (!pendingImdb) return;
+        let button = event.currentTarget;
+        let status = document.getElementById("imdbImportStatus");
+        let progress = document.getElementById("imdbImportProgress");
+        button.disabled = true;
+        status.textContent = ui(
+          "Saving to your account… this can take a while for a large import. Don't close this tab.",
+        );
+        function onProgress(stage, done, total) {
+          progress.hidden = false;
+          progress.max = total || 1;
+          progress.value = done;
+          status.textContent = ui(
+            "Saving {stage} ({done}/{total})… Don't close this tab.",
+            { stage, done, total },
+          );
+        }
+        try {
+          let result = await window.applyImportProposal(pendingImdb, {
+            onProgress,
+          });
+          if (!result?.ok)
+            throw new Error(result?.errors?.join(" ") || ui("Import failed."));
+          await refreshSource();
+          let importedCount =
+            pendingImdb?.report?.archiveAdded ||
+            pendingImdb?.report?.filmsAdded ||
+            0;
+          let celebrationText =
+            importedCount > 0
+              ? ui(
+                  "Your {count} films are in! Explore your decades or head to Home.",
+                  { count: importedCount },
+                )
+              : ui("IMDb import saved to your account.");
+          let watchlistCta = pendingImdb?.report?.watchlistAdded
+            ? `<a class="button-link button-secondary" href="watchlist.html">${escape(ui("Organise watchlist"))}</a>`
+            : "";
+          status.innerHTML = `<div class="data-import-success"><strong>${escape(celebrationText)}</strong><div class="data-actions" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;"><a class="button-link" href="periods.html">${escape(ui("Explore your decades →"))}</a><a class="button-link button-secondary" href="index.html">${escape(ui("Go to Home"))}</a>${watchlistCta}</div></div>`;
+          pendingImdb = null;
+          pendingImdbFiles = {};
+        } catch (error) {
+          status.textContent = error.message || String(error);
+        } finally {
+          progress.hidden = true;
+          button.disabled = false;
+        }
+      });
+
+    let connectedSheetInput = document.getElementById("connectedSheetInput");
+    let syncGoogleSheetApplyBtn = document.getElementById(
+      "syncGoogleSheetApplyBtn",
+    );
+    let googleDriveFeedback = document.getElementById("googleDriveFeedback");
+    let syncGoogleSheetStatus = document.getElementById(
+      "syncGoogleSheetStatus",
+    );
+
+    let initialSheetId =
+      typeof localStorage !== "undefined"
+        ? localStorage.getItem(GOOGLE_SHEETS_STORAGE_KEY) || ""
+        : "";
+    updateConnectedSheetUI(initialSheetId);
+
+    async function syncConnectedSheetMetadata() {
+      let ready = await window.ensureSupabaseClient?.().catch(() => null);
+      if (!ready) return;
+      let auth = await window.resolveSupabaseAuthState?.().catch(() => null);
+      if (auth?.status !== "signed-in" || !auth.user) return;
+      let cloudSheetId =
+        auth.user.user_metadata?.googleSheetsSpreadsheetId ||
+        auth.user.user_metadata?.google_sheets_spreadsheet_id;
+      let localSheetId =
+        typeof localStorage !== "undefined"
+          ? localStorage.getItem(GOOGLE_SHEETS_STORAGE_KEY)
+          : null;
+      if (!localSheetId && cloudSheetId) {
+        if (typeof localStorage !== "undefined") {
+          localStorage.setItem(GOOGLE_SHEETS_STORAGE_KEY, cloudSheetId);
+        }
+        updateConnectedSheetUI(cloudSheetId);
+      } else if (
+        localSheetId &&
+        !cloudSheetId &&
+        ready.client?.auth?.updateUser
+      ) {
+        ready.client.auth
+          .updateUser({
+            data: { googleSheetsSpreadsheetId: localSheetId },
+          })
+          .catch(() => {});
+      }
+    }
+    syncConnectedSheetMetadata();
+
+    function handleHashNavigation() {
+      let hash = window.location.hash;
+      if (!hash) return;
+      let target = document.querySelector(hash);
+      if (target && target.classList.contains("data-panel")) {
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+          target.classList.add("data-panel--target-highlight");
+          setTimeout(() => {
+            target.classList.remove("data-panel--target-highlight");
+          }, 2500);
+        }, 100);
+      }
+    }
+    handleHashNavigation();
+    window.addEventListener?.("hashchange", handleHashNavigation);
+
+    document
+      .getElementById("saveConnectedSheetBtn")
+      ?.addEventListener("click", () => {
+        let raw = connectedSheetInput?.value.trim() || "";
+        let match = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        let id = match ? match[1] : raw;
+        if (id) {
+          persistConnectedSheet(id);
+          if (syncGoogleSheetStatus) {
+            syncGoogleSheetStatus.style.display = "block";
+            syncGoogleSheetStatus.textContent = ui(
+              "Connected spreadsheet ID saved.",
+            );
+          }
+        } else {
+          persistConnectedSheet("");
+          if (syncGoogleSheetStatus) {
+            syncGoogleSheetStatus.style.display = "none";
+            syncGoogleSheetStatus.textContent = "";
+          }
+        }
+      });
+
+    document
+      .getElementById("disconnectConnectedSheetBtn")
+      ?.addEventListener("click", handleGoogleSheetDisconnect);
+
+    document
+      .getElementById("createGoogleSheetBtn")
+      ?.addEventListener("click", async (event) => {
+        let button = event.currentTarget;
+        button.disabled = true;
+        if (googleDriveFeedback) {
+          googleDriveFeedback.style.display = "block";
+          googleDriveFeedback.textContent = ui(
+            "Creating spreadsheet on Google Drive…",
+          );
+        }
+        try {
+          let populate =
+            document.getElementById("populateFromArchiveCheckbox")?.checked !==
+            false;
+          let created = await window.createGoogleSheetsDocument({
+            populateFromArchive: populate,
+          });
+          persistConnectedSheet(created.spreadsheetId);
+          if (googleDriveFeedback) {
+            googleDriveFeedback.innerHTML = `<div class="data-import-success"><strong>${escape(ui("Created spreadsheet:"))} <a href="${escape(created.spreadsheetUrl)}" target="_blank" rel="noopener noreferrer">${escape(created.title)} ↗</a></strong><p class="data-help-text" style="margin: 4px 0 0;">${escape(ui("Your sheet is connected. Edit films in Google Sheets, then sync back anytime."))}</p></div>`;
+          }
+        } catch (error) {
+          if (googleDriveFeedback) {
+            googleDriveFeedback.textContent = window.formatGoogleSheetsError
+              ? window.formatGoogleSheetsError(error)
+              : error.message || String(error);
+          }
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+    document
+      .getElementById("syncGoogleSheetBtn")
+      ?.addEventListener("click", async (event) => {
+        let button = event.currentTarget;
+        let spreadsheetId =
+          (typeof localStorage !== "undefined"
+            ? localStorage.getItem(GOOGLE_SHEETS_STORAGE_KEY)
+            : null) || connectedSheetInput?.value.trim();
+        let match = spreadsheetId?.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        if (match) spreadsheetId = match[1];
+
+        if (!spreadsheetId) {
+          if (syncGoogleSheetStatus) {
+            syncGoogleSheetStatus.style.display = "block";
+            syncGoogleSheetStatus.textContent = ui(
+              "Please connect a spreadsheet first.",
+            );
+          }
+          return;
+        }
+
+        button.disabled = true;
+        if (syncGoogleSheetApplyBtn) syncGoogleSheetApplyBtn.disabled = true;
+        if (syncGoogleSheetStatus) {
+          syncGoogleSheetStatus.style.display = "block";
+          syncGoogleSheetStatus.textContent = ui(
+            "Connecting to Google Sheets…",
+          );
+        }
+
+        try {
+          let accessToken = await window.requestGoogleAccessToken({
+            write: false,
+          });
+          let metadata = await window.fetchGoogleSpreadsheetMetadata(
+            spreadsheetId,
+            accessToken,
+          );
+          let ranges = [];
+          if (metadata.sheetTitles.includes("Ranked Diary")) {
+            ranges.push("'Ranked Diary'!A1:Z");
+          } else if (metadata.sheetTitles.length > 0) {
+            ranges.push(`'${metadata.sheetTitles[0]}'!A1:Z`);
+          }
+          if (metadata.sheetTitles.includes("Watchlist")) {
+            ranges.push("'Watchlist'!A1:Z");
+          }
+
+          let valuesResult = await window.fetchGoogleSheetValues(
+            spreadsheetId,
+            ranges,
+            accessToken,
+          );
+          let diaryRows = [];
+          let watchlistRows = [];
+          for (let valueRange of valuesResult.valueRanges || []) {
+            let r = valueRange.range || "";
+            if (
+              r.startsWith("'Ranked Diary'") ||
+              r.startsWith("Ranked Diary")
+            ) {
+              diaryRows = valueRange.values || [];
+            } else if (
+              r.startsWith("'Watchlist'") ||
+              r.startsWith("Watchlist")
+            ) {
+              watchlistRows = valueRange.values || [];
+            } else if (!diaryRows.length) {
+              diaryRows = valueRange.values || [];
+            }
+          }
+
+          pendingGoogleSpreadsheet = window.proposeGoogleSpreadsheetSync(
+            { diaryRows, watchlistRows },
+            {
+              spreadsheetId,
+              sourceName: metadata.title,
+              mode: "merge",
+            },
+          );
+
+          syncGoogleSheetStatus.textContent = JSON.stringify(
+            pendingGoogleSpreadsheet.report,
+            null,
+            2,
+          );
+          if (syncGoogleSheetApplyBtn) {
+            syncGoogleSheetApplyBtn.disabled =
+              !pendingGoogleSpreadsheet.allowed;
+          }
+        } catch (error) {
+          pendingGoogleSpreadsheet = null;
+          if (syncGoogleSheetStatus) {
+            syncGoogleSheetStatus.textContent = window.formatGoogleSheetsError
+              ? window.formatGoogleSheetsError(error)
+              : error.message || String(error);
+          }
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+    document
+      .getElementById("syncGoogleSheetApplyBtn")
+      ?.addEventListener("click", async (event) => {
+        if (!pendingGoogleSpreadsheet) return;
+        let button = event.currentTarget;
+        button.disabled = true;
+        if (syncGoogleSheetStatus) {
+          syncGoogleSheetStatus.textContent = ui(
+            "Saving to your account… this can take a while for a large import. Don't close this tab.",
+          );
+        }
+        try {
+          let result = await window.applyImportProposal(
+            pendingGoogleSpreadsheet,
+          );
+          if (!result?.ok)
+            throw new Error(result?.errors?.join(" ") || ui("Import failed."));
+          await refreshSource();
+          let importedCount =
+            pendingGoogleSpreadsheet?.report?.filmsAdded ||
+            pendingGoogleSpreadsheet?.report?.archiveAdded ||
+            0;
+          let celebrationText =
+            importedCount > 0
+              ? ui(
+                  "Your {count} films are in! Explore your decades or head to Home.",
+                  { count: importedCount },
+                )
+              : ui("Spreadsheet sync saved to your account.");
+          let watchlistCount =
+            pendingGoogleSpreadsheet?.report?.watchlistItemsAdded ||
+            pendingGoogleSpreadsheet?.report?.watchlistAdded ||
+            0;
+          let watchlistCta =
+            watchlistCount > 0
+              ? `<a class="button-link button-secondary" href="watchlist.html">${escape(ui("Organise watchlist"))}</a>`
+              : "";
+          if (syncGoogleSheetStatus) {
+            syncGoogleSheetStatus.innerHTML = `<div class="data-import-success"><strong>${escape(celebrationText)}</strong><div class="data-actions" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;"><a class="button-link" href="periods.html">${escape(ui("Explore your decades →"))}</a><a class="button-link button-secondary" href="index.html">${escape(ui("Go to Home"))}</a>${watchlistCta}</div></div>`;
+          }
+          pendingGoogleSpreadsheet = null;
+        } catch (error) {
+          if (syncGoogleSheetStatus) {
+            syncGoogleSheetStatus.textContent = window.formatGoogleSheetsError
+              ? window.formatGoogleSheetsError(error)
+              : error.message || String(error);
+          }
+          button.disabled = false;
+        }
+      });
+
+    document
+      .getElementById("pushToGoogleSheetBtn")
+      ?.addEventListener("click", async (event) => {
+        let button = event.currentTarget;
+        let spreadsheetId =
+          (typeof localStorage !== "undefined"
+            ? localStorage.getItem(GOOGLE_SHEETS_STORAGE_KEY)
+            : null) || connectedSheetInput?.value.trim();
+        let match = spreadsheetId?.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        if (match) spreadsheetId = match[1];
+
+        if (!spreadsheetId) return;
+
+        button.disabled = true;
+        if (syncGoogleSheetStatus) {
+          syncGoogleSheetStatus.style.display = "block";
+          syncGoogleSheetStatus.textContent = ui(
+            "Pushing archive to Google Sheets…",
+          );
+        }
+        try {
+          let result =
+            await window.writeGoogleSpreadsheetArchive(spreadsheetId);
+          if (syncGoogleSheetStatus) {
+            syncGoogleSheetStatus.textContent = ui(
+              "Archive pushed to Google Sheets ({0} film(s), {1} watchlist item(s)).",
+            )
+              .replace("{0}", result.filmsPushed)
+              .replace("{1}", result.watchlistPushed);
+          }
+        } catch (error) {
+          if (syncGoogleSheetStatus) {
+            syncGoogleSheetStatus.textContent = window.formatGoogleSheetsError
+              ? window.formatGoogleSheetsError(error)
+              : error.message || String(error);
+          }
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+    const DIARY_TEMPLATE_CSV = [
+      "Year,Title,Director,Rating,Type,Tag,Medium,Screenplay,Source,Country,Views,Date,Score,Franchise,Platform,Runtime,tmdbId,letterboxd",
+      "2023,Oppenheimer,Christopher Nolan,★★★★+,Film,Drama,live-action,adapted,American Prometheus,United States,1,2023-07-21,★★★★+,Christopher Nolan,Cinema,180,872585,https://boxd.it/pycK",
+      "2024,Dune: Part Two,Denis Villeneuve,★★★★★,Film,Sci-Fi,live-action,adapted,Frank Herbert novel,United States,1,2024-03-01,★★★★★,Dune,Cinema,166,693134,https://boxd.it/mAVu",
+    ].join("\n");
+
+    const WATCHLIST_TEMPLATE_CSV = [
+      "Date,Name,Year,Letterboxd URI,Tier,Director,Tags,Franchises,TMDB ID",
+      "2024-01-15,Dune: Part Two,2024,https://boxd.it/mAVu,S,Denis Villeneuve,Sci-Fi,Dune,693134",
+      "2024-02-10,Challengers,2024,https://boxd.it/xc5M,A,Luca Guadagnino,Drama,,937287",
+    ].join("\n");
+
+    document
+      .getElementById("downloadDiaryTemplateBtn")
+      ?.addEventListener("click", () => {
+        window.downloadTextFile?.(
+          DIARY_TEMPLATE_CSV,
+          "the-oskars-diary-template.csv",
+          "text/csv;charset=utf-8;",
+        );
+      });
+
+    document
+      .getElementById("downloadWatchlistTemplateBtn")
+      ?.addEventListener("click", () => {
+        window.downloadTextFile?.(
+          WATCHLIST_TEMPLATE_CSV,
+          "the-oskars-watchlist-template.csv",
+          "text/csv;charset=utf-8;",
+        );
+      });
+
+    document
+      .getElementById("spreadsheetInput")
+      ?.addEventListener("change", async (event) => {
+        let status = document.getElementById("spreadsheetImportStatus");
+        let applyBtn = document.getElementById("spreadsheetImportApplyBtn");
+        applyBtn.disabled = true;
+        let file = event.target.files?.[0];
+        if (!file) return;
+        status.textContent = ui("Parsing your spreadsheet…");
+        try {
+          let text = await file.text();
+          let formatType =
+            document.getElementById("spreadsheetTypeSelect")?.value || "ranked";
+          pendingSpreadsheet = window.proposeDelimitedImport(text, formatType, {
+            sourceName: file.name,
+            mode: "merge",
+          });
+          status.textContent = JSON.stringify(
+            pendingSpreadsheet.report,
+            null,
+            2,
+          );
+          applyBtn.disabled = !pendingSpreadsheet.allowed;
+        } catch (error) {
+          pendingSpreadsheet = null;
+          status.textContent = error.message || String(error);
+        }
+      });
+
+    document
+      .getElementById("spreadsheetImportApplyBtn")
+      ?.addEventListener("click", async (event) => {
+        if (!pendingSpreadsheet) return;
+        let button = event.currentTarget;
+        let status = document.getElementById("spreadsheetImportStatus");
+        button.disabled = true;
+        status.textContent = ui(
+          "Saving to your account… this can take a while for a large import. Don't close this tab.",
+        );
+        try {
+          let result = await window.applyImportProposal(pendingSpreadsheet);
+          if (!result?.ok)
+            throw new Error(result?.errors?.join(" ") || ui("Import failed."));
+          await refreshSource();
+          let importedCount =
+            pendingSpreadsheet?.report?.filmsAdded ||
+            pendingSpreadsheet?.report?.archiveAdded ||
+            0;
+          let celebrationText =
+            importedCount > 0
+              ? ui(
+                  "Your {count} films are in! Explore your decades or head to Home.",
+                  { count: importedCount },
+                )
+              : ui("Spreadsheet import saved to your account.");
+          let watchlistCount =
+            pendingSpreadsheet?.report?.watchlistItemsAdded ||
+            pendingSpreadsheet?.report?.watchlistAdded ||
+            0;
+          let watchlistCta =
+            watchlistCount > 0
+              ? `<a class="button-link button-secondary" href="watchlist.html">${escape(ui("Organise watchlist"))}</a>`
+              : "";
+          status.innerHTML = `<div class="data-import-success"><strong>${escape(celebrationText)}</strong><div class="data-actions" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;"><a class="button-link" href="periods.html">${escape(ui("Explore your decades →"))}</a><a class="button-link button-secondary" href="index.html">${escape(ui("Go to Home"))}</a>${watchlistCta}</div></div>`;
+          pendingSpreadsheet = null;
+        } catch (error) {
+          status.textContent = error.message || String(error);
+        } finally {
           button.disabled = false;
         }
       });

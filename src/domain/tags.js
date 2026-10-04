@@ -87,3 +87,33 @@ window.tagRecord = function (tag) {
 window.getFilmTagIndex = function () {
   return filmTagLookup().list;
 };
+
+/**
+ * Groups the user's films by shared catalog tag for the tag index (issue
+ * #797). Catalog tags are kept apart from personal tags: same-named tags
+ * stay separate entries.
+ * @param {Array<{filmId: string, source: 'watched'|'watchlist', tags: CatalogTagRecord[]}>} memberships Rows from loadSupabaseOwnCatalogTagMemberships().
+ * @returns {Array<{id: string, name: string, kind: string, films: FilmRecord[], watchlistCount: number, ratingStatistics: RatingStatistics}>} Tags sorted by name.
+ */
+window.buildCatalogTagIndex = function (memberships) {
+  let filmsById = window.state.filmsById || {};
+  let byId = new Map();
+  memberships.forEach((row) => {
+    row.tags.forEach((tag) => {
+      let entry = byId.get(tag.id) || {
+        ...tag,
+        films: [],
+        watchlistCount: 0,
+      };
+      if (row.source === "watchlist") entry.watchlistCount += 1;
+      else if (filmsById[row.filmId]) entry.films.push(filmsById[row.filmId]);
+      byId.set(tag.id, entry);
+    });
+  });
+  return [...byId.values()]
+    .map((entry) => ({
+      ...entry,
+      ratingStatistics: window.collectionRatingStatistics(entry.films),
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+};

@@ -80,3 +80,34 @@ window.loadSupabaseCompletionWatchedProjection = async function () {
     throw new Error("Unsupported Completion watched response.");
   return data;
 };
+
+/** Rebuilds an officialResults shape from the compact official projection (issue #711) for officialCollectionCompletion(). @param {Object} projection read_completion_official_projection() result. @returns {Object} officialResults shape. */
+window.buildOfficialResultsFromCompletionProjection = function (projection) {
+  if (projection?.version !== 1)
+    throw new Error("Unsupported Completion official projection.");
+  let result = {};
+  for (let [sourceId, data] of Object.entries(projection.sources || {})) {
+    result[sourceId] = {
+      name: window.officialSourceDisplayName
+        ? window.officialSourceDisplayName(sourceId, {})
+        : sourceId === "academy-awards"
+          ? "Oscar"
+          : sourceId,
+      periods: data.periods || {},
+    };
+  }
+  return result;
+};
+
+/** Reads the compact official-results projection for Completion (issue #711) directly from Postgres. @returns {Promise<Object>} Compact official-results object. */
+window.loadSupabaseCompletionOfficialProjection = async function () {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { data, error } = await ready.client.rpc(
+    "read_completion_official_projection",
+  );
+  if (error) throw error;
+  if (data?.version !== 1)
+    throw new Error("Unsupported Completion official response.");
+  return window.buildOfficialResultsFromCompletionProjection(data);
+};

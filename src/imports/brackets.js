@@ -696,3 +696,5 @@ window.parseOfficialResultsTable = function (raw, options = {}) {
 window.parseCollectionAwardsTable = function (raw, options = {}) {
   return parseTable(raw, { ...options, resultMode: "collection" });
 };
+
+window.parseTable = parseTable;

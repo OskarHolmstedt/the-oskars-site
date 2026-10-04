@@ -115,7 +115,9 @@
       bodyHtml:
         record.status === "missing"
           ? `<div class="leaderboard-meta">${escape(ui("Not in your collection yet"))}</div>`
-          : "",
+          : record.rewatch
+            ? `<div class="watchlist-card-actions"><span>${escape(ui("Rewatch"))}</span></div>`
+            : "",
     });
   }
 
@@ -163,7 +165,9 @@
     }
     document.title = `${project.name} · The Oskars`;
     let finishRenderTimer = window.startOskarsPerformance?.("project:render");
-    let watched = items.filter((record) => record.status === "watched");
+    let watched = items.filter(
+      (record) => record.status === "watched" && !record.rewatch,
+    );
     let queue = items
       .filter((record) => record.status !== "watched" || record.rewatch)
       .sort(recordCompare);

@@ -10,6 +10,26 @@
  */
 
 /**
+ * Asynchronously triggers the hosted metadata consumer Edge Function in Supabase.
+ * @param {Object} client Supabase client instance.
+ * @returns {Promise<void>}
+ */
+window.triggerHostedMetadataConsumer = async function (client) {
+  if (!client) return;
+  try {
+    if (typeof client.functions?.invoke === "function") {
+      client.functions
+        .invoke("metadata-consumer", { body: {} })
+        .catch((err) => {
+          console.warn("Hosted metadata consumer trigger notice:", err);
+        });
+    }
+  } catch (err) {
+    console.warn("Could not trigger hosted metadata consumer:", err);
+  }
+};
+
+/**
  * Creates a durable background metadata job and enqueues all candidate items atomically.
  * @param {Object} client Supabase client instance.
  * @param {'film_metadata'|'person_portrait'|'film_gaps'} kind Job category.
@@ -34,6 +54,7 @@ window.createBackgroundMetadataJob = async function (
     p_version: version,
   });
   if (error) throw error;
+  window.triggerHostedMetadataConsumer(client);
   return data;
 };
 
@@ -118,6 +139,7 @@ window.retryBackgroundJob = async function (client, jobId) {
     p_job_id: jobId,
   });
   if (error) throw error;
+  window.triggerHostedMetadataConsumer(client);
   return data;
 };
 
@@ -175,25 +197,55 @@ window.getActiveBackgroundJob = async function (client, kind = null) {
 };
 
 /**
- * Fetches a background job record alongside all its items.
+ * Fetches a single background job record by its UUID.
  * @param {Object} client Supabase client instance.
  * @param {string} jobId Job UUID.
- * @returns {Promise<{job: Object, items: Object[]}>}
+ * @returns {Promise<Object>} The job record.
  */
-window.getBackgroundJobDetails = async function (client, jobId) {
+window.getBackgroundJob = async function (client, jobId) {
   if (!client) throw new Error("Supabase client is required.");
-  let { data: job, error: jobErr } = await client
+  let { data, error } = await client
     .from("background_jobs")
-    .select("*")
+    .select(
+      "id, user_id, kind, status, version, idempotency_key, total_items, processed_items, found_items, failed_items, error, created_at, started_at, finished_at, cancelled_at",
+    )
     .eq("id", jobId)
     .single();
-  if (jobErr) throw jobErr;
+  if (error) throw error;
+  return data;
+};
 
-  let { data: items, error: itemsErr } = await client
+/**
+ * Fetches a background job record alongside its items.
+ * @param {Object} client Supabase client instance.
+ * @param {string} jobId Job UUID.
+ * @param {Object} [options] Optional query filters.
+ * @param {string} [options.columns] Comma-separated list of item columns to select. Defaults to lightweight set.
+ * @param {string|string[]} [options.status] Optional item status or array of statuses to filter.
+ * @returns {Promise<{job: Object, items: Object[]}>}
+ */
+window.getBackgroundJobDetails = async function (client, jobId, options = {}) {
+  if (!client) throw new Error("Supabase client is required.");
+  let job = await window.getBackgroundJob(client, jobId);
+
+  let columns =
+    options.columns || "id, item_key, status, payload, error, result";
+  let query = client
     .from("background_job_items")
-    .select("*")
-    .eq("job_id", jobId)
-    .order("created_at", { ascending: true });
+    .select(columns)
+    .eq("job_id", jobId);
+
+  if (options.status) {
+    if (Array.isArray(options.status)) {
+      query = query.in("status", options.status);
+    } else {
+      query = query.eq("status", options.status);
+    }
+  }
+
+  let { data: items, error: itemsErr } = await query.order("created_at", {
+    ascending: true,
+  });
   if (itemsErr) throw itemsErr;
 
   return { job, items: items || [] };
@@ -226,7 +278,7 @@ window.applyBackgroundFilmMetadata = async function (client, filmId, metadata) {
  * @param {number} [options.leaseSeconds=60] Lease timeout.
  * @param {(kind: string, payload: Object) => Promise<Object|null>} options.lookup Async item lookup function.
  * @param {(kind: string, itemKey: string, result: Object) => Promise<void>} [options.apply] Optional custom apply override.
- * @returns {Promise<{claimed: number, processed: number, succeeded: number, failed: number}>}
+ * @returns {Promise<{claimed: number, processed: number, succeeded: number, failed: number, items: Object[]}>}
  */
 window.runBackgroundMetadataBatchWorker = async function (client, options) {
   let workerId =
@@ -246,11 +298,30 @@ window.runBackgroundMetadataBatchWorker = async function (client, options) {
     processed: 0,
     succeeded: 0,
     failed: 0,
+    items: [],
   };
 
   for (let item of claimed) {
     try {
-      let lookupResult = await options.lookup(item.job_kind, item.payload);
+      let payload = item.payload;
+      let filmJob =
+        item.job_kind === "film_metadata" || item.job_kind === "film_gaps";
+      if (filmJob && !options.apply) {
+        let prepared = await client.rpc("prepare_background_film_lookup", {
+          p_film_id: item.item_key,
+        });
+        if (prepared.error) throw prepared.error;
+        payload = prepared.data;
+        if (!payload)
+          throw new Error("Film lookup preparation returned no data");
+      }
+      let skipped =
+        filmJob &&
+        (payload?.tmdb_id || payload?.tmdb_tv_ref) &&
+        !payload?.requested_fields?.length;
+      let lookupResult = skipped
+        ? { ...payload, checked_fields: [], skipped: true }
+        : await options.lookup(item.job_kind, payload);
       if (!lookupResult) {
         await window.recordBackgroundJobItemResult(
           client,
@@ -261,18 +332,33 @@ window.runBackgroundMetadataBatchWorker = async function (client, options) {
           "No match found.",
         );
         summary.failed += 1;
+        summary.items.push({
+          item_id: item.item_id,
+          item_key: item.item_key,
+          job_kind: item.job_kind,
+          payload: item.payload,
+          status: "failed",
+          result: null,
+          error: "No match found.",
+        });
       } else {
-        if (options.apply) {
+        if (skipped) {
+          // A queued item may have been resolved since it was created.
+        } else if (options.apply) {
           await options.apply(item.job_kind, item.item_key, lookupResult);
         } else if (
           item.job_kind === "film_metadata" ||
           item.job_kind === "film_gaps"
         ) {
-          await window.applyBackgroundFilmMetadata(
+          let applied = await window.applyBackgroundFilmMetadata(
             client,
             item.item_key,
             lookupResult,
           );
+          if (applied?.success === false)
+            throw new Error(applied.error || "Metadata was not saved");
+          if (applied?.tmdb_field_outcomes)
+            lookupResult.tmdb_field_outcomes = applied.tmdb_field_outcomes;
         } else if (item.job_kind === "person_portrait") {
           let { error: portraitErr } = await client.rpc(
             "save_person_tmdb_portrait",
@@ -294,20 +380,69 @@ window.runBackgroundMetadataBatchWorker = async function (client, options) {
           null,
         );
         summary.succeeded += 1;
+        summary.items.push({
+          item_id: item.item_id,
+          item_key: item.item_key,
+          job_kind: item.job_kind,
+          payload: item.payload,
+          status: "completed",
+          result: lookupResult,
+          error: null,
+        });
       }
     } catch (err) {
+      let errorMsg = String(err?.message || err);
       await window.recordBackgroundJobItemResult(
         client,
         item.item_id,
         workerId,
         false,
         null,
-        String(err?.message || err),
+        errorMsg,
       );
       summary.failed += 1;
+      summary.items.push({
+        item_id: item.item_id,
+        item_key: item.item_key,
+        job_kind: item.job_kind,
+        payload: item.payload,
+        status: "failed",
+        result: null,
+        error: errorMsg,
+      });
     }
     summary.processed += 1;
   }
 
   return summary;
+};
+
+/**
+ * Lists missing supported fields not previously unavailable for this identity.
+ * @param {Object} film Catalog row with identity, metadata, credits and lookup outcomes.
+ * @returns {string[]} Fields eligible for a TMDB lookup.
+ */
+window.tmdbFetchFields = function (film) {
+  let reference =
+    film.tmdb_tv_ref || (film.tmdb_id ? `movie:${film.tmdb_id}` : null);
+  let outcomes = film.tmdb_field_outcomes?.[reference] || {};
+  let fields = [
+    "poster_url",
+    "country",
+    "runtime_minutes",
+    "directors",
+    "original_language",
+    "year",
+  ];
+  if (!film.tmdb_tv_ref) fields.push("medium", "screenplay_type");
+  return fields.filter((field) => {
+    if (outcomes[field] === "unavailable") return false;
+    if (field === "directors")
+      return !(
+        film.credits?.some((c) => c.role === "director") ||
+        film.directors?.length ||
+        film.director
+      );
+    return !film[field] || film[field] === "unknown";
+  });
 };

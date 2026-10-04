@@ -13,6 +13,10 @@ function franchiseSheetTier(value) {
   return window.sheetTier(value);
 }
 
+function franchiseSheetTierModifier(value) {
+  return window.sheetTierModifier(value);
+}
+
 /**
  * Parses franchise spreadsheet lanes into importable membership entries.
  * @param {string} raw Raw tab-delimited sheet text.
@@ -157,6 +161,9 @@ window.parseFranchiseSheet = function (raw, options = {}) {
 
       let parsedRating = window.parseFilmRating?.(rating) || { value: 0 };
       let tier = parsedRating.value ? "" : franchiseSheetTier(rating);
+      let tierModifier = parsedRating.value
+        ? ""
+        : franchiseSheetTierModifier(rating);
       let hasYear = window.isFourDigitYearCell(year);
 
       if (hasYear) diagnostics.itemsWithYear += 1;
@@ -172,6 +179,7 @@ window.parseFranchiseSheet = function (raw, options = {}) {
         rating,
         ratingValue: parsedRating.value || 0,
         tier,
+        tierModifier,
         franchiseName: currentFranchise,
         parentName: currentParent,
         parentChain: currentChain,

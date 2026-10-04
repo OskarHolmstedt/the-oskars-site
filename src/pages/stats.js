@@ -86,9 +86,7 @@
       ? ui("Live action")
       : value === "animation"
         ? ui("Animation")
-        : value === "hybrid"
-          ? ui("Hybrid")
-          : ui("Unknown");
+        : ui("Unknown");
   }
 
   function screenplayLabel(value) {
@@ -142,6 +140,88 @@
     );
   }
 
+  let inspectorExpanded = false;
+  let inspectorFilter = "all";
+
+  function winnerDisplay(winner, isOfficial = false) {
+    if (!winner) return `<span class="stats-empty">—</span>`;
+    let title;
+    let year;
+    let url;
+    let recipient;
+    if (isOfficial) {
+      title =
+        window.formatOfficialField(winner.sourceTitle) ||
+        winner.filmRef?.title ||
+        "";
+      year = winner.filmRef?.year || "";
+      url = winner.filmRef?.id ? window.filmPageUrl(winner.filmRef.id) : "";
+      recipient = window.formatOfficialField(winner.recipient);
+    } else {
+      let film =
+        winner.film ||
+        (winner.filmId ? window.findFilmById?.(winner.filmId) : null);
+      title = window.localizedFilmTitle?.(film) || film?.title || "";
+      year = film?.year || "";
+      url = film?.id ? window.filmPageUrl(film.id) : "";
+      recipient = winner.award?.recipientText || winner.recipient || "";
+    }
+    let titleHtml = url
+      ? `<a class="table-film-link" href="${escape(url)}">${escape(title || "—")}</a>`
+      : escape(title || "—");
+    let meta = year ? `<small>${escape(year)}</small>` : "";
+    let recipientHtml = recipient
+      ? `<small class="nominee-recipient-credit">${escape(recipient)}</small>`
+      : "";
+    return `<div class="stats-awards-inspector-film">${titleHtml}${meta}${recipientHtml}</div>`;
+  }
+
+  function agreementInspectorTable(records) {
+    if (!records?.length)
+      return `<p class="stats-empty">${escape(ui("No comparison records for this filter."))}</p>`;
+    let rowsHtml = records
+      .map((record) => {
+        let periodUrl =
+          window.periodPageUrl?.("year", record.periodKey) ||
+          `period.html?type=year&key=${escape(record.periodKey)}`;
+        let categoryUrl =
+          window.categoryPageUrl?.(record.category) ||
+          `category.html?name=${encodeURIComponent(record.category)}`;
+        let categoryName =
+          window.localizedCategoryName?.(record.category) || record.category;
+        let isMatch = record.status === "agreement";
+        let statusBadge = `<span class="period-award-comparison is-${record.status}"><span aria-hidden="true">${isMatch ? "✓" : "≠"}</span> ${escape(ui(isMatch ? "Match" : "Different"))}</span>`;
+        let personalHtml = (record.personalWinners || [])
+          .map((w) => winnerDisplay(w, false))
+          .join("");
+        let officialHtml = (record.officialWinners || [])
+          .map((w) => winnerDisplay(w, true))
+          .join("");
+        return `<tr>
+          <td><a href="${escape(periodUrl)}"><b>${escape(record.periodKey)}</b></a></td>
+          <td><a href="${escape(categoryUrl)}">${escape(categoryName)}</a></td>
+          <td>${statusBadge}</td>
+          <td>${personalHtml || `<span class="stats-empty">—</span>`}</td>
+          <td>${officialHtml || `<span class="stats-empty">—</span>`}</td>
+        </tr>`;
+      })
+      .join("");
+    return `<div class="stats-awards-inspector-table-wrap">
+      <table class="stats-awards-inspector-table">
+        <thead>
+          <tr>
+            <th scope="col">${escape(ui("Period"))}</th>
+            <th scope="col">${escape(ui("Category"))}</th>
+            <th scope="col">${escape(ui("Status"))}</th>
+            <th scope="col">${escape(ui("Your winner (Oskars)"))}</th>
+            <th scope="col">${escape(ui("Academy winner (Oscars)"))}</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+  }
+
   function awardsContent() {
     let links = `<div class="stats-awards-links"><a class="button-link" href="categories.html">${escape(ui("Browse award categories"))}</a><a class="button-link" href="periods.html">${escape(ui("Browse award periods"))}</a></div>`;
     if (!awardAgreement.comparedCount)
@@ -150,8 +230,36 @@
       matches: awardAgreement.matches,
       total: awardAgreement.comparedCount,
     });
+    let filteredRecords =
+      inspectorFilter === "matches"
+        ? (awardAgreement.records || []).filter((r) => r.status === "agreement")
+        : inspectorFilter === "differences"
+          ? (awardAgreement.records || []).filter(
+              (r) => r.status === "disagreement",
+            )
+          : awardAgreement.records || [];
+    let inspectorHtml = `
+    <div class="stats-awards-inspector-content">
+      <div class="stats-awards-inspector-header">
+        <h3>${escape(ui("Oskars–Oscars comparison details"))}</h3>
+        <div class="stats-awards-inspector-filters" role="tablist" aria-label="${escape(ui("Filter comparisons"))}">
+          <a class="button-link${inspectorFilter === "all" ? " is-active" : ""}" href="#all" data-inspector-filter="all">${escape(ui("All"))} (${awardAgreement.comparedCount})</a>
+          <a class="button-link${inspectorFilter === "matches" ? " is-active" : ""}" href="#matches" data-inspector-filter="matches">${escape(ui("Matches"))} (${awardAgreement.matches})</a>
+          <a class="button-link${inspectorFilter === "differences" ? " is-active" : ""}" href="#differences" data-inspector-filter="differences">${escape(ui("Differences"))} (${awardAgreement.differences})</a>
+        </div>
+      </div>
+      ${agreementInspectorTable(filteredRecords)}
+    </div>`;
+
     return `<div class="stats-awards-overview">
-      <div class="stats-awards-score"><strong>${awardAgreement.agreementPercent}%</strong><span>${escape(ui("Overall agreement"))}</span><small>${escape(scoreContext)}</small></div>
+      <details id="statsAwardsInspector" class="stats-awards-inspector-details"${inspectorExpanded ? " open" : ""}>
+        <summary class="stats-awards-score stats-awards-score--interactive" title="${escape(ui("Click to inspect matching and differing films"))}">
+          <strong>${awardAgreement.agreementPercent}%</strong>
+          <span>${escape(ui("Overall agreement"))}</span>
+          <small>${escape(scoreContext)} · <b>${escape(ui(inspectorExpanded ? "Hide details" : "Click to inspect"))}</b></small>
+        </summary>
+        ${inspectorHtml}
+      </details>
       <div class="stats-facts stats-awards-facts">
         <span><b>${awardAgreement.comparedCount}</b>${escape(ui("Comparable category-periods"))}</span>
         <span><b>${awardAgreement.categoryCount}</b>${escape(ui("Categories compared"))}</span>
@@ -235,6 +343,26 @@ ${section(
   ),
   awardsContent(),
 )} `;
+
+    let detailsEl = container.querySelector("#statsAwardsInspector");
+    detailsEl?.addEventListener("toggle", () => {
+      inspectorExpanded = detailsEl.open;
+      let labelEl = detailsEl.querySelector("summary small b");
+      if (labelEl)
+        labelEl.textContent = ui(
+          inspectorExpanded ? "Hide details" : "Click to inspect",
+        );
+    });
+    container.querySelectorAll("[data-inspector-filter]").forEach((link) => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        inspectorFilter = e.currentTarget.dataset.inspectorFilter || "all";
+        renderStatsPage();
+      });
+    });
+
+    window.enhanceHorizontalScroll?.(container);
+
     finishRenderTimer?.(
       `${stats.filmCount} films, ${stats.ratingRows.length} rating rows, ${stats.decadeRows.length} decade rows`,
     );

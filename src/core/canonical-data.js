@@ -867,6 +867,7 @@ function canonicalValidateOfficialResults(errors, sources) {
           nomination,
           nominationPath,
           new Set([
+            "additionalFilms",
             "category",
             "country",
             "detail",
@@ -924,24 +925,39 @@ function canonicalValidateOfficialResults(errors, sources) {
             "must be unique in its period",
           );
         nominationIds.add(nomination.id);
-        if (nomination.filmRef !== undefined) {
-          let refPath = `${nominationPath}.filmRef`;
-          if (canonicalCheckRecord(errors, nomination.filmRef, refPath)) {
-            canonicalCheckAllowedFields(
-              errors,
-              nomination.filmRef,
-              refPath,
-              new Set(["id", "title", "year"]),
-            );
-            ["id", "title", "year"].forEach((field) =>
-              canonicalCheckString(
+        canonicalValidateOfficialFilmRef(
+          errors,
+          nomination.filmRef,
+          `${nominationPath}.filmRef`,
+        );
+        if (nomination.additionalFilms !== undefined) {
+          let filmsPath = `${nominationPath}.additionalFilms`;
+          if (!Array.isArray(nomination.additionalFilms))
+            canonicalError(errors, filmsPath, "must be an array");
+          else
+            nomination.additionalFilms.forEach((film, filmIndex) => {
+              let filmPath = `${filmsPath}[${filmIndex}]`;
+              if (!canonicalCheckRecord(errors, film, filmPath)) return;
+              canonicalCheckAllowedFields(
                 errors,
-                nomination.filmRef[field],
-                `${refPath}.${field}`,
-                true,
-              ),
-            );
-          }
+                film,
+                filmPath,
+                new Set(["filmRef", "position", "tmdbId"]),
+              );
+              if (!Number.isInteger(film.position) || film.position < 2)
+                canonicalError(
+                  errors,
+                  `${filmPath}.position`,
+                  "must be an integer of at least 2",
+                );
+              if (film.tmdbId !== undefined)
+                canonicalCheckString(errors, film.tmdbId, `${filmPath}.tmdbId`);
+              canonicalValidateOfficialFilmRef(
+                errors,
+                film.filmRef,
+                `${filmPath}.filmRef`,
+              );
+            });
         }
       });
       populatedCategories.forEach((category) => {
@@ -954,6 +970,20 @@ function canonicalValidateOfficialResults(errors, sources) {
       });
     });
   });
+}
+
+function canonicalValidateOfficialFilmRef(errors, filmRef, refPath) {
+  if (filmRef === undefined) return;
+  if (!canonicalCheckRecord(errors, filmRef, refPath)) return;
+  canonicalCheckAllowedFields(
+    errors,
+    filmRef,
+    refPath,
+    new Set(["id", "title", "year"]),
+  );
+  ["id", "title", "year"].forEach((field) =>
+    canonicalCheckString(errors, filmRef[field], `${refPath}.${field}`, true),
+  );
 }
 
 function canonicalValidateCollectionAwards(errors, collections) {

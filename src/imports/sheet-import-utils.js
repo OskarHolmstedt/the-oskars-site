@@ -6,6 +6,7 @@
 window.OSKARS_SHEET_IMPORT_UTIL_NAMES = [
   "cleanSheetCell",
   "sheetTier",
+  "sheetTierModifier",
   "parseTabbedSheetRows",
   "isFourDigitYearCell",
   "isUrlOrDashCell",
@@ -86,5 +87,20 @@ window.isUrlOrDashCell = function (value) {
  * @returns {string}
  */
 window.sheetTier = function (value) {
-  return window.normalizeWatchlistTier?.(window.cleanSheetCell(value)) || "";
+  let cleaned = window.cleanSheetCell(value);
+  return (
+    window.parseWatchlistTier?.(cleaned)?.tier ||
+    window.normalizeWatchlistTier?.(cleaned) ||
+    ""
+  );
+};
+
+/**
+ * Extracts a watchlist tier modifier from a spreadsheet cell.
+ * @param {*} value Cell value.
+ * @returns {'plus'|'minus'|''}
+ */
+window.sheetTierModifier = function (value) {
+  let cleaned = window.cleanSheetCell(value);
+  return window.parseWatchlistTier?.(cleaned)?.modifier || "";
 };

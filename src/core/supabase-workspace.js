@@ -49,9 +49,9 @@
  */
 
 const WATCHED_SELECT =
-  "id, film_id, rating, rating_modifier, date_watched, review, platform, views, updated_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type, original_language)";
+  "id, film_id, rating, rating_modifier, date_watched, review, platform, views, updated_at, films(id, tmdb_id, tmdb_tv_ref, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type, original_language)";
 const WATCHLIST_SELECT =
-  "id, film_id, tier, tier_modifier, position, reason, updated_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, medium, type)";
+  "id, film_id, tier, tier_modifier, position, reason, updated_at, films(id, tmdb_id, tmdb_tv_ref, title, year, poster_url, runtime_minutes, country, medium, type)";
 
 let workspaceState = null;
 let workspaceLoadPromise = null;
@@ -87,35 +87,50 @@ function assertCurrentWorkspaceMutation(isCurrent) {
 // refreshes for the same account preserve both.
 window.onSupabaseAuthChange?.((user) => syncWorkspaceAccount(user?.id || null));
 
-async function fetchWorkspace(ownerId) {
-  if (!ownerId) return { watched: [], watchlist: [], loadedAt: null };
+const WORKSPACE_PARTS = ["watched", "watchlist"];
+
+async function fetchWorkspace(ownerId, parts) {
+  let empty = { watched: [], watchlist: [], parts, loadedAt: null };
+  if (!ownerId) return empty;
 
   let ready = await window.ensureSupabaseClient();
-  if (!ready) return { watched: [], watchlist: [], loadedAt: null };
+  if (!ready) return empty;
 
   let [watched, watchlist] = await Promise.all([
-    fetchAllSupabaseRows((withCount) =>
-      ready.client
-        .from("watched")
-        .select(WATCHED_SELECT, withCount ? { count: "exact" } : undefined)
-        .eq("user_id", ownerId)
-        .order("id"),
-    ),
-    fetchAllSupabaseRows((withCount) =>
-      ready.client
-        .from("watchlist")
-        .select(WATCHLIST_SELECT, withCount ? { count: "exact" } : undefined)
-        .eq("user_id", ownerId)
-        .order("position")
-        .order("id"),
-    ),
+    parts.includes("watched")
+      ? fetchAllSupabaseRows((withCount) =>
+          ready.client
+            .from("watched")
+            .select(WATCHED_SELECT, withCount ? { count: "exact" } : undefined)
+            .eq("user_id", ownerId)
+            .order("id"),
+        )
+      : [],
+    parts.includes("watchlist")
+      ? fetchAllSupabaseRows((withCount) =>
+          ready.client
+            .from("watchlist")
+            .select(
+              WATCHLIST_SELECT,
+              withCount ? { count: "exact" } : undefined,
+            )
+            .eq("user_id", ownerId)
+            .order("position")
+            .order("id"),
+        )
+      : [],
   ]);
 
   return {
     watched,
     watchlist,
+    parts,
     loadedAt: new Date().toISOString(),
   };
+}
+
+function workspaceHas(state, parts) {
+  return Boolean(state) && parts.every((part) => state.parts.includes(part));
 }
 
 /**
@@ -123,11 +138,16 @@ async function fetchWorkspace(ownerId) {
  * films) once and caches the result for the rest of the session.
  * Concurrent callers for the same account share one in-flight request.
  * Account changes and newer forced refreshes reject superseded results.
- * @param {{force?: boolean}} [options] `force: true` re-fetches even if
- *   already cached — the explicit "refresh" case, never automatic.
- * @returns {Promise<{watched: Object[], watchlist: Object[], loadedAt: string|null}>}
+ * A caller that reads only watched rows asks for `parts: ["watched"]`
+ * (issue #633); a later request for a missing part fetches just that part.
+ * A part that was never requested reads as an empty array.
+ * @param {{force?: boolean, parts?: ('watched'|'watchlist')[]}} [options]
+ *   `force: true` re-fetches the requested parts even if already cached -
+ *   the explicit "refresh" case, never automatic. `parts` defaults to both.
+ * @returns {Promise<{watched: Object[], watchlist: Object[], parts: string[], loadedAt: string|null}>}
  */
 window.loadSupabaseWorkspace = async function (options = {}) {
+  let parts = options.parts || WORKSPACE_PARTS;
   let authState = await window.resolveSupabaseAuthState();
   if (!["signed-in", "signed-out", "unconfigured"].includes(authState.status)) {
     throw new Error(
@@ -140,10 +160,19 @@ window.loadSupabaseWorkspace = async function (options = {}) {
   syncWorkspaceAccount(currentUserId);
   if (ownerId !== currentUserId)
     throw new Error("Account changed while loading — reload first.");
-  if (workspaceState && !options.force) return workspaceState;
-  if (workspaceLoadPromise && !options.force) return workspaceLoadPromise;
+  if (!options.force && workspaceHas(workspaceState, parts))
+    return workspaceState;
+  if (workspaceLoadPromise && !options.force) {
+    let joined = await workspaceLoadPromise;
+    if (workspaceHas(joined, parts)) return joined;
+    if (workspaceLoadPromise) return window.loadSupabaseWorkspace(options);
+  }
+  let base = workspaceState;
+  let missing = options.force
+    ? parts
+    : parts.filter((part) => !base?.parts.includes(part));
   let generation = workspaceGeneration;
-  let pending = fetchWorkspace(ownerId).then((result) => {
+  let pending = fetchWorkspace(ownerId, missing).then((result) => {
     if (
       generation !== workspaceGeneration ||
       ownerId !== (window.getSupabaseCurrentUser()?.id || null)
@@ -151,8 +180,18 @@ window.loadSupabaseWorkspace = async function (options = {}) {
       throw new Error("Account changed while loading — reload first.");
     if (workspaceLoadPromise !== pending)
       throw new Error("Workspace load superseded by a newer refresh.");
-    workspaceState = result;
-    return result;
+    let kept = workspaceState || { watched: [], watchlist: [], parts: [] };
+    workspaceState = {
+      watched: missing.includes("watched") ? result.watched : kept.watched,
+      watchlist: missing.includes("watchlist")
+        ? result.watchlist
+        : kept.watchlist,
+      parts: WORKSPACE_PARTS.filter(
+        (part) => missing.includes(part) || kept.parts.includes(part),
+      ),
+      loadedAt: result.loadedAt,
+    };
+    return workspaceState;
   });
   workspaceLoadPromise = pending;
   try {
@@ -183,7 +222,7 @@ window.refreshSupabaseWorkspace = function () {
 };
 
 const INTAKE_WORKFLOW_SELECT =
-  "id, watched_id, version, source, steps, summary, completed_at, created_at, updated_at, watched(id, film_id, rating, rating_modifier, date_watched, platform, views, updated_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, medium, type))";
+  "id, watched_id, version, source, steps, summary, completed_at, created_at, updated_at, watched(id, film_id, rating, rating_modifier, date_watched, platform, views, updated_at, films(id, tmdb_id, tmdb_tv_ref, title, year, poster_url, runtime_minutes, country, medium, type))";
 
 /** Loads every resumable Intake for the signed-in user. @returns {Promise<Object[]>} */
 window.loadSupabaseIntakeWorkflows = async function () {
@@ -199,7 +238,7 @@ window.loadSupabaseIntakeWorkflows = async function () {
   return data;
 };
 
-/** Atomically creates a shared film, watched row, and fresh Intake. @param {Object} values Form values. @returns {Promise<Object>} The joined workflow. */
+/** Atomically creates a shared film, watched row, and fresh Intake, refusing a film with no catalog or TMDB match. @param {Object} values Form values. @returns {Promise<Object>} The joined workflow, with `notAddedPeople` listing directors that matched no catalog or TMDB person. */
 window.createSupabaseFreshWatchedIntake = async function (values) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
@@ -219,17 +258,44 @@ window.createSupabaseFreshWatchedIntake = async function (values) {
     .split(/\s*(?:,|\band\b|&)\s*/i)
     .map((name) => name.trim())
     .filter(Boolean);
-  let { data, error } = await ready.client.rpc("create_fresh_watched_intake", {
-    p_title: title,
-    p_year: year,
-    p_tmdb_id: values?.tmdbId ? Number(values.tmdbId) : null,
-    p_directors: directors,
-    p_rating: values?.rating ? Number(values.rating) : null,
-    p_rating_modifier: values?.ratingModifier || null,
-    p_date_watched: values?.dateWatched || null,
-    p_platform: values?.platform || null,
-    p_views: values?.views ? Number(values.views) : 1,
-  });
+  // A film without a TMDB identity is matched in the catalog first (the
+  // RPC below finds it again by exact title and year), then on TMDB; with
+  // neither it is not added.
+  await window.ensureCatalogIdentity?.();
+  let identity = window.filmTmdbIdentity(values?.tmdbId);
+  if (!identity) {
+    let catalogId = await window.findSupabaseCatalogFilm(
+      ready.client,
+      title,
+      year,
+    );
+    if (!catalogId) {
+      identity = await window.lookupTmdbFilmIdentity({ title, year });
+      if (!identity)
+        throw new Error(
+          window.catalogIdentityWarning("film", [
+            window.catalogFilmLabel({ title, year }),
+          ]),
+        );
+    }
+  }
+  let tvRef = /^TV:/.test(identity || "");
+  let { data, error } = await ready.client.rpc(
+    tvRef ? "create_tv_watched_intake" : "create_fresh_watched_intake",
+    {
+      p_title: title,
+      p_year: year,
+      ...(tvRef
+        ? { p_tv_ref: identity }
+        : { p_tmdb_id: identity ? Number(identity) : null }),
+      p_directors: directors,
+      p_rating: values?.rating ? Number(values.rating) : null,
+      p_rating_modifier: values?.ratingModifier || null,
+      p_date_watched: values?.dateWatched || null,
+      p_platform: values?.platform || null,
+      p_views: values?.views ? Number(values.views) : 1,
+    },
+  );
   if (error) throw error;
   let { data: joined, error: selectError } = await ready.client
     .from("intake_workflows")
@@ -237,6 +303,15 @@ window.createSupabaseFreshWatchedIntake = async function (values) {
     .eq("id", data.id)
     .single();
   if (selectError) throw selectError;
+  // The RPC credits directors already in the catalog; the rest are looked
+  // up on TMDB here, and any still unmatched are reported.
+  joined.notAddedPeople = directors.length
+    ? await window.persistSupabaseFilmCredits(
+        joined.watched.film_id,
+        "director",
+        directors,
+      )
+    : [];
   await window.refreshSupabaseWorkspace();
   return joined;
 };
@@ -474,7 +549,7 @@ window.moveSupabaseWatchlistToWatched = async function (filmId, options = {}) {
     let { data: filmRow, error: filmError } = await ready.client
       .from("films")
       .select(
-        "id, tmdb_id, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type",
+        "id, tmdb_id, tmdb_tv_ref, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type",
       )
       .eq("id", filmId)
       .maybeSingle();
@@ -498,10 +573,61 @@ window.moveSupabaseWatchlistToWatched = async function (filmId, options = {}) {
 };
 
 /**
+ * Adds recognised catalog films as seen without replacing existing watched facts.
+ * Removes the selected films from this account's watchlist after the insert;
+ * a failed cleanup can be retried without changing ratings, dates, or reviews.
+ * @param {string[]} filmIds Shared catalog film UUIDs.
+ * @returns {Promise<string[]>} Film IDs now in the account's watched archive.
+ */
+window.addSupabaseSeenFilms = async function (filmIds) {
+  let ids = [...new Set(filmIds || [])];
+  if (!ids.length) return [];
+  if (
+    ids.some(
+      (id) =>
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          id,
+        ),
+    )
+  )
+    throw new Error("Invalid film identity.");
+  if (window.state?.isPublicProfileView || window.resolveActiveProfileSlug?.())
+    throw new Error("Public profiles are read-only.");
+  let ready = await window.ensureSupabaseClient();
+  let auth = await window.resolveSupabaseAuthState();
+  if (!ready || auth.status !== "signed-in")
+    throw new Error("Sign in to add films.");
+  let userId = auth.user.id;
+  let isCurrent = beginWorkspaceMutation();
+  for (let offset = 0; offset < ids.length; offset += 100) {
+    let chunk = ids.slice(offset, offset + 100);
+    assertCurrentWorkspaceMutation(isCurrent);
+    let { error } = await ready.client.from("watched").upsert(
+      chunk.map((filmId) => ({ user_id: userId, film_id: filmId })),
+      { onConflict: "user_id,film_id", ignoreDuplicates: true },
+    );
+    if (error) throw error;
+    // Invalidate even if the following cleanup fails: the insert is durable.
+    workspaceState = null;
+    window.invalidateCachedSupabaseHydrationSource?.();
+    assertCurrentWorkspaceMutation(isCurrent);
+    let { error: cleanupError } = await ready.client
+      .from("watchlist")
+      .delete()
+      .eq("user_id", userId)
+      .in("film_id", chunk);
+    if (cleanupError) throw cleanupError;
+  }
+  assertCurrentWorkspaceMutation(isCurrent);
+  return ids;
+};
+
+/**
  * Searches the shared film catalog by title - a read-open, eligibility-
  * free query (films: read all authenticated), used to find a film to
- * add to the watchlist without any TMDB search/import step.
- * @param {string} query Title substring, case-insensitive.
+ * add to the watchlist or project without any TMDB search/import step.
+ * Uses search_films_catalog RPC with fuzzy and prefix ranking (issue #717).
+ * @param {string} query Title query, case-insensitive.
  * @returns {Promise<Object[]>} Up to 20 matching films.
  */
 window.searchSupabaseFilmsByTitle = async function (query) {
@@ -510,18 +636,15 @@ window.searchSupabaseFilmsByTitle = async function (query) {
   let trimmed = String(query || "").trim();
   if (!trimmed) return [];
 
-  let { data, error } = await ready.client
-    .from("films")
-    .select("id, tmdb_id, title, year, poster_url")
-    .ilike("title", `%${trimmed}%`)
-    .order("title")
-    .limit(20);
+  let { data, error } = await ready.client.rpc("search_films_catalog", {
+    query_text: trimmed,
+  });
   if (error) throw error;
-  return data;
+  return data || [];
 };
 
 const RANKING_ENTRY_SELECT =
-  "film_id, position, rank_confirmed, tie_group_id, films(id, tmdb_id, title, year, poster_url)";
+  "film_id, position, rank_confirmed, tie_group_id, films(id, tmdb_id, tmdb_tv_ref, title, year, poster_url)";
 
 /**
  * Finds or creates the signed-in user's ranking row for a (scopeType,
@@ -929,7 +1052,7 @@ window.removeFromSupabaseRanking = async function (rankingId, filmId) {
 };
 
 const PERSONAL_NOMINATION_SELECT =
-  "id, category, placement, film_id, detail, films(id, tmdb_id, title, year, poster_url), personal_nomination_recipients(recipient_name)";
+  "id, category, placement, film_id, detail, films(id, tmdb_id, tmdb_tv_ref, title, year, poster_url), personal_nomination_recipients(recipient_name)";
 
 /**
  * Finds or creates the signed-in user's personal_awards row for a
@@ -1011,8 +1134,8 @@ window.loadSupabasePersonalNominations = async function (
 /**
  * Loads shared crew credits (every role backing a category in
  * window.AWARD_CATEGORY_CREDIT_JOBS, not just director) and the owner's
- * prior nomination credits for a bounded set of ballot-candidate films.
- * Two batched PostgREST requests, never one request per film/card.
+ * prior nomination credits for a set of ballot-candidate films, in
+ * batches of films rather than one request per film/card.
  * @param {string[]} filmIds Film UUIDs.
  * @returns {Promise<{credits: Object[], nominations: Object[]}>}
  */
@@ -1031,26 +1154,30 @@ window.loadSupabaseAwardCandidateCredits = async function (filmIds) {
     ),
   ];
   if (!roles.length) roles = ["director"];
-  let [creditsResult, nominationsResult] = await Promise.all([
-    ready.client
-      .from("credits")
-      .select("film_id, role, billing_order, people(name)")
-      .in("film_id", ids)
-      .in("role", roles)
-      .order("billing_order"),
-    ready.client
-      .from("personal_nominations")
-      .select(
-        "film_id, category, detail, personal_nomination_recipients(recipient_name)",
-      )
-      .in("film_id", ids),
+  // A film has many credit rows, so fewer films per request keeps each
+  // response under PostgREST's row cap.
+  let [credits, nominations] = await Promise.all([
+    selectInChunks(
+      ids,
+      (chunk) =>
+        ready.client
+          .from("credits")
+          .select("film_id, role, billing_order, people(name)")
+          .in("film_id", chunk)
+          .in("role", roles)
+          .order("billing_order"),
+      40,
+    ),
+    selectInChunks(ids, (chunk) =>
+      ready.client
+        .from("personal_nominations")
+        .select(
+          "film_id, category, detail, personal_nomination_recipients(recipient_name)",
+        )
+        .in("film_id", chunk),
+    ),
   ]);
-  if (creditsResult.error) throw creditsResult.error;
-  if (nominationsResult.error) throw nominationsResult.error;
-  return {
-    credits: creditsResult.data || [],
-    nominations: nominationsResult.data || [],
-  };
+  return { credits, nominations };
 };
 
 /**
@@ -1062,18 +1189,24 @@ window.loadSupabaseAwardCandidateCredits = async function (filmIds) {
  * this session. `credits` has no update grant for `authenticated` (a
  * shared, append-only catalog fact) - a plain insert tolerating the
  * primary key's unique violation is "create if missing", the same
- * intentional shape the importer already uses.
+ * intentional shape the importer already uses. A name without a TMDB ID
+ * links an existing person with that name, or else the person TMDB finds for
+ * it on this film; a name matching neither is skipped and returned, since no
+ * person is ever created without a TMDB ID.
  * @param {string} filmId Film UUID.
  * @param {string} role credits.role value (see window.AWARD_CATEGORY_CREDIT_JOBS).
  * @param {(string|{tmdbId?: number|null, name: string, profilePath?: string|null})[]} people TMDB crew or names to persist.
- * @returns {Promise<void>}
+ * @returns {Promise<string[]>} Names that were not added.
  */
 window.persistSupabaseFilmCredits = async function (filmId, role, people) {
-  if (!filmId || !role || !people?.length) return;
+  let notAdded = [];
+  if (!filmId || !role || !people?.length) return notAdded;
   let ready = await window.ensureSupabaseClient();
-  if (!ready) return;
+  if (!ready) return notAdded;
   let authState = await window.resolveSupabaseAuthState();
-  if (authState.status !== "signed-in") return;
+  if (authState.status !== "signed-in") return notAdded;
+  await window.ensureCatalogIdentity?.();
+  let filmTmdbIds = null;
   for (let [index, person] of people.entries()) {
     let name =
       typeof person === "string"
@@ -1084,19 +1217,24 @@ window.persistSupabaseFilmCredits = async function (filmId, role, people) {
       typeof person === "object" && person?.tmdbId
         ? Number(person.tmdbId) || null
         : null;
-    let profilePath = typeof person === "object" ? person?.profilePath : null;
-    let { data: personId, error: personError } = await ready.client.rpc(
-      "find_or_create_person",
-      {
-        p_tmdb_id: tmdbId,
-        p_name: name,
-        p_portrait_url: profilePath
-          ? `https://image.tmdb.org/t/p/w300${profilePath}`
-          : null,
-      },
-    );
-    if (personError) throw personError;
-    if (!personId) continue;
+    if (!tmdbId && !filmTmdbIds) {
+      let { data: film } = await ready.client
+        .from("films")
+        .select("tmdb_id")
+        .eq("id", filmId)
+        .maybeSingle();
+      filmTmdbIds = film?.tmdb_id ? [film.tmdb_id] : [];
+    }
+    let { personId } = await window.resolveSupabaseCatalogPerson(ready.client, {
+      name,
+      tmdbId,
+      profilePath: typeof person === "object" ? person?.profilePath : null,
+      creditedFilmTmdbIds: filmTmdbIds || [],
+    });
+    if (!personId) {
+      notAdded.push(name);
+      continue;
+    }
     let { error: creditError } = await ready.client.from("credits").insert({
       film_id: filmId,
       person_id: personId,
@@ -1105,6 +1243,7 @@ window.persistSupabaseFilmCredits = async function (filmId, role, people) {
     });
     if (creditError && creditError.code !== "23505") throw creditError;
   }
+  return notAdded;
 };
 
 /**
@@ -1164,6 +1303,39 @@ window.applySupabaseWatchlistTierMergeOrder = async function (
       ok: false,
       reason: "Some selected films are no longer in this tier.",
     };
+
+  if (slotPositions.some((pos) => !pos)) {
+    let firstMergedIndex = tierItems.findIndex((row) => idSet.has(row.film_id));
+    let beforePos = null;
+    for (let i = firstMergedIndex - 1; i >= 0; i--) {
+      if (tierItems[i].position) {
+        beforePos = tierItems[i].position;
+        break;
+      }
+    }
+    let lastMergedIndex = -1;
+    for (let i = tierItems.length - 1; i >= 0; i--) {
+      if (idSet.has(tierItems[i].film_id)) {
+        lastMergedIndex = i;
+        break;
+      }
+    }
+    let afterPos = null;
+    for (let i = lastMergedIndex + 1; i < tierItems.length; i++) {
+      if (tierItems[i].position) {
+        afterPos = tierItems[i].position;
+        break;
+      }
+    }
+    let generated = [];
+    let cur = beforePos;
+    for (let i = 0; i < mergedRows.length; i++) {
+      let nextPos = window.fractionalPositionBetween(cur, afterPos);
+      generated.push(nextPos);
+      cur = nextPos;
+    }
+    slotPositions = generated;
+  }
 
   let updates = mergedRows
     .map((row, index) => ({ row, newPosition: slotPositions[index] }))
@@ -1228,7 +1400,7 @@ window.listSupabaseTags = async function () {
 };
 
 const LOCAL_RANK_FILM_SELECT =
-  "id, tmdb_id, title, year, poster_url, runtime_minutes, country, medium, type";
+  "id, tmdb_id, tmdb_tv_ref, title, year, poster_url, runtime_minutes, country, medium, type";
 
 /**
  * Resolves a local-rank collection's display name and current films, in
@@ -1449,7 +1621,9 @@ window.loadSupabaseProfile = async function () {
 
   let { data, error } = await ready.client
     .from("profiles")
-    .select("id, display_name, public_slug")
+    .select(
+      "id, display_name, public_slug, letterboxd_username, letterboxd_last_synced_at",
+    )
     .eq("id", authState.user.id)
     .single();
   if (error) throw error;
@@ -1475,6 +1649,63 @@ window.setSupabaseProfileDisplayName = async function (displayName) {
     .update({ display_name: displayName || null })
     .eq("id", authState.user.id)
     .select("id, display_name")
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+/**
+ * Sets the signed-in user's Letterboxd username and optional last synced timestamp (issue #668).
+ * @param {string|null} username
+ * @param {string|null} [lastSyncedAt]
+ * @returns {Promise<{id: string, letterboxd_username: string|null, letterboxd_last_synced_at: string|null}>}
+ */
+window.setSupabaseProfileLetterboxd = async function (
+  username,
+  lastSyncedAt = undefined,
+) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let authState = await window.resolveSupabaseAuthState();
+  if (authState.status !== "signed-in") throw new Error("Not signed in.");
+
+  let patch = {
+    letterboxd_username: username ? String(username).trim() : null,
+  };
+  if (lastSyncedAt !== undefined) {
+    patch.letterboxd_last_synced_at = lastSyncedAt;
+  }
+
+  let { data, error } = await ready.client
+    .from("profiles")
+    .update(patch)
+    .eq("id", authState.user.id)
+    .select(
+      "id, display_name, public_slug, letterboxd_username, letterboxd_last_synced_at",
+    )
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+/**
+ * Updates the signed-in user's Letterboxd last-synced timestamp (issue #668).
+ * @param {string} lastSyncedAt ISO timestamp
+ * @returns {Promise<{id: string, letterboxd_last_synced_at: string|null}>}
+ */
+window.updateSupabaseProfileLetterboxdLastSynced = async function (
+  lastSyncedAt,
+) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let authState = await window.resolveSupabaseAuthState();
+  if (authState.status !== "signed-in") throw new Error("Not signed in.");
+
+  let { data, error } = await ready.client
+    .from("profiles")
+    .update({ letterboxd_last_synced_at: lastSyncedAt })
+    .eq("id", authState.user.id)
+    .select("id, letterboxd_last_synced_at")
     .single();
   if (error) throw error;
   return data;
@@ -1513,6 +1744,7 @@ const SUPABASE_ACCOUNT_BACKUP_TABLES = [
   ],
   ["ranking_pair_reviews", "*", ["scope", "film_id_a", "film_id_b"]],
   ["award_reviews", "*", ["year", "category"]],
+  ["award_pool_exclusions", "*", ["year", "film_id"]],
   ["collection_ballots", "*", ["id"]],
   ["entity_notes", "*", ["id"]],
   ["declined_official_watchlist_adds", "*", ["film_id"]],
@@ -1655,6 +1887,55 @@ window.resolveSupabaseYearRankingBucket = async function (
 };
 
 /**
+ * Loads the films hidden from every candidate pool for one annual ballot.
+ * @param {number|string} year Awards year.
+ * @returns {Promise<string[]>} Hidden film UUIDs.
+ */
+window.loadSupabaseAwardPoolExclusions = async function (year) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let rows = await fetchAllSupabaseRows((count) =>
+    ready.client
+      .from("award_pool_exclusions")
+      .select("film_id", count ? { count: "exact" } : undefined)
+      .eq("year", Number(year))
+      .order("film_id"),
+  );
+  return rows.map((row) => row.film_id);
+};
+
+/**
+ * Saves a film hidden from every category in one annual ballot.
+ * @param {number|string} year Awards year.
+ * @param {string} filmId Film UUID.
+ */
+window.hideSupabaseAwardPoolFilm = async function (year, filmId) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { error } = await ready.client
+    .from("award_pool_exclusions")
+    .upsert(
+      { year: Number(year), film_id: filmId },
+      { onConflict: "user_id,year,film_id", ignoreDuplicates: true },
+    );
+  if (error) throw error;
+};
+
+/**
+ * Restores all globally hidden candidate films for one annual ballot.
+ * @param {number|string} year Awards year.
+ */
+window.clearSupabaseAwardPoolExclusions = async function (year) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { error } = await ready.client
+    .from("award_pool_exclusions")
+    .delete()
+    .eq("year", Number(year));
+  if (error) throw error;
+};
+
+/**
  * Returns the signed-in user's stored review outcome for one annual
  * category, or null if never reviewed (issue #435, matching the
  * previous annualAwardReview()).
@@ -1744,17 +2025,9 @@ window.loadSupabaseAwardReviews = async function () {
  */
 window.supabaseAnnualAwardReviewProgress = async function (year) {
   let categoryNames = window.getOrderedCategories?.() || [];
-  // Resolves (or creates) this year's personal_awards row exactly once,
-  // before fanning the ~18 categories' own reads out in parallel below -
-  // found live as the dominant cause of a slow page load (each category
-  // previously awaited its own pair of requests in turn, a fully serial
-  // network waterfall). getOrCreateSupabasePersonalAwardId() is a plain
-  // select-then-insert, not atomic like find_or_create_film(); calling it
-  // from 18 concurrent first-ever requests for the same (scope, scope_type)
-  // would have every insert but the winner fail on the row's own unique
-  // constraint. Once the row already exists, every later resolution -
-  // including each category's own internal call to it below - is a plain,
-  // race-safe SELECT.
+  // Resolves (or creates) this year's personal_awards row, then batches
+  // personal nominations across all categories and award reviews for this year
+  // into two parallel queries instead of fanning out 36 separate category reads.
   let ready = await window.ensureSupabaseClient();
   let authState = ready ? await window.resolveSupabaseAuthState() : null;
   let personalAwardId =
@@ -1765,24 +2038,52 @@ window.supabaseAnnualAwardReviewProgress = async function (year) {
           "years",
         )
       : null;
-  let categories = await Promise.all(
-    categoryNames.map(async (category) => {
-      let [loaded, review] = await Promise.all([
-        window.loadSupabasePersonalNominations(String(year), category, "years"),
-        window.loadSupabaseAwardReview(year, category),
-      ]);
-      let winner =
-        loaded.nominations.find((entry) => Number(entry.placement) === 1) ||
-        null;
-      return {
-        category,
-        nominations: loaded.nominations,
-        review,
-        reviewed: Boolean(review),
-        winner,
-      };
-    }),
-  );
+  let [nominationsRes, reviewsRes] = await Promise.all([
+    personalAwardId
+      ? ready.client
+          .from("personal_nominations")
+          .select(PERSONAL_NOMINATION_SELECT)
+          .eq("personal_award_id", personalAwardId)
+          .order("placement")
+      : Promise.resolve({ data: [], error: null }),
+    ready && authState?.status === "signed-in"
+      ? ready.client
+          .from("award_reviews")
+          .select("year, category, status, reviewed_at")
+          .eq("year", Number(year))
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (nominationsRes.error) throw nominationsRes.error;
+  if (reviewsRes.error) throw reviewsRes.error;
+
+  let nominationsByCategory = new Map();
+  for (let nomination of nominationsRes.data || []) {
+    let list = nominationsByCategory.get(nomination.category);
+    if (!list) {
+      list = [];
+      nominationsByCategory.set(nomination.category, list);
+    }
+    list.push(nomination);
+  }
+
+  let reviewsByCategory = new Map();
+  for (let review of reviewsRes.data || []) {
+    reviewsByCategory.set(review.category, review);
+  }
+
+  let categories = categoryNames.map((category) => {
+    let nominations = nominationsByCategory.get(category) || [];
+    let review = reviewsByCategory.get(category) || null;
+    let winner =
+      nominations.find((entry) => Number(entry.placement) === 1) || null;
+    return {
+      category,
+      nominations,
+      review,
+      reviewed: Boolean(review),
+      winner,
+    };
+  });
   return {
     personalAwardId,
     total: categories.length,
@@ -1826,7 +2127,9 @@ window.insertSupabasePersonalNomination = async function (
     p_capacity: capacity,
     p_film_id: filmId,
     p_detail: detail || "",
-    p_recipients: recipients || [],
+    p_recipients: [
+      ...new Set((recipients || []).map((name) => name.trim()).filter(Boolean)),
+    ],
   });
   if (error) throw error;
   return data;
@@ -1910,6 +2213,7 @@ window.updateSupabaseNominationDetail = async function (nominationId, detail) {
  * insert, matching setSupabaseLocalRankOrder's own replace semantics).
  * @param {string} nominationId
  * @param {string[]} recipients
+ * @returns {Promise<string[]>} New recipients left as plain text, with no catalog or TMDB person.
  */
 window.updateSupabaseNominationRecipients = async function (
   nominationId,
@@ -1925,7 +2229,7 @@ window.updateSupabaseNominationRecipients = async function (
 
   let { data: existingRows, error: selectError } = await ready.client
     .from("personal_nomination_recipients")
-    .select("id, recipient_name")
+    .select("recipient_name")
     .eq("nomination_id", nominationId);
   if (selectError) throw selectError;
 
@@ -1937,30 +2241,25 @@ window.updateSupabaseNominationRecipients = async function (
     (r) => !names.includes(r.recipient_name),
   );
 
+  let notAdded = [];
   if (toAdd.length) {
-    // Resolves person_id the same way persistSupabaseFilmCredits() already
-    // does for directors (issue #633 - this column has existed since the
-    // initial schema and nothing has ever written it, forcing every
-    // consumer to re-derive identity from the free-text name instead).
-    // find_or_create_person's name-only branch throws on a genuinely
-    // ambiguous name (multiple existing people share it) rather than
-    // guessing - caught here and left as a plain-text recipient, same
-    // degraded shape this row always had, rather than blocking the save
-    // over a disambiguation problem the person editing an award isn't
-    // positioned to resolve.
+    await window.ensureCatalogIdentity?.();
+    // A recipient links the existing person with that name, or else the
+    // person TMDB finds for it; a name matching neither stays as plain
+    // text, since no person is created without a TMDB ID. A lookup failure
+    // also leaves plain text rather than blocking the award edit.
     let rows = [];
     for (let recipient_name of toAdd) {
-      let personId;
+      let personId = null;
       try {
-        let { data, error } = await ready.client.rpc("find_or_create_person", {
-          p_tmdb_id: null,
-          p_name: recipient_name,
-        });
-        if (error) throw error;
-        personId = data || null;
+        ({ personId } = await window.resolveSupabaseCatalogPerson(
+          ready.client,
+          { name: recipient_name },
+        ));
       } catch (err) {
-        personId = null;
+        console.warn(`Could not identify recipient "${recipient_name}"`, err);
       }
+      if (!personId) notAdded.push(recipient_name);
       rows.push({
         nomination_id: nominationId,
         recipient_name,
@@ -1969,20 +2268,27 @@ window.updateSupabaseNominationRecipients = async function (
     }
     let { error: insertError } = await ready.client
       .from("personal_nomination_recipients")
-      .insert(rows);
+      .upsert(rows, {
+        onConflict: "nomination_id,recipient_name",
+        ignoreDuplicates: true,
+      });
     if (insertError) throw insertError;
   }
 
   if (toDelete.length) {
-    let deleteIds = toDelete.map((r) => r.id);
     let { error: deleteError } = await ready.client
       .from("personal_nomination_recipients")
       .delete()
-      .in("id", deleteIds);
+      .eq("nomination_id", nominationId)
+      .in(
+        "recipient_name",
+        toDelete.map((r) => r.recipient_name),
+      );
     if (deleteError) throw deleteError;
   }
 
   assertCurrentWorkspaceMutation(isCurrent);
+  return notAdded;
 };
 
 // PostgREST's stock max_rows cap (supabase/config.toml). Several shared,
@@ -1995,13 +2301,20 @@ const SUPABASE_FETCH_PAGE_SIZE = 1000;
  * Fetches every row of one table across as many `.range()` pages as
  * needed, learning the exact total from the first page (PostgREST's
  * Content-Range header, surfaced by supabase-js as `count` when the query
- * passes `{ count: "exact" }`) and firing every remaining page in
- * parallel via `Promise.all` - wall-clock time is bounded by the slowest
- * single request, not their sum. Mirrors
+ * passes `{ count: "exact" }`) and firing the remaining pages in batches of
+ * `maxConcurrency` via `Promise.all` - wall-clock time per batch is bounded
+ * by its slowest request, not their sum. Mirrors
  * scripts/import-official-results-to-supabase.mjs's own fetchAll() in
  * spirit, but that Node script loops one page at a time (fine for a
  * one-off import; too slow for a page load).
- * @param {function(boolean): Object} buildQuery Returns a FRESH,
+ *
+ * Default `maxConcurrency` is unbounded, matching every existing caller's
+ * table-sized page counts. A caller whose query is heavy enough (e.g. a
+ * multi-level join) and whose row count is large enough that firing every
+ * page at once risks the database's `statement_timeout` under everyday
+ * concurrent load should pass a modest cap instead - see
+ * `loadSupabaseFilmCatalogForDataTools`.
+ * @param {(withCount: boolean) => any} buildQuery Returns a FRESH,
  *   not-yet-sent query every call - e.g. `(withCount) =>
  *   client.from("official_categories").select("id,name", withCount ?
  *   { count: "exact" } : undefined)`. Never return/reuse a single shared
@@ -2009,11 +2322,13 @@ const SUPABASE_FETCH_PAGE_SIZE = 1000;
  *   would race each other's request state, since `.range()` mutates the
  *   builder rather than cloning it.
  * @param {number} [pageSize] Rows per page - defaults to PostgREST's max_rows.
+ * @param {number} [maxConcurrency] Maximum pages in flight at once - defaults to unbounded.
  * @returns {Promise<Object[]>} Every row, first-page order then ascending range order.
  */
 async function fetchAllSupabaseRows(
   buildQuery,
   pageSize = SUPABASE_FETCH_PAGE_SIZE,
+  maxConcurrency = Infinity,
 ) {
   let first = await buildQuery(true).range(0, pageSize - 1);
   if (first.error) throw first.error;
@@ -2023,20 +2338,28 @@ async function fetchAllSupabaseRows(
   let pageStarts = [];
   for (let from = pageSize; from < total; from += pageSize)
     pageStarts.push(from);
-  let pages = await Promise.all(
-    pageStarts.map((from) =>
-      buildQuery(false).range(from, from + pageSize - 1),
-    ),
-  );
-  pages.forEach((page) => {
-    if (page.error) throw page.error;
-    rows = rows.concat(page.data || []);
-  });
+  for (let i = 0; i < pageStarts.length; i += maxConcurrency) {
+    let batch = pageStarts.slice(i, i + maxConcurrency);
+    let pages = await Promise.all(
+      batch.map((from) => buildQuery(false).range(from, from + pageSize - 1)),
+    );
+    pages.forEach((page) => {
+      if (page.error) throw page.error;
+      rows = rows.concat(page.data || []);
+    });
+  }
   return rows;
 }
 
-/** Fetches all pages of a Supabase query using its exact count. @param {function(boolean): Object} buildQuery Builds a fresh query, requesting count when true. @param {number} [pageSize] Maximum rows per page. @returns {Promise<Object[]>} All selected rows. */
+/** Fetches all pages of a Supabase query using its exact count. @param {(withCount: boolean) => any} buildQuery Builds a fresh query, requesting count when true. @param {number} [pageSize] Maximum rows per page. @param {number} [maxConcurrency] Maximum pages in flight at once. @returns {Promise<Object[]>} All selected rows. */
 window.fetchAllSupabaseRows = fetchAllSupabaseRows;
+
+// A watched/watchlist row's own columns as every hydration read selects
+// them; the film embed is added per query.
+const HYDRATION_WATCHED_FIELDS =
+  "id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at";
+const HYDRATION_WATCHLIST_FIELDS =
+  "id, film_id, tier, tier_modifier, position, reason, added_at, updated_at";
 
 // Every field a legacy read-only page's FilmRecord might display -
 // credits/tags/franchises embedded directly (one round trip, no per-film
@@ -2047,89 +2370,186 @@ window.fetchAllSupabaseRows = fetchAllSupabaseRows;
 // director lookups can use it instead of re-deriving identity from the
 // name string client-side.
 const LEGACY_HYDRATION_FILM_FIELDS =
-  "id, tmdb_id, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type, adaptation_source, swedish_title, letterboxd_url, credits(role, people(id, name)), film_tags(tags(name)), film_franchises(franchises(id, name, parent_id))";
+  "id, tmdb_id, tmdb_tv_ref, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type, adaptation_source, swedish_title, letterboxd_url, credits(role, uncredited, people(id, name)), film_tags(tags(name)), film_franchises(franchises(id, name, parent_id))";
 
 /**
- * Loads every table src/domain/supabase-legacy-hydration.js needs to
- * rebuild window.state's established view-model shape - watched, watchlist, every
- * ranking (all four scope types), every personal-award nomination (all
- * four scope types), the shared film and franchise catalogs, every
- * project the user owns (issue #458), saved person portraits, and the profile
- * display name. One pass per page load, matching what the previous app always loaded
- * wholesale - not cached; edit-capable callers refresh it after writes
- * (issues #438, #440).
- * @returns {Promise<Object>} Raw rows, reshaped entirely by the caller.
+ * The independently fetchable parts of the signed-in user's archive, in the
+ * order loadSupabaseHydrationDomains() reports them. `franchises` and
+ * `catalogFilms` are the shared catalogs; everything else is per-user.
  */
-window.loadSupabaseLegacyHydrationSource = async function () {
-  let ready = await window.ensureSupabaseClient();
-  if (!ready) throw new Error("Supabase not configured.");
-  let authState = await window.resolveSupabaseAuthState();
-  if (authState.status !== "signed-in")
-    return {
-      watched: [],
-      watchlist: [],
-      rankings: [],
-      personalAwards: [],
-      franchises: [],
-      catalogFilms: [],
-      people: [],
-      ownProjects: [],
-      profile: null,
-    };
-  let client = ready.client;
-  let [
-    watched,
-    watchlist,
-    rankingsResult,
-    rankingEntries,
-    personalAwardsResult,
-    franchises,
-    catalogFilms,
-    people,
-    ownProjectsResult,
-    profileResult,
-  ] = await Promise.all([
+window.SUPABASE_HYDRATION_DOMAINS = Object.freeze([
+  "watched",
+  "watchlist",
+  "rankings",
+  "personalAwards",
+  "franchises",
+  "catalogFilms",
+  "people",
+  "ownProjects",
+  "profile",
+]);
+
+/**
+ * Domains that hold a subset of another domain's rows (issue #633), mapped
+ * to that domain: never needed for a complete archive, and satisfied by the
+ * superset whenever it is loaded. `franchiseWatchlist` is the watchlist rows
+ * whose film belongs to at least one franchise; `taggedWatchlist` those whose
+ * film carries at least one tag.
+ */
+window.SUPABASE_HYDRATION_SUBSET_DOMAINS = Object.freeze({
+  franchiseWatchlist: "watchlist",
+  taggedWatchlist: "watchlist",
+});
+
+const EMPTY_HYDRATION_DOMAIN_VALUES = {
+  watched: [],
+  watchlist: [],
+  rankings: [],
+  personalAwards: [],
+  franchises: [],
+  catalogFilms: [],
+  people: [],
+  ownProjects: [],
+  profile: null,
+  franchiseWatchlist: [],
+  taggedWatchlist: [],
+};
+
+async function supabaseResultData(query) {
+  let result = await query;
+  if (result.error) throw result.error;
+  return result.data;
+}
+
+// Watchlist rows whose film has at least one row in the embed named by
+// `embedPrefix` (e.g. "film_tags("): !inner at both levels filters the rows,
+// and every embedded row of a matching film is still returned. Same row shape
+// as the `watchlist` domain, plus `order`: the row's 1-based position in the
+// whole watchlist, which its index in the subset isn't.
+async function loadWatchlistWithEmbed(client, embedPrefix) {
+  let filmFields = LEGACY_HYDRATION_FILM_FIELDS.replace(
+    embedPrefix,
+    embedPrefix.replace("(", "!inner("),
+  );
+  let rows = await fetchAllSupabaseRows((withCount) =>
+    client
+      .from("watchlist")
+      .select(
+        `${HYDRATION_WATCHLIST_FIELDS}, films!inner(${filmFields})`,
+        withCount ? { count: "exact" } : undefined,
+      )
+      .order("position")
+      .order("id"),
+  );
+  return withWatchlistOrders(client, rows);
+}
+
+// Adds `order`, each row's 1-based position in the whole watchlist, to rows
+// that are only part of it.
+async function withWatchlistOrders(client, rows) {
+  if (!rows.length) return rows;
+  let ids = rows.map((row) => row.id);
+  let orders;
+  try {
+    orders = await fetchAllSupabaseRows((withCount) =>
+      client
+        .rpc(
+          "read_watchlist_orders",
+          { p_ids: ids },
+          withCount ? { count: "exact" } : undefined,
+        )
+        .order("id"),
+    );
+  } catch (error) {
+    // Without the RPC the rows still load; items are then numbered within
+    // the subset instead of the whole watchlist.
+    console.warn?.("read_watchlist_orders failed", error);
+    return rows;
+  }
+  let orderById = new Map(orders.map((row) => [row.id, row.order]));
+  return rows.map((row) => ({ ...row, order: orderById.get(row.id) }));
+}
+
+const HYDRATION_DOMAIN_LOADERS = {
+  watched: (client) =>
     fetchAllSupabaseRows((withCount) =>
       client
         .from("watched")
         .select(
-          `id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+          `${HYDRATION_WATCHED_FIELDS}, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
           withCount ? { count: "exact" } : undefined,
         )
         .order("id"),
     ),
-    fetchAllSupabaseRows((withCount) =>
+  watchlist: async (client) => {
+    try {
+      let { data, error } = await client.rpc("read_full_watchlist_projection");
+      if (!error && Array.isArray(data)) return data;
+      if (error)
+        console.warn?.(
+          "read_full_watchlist_projection failed, falling back to paged hydration",
+          error,
+        );
+    } catch (e) {
+      console.warn?.(
+        "read_full_watchlist_projection exception, falling back to paged hydration",
+        e,
+      );
+    }
+    return fetchAllSupabaseRows((withCount) =>
       client
         .from("watchlist")
         .select(
-          `id, film_id, tier, tier_modifier, position, reason, added_at, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+          `${HYDRATION_WATCHLIST_FIELDS}, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
           withCount ? { count: "exact" } : undefined,
         )
         .order("position")
         .order("id"),
-    ),
-    client.from("rankings").select("id, scope, scope_type"),
-    fetchAllSupabaseRows((withCount) =>
+    );
+  },
+  franchiseWatchlist: (client) =>
+    loadWatchlistWithEmbed(client, "film_franchises("),
+  taggedWatchlist: (client) => loadWatchlistWithEmbed(client, "film_tags("),
+  rankings: async (client) => {
+    let [rankings, rankingEntries] = await Promise.all([
+      supabaseResultData(
+        client.from("rankings").select("id, scope, scope_type"),
+      ),
+      fetchAllSupabaseRows((withCount) =>
+        client
+          .from("ranking_entries")
+          .select(
+            "ranking_id, film_id, position, rank_confirmed, suppress_all_time_rank, tie_group_id, tie_group_title",
+            withCount ? { count: "exact" } : undefined,
+          )
+          .order("ranking_id")
+          .order("position")
+          .order("film_id"),
+      ),
+    ]);
+    let entriesByRankingId = new Map();
+    rankingEntries.forEach((entry) => {
+      let entries = entriesByRankingId.get(entry.ranking_id) || [];
+      entries.push(entry);
+      entriesByRankingId.set(entry.ranking_id, entries);
+    });
+    return (rankings || []).map((ranking) => ({
+      ...ranking,
+      ranking_entries: entriesByRankingId.get(ranking.id) || [],
+    }));
+  },
+  personalAwards: (client) =>
+    supabaseResultData(
       client
-        .from("ranking_entries")
+        .from("personal_awards")
         .select(
-          "ranking_id, film_id, position, rank_confirmed, suppress_all_time_rank, tie_group_id, tie_group_title",
-          withCount ? { count: "exact" } : undefined,
+          "id, scope, scope_type, personal_nominations(id, category, placement, film_id, detail, personal_nomination_recipients(recipient_name, person_id))",
         )
-        .order("ranking_id")
-        .order("position")
-        .order("film_id"),
+        .order("placement", { foreignTable: "personal_nominations" }),
     ),
-    client
-      .from("personal_awards")
-      .select(
-        "id, scope, scope_type, personal_nominations(id, category, placement, film_id, detail, personal_nomination_recipients(recipient_name, person_id))",
-      )
-      .order("placement", { foreignTable: "personal_nominations" }),
-    // Both paginated (issue #463) - the shared, non-personal catalog is
-    // large enough that a plain .select() risks PostgREST's max_rows cap
-    // silently truncating it, the same way official_categories/
-    // official_nominations did before #462's identical fix.
+  // The shared catalogs are paginated (issue #463): a plain .select()
+  // risks PostgREST's max_rows cap silently truncating them.
+  franchises: (client) =>
     fetchAllSupabaseRows((withCount) =>
       client
         .from("franchises")
@@ -2138,14 +2558,31 @@ window.loadSupabaseLegacyHydrationSource = async function () {
           withCount ? { count: "exact" } : undefined,
         ),
     ),
-    fetchAllSupabaseRows((withCount) =>
+  catalogFilms: async (client) => {
+    try {
+      let { data, error } = await client.rpc("read_catalog_film_summaries");
+      if (!error && Array.isArray(data)) return data;
+      if (error)
+        console.warn?.(
+          "read_catalog_film_summaries failed, falling back to paged hydration",
+          error,
+        );
+    } catch (e) {
+      console.warn?.(
+        "read_catalog_film_summaries exception, falling back to paged hydration",
+        e,
+      );
+    }
+    return fetchAllSupabaseRows((withCount) =>
       client
         .from("films")
         .select(
           LEGACY_HYDRATION_FILM_FIELDS,
           withCount ? { count: "exact" } : undefined,
         ),
-    ),
+    );
+  },
+  people: (client) =>
     fetchAllSupabaseRows((withCount) =>
       client
         .from("people")
@@ -2156,71 +2593,110 @@ window.loadSupabaseLegacyHydrationSource = async function () {
         .not("portrait_url", "is", null)
         .order("id"),
     ),
-    // issue #458: every project the signed-in user owns, with its
-    // collection's source identity and full item list - lets
-    // findProjectById()/projectForSource() answer "does a project exist
-    // for this source" against real data instead of the never-hydrated
-    // legacy state.projects.
-    // Queried from collections (not projects) with !inner on projects so
-    // the single-level order-by-foreignTable syntax already proven for
-    // ranking_entries/personal_nominations above applies here too - a
-    // projects->collections->collection_items path would need a
-    // two-level dotted foreignTable path this codebase has no proven
-    // example of. collections.id IS the project's own id (issue #456's
-    // shared primary key), so no reshaping indirection is needed either.
-    client
-      .from("collections")
-      .select(
-        "id, name, source_label, source_type, source_id, created_at, projects!inner(status, pinned, updated_at), collection_items(film_id, position)",
-      )
-      .order("position", { foreignTable: "collection_items" }),
-    // Explicitly scoped by id, not left to RLS alone: "profiles: read own"
-    // used to be the only applicable SELECT policy, but "profiles: anyone
-    // can look up a slug's owner" (issue #452, for public-profile share
-    // links) now also allows reading any row with a non-null public_slug.
-    // An unfiltered select here would return BOTH this user's own row AND
-    // every published profile's row once any account (e.g. the owner's)
-    // has published one, and .maybeSingle() throws PGRST116 ("multiple
-    // rows returned") the moment more than one row is visible - found
-    // live: broke every page's shared bootstrap for a second real account
-    // as soon as the owner's profile was public, since both rows always
-    // satisfy RLS at once.
-    client
-      .from("profiles")
-      .select("display_name")
-      .eq("id", authState.user.id)
-      .maybeSingle(),
-  ]);
-  for (let result of [
-    rankingsResult,
-    personalAwardsResult,
-    ownProjectsResult,
-    profileResult,
-  ])
-    if (result.error) throw result.error;
-  let rankingEntriesByRankingId = new Map();
-  rankingEntries.forEach((entry) => {
-    let entries = rankingEntriesByRankingId.get(entry.ranking_id) || [];
-    entries.push(entry);
-    rankingEntriesByRankingId.set(entry.ranking_id, entries);
-  });
-  // franchises/catalogFilms already resolved to plain row arrays (or threw)
-  // inside fetchAllSupabaseRows() above - no {data, error} shape to check.
-  return {
-    watched,
-    watchlist,
-    rankings: (rankingsResult.data || []).map((ranking) => ({
-      ...ranking,
-      ranking_entries: rankingEntriesByRankingId.get(ranking.id) || [],
-    })),
-    personalAwards: personalAwardsResult.data,
-    franchises,
-    catalogFilms,
-    people,
-    ownProjects: ownProjectsResult.data,
-    profile: profileResult.data,
-  };
+  // Every project the user owns (issue #458), queried from collections with
+  // !inner on projects: collections.id is the project's own id (issue
+  // #456), and the single-level order-by-foreignTable form is the proven
+  // one.
+  ownProjects: (client) =>
+    supabaseResultData(
+      client
+        .from("collections")
+        .select(
+          "id, name, source_label, source_type, source_id, created_at, projects!inner(status, pinned, updated_at), collection_items(film_id, position)",
+        )
+        .order("position", { foreignTable: "collection_items" }),
+    ),
+  // Scoped by id, not left to RLS alone: published profiles are readable by
+  // anyone (issue #452), so an unfiltered select returns several rows and
+  // .maybeSingle() throws.
+  profile: (client, userId) =>
+    supabaseResultData(
+      client
+        .from("profiles")
+        .select("display_name")
+        .eq("id", userId)
+        .maybeSingle(),
+    ),
 };
+
+/**
+ * Loads the requested parts of the signed-in user's archive as raw rows
+ * for src/domain/supabase-legacy-hydration.js (issue #633). Every domain
+ * not requested comes back empty, and `domains` lists exactly the ones
+ * that were loaded, so a partial source is never mistaken for the
+ * complete archive. Signed out, every domain is empty.
+ * @param {string[]} [domains] Names from SUPABASE_HYDRATION_DOMAINS; all when omitted.
+ * @returns {Promise<Object>} Raw rows per domain plus `domains`.
+ */
+window.loadSupabaseHydrationDomains = async function (
+  domains = window.SUPABASE_HYDRATION_DOMAINS,
+) {
+  let requested = Object.keys(HYDRATION_DOMAIN_LOADERS).filter((domain) =>
+    domains.includes(domain),
+  );
+  let source = { ...EMPTY_HYDRATION_DOMAIN_VALUES, domains: requested };
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let authState = await window.resolveSupabaseAuthState();
+  if (authState.status !== "signed-in") return source;
+  let values = await Promise.all(
+    requested.map((domain) =>
+      HYDRATION_DOMAIN_LOADERS[domain](ready.client, authState.user.id),
+    ),
+  );
+  requested.forEach((domain, index) => {
+    source[domain] = values[index] ?? EMPTY_HYDRATION_DOMAIN_VALUES[domain];
+  });
+  return source;
+};
+
+/**
+ * Loads the complete archive: every domain loadSupabaseHydrationDomains()
+ * knows. Not cached here; edit-capable callers refresh it after writes
+ * (issues #438, #440).
+ * @returns {Promise<Object>} Raw rows, reshaped entirely by the caller.
+ */
+window.loadSupabaseLegacyHydrationSource = function () {
+  return window.loadSupabaseHydrationDomains();
+};
+
+/**
+ * Loads the watchlist and unseen-catalog half of the people index, one row
+ * per credited person (issue #633, read_people_directory_edges()), so a
+ * people page can skip the watchlist and shared-catalog hydration domains.
+ * Cached per session alongside the hydration cache, and invalidated with it.
+ * @param {Object} [options]
+ * @param {boolean} [options.allWatchlistItems] Every watchlist item per person instead of a three-item preview.
+ * @returns {Promise<Object[]>} `{person_id, name, watchlist_ids, watchlist_preview, catalog_films}` rows.
+ */
+window.loadSupabasePeopleDirectoryEdges = async function (options = {}) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let allWatchlistItems = Boolean(options.allWatchlistItems);
+  let authState = await window.resolveSupabaseAuthState?.();
+  let userId = authState?.status === "signed-in" ? authState.user?.id : null;
+  let cached = window.readCachedPeopleDirectoryEdges?.(
+    userId,
+    allWatchlistItems,
+  );
+  if (cached) return cached;
+  let rows = await fetchAllSupabaseRows((withCount) =>
+    ready.client
+      .rpc(
+        "read_people_directory_edges",
+        { p_all_watchlist_items: allWatchlistItems },
+        withCount ? { count: "exact" } : undefined,
+      )
+      .order("person_id"),
+  );
+  window.writeCachedPeopleDirectoryEdges?.(userId, allWatchlistItems, rows);
+  return rows;
+};
+
+// A nomination's first film embeds as `films`; the further films of a
+// multi-film nomination as `official_nomination_extra_films`, by position.
+const OFFICIAL_NOMINATION_FIELDS =
+  "id, category_id, film_id, is_winner, source_id, source_title, original_title, source_category, detail, country, recipient_text, films(id, tmdb_id, tmdb_tv_ref, title, year), official_nomination_extra_films(position, films(id, tmdb_id, tmdb_tv_ref, title, year))";
 
 /**
  * Loads every table src/domain/supabase-official-results-hydration.js
@@ -2262,7 +2738,7 @@ window.loadSupabaseOfficialResultsSource = async function () {
       client
         .from("official_nominations")
         .select(
-          "id, category_id, film_id, is_winner, source_id, source_title, original_title, source_category, detail, country, recipient_text, films(id, tmdb_id, title, year)",
+          OFFICIAL_NOMINATION_FIELDS,
           withCount ? { count: "exact" } : undefined,
         ),
     ),
@@ -2299,12 +2775,24 @@ window.loadSupabaseOfficialResultsSource = async function () {
 window.loadSupabaseOfficialResultsForFilm = async function (filmId) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
+  // A film is credited either as a nomination's film_id or as one of its
+  // further films.
+  let { data: extraLinks, error: extraError } = await ready.client
+    .from("official_nomination_extra_films")
+    .select("nomination_id")
+    .eq("film_id", filmId);
+  if (extraError) throw extraError;
+  let extraIds = (extraLinks || []).map((row) => row.nomination_id);
   let { data, error } = await ready.client
     .from("official_nominations")
     .select(
-      "id, category_id, film_id, is_winner, source_id, source_title, original_title, source_category, detail, country, recipient_text, films(id, tmdb_id, title, year), official_categories!inner(id, ceremony_id, name, official_ceremonies!inner(id, source, year, period_key, period_type, ceremony_label, source_url))",
+      `${OFFICIAL_NOMINATION_FIELDS}, official_categories!inner(id, ceremony_id, name, official_ceremonies!inner(id, source, year, period_key, period_type, ceremony_label, source_url))`,
     )
-    .eq("film_id", filmId)
+    .or(
+      extraIds.length
+        ? `film_id.eq.${filmId},id.in.(${extraIds.join(",")})`
+        : `film_id.eq.${filmId}`,
+    )
     // official_categories!inner/official_ceremonies!inner above turn this
     // into a real inner-join filter - a non-academy-awards nomination row
     // is excluded entirely, not just missing its embed (confirmed against
@@ -2349,6 +2837,7 @@ window.loadSupabaseOfficialResultsForFilm = async function (filmId) {
       country: row.country,
       recipient_text: row.recipient_text,
       films: row.films,
+      official_nomination_extra_films: row.official_nomination_extra_films,
     });
   });
   return {
@@ -2369,8 +2858,9 @@ function ilikeLiteral(value) {
   return String(value).replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
-// Runs an .in() query in chunks - a prolific director's film ids would
-// otherwise risk an over-long request URL.
+// Runs an .in() query (or update) in chunks of ids, so a long id list never
+// becomes an over-long request URL. Each chunk's result must stay under
+// PostgREST's row cap.
 async function selectInChunks(ids, runChunk, chunkSize = 100) {
   let rows = [];
   for (let start = 0; start < ids.length; start += chunkSize) {
@@ -2381,6 +2871,50 @@ async function selectInChunks(ids, runChunk, chunkSize = 100) {
   return rows;
 }
 
+// Every ceremony (a few hundred rows) plus only the nominations `filter`
+// keeps, in loadSupabaseOfficialResultsSource()'s flat shape. Returning
+// every ceremony means a source with no matching nominations still
+// replaces its bundled default with an empty live one, exactly as the
+// complete read would. `categoryEmbed` must embed official_categories
+// (with any ancestor the filter targets marked !inner at every level); a
+// null `filter` matches no nominations.
+async function loadScopedOfficialResults(client, categoryEmbed, filter) {
+  let ceremoniesResult = await client
+    .from("official_ceremonies")
+    .select(
+      "id, source, year, period_key, period_type, ceremony_label, source_url",
+    );
+  if (ceremoniesResult.error) throw ceremoniesResult.error;
+  let rows = !filter
+    ? []
+    : await fetchAllSupabaseRows((withCount) =>
+        filter(
+          client
+            .from("official_nominations")
+            .select(
+              `${OFFICIAL_NOMINATION_FIELDS}, ${categoryEmbed}`,
+              withCount ? { count: "exact" } : undefined,
+            ),
+        ),
+      );
+  let categoriesById = new Map();
+  let nominations = rows.map((row) => {
+    let { official_categories: category, ...nomination } = row;
+    if (category)
+      categoriesById.set(category.id, {
+        id: category.id,
+        ceremony_id: category.ceremony_id,
+        name: category.name,
+      });
+    return nomination;
+  });
+  return {
+    ceremonies: ceremoniesResult.data || [],
+    categories: [...categoriesById.values()],
+    nominations,
+  };
+}
+
 /**
  * Loads official results matching a person's recipient text (issue #633)
  * - the read person.html's officialPersonRecords() needs, instead of
@@ -2389,9 +2923,7 @@ async function selectInChunks(ids, runChunk, chunkSize = 100) {
  * the recipient text against the person's name/aliases and then narrows
  * to exact person ids; the same substring filter runs here in SQL, so it
  * returns a superset the unchanged client logic narrows exactly as
- * before. Every ceremony (a few hundred rows) is included, so a source
- * with no matches for this person still replaces its bundled default
- * with an empty live one, same as the complete read would.
+ * before.
  * @param {string[]} needles Name and alias strings to match.
  * @returns {Promise<{ceremonies: Object[], categories: Object[], nominations: Object[]}>}
  */
@@ -2405,45 +2937,144 @@ window.loadSupabaseOfficialResultsForRecipients = async function (needles) {
         .filter(Boolean),
     ),
   ];
-  let client = ready.client;
-  let ceremoniesResult = await client
-    .from("official_ceremonies")
-    .select(
-      "id, source, year, period_key, period_type, ceremony_label, source_url",
-    );
-  if (ceremoniesResult.error) throw ceremoniesResult.error;
-  if (!terms.length)
-    return {
-      ceremonies: ceremoniesResult.data || [],
-      categories: [],
-      nominations: [],
-    };
-  let rows = await fetchAllSupabaseRows((withCount) =>
-    client
-      .from("official_nominations")
-      .select(
-        "id, category_id, film_id, is_winner, source_id, source_title, original_title, source_category, detail, country, recipient_text, films(id, tmdb_id, title, year), official_categories(id, ceremony_id, name)",
-        withCount ? { count: "exact" } : undefined,
-      )
-      .or(
-        terms
-          .map(
-            (term) =>
-              `recipient_text.ilike.${postgrestQuoted(`*${ilikeLiteral(term)}*`)}`,
-          )
-          .join(","),
+  return loadScopedOfficialResults(
+    ready.client,
+    "official_categories(id, ceremony_id, name)",
+    !terms.length
+      ? null
+      : (query) =>
+          query.or(
+            terms
+              .map(
+                (term) =>
+                  `recipient_text.ilike.${postgrestQuoted(`*${ilikeLiteral(term)}*`)}`,
+              )
+              .join(","),
+          ),
+  );
+};
+
+/**
+ * Loads one official category's complete history across every source
+ * (issue #633) - category.html only ever reads nominations whose category
+ * name equals the page's category, so the other categories' nominations
+ * are never fetched.
+ * @param {string} categoryName Official category name, e.g. "Best Picture".
+ * @returns {Promise<{ceremonies: Object[], categories: Object[], nominations: Object[]}>}
+ */
+window.loadSupabaseOfficialResultsForCategory = async function (categoryName) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  return loadScopedOfficialResults(
+    ready.client,
+    "official_categories!inner(id, ceremony_id, name)",
+    (query) => query.eq("official_categories.name", String(categoryName)),
+  );
+};
+
+/**
+ * Loads every source's official results for one period key (issue #633) -
+ * period.html's year view only ever reads `periods[key]` of each source.
+ * @param {string} periodKey Ceremony period key, e.g. "2019".
+ * @returns {Promise<{ceremonies: Object[], categories: Object[], nominations: Object[]}>}
+ */
+window.loadSupabaseOfficialResultsForPeriod = async function (periodKey) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  return loadScopedOfficialResults(
+    ready.client,
+    "official_categories!inner(id, ceremony_id, name, official_ceremonies!inner(period_key))",
+    (query) =>
+      query.eq(
+        "official_categories.official_ceremonies.period_key",
+        String(periodKey),
       ),
   );
-  let categoriesById = new Map();
-  let nominations = rows.map((row) => {
-    let { official_categories: category, ...nomination } = row;
-    if (category) categoriesById.set(category.id, category);
-    return nomination;
+};
+
+/**
+ * Loads the signed-in user's archive for a chosen set of films (issue #633),
+ * shaped as a hydration `source` for buildLegacyStateFromSupabaseHydration():
+ * their watched and watchlist rows, real ranks (read_ranking_positions),
+ * every personal nomination on them, and their shared-catalog rows, plus
+ * the franchise catalog for membership chains. Reads are chunked, so a long
+ * film list never becomes one oversized request URL.
+ * @param {string[]} filmIds Film uuids.
+ * @param {{catalogFilmIds?: string[]}} [options] Films whose catalog rows to load; all of `filmIds` when omitted.
+ * @returns {Promise<{watched: Object[], watchlist: Object[], rankings: Object[], personalAwards: Object[], franchises: Object[], catalogFilms: Object[]}>}
+ */
+window.loadSupabaseFilmsSource = async function (filmIds, options = {}) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let client = ready.client;
+  let ids = [...new Set((filmIds || []).filter(Boolean))];
+  let catalogIds = options.catalogFilmIds || ids;
+  let [watched, watchlist, rankings, awardChunks, franchises, catalogFilms] =
+    await Promise.all([
+      selectInChunks(ids, (chunk) =>
+        client
+          .from("watched")
+          .select(
+            `${HYDRATION_WATCHED_FIELDS}, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+          )
+          .in("film_id", chunk)
+          .order("id"),
+      ),
+      // Relative order only: a watchlist item's `order` comes from its
+      // position in this array, and this is a subset of the watchlist -
+      // sorted the same way, so relative order within it is unchanged.
+      selectInChunks(ids, (chunk) =>
+        client
+          .from("watchlist")
+          .select(
+            `${HYDRATION_WATCHLIST_FIELDS}, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+          )
+          .in("film_id", chunk)
+          .order("position")
+          .order("id"),
+      ),
+      window.loadSupabaseRankingsForFilms(ids),
+      selectInChunks(ids, (chunk) =>
+        client
+          .from("personal_awards")
+          .select(
+            "id, scope, scope_type, personal_nominations!inner(id, category, placement, film_id, detail, personal_nomination_recipients(recipient_name, person_id))",
+          )
+          .in("personal_nominations.film_id", chunk)
+          .order("placement", { foreignTable: "personal_nominations" }),
+      ),
+      ids.length ? HYDRATION_DOMAIN_LOADERS.franchises(client) : [],
+      selectInChunks(catalogIds, (chunk) =>
+        client
+          .from("films")
+          .select(LEGACY_HYDRATION_FILM_FIELDS)
+          .in("id", chunk),
+      ),
+    ]);
+  // One award can come back from several chunks, each with that chunk's
+  // nominations: merge them, keeping placement order.
+  let awardsById = new Map();
+  awardChunks.forEach((award) => {
+    let merged = awardsById.get(award.id);
+    if (!merged) awardsById.set(award.id, { ...award });
+    else
+      merged.personal_nominations = merged.personal_nominations.concat(
+        award.personal_nominations || [],
+      );
   });
+  let personalAwards = [...awardsById.values()].map((award) => ({
+    ...award,
+    personal_nominations: [...(award.personal_nominations || [])].sort(
+      (left, right) => Number(left.placement) - Number(right.placement),
+    ),
+  }));
   return {
-    ceremonies: ceremoniesResult.data || [],
-    categories: [...categoriesById.values()],
-    nominations,
+    watched,
+    watchlist,
+    rankings,
+    personalAwards,
+    franchises,
+    catalogFilms,
   };
 };
 
@@ -2503,55 +3134,8 @@ window.loadSupabasePersonDetail = async function (personId) {
     ]),
   ].filter(Boolean);
   let slug = window.normalizePersonName?.(person.name) || "";
-  let [
-    watched,
-    watchlist,
-    rankings,
-    personalAwards,
-    franchisesResult,
-    catalogFilms,
-    projectsResult,
-  ] = await Promise.all([
-    selectInChunks(filmIds, (ids) =>
-      client
-        .from("watched")
-        .select(
-          `id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
-        )
-        .in("film_id", ids)
-        .order("id"),
-    ),
-    // Relative order only: a watchlist item's `order` comes from its
-    // position in this array, and this is a subset of the watchlist -
-    // sorted the same way, so relative order within it is unchanged.
-    selectInChunks(filmIds, (ids) =>
-      client
-        .from("watchlist")
-        .select(
-          `id, film_id, tier, tier_modifier, position, reason, added_at, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
-        )
-        .in("film_id", ids)
-        .order("position")
-        .order("id"),
-    ),
-    window.loadSupabaseRankingsForFilms(filmIds),
-    filmIds.length
-      ? client
-          .from("personal_awards")
-          .select(
-            "id, scope, scope_type, personal_nominations!inner(id, category, placement, film_id, detail, personal_nomination_recipients(recipient_name, person_id))",
-          )
-          .in("personal_nominations.film_id", filmIds)
-          .order("placement", { foreignTable: "personal_nominations" })
-          .then(({ data, error }) => {
-            if (error) throw error;
-            return data || [];
-          })
-      : [],
-    client.from("franchises").select("id, name, parent_id"),
-    selectInChunks(directedIds, (ids) =>
-      client.from("films").select(LEGACY_HYDRATION_FILM_FIELDS).in("id", ids),
-    ),
+  let [source, projectsResult] = await Promise.all([
+    window.loadSupabaseFilmsSource(filmIds, { catalogFilmIds: directedIds }),
     client
       .from("collections")
       .select(
@@ -2561,16 +3145,10 @@ window.loadSupabasePersonDetail = async function (personId) {
       .in("source_id", [personId, slug].filter(Boolean))
       .order("position", { foreignTable: "collection_items" }),
   ]);
-  if (franchisesResult.error) throw franchisesResult.error;
   if (projectsResult.error) throw projectsResult.error;
   return {
     person,
-    watched,
-    watchlist,
-    rankings,
-    personalAwards,
-    franchises: franchisesResult.data || [],
-    catalogFilms,
+    ...source,
     people: person.portrait_url ? [person] : [],
     ownProjects: projectsResult.data || [],
     profile: null,
@@ -2590,7 +3168,7 @@ window.loadSupabaseWatchlistItemDetail = async function (watchlistId) {
   let { data, error } = await ready.client
     .from("watchlist")
     .select(
-      `id, film_id, tier, tier_modifier, position, reason, added_at, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+      `${HYDRATION_WATCHLIST_FIELDS}, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
     )
     .eq("id", watchlistId)
     .maybeSingle();
@@ -2644,6 +3222,15 @@ window.loadSupabaseRankingsForFilms = async function (filmIds) {
   return [...rankings.values()];
 };
 
+let filmDetailInFlight = new Map();
+
+/**
+ * Clears in-flight film detail request deduplication promises.
+ */
+window.clearSupabaseFilmDetailInFlight = function () {
+  filmDetailInFlight.clear();
+};
+
 /**
  * Loads one film's complete personal slice - the compact read behind
  * film.html's fast initial paint (issue #617) instead of eager full
@@ -2673,66 +3260,132 @@ window.loadSupabaseRankingsForFilms = async function (filmIds) {
  * sections defer until the real background full hydration lands,
  * unchanged, same as film.js already does for the watchlist-detail
  * view's archive-match-review section (a genuine cross-item check).
+ *
+ * A fresh session-cache entry is returned without a request, and
+ * concurrent calls for the same film share one in-flight request.
  * @param {string} filmId
  * @returns {Promise<Object>} A `source`-shaped object scoped to one film.
  */
 window.loadSupabaseFilmDetail = async function (filmId) {
+  let authState = await window.resolveSupabaseAuthState?.();
+  let userId = authState?.user?.id;
+  if (userId) {
+    let cached = window.readCachedSupabaseFilmDetail?.(userId, filmId);
+    if (cached) return cached;
+  }
+  if (filmDetailInFlight.has(filmId)) {
+    return filmDetailInFlight.get(filmId);
+  }
+  let promise = (async () => {
+    let ready = await window.ensureSupabaseClient();
+    if (!ready) throw new Error("Supabase not configured.");
+    let client = ready.client;
+    let [
+      watchedResult,
+      watchlistResult,
+      rankingsResult,
+      personalAwardsResult,
+      franchisesResult,
+    ] = await Promise.all([
+      client
+        .from("watched")
+        .select(
+          `${HYDRATION_WATCHED_FIELDS}, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+        )
+        .eq("film_id", filmId)
+        .maybeSingle(),
+      client
+        .from("watchlist")
+        .select(
+          `${HYDRATION_WATCHLIST_FIELDS}, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+        )
+        .eq("film_id", filmId)
+        .maybeSingle(),
+      window.loadSupabaseRankingsForFilms([filmId]).then(
+        (data) => ({ data, error: null }),
+        (error) => ({ data: null, error }),
+      ),
+      client
+        .from("personal_awards")
+        .select(
+          "id, scope, scope_type, personal_nominations!inner(id, category, placement, film_id, detail, personal_nomination_recipients(recipient_name, person_id))",
+        )
+        .eq("personal_nominations.film_id", filmId)
+        .order("placement", { foreignTable: "personal_nominations" }),
+      HYDRATION_DOMAIN_LOADERS.franchises(client).then(
+        (data) => ({ data, error: null }),
+        (error) => ({ data: null, error }),
+      ),
+    ]);
+    for (let result of [
+      watchedResult,
+      watchlistResult,
+      rankingsResult,
+      personalAwardsResult,
+      franchisesResult,
+    ])
+      if (result.error) throw result.error;
+    let payload = {
+      watched: watchedResult.data ? [watchedResult.data] : [],
+      watchlist: watchlistResult.data ? [watchlistResult.data] : [],
+      rankings: rankingsResult.data || [],
+      personalAwards: personalAwardsResult.data || [],
+      franchises: franchisesResult.data || [],
+      catalogFilms: [],
+      people: [],
+      ownProjects: [],
+      profile: null,
+    };
+    if (userId) {
+      window.writeCachedSupabaseFilmDetail?.(userId, filmId, payload);
+    }
+    return payload;
+  })().finally(() => {
+    filmDetailInFlight.delete(filmId);
+  });
+  filmDetailInFlight.set(filmId, promise);
+  return promise;
+};
+
+/**
+ * Loads the signed-in user's open projects containing one film, each with
+ * its total item count and how many are watched (issue #636,
+ * read_active_projects_for_film()) - film.html's Active projects section,
+ * scoped to this film instead of the whole `ownProjects` domain plus every
+ * other project's own film list.
+ * @param {string} filmId Film uuid.
+ * @returns {Promise<Object[]>} `{id, name, source_label, status, pinned, updated_at, total, watched_count}` rows, pinned/most-recently-updated first.
+ */
+window.loadSupabaseActiveProjectsForFilm = async function (filmId) {
+  if (!window.isUuid?.(filmId)) return [];
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
-  let client = ready.client;
-  let [
-    watchedResult,
-    watchlistResult,
-    rankingsResult,
-    personalAwardsResult,
-    franchisesResult,
-  ] = await Promise.all([
-    client
-      .from("watched")
-      .select(
-        `id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
-      )
-      .eq("film_id", filmId)
-      .maybeSingle(),
-    client
-      .from("watchlist")
-      .select(
-        `id, film_id, tier, tier_modifier, position, reason, added_at, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
-      )
-      .eq("film_id", filmId)
-      .maybeSingle(),
-    window.loadSupabaseRankingsForFilms([filmId]).then(
-      (data) => ({ data, error: null }),
-      (error) => ({ data: null, error }),
-    ),
-    client
-      .from("personal_awards")
-      .select(
-        "id, scope, scope_type, personal_nominations!inner(id, category, placement, film_id, detail, personal_nomination_recipients(recipient_name, person_id))",
-      )
-      .eq("personal_nominations.film_id", filmId)
-      .order("placement", { foreignTable: "personal_nominations" }),
-    client.from("franchises").select("id, name, parent_id"),
-  ]);
-  for (let result of [
-    watchedResult,
-    watchlistResult,
-    rankingsResult,
-    personalAwardsResult,
-    franchisesResult,
-  ])
-    if (result.error) throw result.error;
-  return {
-    watched: watchedResult.data ? [watchedResult.data] : [],
-    watchlist: watchlistResult.data ? [watchlistResult.data] : [],
-    rankings: rankingsResult.data || [],
-    personalAwards: personalAwardsResult.data || [],
-    franchises: franchisesResult.data || [],
-    catalogFilms: [],
-    people: [],
-    ownProjects: [],
-    profile: null,
-  };
+  let { data, error } = await ready.client.rpc(
+    "read_active_projects_for_film",
+    { p_film_id: filmId },
+  );
+  if (error) throw error;
+  return data || [];
+};
+
+/**
+ * Loads the signed-in user's own watched films whose title normalizes the
+ * same as the given title (issue #636, read_watched_title_matches()) -
+ * film.html's watchlist-detail Archive match review, scoped to one lookup
+ * instead of walking every loaded watched film.
+ * @param {string} title Watchlist item's title.
+ * @returns {Promise<Object[]>} `{film_id, title, year}` rows.
+ */
+window.loadSupabaseWatchedTitleMatches = async function (title) {
+  let normalized = String(title || "").trim();
+  if (!normalized) return [];
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { data, error } = await ready.client.rpc("read_watched_title_matches", {
+    p_title: normalized,
+  });
+  if (error) throw error;
+  return data || [];
 };
 
 /**
@@ -2765,9 +3418,7 @@ window.createSupabaseWatchlistWatchedIntake = async function (
   if (error) throw error;
   let { data: joined, error: selectError } = await ready.client
     .from("intake_workflows")
-    .select(
-      "id, watched_id, version, source, steps, summary, completed_at, created_at, updated_at, watched(id, film_id, rating, rating_modifier, date_watched, platform, views, updated_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, medium, type))",
-    )
+    .select(INTAKE_WORKFLOW_SELECT)
     .eq("id", data.id)
     .single();
   if (selectError) throw selectError;
@@ -3046,14 +3697,34 @@ window.loadSupabasePersonName = async function (personId) {
   return data || null;
 };
 
+/**
+ * Loads every franchise's id, name and parent, paginated like the
+ * hydration `franchises` domain it shares its query with.
+ * @returns {Promise<Object[]>} `{id, name, parent_id}` rows.
+ */
 window.loadSupabaseFranchiseCatalog = async function () {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
-  let { data, error } = await ready.client
-    .from("franchises")
-    .select("id, name, parent_id");
+  return HYDRATION_DOMAIN_LOADERS.franchises(ready.client);
+};
+
+let entityNotesCache = new Map();
+
+async function resolveEntityNoteAccount() {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { data, error } = await ready.client.auth.getSession();
   if (error) throw error;
-  return data;
+  let userId = data?.session?.user?.id;
+  if (!userId) throw new Error("Sign in to access entity notes.");
+  return { client: ready.client, userId };
+}
+
+/**
+ * Resets the in-memory entity notes cache.
+ */
+window.clearSupabaseEntityNotesCache = function () {
+  entityNotesCache.clear();
 };
 
 /**
@@ -3061,47 +3732,68 @@ window.loadSupabaseFranchiseCatalog = async function () {
  * Generic across every `entity_notes.entity_kind` value
  * ('person'|'period'|'franchise'|'tag'|'category'|'project'), matching
  * that table's own generic design - not just today's tag/franchise/
- * person/project callers.
+ * person/project callers. Cached in memory per authenticated user.
  * @param {string} entityKind
  * @param {string} entityKey
  * @returns {Promise<string>} The note text, or "" when none is set.
  */
 window.loadSupabaseEntityNote = async function (entityKind, entityKey) {
-  let ready = await window.ensureSupabaseClient();
-  if (!ready) throw new Error("Supabase not configured.");
-  let { data, error } = await ready.client
-    .from("entity_notes")
-    .select("note")
-    .eq("entity_kind", entityKind)
-    .eq("entity_key", entityKey)
-    .maybeSingle();
-  if (error) throw error;
-  return data?.note || "";
+  let { client, userId } = await resolveEntityNoteAccount();
+  let cacheKey = JSON.stringify([userId, entityKind, entityKey]);
+  if (entityNotesCache.has(cacheKey)) {
+    return entityNotesCache.get(cacheKey);
+  }
+  let fetchPromise = (async () => {
+    let { data, error } = await client
+      .from("entity_notes")
+      .select("note")
+      .eq("user_id", userId)
+      .eq("entity_kind", entityKind)
+      .eq("entity_key", entityKey)
+      .maybeSingle();
+    if (error) throw error;
+    let note = data?.note || "";
+    if (entityNotesCache.get(cacheKey) === fetchPromise)
+      entityNotesCache.set(cacheKey, note);
+    return note;
+  })();
+  entityNotesCache.set(cacheKey, fetchPromise);
+  try {
+    return await fetchPromise;
+  } catch (err) {
+    if (entityNotesCache.get(cacheKey) === fetchPromise)
+      entityNotesCache.delete(cacheKey);
+    throw err;
+  }
 };
 
 /**
  * Sets or clears the signed-in user's note for one entity. An empty note
  * deletes the row rather than storing "" - entity_notes.note is `not
  * null`, matching renderEntityNote()'s own "no note yet" empty state.
+ * Updates the in-memory cache on success (issue #719).
  * @param {string} entityKind
  * @param {string} entityKey
  * @param {string} note
  */
 window.setSupabaseEntityNote = async function (entityKind, entityKey, note) {
-  let ready = await window.ensureSupabaseClient();
-  if (!ready) throw new Error("Supabase not configured.");
+  let { client, userId } = await resolveEntityNoteAccount();
   let trimmed = String(note || "").trim();
+  let cacheKey = JSON.stringify([userId, entityKind, entityKey]);
   if (!trimmed) {
-    let { error } = await ready.client
+    let { error } = await client
       .from("entity_notes")
       .delete()
+      .eq("user_id", userId)
       .eq("entity_kind", entityKind)
       .eq("entity_key", entityKey);
     if (error) throw error;
+    entityNotesCache.set(cacheKey, "");
     return;
   }
-  let { error } = await ready.client.from("entity_notes").upsert(
+  let { error } = await client.from("entity_notes").upsert(
     {
+      user_id: userId,
       entity_kind: entityKind,
       entity_key: entityKey,
       note: trimmed,
@@ -3110,6 +3802,7 @@ window.setSupabaseEntityNote = async function (entityKind, entityKey, note) {
     { onConflict: "user_id,entity_kind,entity_key" },
   );
   if (error) throw error;
+  entityNotesCache.set(cacheKey, trimmed);
 };
 
 /**
@@ -3166,15 +3859,17 @@ window.setSupabaseWatchlistTierForItems = async function (watchlistIds, tier) {
   if (!ready) throw new Error("Supabase not configured.");
   let ids = (watchlistIds || []).filter(Boolean);
   if (!ids.length) return;
-  let { error } = await ready.client
-    .from("watchlist")
-    .update({
-      tier: tier || null,
-      tier_modifier: null,
-      updated_at: new Date().toISOString(),
-    })
-    .in("id", ids);
-  if (error) throw error;
+  let updatedAt = new Date().toISOString();
+  await selectInChunks(ids, (chunk) =>
+    ready.client
+      .from("watchlist")
+      .update({
+        tier: tier || null,
+        tier_modifier: null,
+        updated_at: updatedAt,
+      })
+      .in("id", chunk),
+  );
 };
 
 /**
@@ -3186,7 +3881,7 @@ window.setSupabaseWatchlistTierForItems = async function (watchlistIds, tier) {
  * the previous moveWatchlistItemWithinTier()'s own contract) is
  * responsible for that check.
  * @param {string} fromWatchlistId
- * @param {Object[]} tierItems The full tier's items in position order (from getSupabaseWorkspace().watchlist, pre-filtered to one tier).
+ * @param {Object[]} tierItems Items that include both neighbours: raw watchlist rows (`position`) or WatchlistItems (`supabaseWatchlistPosition`).
  * @param {string|null} beforeWatchlistId Neighbor to sort after, or null for the very start.
  * @param {string|null} afterWatchlistId Neighbor to sort before, or null for the very end.
  * @returns {Promise<string>} The item's new position value.
@@ -3199,12 +3894,12 @@ window.moveSupabaseWatchlistItemWithinTier = async function (
 ) {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
-  let beforePosition = beforeWatchlistId
-    ? tierItems.find((item) => item.id === beforeWatchlistId)?.position
-    : null;
-  let afterPosition = afterWatchlistId
-    ? tierItems.find((item) => item.id === afterWatchlistId)?.position
-    : null;
+  let positionOf = (id) => {
+    let item = id ? tierItems.find((candidate) => candidate.id === id) : null;
+    return item ? (item.position ?? item.supabaseWatchlistPosition) : null;
+  };
+  let beforePosition = positionOf(beforeWatchlistId);
+  let afterPosition = positionOf(afterWatchlistId);
   let newPosition = window.fractionalPositionBetween(
     beforePosition,
     afterPosition,
@@ -3219,9 +3914,10 @@ window.moveSupabaseWatchlistItemWithinTier = async function (
 
 /**
  * Loads one tag's full collection: the tag row itself plus every watched
- * and watchlist film carrying it, in the shaped FilmRecord/WatchlistItem
- * form src/domain/supabase-legacy-hydration.js's reshape functions
- * already produce (issue #439). Generic collection-film loading (the
+ * and watchlist row whose film carries it, as raw rows for
+ * src/domain/supabase-legacy-hydration.js's reshape functions (issue
+ * #439). Watchlist rows carry `order`, their position in the whole
+ * watchlist (issue #633). Generic collection-film loading (the
  * franchise/person equivalents `franchise.html`/`person.html` will need)
  * is deliberately not built yet - franchise needs a sub-franchise subtree
  * roll-up with no equivalent here, so forcing one shape now would guess
@@ -3240,34 +3936,143 @@ window.loadSupabaseTagCollection = async function (tagName) {
     .maybeSingle();
   if (tagError) throw tagError;
   if (!tag) return null;
-  let { data: filmTags, error: filmTagsError } = await client
-    .from("film_tags")
-    .select("film_id")
-    .eq("tag_id", tag.id);
-  if (filmTagsError) throw filmTagsError;
-  let filmIds = filmTags.map((row) => row.film_id);
-  if (!filmIds.length) return { tagId: tag.id, watched: [], watchlist: [] };
-  let [watchedResult, watchlistResult] = await Promise.all([
-    client
-      .from("watched")
-      .select(
-        `id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
-      )
-      .in("film_id", filmIds),
-    client
-      .from("watchlist")
-      .select(
-        `id, film_id, tier, tier_modifier, position, reason, added_at, updated_at, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
-      )
-      .in("film_id", filmIds)
-      .order("position"),
+  // `tagged` only filters: every film keeps all of its own tags in
+  // film_tags. Paginated, so a tag on more films than PostgREST's row cap
+  // is never truncated.
+  let films = `films!inner(${LEGACY_HYDRATION_FILM_FIELDS}, tagged:film_tags!inner(tag_id))`;
+  let [watched, watchlist] = await Promise.all([
+    fetchAllSupabaseRows((withCount) =>
+      client
+        .from("watched")
+        .select(
+          `${HYDRATION_WATCHED_FIELDS}, ${films}`,
+          withCount ? { count: "exact" } : undefined,
+        )
+        .eq("films.tagged.tag_id", tag.id)
+        .order("id"),
+    ),
+    fetchAllSupabaseRows((withCount) =>
+      client
+        .from("watchlist")
+        .select(
+          `${HYDRATION_WATCHLIST_FIELDS}, ${films}`,
+          withCount ? { count: "exact" } : undefined,
+        )
+        .eq("films.tagged.tag_id", tag.id)
+        .order("position")
+        .order("id"),
+    ).then((rows) => withWatchlistOrders(client, rows)),
   ]);
-  if (watchedResult.error) throw watchedResult.error;
-  if (watchlistResult.error) throw watchlistResult.error;
+  return { tagId: tag.id, watched, watchlist };
+};
+
+/**
+ * Loads one film's effective catalog tags (issue #797): the shared,
+ * owner-curated genres and groupings, kept apart from the user's personal
+ * film_tags. Rows the owner removed are excluded.
+ * @param {string} filmId Supabase film id.
+ * @returns {Promise<CatalogTagRecord[]>} Tags sorted by name.
+ */
+window.loadSupabaseFilmCatalogTags = async function (filmId) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { data, error } = await ready.client
+    .from("film_catalog_tags")
+    .select("catalog_tags(id, name, kind)")
+    .eq("film_id", filmId)
+    .eq("removed", false);
+  if (error) throw error;
+  return (data || [])
+    .map((row) => row.catalog_tags)
+    .filter(Boolean)
+    .sort((left, right) => left.name.localeCompare(right.name));
+};
+
+/**
+ * Loads the catalog tags of every film the signed-in user has watched or
+ * watchlisted (issue #797), one lazy read for the tag index. Callers join the
+ * rows with the already hydrated films.
+ * @returns {Promise<Array<{filmId: string, source: 'watched'|'watchlist', tags: CatalogTagRecord[]}>>} One row per film and source that has catalog tags.
+ */
+window.loadSupabaseOwnCatalogTagMemberships = async function () {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let client = ready.client;
+  let embed =
+    "film_id, films!inner(film_catalog_tags!inner(catalog_tags(id, name, kind)))";
+  let rows = await Promise.all(
+    ["watched", "watchlist"].map(async (source) =>
+      (
+        await fetchAllSupabaseRows((withCount) =>
+          client
+            .from(source)
+            .select(embed, withCount ? { count: "exact" } : undefined)
+            .eq("films.film_catalog_tags.removed", false)
+            .order("id"),
+        )
+      ).map((row) => ({
+        filmId: row.film_id,
+        source,
+        tags: (row.films?.film_catalog_tags || [])
+          .map((entry) => entry.catalog_tags)
+          .filter(Boolean),
+      })),
+    ),
+  );
+  return rows.flat().filter((row) => row.tags.length);
+};
+
+/**
+ * Loads one catalog tag's collection in the user's archive (issue #797): the
+ * same raw watched/watchlist rows loadSupabaseTagCollection() returns, for
+ * films carrying the catalog tag. Lookup is case-insensitive.
+ * @param {string} tagName Catalog tag name.
+ * @returns {Promise<{tagId: string, kind: string, name: string, watched: Object[], watchlist: Object[]}|null>} `null` when no catalog tag has the name.
+ */
+window.loadSupabaseCatalogTagCollection = async function (tagName) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let client = ready.client;
+  let { data: tag, error: tagError } = await client
+    .from("catalog_tags")
+    .select("id, name, kind")
+    .ilike("name", ilikeLiteral(tagName))
+    .maybeSingle();
+  if (tagError) throw tagError;
+  if (!tag) return null;
+  let films = `films!inner(${LEGACY_HYDRATION_FILM_FIELDS}, tagged:film_catalog_tags!inner(tag_id, removed))`;
+  let filter = (query) =>
+    query.eq("films.tagged.tag_id", tag.id).eq("films.tagged.removed", false);
+  let [watched, watchlist] = await Promise.all([
+    fetchAllSupabaseRows((withCount) =>
+      filter(
+        client
+          .from("watched")
+          .select(
+            `${HYDRATION_WATCHED_FIELDS}, ${films}`,
+            withCount ? { count: "exact" } : undefined,
+          ),
+      ).order("id"),
+    ),
+    fetchAllSupabaseRows((withCount) =>
+      filter(
+        client
+          .from("watchlist")
+          .select(
+            `${HYDRATION_WATCHLIST_FIELDS}, ${films}`,
+            withCount ? { count: "exact" } : undefined,
+          ),
+      )
+        .order("position")
+        .order("id"),
+    ).then((rows) => withWatchlistOrders(client, rows)),
+  ]);
   return {
     tagId: tag.id,
-    watched: watchedResult.data,
-    watchlist: watchlistResult.data,
+    kind: tag.kind,
+    name: tag.name,
+    watched,
+    watchlist,
   };
 };
 
@@ -3402,71 +4207,43 @@ window.listSupabaseProjects = async function () {
   }));
 };
 
-/**
- * Loads one project's items, reshaped into the same FilmRecord/
- * WatchlistItem shapes supabase-legacy-hydration.js's per-item functions
- * already produce (issue #439), so project.js can reuse the same shared
- * film-card/row helpers every other collection page does. Each item
- * resolves to "watched" (the user has a watched row for the film),
- * "watchlist" (a watchlist row instead), or "missing" (neither - the
- * film is in the project but the user has no personal record of it yet,
- * a real, honestly-represented state in this source-agnostic model).
- * @param {string} projectId
- * @returns {Promise<{project: Object, items: Object[], rawItems: {film_id: string, position: string}[]}|null>}
- */
-window.loadSupabaseProject = async function (projectId) {
-  let ready = await window.ensureSupabaseClient();
-  if (!ready) throw new Error("Supabase not configured.");
-  let client = ready.client;
-  let { data: projectRow, error: projectError } = await client
-    .from("projects")
-    .select(
-      "id, status, pinned, updated_at, collections(name, source_label, created_at)",
-    )
-    .eq("id", projectId)
-    .maybeSingle();
-  if (projectError) throw projectError;
-  if (!projectRow) return null;
-  let project = flattenProjectRow(projectRow);
-
-  // collection_items.collection_id is the same uuid as this project's own
-  // id (projects.id references collections.id directly, issue #456).
-  let { data: itemRows, error: itemsError } = await client
-    .from("collection_items")
-    .select(`film_id, position, films(${LEGACY_HYDRATION_FILM_FIELDS})`)
-    .eq("collection_id", projectId)
-    .order("position");
-  if (itemsError) throw itemsError;
-
+// One collection's items (a project's too: its id is its collection's id,
+// issue #456), each resolved to the user's watched row, else their watchlist
+// row, else "missing". Items are paginated and the per-film reads chunked,
+// so a long list is neither truncated at PostgREST's row cap nor sent as
+// one oversized URL.
+async function loadCollectionMembers(client, collectionId) {
+  let itemRows = await fetchAllSupabaseRows((withCount) =>
+    client
+      .from("collection_items")
+      .select(
+        `film_id, position, films(${LEGACY_HYDRATION_FILM_FIELDS})`,
+        withCount ? { count: "exact" } : undefined,
+      )
+      .eq("collection_id", collectionId)
+      .order("position")
+      .order("film_id"),
+  );
   let filmIds = itemRows.map((row) => row.film_id);
-  let [watchedResult, watchlistResult, franchiseCatalog] = await Promise.all([
-    filmIds.length
-      ? client
-          .from("watched")
-          .select(
-            "id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at",
-          )
-          .in("film_id", filmIds)
-      : Promise.resolve({ data: [] }),
-    filmIds.length
-      ? client
-          .from("watchlist")
-          .select(
-            "id, film_id, tier, tier_modifier, position, reason, added_at, updated_at",
-          )
-          .in("film_id", filmIds)
-      : Promise.resolve({ data: [] }),
+  let [watchedRows, watchlistRows, franchiseCatalog] = await Promise.all([
+    selectInChunks(filmIds, (ids) =>
+      client
+        .from("watched")
+        .select(HYDRATION_WATCHED_FIELDS)
+        .in("film_id", ids),
+    ),
+    selectInChunks(filmIds, (ids) =>
+      client
+        .from("watchlist")
+        .select(HYDRATION_WATCHLIST_FIELDS)
+        .in("film_id", ids),
+    ),
     window.loadSupabaseFranchiseCatalog(),
   ]);
-  if (watchedResult.error) throw watchedResult.error;
-  if (watchlistResult.error) throw watchlistResult.error;
   let chains = window.buildSupabaseFranchiseChains(franchiseCatalog);
-
-  let watchedByFilmId = new Map(
-    (watchedResult.data || []).map((row) => [row.film_id, row]),
-  );
+  let watchedByFilmId = new Map(watchedRows.map((row) => [row.film_id, row]));
   let watchlistByFilmId = new Map(
-    (watchlistResult.data || []).map((row) => [row.film_id, row]),
+    watchlistRows.map((row) => [row.film_id, row]),
   );
 
   let items = itemRows.map((row, index) => {
@@ -3503,15 +4280,46 @@ window.loadSupabaseProject = async function (projectId) {
       },
     };
   });
-
   return {
-    project,
     items,
     rawItems: itemRows.map((row) => ({
       film_id: row.film_id,
       position: row.position,
     })),
   };
+}
+
+/**
+ * Loads one project's items, reshaped into the same FilmRecord/
+ * WatchlistItem shapes supabase-legacy-hydration.js's per-item functions
+ * already produce (issue #439), so project.js can reuse the same shared
+ * film-card/row helpers every other collection page does. Each item
+ * resolves to "watched" (the user has a watched row for the film),
+ * "watchlist" (a watchlist row instead), or "missing" (neither - the
+ * film is in the project but the user has no personal record of it yet,
+ * a real, honestly-represented state in this source-agnostic model).
+ * @param {string} projectId
+ * @returns {Promise<{project: Object, items: Object[], rawItems: {film_id: string, position: string}[]}|null>}
+ */
+window.loadSupabaseProject = async function (projectId) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let client = ready.client;
+  let { data: projectRow, error: projectError } = await client
+    .from("projects")
+    .select(
+      "id, status, pinned, updated_at, collections(name, source_label, created_at)",
+    )
+    .eq("id", projectId)
+    .maybeSingle();
+  if (projectError) throw projectError;
+  if (!projectRow) return null;
+  let project = flattenProjectRow(projectRow);
+
+  // collection_items.collection_id is the same uuid as this project's own
+  // id (projects.id references collections.id directly, issue #456).
+  let { items, rawItems } = await loadCollectionMembers(client, projectId);
+  return { project, items, rawItems };
 };
 
 // A bare collection (issue #449/#459): a named, ordered film list with
@@ -3623,84 +4431,8 @@ window.loadSupabaseCollection = async function (collectionId) {
   let alreadyPromoted = Boolean(collectionRow.projects);
   let collection = flattenCollectionRow(collectionRow);
 
-  // collection_items.collection_id is this collection's own id directly.
-  let { data: itemRows, error: itemsError } = await client
-    .from("collection_items")
-    .select(`film_id, position, films(${LEGACY_HYDRATION_FILM_FIELDS})`)
-    .eq("collection_id", collectionId)
-    .order("position");
-  if (itemsError) throw itemsError;
-
-  let filmIds = itemRows.map((row) => row.film_id);
-  let [watchedResult, watchlistResult, franchiseCatalog] = await Promise.all([
-    filmIds.length
-      ? client
-          .from("watched")
-          .select(
-            "id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at",
-          )
-          .in("film_id", filmIds)
-      : Promise.resolve({ data: [] }),
-    filmIds.length
-      ? client
-          .from("watchlist")
-          .select(
-            "id, film_id, tier, tier_modifier, position, reason, added_at, updated_at",
-          )
-          .in("film_id", filmIds)
-      : Promise.resolve({ data: [] }),
-    window.loadSupabaseFranchiseCatalog(),
-  ]);
-  if (watchedResult.error) throw watchedResult.error;
-  if (watchlistResult.error) throw watchlistResult.error;
-  let chains = window.buildSupabaseFranchiseChains(franchiseCatalog);
-
-  let watchedByFilmId = new Map(
-    (watchedResult.data || []).map((row) => [row.film_id, row]),
-  );
-  let watchlistByFilmId = new Map(
-    (watchlistResult.data || []).map((row) => [row.film_id, row]),
-  );
-
-  let items = itemRows.map((row, index) => {
-    let watchedRow = watchedByFilmId.get(row.film_id);
-    let watchlistRow = watchlistByFilmId.get(row.film_id);
-    if (watchedRow) {
-      let film = window.supabaseLegacyHydrationFilmFromWatched(
-        Object.assign({}, watchedRow, { films: row.films }),
-        chains,
-      );
-      return { position: row.position, status: "watched", film };
-    }
-    if (watchlistRow) {
-      let item = window.supabaseLegacyHydrationWatchlistItem(
-        Object.assign({}, watchlistRow, { films: row.films }),
-        index,
-        chains,
-      );
-      return { position: row.position, status: "watchlist", item };
-    }
-    return {
-      position: row.position,
-      status: "missing",
-      film: {
-        id: row.film_id,
-        supabaseFilmId: row.film_id,
-        title: row.films?.title || "",
-        year: row.films?.year != null ? String(row.films.year) : "",
-      },
-    };
-  });
-
-  return {
-    collection,
-    alreadyPromoted,
-    items,
-    rawItems: itemRows.map((row) => ({
-      film_id: row.film_id,
-      position: row.position,
-    })),
-  };
+  let { items, rawItems } = await loadCollectionMembers(client, collectionId);
+  return { collection, alreadyPromoted, items, rawItems };
 };
 
 /**
@@ -3856,6 +4588,15 @@ window.moveSupabaseCollectionItem = async function (
 // is paginated via fetchAllSupabaseRows like the legacy-hydration catalog
 // fetch above.
 
+// Capped, not the unbounded default: data-tools loads the film and people
+// catalogs fully in parallel, and the film query's credits->people join is
+// heavy enough that firing every page of both at once (23+ concurrent
+// requests at today's catalog size) risks the hosted database's
+// authenticated-role statement_timeout under everyday concurrent load -
+// another tab open, this same page's own background-job poller, or
+// ordinary concurrent catalog writes.
+const DATA_TOOLS_FETCH_CONCURRENCY = 4;
+
 /**
  * Loads every row of the shared film catalog, for the local-only data-tools
  * page's missing-metadata and duplicate-detection views.
@@ -3864,14 +4605,32 @@ window.moveSupabaseCollectionItem = async function (
 window.loadSupabaseFilmCatalogForDataTools = async function () {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
-  return fetchAllSupabaseRows((withCount) =>
-    ready.client
-      .from("films")
-      .select(
-        "id, tmdb_id, title, swedish_title, year, poster_url, country, primary_country, runtime_minutes, tmdb_verified_at, medium, screenplay_type, original_language, credits(role, people(name, tmdb_id))",
-        withCount ? { count: "exact" } : undefined,
-      ),
+  return fetchAllSupabaseRows(
+    (withCount) =>
+      ready.client
+        .from("films")
+        .select(
+          "id, tmdb_id, tmdb_tv_ref, tmdb_field_outcomes, owner_decided_fields, tmdb_verification:tmdb_metadata_verification->header, genre, type, adaptation_source, letterboxd_url, title, swedish_title, year, poster_url, country, primary_country, runtime_minutes, tmdb_verified_at, medium, screenplay_type, original_language, credits(person_id, role, billing_order, character_name, uncredited, people(id, name, tmdb_id))",
+          withCount ? { count: "exact" } : undefined,
+        ),
+    SUPABASE_FETCH_PAGE_SIZE,
+    DATA_TOOLS_FETCH_CONCURRENCY,
   );
+};
+
+/** Reloads one shared film after enrichment has changed its credit links. @param {string} filmId Film UUID. @returns {Promise<Object>} Current catalog row. */
+window.loadSupabaseFilmCatalogEditorRow = async function (filmId) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { data, error } = await ready.client
+    .from("films")
+    .select(
+      "id, tmdb_id, tmdb_tv_ref, tmdb_field_outcomes, owner_decided_fields, tmdb_verification:tmdb_metadata_verification->header, genre, type, adaptation_source, letterboxd_url, title, swedish_title, year, poster_url, country, primary_country, runtime_minutes, tmdb_verified_at, medium, screenplay_type, original_language, credits(person_id, role, billing_order, character_name, uncredited, people(id, name, tmdb_id))",
+    )
+    .eq("id", filmId)
+    .single();
+  if (error) throw error;
+  return data;
 };
 
 /**
@@ -3882,13 +4641,16 @@ window.loadSupabaseFilmCatalogForDataTools = async function () {
 window.loadSupabasePeopleCatalogForDataTools = async function () {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
-  return fetchAllSupabaseRows((withCount) =>
-    ready.client
-      .from("people")
-      .select(
-        "id, tmdb_id, name, portrait_url, portrait_source, portrait_source_url, portrait_provider_id, portrait_fetched_at, tmdb_verified_at",
-        withCount ? { count: "exact" } : undefined,
-      ),
+  return fetchAllSupabaseRows(
+    (withCount) =>
+      ready.client
+        .from("people")
+        .select(
+          "id, tmdb_id, name, source_url, portrait_url, portrait_source, portrait_source_url, portrait_provider_id, portrait_fetched_at, tmdb_verified_at",
+          withCount ? { count: "exact" } : undefined,
+        ),
+    SUPABASE_FETCH_PAGE_SIZE,
+    DATA_TOOLS_FETCH_CONCURRENCY,
   );
 };
 
@@ -3966,17 +4728,16 @@ window.setSupabaseFilmPoster = async function (filmId, posterUrl, year) {
  * setSupabaseFilmPoster, for window.lookupTmdbFilmMetadata's fuller
  * result. Only ever fills in a field that was actually resolved (a null/
  * undefined field here leaves the stored value untouched, it never
- * blanks out existing data) - except tmdb_id, which `clearTmdbId` can
- * force to null: a manual correction moving a row from a wrong MOVIE
- * match to real TV content (films.tmdb_id only ever means a linked movie
- * id - see the reference-notation comment atop image-providers.js) needs
- * to actively clear a stale movie id, not just leave it alone. Likewise
+ * blanks out existing data). A film always keeps a TMDB identity: tmdbId
+ * (a movie) and tvTmdbRef (TV content) each replace the other atomically,
+ * so a correction from a wrong movie match to real TV content clears the
+ * stale movie id, and neither can be cleared on its own. Likewise
  * `markVerified`/`clearVerified` control tmdb_verified_at - once "Verify
  * TMDB links" confirms a film's id (or the owner explicitly confirms/
  * corrects it), it's skipped by future checks until something clears
  * that verification again.
  * @param {string} filmId
- * @param {{title?: string, posterUrl?: string, year?: number, country?: string, primaryCountry?: string, runtimeMinutes?: number, tmdbId?: string|number|null, clearTmdbId?: boolean, markVerified?: boolean, clearVerified?: boolean, directors?: (string|{tmdbId?: number|null, name: string, profilePath?: string|null})[], director?: string}} fields
+ * @param {{title?: string, posterUrl?: string, year?: number, country?: string, primaryCountry?: string, runtimeMinutes?: number, tmdbId?: string|number|null, tvTmdbRef?: string, markVerified?: boolean, clearVerified?: boolean, directors?: (string|{tmdbId?: number|null, name: string, profilePath?: string|null})[], director?: string}} fields
  * @returns {Promise<void>}
  */
 window.setSupabaseFilmMetadata = async function (filmId, fields) {
@@ -3991,8 +4752,21 @@ window.setSupabaseFilmMetadata = async function (filmId, fields) {
     update.primary_country = fields.primaryCountry;
   if (fields.runtimeMinutes != null)
     update.runtime_minutes = fields.runtimeMinutes;
-  if (fields.tmdbId != null) update.tmdb_id = fields.tmdbId;
-  else if (fields.clearTmdbId) update.tmdb_id = null;
+  if (fields.tvTmdbRef != null) {
+    if (fields.tmdbId != null)
+      throw new Error("Choose either a movie or TV identity.");
+    if (
+      !/^TV:[1-9]\d*(?:\/S(?:0|[1-9]\d*)(?:E[1-9]\d*)?)?$/.test(
+        fields.tvTmdbRef,
+      )
+    )
+      throw new Error("Invalid TMDB TV reference.");
+    update.tmdb_tv_ref = fields.tvTmdbRef;
+    update.tmdb_id = null;
+  } else if (fields.tmdbId != null) {
+    update.tmdb_id = fields.tmdbId;
+    update.tmdb_tv_ref = null;
+  }
   if (fields.markVerified) update.tmdb_verified_at = new Date().toISOString();
   else if (fields.clearVerified) update.tmdb_verified_at = null;
   if (fields.medium != null) update.medium = fields.medium;
@@ -4058,7 +4832,6 @@ window.setSupabasePersonMetadata = async function (personId, fields) {
   let update = {};
   if (fields.name != null) update.name = fields.name;
   if (fields.tmdbId != null) update.tmdb_id = fields.tmdbId;
-  else if (fields.clearTmdbId) update.tmdb_id = null;
   if (fields.markVerified) update.tmdb_verified_at = new Date().toISOString();
   else if (fields.clearVerified) update.tmdb_verified_at = null;
   if (Object.keys(update).length > 0) {
@@ -4085,6 +4858,50 @@ window.mergeSupabaseFilms = async function (keepId, removeId) {
     remove_id: removeId,
   });
   if (error) throw error;
+};
+
+/**
+ * Reports whether a write failed because another film row already holds
+ * the TMDB movie ID or TV reference it tried to set.
+ * @param {*} error Supabase/PostgREST error.
+ * @returns {boolean} True for a films TMDB identity unique violation.
+ */
+window.isTmdbIdentityConflict = function (error) {
+  return (
+    error?.code === "23505" &&
+    /films_tmdb_(id|tv_ref)_key/.test(
+      `${error.message || ""} ${error.details || ""}`,
+    )
+  );
+};
+
+/**
+ * Merges a film into the other catalog row that already holds the TMDB
+ * identity it was given, keeping the holder's metadata and repointing
+ * every reference (public.merge_films RPC).
+ * @param {string} filmId Film whose identity write collided; it is removed.
+ * @param {{tmdbId?: number|null, tvTmdbRef?: string|null}} identity The identity the film was given.
+ * @returns {Promise<{id: string, title: string, year: number|null}|null>} The surviving holder, or null when no other row holds that identity.
+ */
+window.mergeSupabaseFilmIntoTmdbIdentityHolder = async function (
+  filmId,
+  identity,
+) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let query = ready.client
+    .from("films")
+    .select("id,title,year")
+    .neq("id", filmId);
+  if (identity?.tvTmdbRef) query = query.eq("tmdb_tv_ref", identity.tvTmdbRef);
+  else if (identity?.tmdbId != null)
+    query = query.eq("tmdb_id", identity.tmdbId);
+  else return null;
+  let { data: holder, error } = await query.maybeSingle();
+  if (error) throw error;
+  if (!holder) return null;
+  await window.mergeSupabaseFilms(holder.id, filmId);
+  return holder;
 };
 
 /**

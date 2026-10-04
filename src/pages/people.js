@@ -66,10 +66,12 @@
   let view = initialViewState.view;
   let page = initialViewState.page;
   const PAGE_SIZE = 100;
+  const INITIAL_BATCH_SIZE = 36;
   let watchedOtherSource = null;
   let watchedOtherById = new Map();
-  let watchlistSource = null;
-  let watchlistById = new Map();
+  let visiblePeople = [];
+  let renderedCount = 0;
+  let batchObserver = null;
 
   let initials = window.initialsFor;
 
@@ -102,11 +104,18 @@
     });
   }
 
-  function renderRow(person) {
+  function renderCard(person, index = 0) {
+    let priority = index < 4 ? "high" : undefined;
+    let portrait = window.renderPersonPortrait(person, "hub", { priority });
+    return `<article class="people-hub-card">${portrait || `<div class="person-portrait-placeholder" aria-hidden="true">${escape(initials(person.name))}</div>`}<div><h2><a href="${escape(window.personPageUrl(person.id))}">${escape(person.name)}</a></h2><p>${escape(person.professions.join(" · "))}</p>${renderPersonStats(person)}</div></article>`;
+  }
+
+  function renderRow(person, index = 0) {
     let scores = person.awardScores || {};
     let ratings = personRatingStatistics(person);
     let valueOrDash = (value) => (Number(value) > 0 ? escape(value) : "—");
-    return `<tr><td class="film-table-cell">${window.renderPersonPortrait(person, "thumb")}<span><a class="table-film-link" href="${escape(window.personPageUrl(person.id))}"><strong>${escape(person.name)}</strong></a><span class="leaderboard-meta">${escape(person.professions.join(" · "))}</span></span></td><td>${valueOrDash(personWatchedCount(person))}</td><td>${ratings.ratedCount ? escape(window.formatAverageRating(ratings.mean)) : "—"}</td><td>${valueOrDash(ratings.ratedCount)}</td><td>${valueOrDash(person.stats?.wins)}</td><td>${valueOrDash(person.stats?.nominations)}</td><td>${valueOrDash(scores.year)}</td></tr>`;
+    let priority = index < 4 ? "high" : undefined;
+    return `<tr><td class="film-table-cell">${window.renderPersonPortrait(person, "thumb", { priority })}<span><a class="table-film-link" href="${escape(window.personPageUrl(person.id))}"><strong>${escape(person.name)}</strong></a><span class="leaderboard-meta">${escape(person.professions.join(" · "))}</span></span></td><td>${valueOrDash(personWatchedCount(person))}</td><td>${ratings.ratedCount ? escape(window.formatAverageRating(ratings.mean)) : "—"}</td><td>${valueOrDash(ratings.ratedCount)}</td><td>${valueOrDash(person.stats?.wins)}</td><td>${valueOrDash(person.stats?.nominations)}</td><td>${valueOrDash(scores.year)}</td></tr>`;
   }
 
   function orderToggleLabel() {
@@ -154,18 +163,7 @@
   }
 
   function personWatchlistFilms(person) {
-    if (watchlistSource !== state.watchlist) {
-      watchlistSource = state.watchlist;
-      watchlistById = new Map(
-        (state.watchlist || []).map((film) => [
-          film.id || window.watchlistItemId?.(film),
-          film,
-        ]),
-      );
-    }
-    return (person.watchlistIds || [])
-      .map((filmId) => watchlistById.get(filmId))
-      .filter(Boolean);
+    return window.personWatchlistItems(person);
   }
 
   function discoveryRecords(allPeople) {
@@ -252,8 +250,10 @@
     let records = discoveryRecords(allPeople);
     if (!records.length) return "";
     let cards = records
-      .map(({ person, label, reason }) => {
-        let portrait = window.renderPersonPortrait(person, "hub");
+      .map(({ person, label, reason }, index) => {
+        let isHero = index < 3;
+        let priority = isHero ? "high" : undefined;
+        let portrait = window.renderPersonPortrait(person, "hub", { priority });
         let representativeFilms = window
           .rankByAllTimeRank(personWatchedFilms(person))
           .slice(0, 3);
@@ -263,6 +263,7 @@
           ? window.renderPosterDeck(representativeFilms, {
               classes: "people-discovery-poster-deck",
               limit: 3,
+              priority,
             })
           : "";
         return `<a class="people-discovery-card" href="${escape(window.personPageUrl(person.id))}"><div class="people-discovery-visual">${portrait || `<div class="person-portrait-placeholder" aria-hidden="true">${escape(initials(person.name))}</div>`}${deck}</div><div><p class="people-discovery-label">${escape(label)}</p><h3>${escape(person.name)}</h3><p>${escape(reason)}</p><span>${escape(person.professions.join(" · "))}</span></div></a>`;
@@ -352,8 +353,71 @@
     });
   }
 
+  function disconnectBatchObserver() {
+    if (batchObserver) {
+      batchObserver.disconnect();
+      batchObserver = null;
+    }
+  }
+
+  function appendNextBatch() {
+    if (renderedCount >= visiblePeople.length) {
+      disconnectBatchObserver();
+      container.querySelector("[data-people-load-more-container]")?.remove();
+      return;
+    }
+    let nextChunk = visiblePeople.slice(
+      renderedCount,
+      renderedCount + INITIAL_BATCH_SIZE,
+    );
+    if (view === "grid") {
+      let grid = container.querySelector(".people-hub-grid");
+      if (grid) {
+        grid.insertAdjacentHTML(
+          "beforeend",
+          nextChunk
+            .map((person, index) => renderCard(person, renderedCount + index))
+            .join(""),
+        );
+      }
+    } else {
+      let tbody = container.querySelector(".leaderboard tbody");
+      if (tbody) {
+        tbody.insertAdjacentHTML(
+          "beforeend",
+          nextChunk
+            .map((person, index) => renderRow(person, renderedCount + index))
+            .join(""),
+        );
+      }
+    }
+    renderedCount += nextChunk.length;
+    if (renderedCount >= visiblePeople.length) {
+      disconnectBatchObserver();
+      container.querySelector("[data-people-load-more-container]")?.remove();
+    }
+  }
+
+  function setupBatchObserver() {
+    disconnectBatchObserver();
+    if (renderedCount >= visiblePeople.length) return;
+    let sentinel = container.querySelector("[data-people-load-more-container]");
+    if (!sentinel) return;
+    if (typeof IntersectionObserver !== "function") return;
+    batchObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          appendNextBatch();
+        }
+      },
+      { rootMargin: "300px" },
+    );
+    batchObserver.observe(sentinel);
+  }
+
   /** Renders the current filtered, sorted, paginated people-directory view. */
   window.renderPeopleHub = function () {
+    disconnectBatchObserver();
     let finishRenderTimer = window.startOskarsPerformance?.("people:render");
     let allPeople = Object.values(
       window.ensurePeopleIndex?.() || state.peopleById || {},
@@ -361,14 +425,15 @@
     let filtered = people();
     let pagination = window.paginationState(filtered.length, page, PAGE_SIZE);
     page = pagination.page;
-    let visible = filtered.slice(pagination.sliceStart, pagination.sliceEnd);
-    let cards = visible
-      .map((person) => {
-        let portrait = window.renderPersonPortrait(person, "hub");
-        return `<article class="people-hub-card">${portrait || `<div class="person-portrait-placeholder" aria-hidden="true">${escape(initials(person.name))}</div>`}<div><h2><a href="${escape(window.personPageUrl(person.id))}">${escape(person.name)}</a></h2><p>${escape(person.professions.join(" · "))}</p>${renderPersonStats(person)}</div></article>`;
-      })
+    visiblePeople = filtered.slice(pagination.sliceStart, pagination.sliceEnd);
+    renderedCount = Math.min(INITIAL_BATCH_SIZE, visiblePeople.length);
+    let initialVisible = visiblePeople.slice(0, renderedCount);
+    let cards = initialVisible
+      .map((person, index) => renderCard(person, index))
       .join("");
-    let rows = visible.map(renderRow).join("");
+    let rows = initialVisible
+      .map((person, index) => renderRow(person, index))
+      .join("");
     let professionOptions = window.PERSON_PROFESSION_ORDER.map(
       (value) =>
         `<option value="${escape(value)}" ${profession === value ? "selected" : ""}>${escape(value)}</option>`,
@@ -400,6 +465,10 @@
         rows ||
         `<tr><td colspan="7">${escape(ui("No people match these filters."))}</td></tr>`,
     });
+    let loadMoreHtml =
+      renderedCount < visiblePeople.length
+        ? `<div class="people-hub-load-more" data-people-load-more-container><button type="button" class="button-secondary" data-people-load-more>${escape(ui("Load more"))}</button></div>`
+        : "";
     document.title = `${ui("People")} · The Oskars`;
     container.innerHTML = `${window.renderDetailHeader({ mainHtml: `<h1>${escape(ui("People"))}</h1><p>${escape(ui("Recipients, filmmakers, performers, and other credited contributors."))}</p>`, actionsHtml: `<a class="button-link" href="directors.html">${escape(ui("Browse directors"))}</a>` })}
     ${window.renderDetailStats({ itemsHtml: `<span><b>${filtered.length}</b> ${escape(ui("People"))}</span>` })}
@@ -409,19 +478,32 @@
     ${window.renderPaginationControls({ total: filtered.length, page, pageSize: PAGE_SIZE, dataAttribute: "data-people-page", itemLabel: ui("people"), ariaLabel: ui("People pages") })}
     ${
       view === "grid"
-        ? `<div class="people-hub-grid">${cards || `<div class="detail-empty">${escape(ui("No people match these filters."))}</div>`}</div>`
-        : listTable
+        ? `<div class="people-hub-grid">${cards || `<div class="detail-empty">${escape(ui("No people match these filters."))}</div>`}</div>${loadMoreHtml}`
+        : `${listTable}${loadMoreHtml}`
     }`;
-    finishRenderTimer?.(`${filtered.length} people, ${visible.length} shown`);
+    setupBatchObserver();
+    finishRenderTimer?.(`${filtered.length} people, ${renderedCount} shown`);
   };
 
+  let searchTimer = null;
   container.addEventListener("input", (event) => {
     if (!event.target.matches("[data-people-query]")) return;
     query = event.target.value;
     page = 1;
-    updatePeopleUrl();
-    window.renderPeopleHub();
-    container.querySelector("[data-people-query]")?.focus();
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      searchTimer = null;
+      updatePeopleUrl();
+      window.renderPeopleHub();
+      let input = container.querySelector("[data-people-query]");
+      if (input) {
+        input.focus();
+        let len = input.value.length;
+        try {
+          input.setSelectionRange(len, len);
+        } catch (_) {}
+      }
+    }, 120);
   });
   container.addEventListener("change", (event) => {
     if (event.target.matches("[data-people-profession]"))
@@ -441,6 +523,11 @@
       window.copyViewLink().then((copied) => {
         copyButton.textContent = ui(copied ? "Copied" : "Copy failed");
       });
+      return;
+    }
+    let loadMoreButton = event.target.closest("[data-people-load-more]");
+    if (loadMoreButton) {
+      appendNextBatch();
       return;
     }
     let orderButton = event.target.closest("[data-reverse-order-button]");
@@ -467,6 +554,9 @@
     window.renderPeopleHub();
   });
 
-  window.renderPeopleHub();
   window.addEventListener?.("oskars:localechange", window.renderPeopleHub);
+  if (window.peopleDirectoryEdgesNeeded()) {
+    container.innerHTML = `<p class="detail-empty" role="status">${escape(ui("Loading people…"))}</p>`;
+    window.loadPeopleDirectoryEdges().then(() => window.renderPeopleHub());
+  } else window.renderPeopleHub();
 })();

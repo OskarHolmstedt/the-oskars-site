@@ -33,6 +33,10 @@
   let view = window.filmViewMode("grid");
   let page = Math.max(1, Number(window.pageQueryParam("page")) || 1);
   const PAGE_SIZE = 25;
+  const INITIAL_BATCH_SIZE = 12;
+  let visibleRecords = [];
+  let renderedCount = 0;
+  let batchObserver = null;
 
   function directorViewHref(next = {}) {
     let nextView = next.view || view;
@@ -96,21 +100,13 @@
     let watchedOtherById = new Map(
       (window.state.watchedOther || []).map((film) => [film.id, film]),
     );
-    let watchlistById = new Map(
-      (window.state.watchlist || []).map((item) => [
-        item.id || window.watchlistItemId?.(item),
-        item,
-      ]),
-    );
     return Object.values(
       window.ensurePeopleIndex?.() || window.state.peopleById || {},
     )
       .filter((person) => person.professions?.includes("Director"))
       .map((person) => {
         let films = directorFilms(person, watchedOtherById);
-        let watchlist = (person.watchlistIds || [])
-          .map((id) => watchlistById.get(id))
-          .filter(Boolean);
+        let watchlist = window.personWatchlistItems(person);
         return {
           person,
           films,
@@ -180,23 +176,93 @@
     return `<a class="project-status-badge project-status-badge--${status} director-card-project-marker" href="${escape(window.projectPageUrl(project.id))}" title="${label}" aria-label="${label}">${escape(ui("Project"))}</a>`;
   }
 
-  function renderCard(record) {
+  function renderCard(record, index = 0) {
     let deckFilms = record.films.length
       ? window.rankByAllTimeRank(record.films).slice(0, 5)
       : record.watchlist.slice(0, 5);
-    let deck = deckFilms.length ? window.renderPosterDeck(deckFilms) : "";
+    let deck = deckFilms.length
+      ? window.renderPosterDeck(deckFilms, {
+          priority: index < 4 ? "high" : undefined,
+        })
+      : "";
     let completion = record.completion;
     let ratings = record.ratings;
     return `<article class="director-card director-card--poster${record.project ? " director-card--project" : ""}">${deck ? `<div class="director-card-poster">${deck}</div>` : ""}<div class="director-card-body"><div class="director-card-heading"><h2><a href="${escape(window.personPageUrl(record.person.id))}">${escape(record.person.name)}</a></h2>${directorProjectMarker(record.project)}</div><div class="director-card-rating"><b>${escape(window.formatAverageRating(ratings.mean))}</b> ${escape(ui("average rating"))} · <b>${escape(ratings.ratedCount)}</b> ${escape(ui("rated"))}</div><div class="director-card-stats"><span><b>${completion.watchedCount}</b> ${escape(ui("Watched"))}</span><span class="director-card-stats-separator" aria-hidden="true">·</span><span><b>${completion.watchlistCount}</b> ${escape(ui("Watchlist"))}</span></div><div class="director-completion"><span><b>${escape(completion.percent)}%</b> ${escape(ui("known completion"))}</span><div class="project-progress-meter" aria-label="${escape(ui("{percent} percent complete", { percent: completion.percent }))}"><span style="width:${escape(completion.percent)}%"></span></div></div></div></article>`;
   }
 
-  function renderRow(record) {
+  function renderRow(record, index = 0) {
     let person = record.person;
     let completion = record.completion;
-    return `<tr><td class="film-table-cell">${window.renderPersonPortrait(person, "thumb")}<span><a class="table-film-link" href="${escape(window.personPageUrl(person.id))}"><strong>${escape(person.name)}</strong></a></span></td><td>${escape(window.formatAverageRating(record.ratings.mean))}</td><td>${escape(record.ratings.ratedCount)}</td><td>${completion.watchedCount}</td><td>${completion.watchlistCount}</td><td>${completion.watchedCount}/${completion.total} · ${completion.percent}%</td><td>${escape(knownYearRange(record))}</td></tr>`;
+    let priority = index < 4 ? "high" : undefined;
+    return `<tr><td class="film-table-cell">${window.renderPersonPortrait(person, "thumb", { priority })}<span><a class="table-film-link" href="${escape(window.personPageUrl(person.id))}"><strong>${escape(person.name)}</strong></a></span></td><td>${escape(window.formatAverageRating(record.ratings.mean))}</td><td>${escape(record.ratings.ratedCount)}</td><td>${completion.watchedCount}</td><td>${completion.watchlistCount}</td><td>${completion.watchedCount}/${completion.total} · ${completion.percent}%</td><td>${escape(knownYearRange(record))}</td></tr>`;
+  }
+
+  function disconnectBatchObserver() {
+    if (batchObserver) {
+      batchObserver.disconnect();
+      batchObserver = null;
+    }
+  }
+
+  function appendNextBatch() {
+    if (renderedCount >= visibleRecords.length) {
+      disconnectBatchObserver();
+      container.querySelector("[data-directors-load-more-container]")?.remove();
+      return;
+    }
+    let nextChunk = visibleRecords.slice(
+      renderedCount,
+      renderedCount + INITIAL_BATCH_SIZE,
+    );
+    if (view === "grid") {
+      let grid = container.querySelector(".director-grid");
+      if (grid) {
+        grid.insertAdjacentHTML(
+          "beforeend",
+          nextChunk
+            .map((record, index) => renderCard(record, renderedCount + index))
+            .join(""),
+        );
+      }
+    } else {
+      let tbody = container.querySelector(".directors-table tbody");
+      if (tbody) {
+        tbody.insertAdjacentHTML(
+          "beforeend",
+          nextChunk
+            .map((record, index) => renderRow(record, renderedCount + index))
+            .join(""),
+        );
+      }
+    }
+    renderedCount += nextChunk.length;
+    if (renderedCount >= visibleRecords.length) {
+      disconnectBatchObserver();
+      container.querySelector("[data-directors-load-more-container]")?.remove();
+    }
+  }
+
+  function setupBatchObserver() {
+    disconnectBatchObserver();
+    if (renderedCount >= visibleRecords.length) return;
+    let sentinel = container.querySelector(
+      "[data-directors-load-more-container]",
+    );
+    if (!sentinel) return;
+    if (typeof IntersectionObserver !== "function") return;
+    batchObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          appendNextBatch();
+        }
+      },
+      { rootMargin: "300px" },
+    );
+    batchObserver.observe(sentinel);
   }
 
   function render() {
+    disconnectBatchObserver();
     let finishRenderTimer = window.startOskarsPerformance?.("directors:render");
     let allRecords = directorRecords();
     let records = sortedRecords(allRecords);
@@ -205,7 +271,9 @@
     ).length;
     let pagination = window.paginationState(records.length, page, PAGE_SIZE);
     page = pagination.page;
-    let visible = records.slice(pagination.sliceStart, pagination.sliceEnd);
+    visibleRecords = records.slice(pagination.sliceStart, pagination.sliceEnd);
+    renderedCount = Math.min(INITIAL_BATCH_SIZE, visibleRecords.length);
+    let initialVisible = visibleRecords.slice(0, renderedCount);
     let paginationControls = window.renderPaginationControls({
       total: records.length,
       page,
@@ -225,18 +293,25 @@
         ui("Known completion"),
         ui("Years"),
       ].map(escape),
-      rows: visible.map(renderRow).join(""),
+      rows: initialVisible
+        .map((record, index) => renderRow(record, index))
+        .join(""),
       classes: "directors-table",
       wrapClasses: "directors-list",
     });
+    let loadMoreHtml =
+      renderedCount < visibleRecords.length
+        ? `<div class="directors-load-more" data-directors-load-more-container><button type="button" class="button-secondary" data-directors-load-more>${escape(ui("Load more"))}</button></div>`
+        : "";
     document.title = `${ui("Directors")} · The Oskars`;
     container.innerHTML = `${window.renderDetailHeader({
       mainHtml: `<h1>${escape(ui("Directors"))}</h1><p>${escape(ui("Auteurs through their known films."))}</p>`,
       actionsHtml: `<a class="button-link" href="people.html">${escape(ui("All people"))}</a>`,
     })}
     ${window.renderDetailStats({ itemsHtml: `<span><b>${allRecords.length}</b> ${escape(ui("Directors"))}</span><span><b>${inProgressCount}</b> ${escape(ui("In progress"))}</span>` })}
-    ${allRecords.length ? `<form class="franchises-controls directors-controls" id="directorsControls"><div class="franchises-sort-controls"><label class="franchises-sort-control"><span>${escape(ui("Sort"))}</span><select name="sort"><option value="total"${sort === "total" ? " selected" : ""}>${escape(ui("Known films"))}</option><option value="name"${sort === "name" ? " selected" : ""}>${escape(ui("Name"))}</option><option value="watched"${sort === "watched" ? " selected" : ""}>${escape(ui("Watched"))}</option><option value="watchlisted"${sort === "watchlisted" ? " selected" : ""}>${escape(ui("Watchlist"))}</option><option value="completion"${sort === "completion" ? " selected" : ""}>${escape(ui("Known completion"))}</option><option value="rating"${sort === "rating" ? " selected" : ""}>${escape(ui("Average rating"))}</option></select></label>${window.renderChronologyControl({ iconOnly: true, escape, title: orderToggleLabel() })}</div><div class="franchises-toolbar-actions"><button type="button" class="sort-order-button sort-order-button--icon${filterIncomplete ? " is-active" : ""}" title="${escape(ui("In progress only"))}" aria-label="${escape(ui("In progress only"))}" aria-pressed="${filterIncomplete ? "true" : "false"}" data-directors-progress-filter>◐</button>${window.renderShuffleControl({ escape, label: ui("Shuffle") })}${window.renderFilmViewToggle({ view, listUrl: directorViewHref({ view: "list" }), gridUrl: directorViewHref({ view: "grid" }), escape, classes: "franchises-view-toggle directors-view-toggle", ariaLabel: ui("Director display"), live: true })}</div></form>${records.length ? `${paginationControls}${view === "grid" ? `<div class="director-grid">${visible.map(renderCard).join("")}</div>` : listTable}${paginationControls}` : `<div class="detail-empty">${escape(ui("No directors match this filter."))}</div>`}` : `<div class="detail-empty"><h2>${escape(ui("No directors yet"))}</h2><p>${escape(ui("Directors appear when films or watchlist entries name them."))}</p></div>`}`;
-    finishRenderTimer?.(`${records.length} directors, ${visible.length} shown`);
+    ${allRecords.length ? `<form class="franchises-controls directors-controls" id="directorsControls"><div class="franchises-sort-controls"><label class="franchises-sort-control"><span>${escape(ui("Sort"))}</span><select name="sort"><option value="total"${sort === "total" ? " selected" : ""}>${escape(ui("Known films"))}</option><option value="name"${sort === "name" ? " selected" : ""}>${escape(ui("Name"))}</option><option value="watched"${sort === "watched" ? " selected" : ""}>${escape(ui("Watched"))}</option><option value="watchlisted"${sort === "watchlisted" ? " selected" : ""}>${escape(ui("Watchlist"))}</option><option value="completion"${sort === "completion" ? " selected" : ""}>${escape(ui("Known completion"))}</option><option value="rating"${sort === "rating" ? " selected" : ""}>${escape(ui("Average rating"))}</option></select></label>${window.renderChronologyControl({ iconOnly: true, escape, title: orderToggleLabel() })}</div><div class="franchises-toolbar-actions"><button type="button" class="sort-order-button sort-order-button--icon${filterIncomplete ? " is-active" : ""}" title="${escape(ui("In progress only"))}" aria-label="${escape(ui("In progress only"))}" aria-pressed="${filterIncomplete ? "true" : "false"}" data-directors-progress-filter>◐</button>${window.renderShuffleControl({ escape, label: ui("Shuffle") })}${window.renderFilmViewToggle({ view, listUrl: directorViewHref({ view: "list" }), gridUrl: directorViewHref({ view: "grid" }), escape, classes: "franchises-view-toggle directors-view-toggle", ariaLabel: ui("Director display"), live: true })}</div></form>${records.length ? `${paginationControls}${view === "grid" ? `<div class="director-grid">${initialVisible.map((record, index) => renderCard(record, index)).join("")}</div>${loadMoreHtml}` : `${listTable}${loadMoreHtml}`}${paginationControls}` : `<div class="detail-empty">${escape(ui("No directors match this filter."))}</div>`}` : `<div class="detail-empty"><h2>${escape(ui("No directors yet"))}</h2><p>${escape(ui("Directors appear when films or watchlist entries name them."))}</p></div>`}`;
+    setupBatchObserver();
+    finishRenderTimer?.(`${records.length} directors, ${renderedCount} shown`);
   }
 
   container.addEventListener("change", (event) => {
@@ -258,6 +333,11 @@
       if (nextView === "grid" || nextView === "list") view = nextView;
       updateViewUrl();
       render();
+      return;
+    }
+    let loadMoreButton = event.target.closest("[data-directors-load-more]");
+    if (loadMoreButton) {
+      appendNextBatch();
       return;
     }
     if (event.target.closest("[data-directors-progress-filter]")) {
@@ -289,6 +369,11 @@
     render();
   });
 
-  render();
   window.addEventListener?.("oskars:localechange", render);
+  if (window.peopleDirectoryEdgesNeeded()) {
+    container.innerHTML = `<p class="detail-empty" role="status">${escape(ui("Loading directors…"))}</p>`;
+    window
+      .loadPeopleDirectoryEdges({ allWatchlistItems: true })
+      .then(() => render());
+  } else render();
 })();

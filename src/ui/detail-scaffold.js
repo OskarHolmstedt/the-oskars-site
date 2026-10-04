@@ -18,7 +18,7 @@
 /**
  * @typedef {Object} RatingStatisticsItemsOptions
  * @property {(value: *) => string} escape Escapes text for HTML.
- * @property {(text: string, values?: Record<string, *>)} [ui] Localizes text.
+ * @property {(text: string, values?: Record<string, *>) => string} [ui] Localizes text.
  */
 
 (function () {

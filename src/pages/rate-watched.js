@@ -270,7 +270,7 @@
     // but nothing downstream of a successful gate did. Genuine errors
     // must surface, not disappear behind stale placeholder text.
     try {
-      await window.loadSupabaseWorkspace();
+      await window.loadSupabaseWorkspace({ parts: ["watched"] });
       render();
     } catch (error) {
       container.innerHTML = `<section class="detail-empty"><h2>Could not load your watched films</h2><p>${escape(error.message || String(error))}</p></section>`;

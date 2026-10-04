@@ -196,9 +196,14 @@
   }
 
   async function requestGoogleAccessToken(options = {}) {
-    let clientId = window.OSKARS_LOCAL_CONFIG?.googleClientId;
+    let clientId =
+      options.clientId ||
+      window.OSKARS_LOCAL_CONFIG?.googleClientId ||
+      window.OSKARS_SUPABASE_CONFIG?.googleWebClientId;
     if (!clientId)
-      throw new Error("Missing googleClientId in config.local.js.");
+      throw new Error(
+        "Missing Google Client ID (configure googleWebClientId in supabase.config.js or googleClientId in config.local.js).",
+      );
     let requestedScope = options.write
       ? GOOGLE_SHEETS_WRITE_SCOPE
       : options.scope || GOOGLE_SHEETS_READ_SCOPE;
@@ -1103,6 +1108,12 @@
         localState.watchlist || [],
       );
     }
+    // Deduplicate watchlist against watched films: any film
+    // present in watched years must not remain on the watchlist (issue #634).
+    if (merged.watchlist?.length) {
+      let isWatched = buildFilmMatcher(merged);
+      merged.watchlist = merged.watchlist.filter((item) => !isWatched(item));
+    }
     let importedWatchedOther = reports.some(
       (report) =>
         ["diary", "franchises", "directors"].includes(report.rangeKey) &&
@@ -1143,6 +1154,568 @@
    */
   window.mergeImportedGoogleState = mergeImportedGoogleState;
 
+  /**
+   * Creates a new Google Spreadsheet document on the user's Google Drive.
+   * Configures 'Ranked Diary' and 'Watchlist' tabs with frozen header rows.
+   * @param {Object} [options] Creation options.
+   * @param {string} [options.title] Document title.
+   * @param {boolean} [options.populateFromArchive] Whether to populate rows from existing films and watchlist.
+   * @param {string} [options.accessToken] Active Google OAuth access token.
+   * @param {Array<Object>} [options.films] Optional explicit films to populate.
+   * @param {Array<Object>} [options.watchlist] Optional explicit watchlist items to populate.
+   * @returns {Promise<{spreadsheetId: string, spreadsheetUrl: string, title: string}>} Created spreadsheet info.
+   */
+  async function createGoogleSheetsDocument(options = {}) {
+    let accessToken =
+      options.accessToken ||
+      (await requestGoogleAccessToken({
+        write: true,
+        scope: GOOGLE_SHEETS_WRITE_SCOPE,
+      }));
+
+    let title = options.title || "The Oskars — Film Archive & Watchlist";
+
+    let diaryHeaders = [
+      "Year",
+      "Title",
+      "Director",
+      "Rating",
+      "Type",
+      "Tag",
+      "Medium",
+      "Screenplay",
+      "Source",
+      "Country",
+      "Views",
+      "Date",
+      "Score",
+      "Franchise",
+      "Platform",
+      "Runtime",
+      "tmdbId",
+      "letterboxd",
+    ];
+
+    let watchlistHeaders = [
+      "Date",
+      "Name",
+      "Year",
+      "Letterboxd URI",
+      "Tier",
+      "Director",
+      "Tags",
+      "Franchises",
+      "TMDB ID",
+    ];
+
+    function cell(v) {
+      if (v === null || v === undefined)
+        return { userEnteredValue: { stringValue: "" } };
+      if (typeof v === "number")
+        return { userEnteredValue: { numberValue: v } };
+      return { userEnteredValue: { stringValue: String(v) } };
+    }
+
+    let diaryRowData = [
+      {
+        values: diaryHeaders.map((h) => ({
+          userEnteredValue: { stringValue: h },
+          userEnteredFormat: { textFormat: { bold: true } },
+        })),
+      },
+    ];
+
+    let watchlistRowData = [
+      {
+        values: watchlistHeaders.map((h) => ({
+          userEnteredValue: { stringValue: h },
+          userEnteredFormat: { textFormat: { bold: true } },
+        })),
+      },
+    ];
+
+    let films =
+      options.films ||
+      (options.populateFromArchive ? allSourceFilms(window.state || {}) : []);
+    if (films && films.length > 0) {
+      for (let film of films) {
+        let ratingStr = film.ratingValue
+          ? String(film.ratingValue) + (film.ratingModifier || "")
+          : "";
+        let directorsStr = Array.isArray(film.directors)
+          ? film.directors.join(", ")
+          : film.directors || "";
+        let countriesStr = Array.isArray(film.countries)
+          ? film.countries.join(", ")
+          : film.countries || "";
+        let tagsStr = Array.isArray(film.tags)
+          ? film.tags.join(", ")
+          : film.tags || "";
+        let franchisesStr = Array.isArray(film.franchises)
+          ? film.franchises.join(", ")
+          : film.franchises || "";
+        let viewsCount =
+          (film.viewings && film.viewings.length) || (film.watchedDate ? 1 : "");
+
+        diaryRowData.push({
+          values: [
+            cell(film.year ? Number(film.year) : ""),
+            cell(film.title || ""),
+            cell(directorsStr),
+            cell(ratingStr),
+            cell(film.type || "Film"),
+            cell(tagsStr),
+            cell(film.medium || ""),
+            cell(film.screenplay || ""),
+            cell(film.adaptationSource || ""),
+            cell(countriesStr),
+            cell(viewsCount),
+            cell(film.watchedDate || ""),
+            cell(ratingStr),
+            cell(franchisesStr),
+            cell(film.platform || ""),
+            cell(film.runtimeMinutes ? Number(film.runtimeMinutes) : ""),
+            cell(film.tmdbId ? Number(film.tmdbId) : ""),
+            cell(film.letterboxdUrl || film.url || ""),
+          ],
+        });
+      }
+    }
+
+    let watchlist =
+      options.watchlist ||
+      (options.populateFromArchive ? window.state?.watchlist || [] : []);
+    if (watchlist && watchlist.length > 0) {
+      for (let item of watchlist) {
+        let directorsStr = Array.isArray(item.directors)
+          ? item.directors.join(", ")
+          : item.directors || "";
+        let tagsStr = Array.isArray(item.tags)
+          ? item.tags.join(", ")
+          : item.tags || "";
+        let franchisesStr = Array.isArray(item.franchises)
+          ? item.franchises.join(", ")
+          : item.franchises || "";
+
+        watchlistRowData.push({
+          values: [
+            cell(item.dateAdded || item.date || ""),
+            cell(item.title || item.name || ""),
+            cell(item.year ? Number(item.year) : ""),
+            cell(item.letterboxdUrl || item.url || ""),
+            cell(item.tier || ""),
+            cell(directorsStr),
+            cell(tagsStr),
+            cell(franchisesStr),
+            cell(item.tmdbId ? Number(item.tmdbId) : ""),
+          ],
+        });
+      }
+    }
+
+    let payload = {
+      properties: {
+        title,
+      },
+      sheets: [
+        {
+          properties: {
+            title: "Ranked Diary",
+            gridProperties: {
+              frozenRowCount: 1,
+            },
+          },
+          data: [
+            {
+              startRow: 0,
+              startColumn: 0,
+              rowData: diaryRowData,
+            },
+          ],
+        },
+        {
+          properties: {
+            title: "Watchlist",
+            gridProperties: {
+              frozenRowCount: 1,
+            },
+          },
+          data: [
+            {
+              startRow: 0,
+              startColumn: 0,
+              rowData: watchlistRowData,
+            },
+          ],
+        },
+      ],
+    };
+
+    let response = await fetch("https://sheets.googleapis.com/v4/spreadsheets", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      let errText = await response.text().catch(() => "");
+      throw new Error(
+        `Google Sheets creation failed (${response.status}): ${errText}`.trim(),
+      );
+    }
+
+    let created = await response.json();
+    let spreadsheetId = created.spreadsheetId;
+    let spreadsheetUrl =
+      created.spreadsheetUrl ||
+      `https://docs.google.com/spreadsheets/d/${encodeURIComponent(spreadsheetId)}/edit`;
+
+    return {
+      spreadsheetId,
+      spreadsheetUrl,
+      title: created.properties?.title || title,
+    };
+  }
+
+  /**
+   * Fetches metadata for a Google Spreadsheet, including its title and sheet tab names.
+   * @param {string} spreadsheetId Target spreadsheet ID.
+   * @param {string} accessToken Active Google OAuth access token.
+   * @returns {Promise<{title: string, sheetTitles: string[]}>} Document metadata.
+   */
+  async function fetchGoogleSpreadsheetMetadata(spreadsheetId, accessToken) {
+    let response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}?fields=properties.title,sheets.properties.title`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
+    if (!response.ok) {
+      let text = await response.text().catch(() => "");
+      throw new Error(
+        `Google Sheets metadata lookup failed (${response.status}): ${text}`.trim(),
+      );
+    }
+    let data = await response.json();
+    return {
+      title: data.properties?.title || "Untitled Spreadsheet",
+      sheetTitles: (data.sheets || [])
+        .map((s) => s.properties?.title)
+        .filter(Boolean),
+    };
+  }
+
+  /**
+   * Pushes the current watched films and watchlist items to a connected Google Sheet.
+   * Overwrites values starting at row 2 in 'Ranked Diary' and 'Watchlist' tabs.
+   * @param {string} spreadsheetId Target spreadsheet ID.
+   * @param {Object} [options] Push options.
+   * @param {string} [options.accessToken] Active Google OAuth access token.
+   * @param {Array<Object>} [options.films] Optional explicit films to push.
+   * @param {Array<Object>} [options.watchlist] Optional explicit watchlist items to push.
+   * @returns {Promise<{filmsPushed: number, watchlistPushed: number}>} Summary of written rows.
+   */
+  async function writeGoogleSpreadsheetArchive(spreadsheetId, options = {}) {
+    let accessToken =
+      options.accessToken ||
+      (await requestGoogleAccessToken({
+        write: true,
+        scope: GOOGLE_SHEETS_WRITE_SCOPE,
+      }));
+
+    let films = options.films || allSourceFilms(window.state || {});
+    let watchlist = options.watchlist || window.state?.watchlist || [];
+
+    let diaryRows = films.map((film) => {
+      let ratingStr = film.ratingValue
+        ? String(film.ratingValue) + (film.ratingModifier || "")
+        : "";
+      let directorsStr = Array.isArray(film.directors)
+        ? film.directors.join(", ")
+        : film.directors || "";
+      let countriesStr = Array.isArray(film.countries)
+        ? film.countries.join(", ")
+        : film.countries || "";
+      let tagsStr = Array.isArray(film.tags)
+        ? film.tags.join(", ")
+        : film.tags || "";
+      let franchisesStr = Array.isArray(film.franchises)
+        ? film.franchises.join(", ")
+        : film.franchises || "";
+      let viewsCount =
+        (film.viewings && film.viewings.length) || (film.watchedDate ? 1 : "");
+
+      return [
+        film.year ? Number(film.year) : "",
+        film.title || "",
+        directorsStr,
+        ratingStr,
+        film.type || "Film",
+        tagsStr,
+        film.medium || "",
+        film.screenplay || "",
+        film.adaptationSource || "",
+        countriesStr,
+        viewsCount,
+        film.watchedDate || "",
+        ratingStr,
+        franchisesStr,
+        film.platform || "",
+        film.runtimeMinutes ? Number(film.runtimeMinutes) : "",
+        film.tmdbId ? Number(film.tmdbId) : "",
+        film.letterboxdUrl || film.url || "",
+      ];
+    });
+
+    let watchlistRows = watchlist.map((item) => {
+      let directorsStr = Array.isArray(item.directors)
+        ? item.directors.join(", ")
+        : item.directors || "";
+      let tagsStr = Array.isArray(item.tags)
+        ? item.tags.join(", ")
+        : item.tags || "";
+      let franchisesStr = Array.isArray(item.franchises)
+        ? item.franchises.join(", ")
+        : item.franchises || "";
+
+      return [
+        item.dateAdded || item.date || "",
+        item.title || item.name || "",
+        item.year ? Number(item.year) : "",
+        item.letterboxdUrl || item.url || "",
+        item.tier || "",
+        directorsStr,
+        tagsStr,
+        franchisesStr,
+        item.tmdbId ? Number(item.tmdbId) : "",
+      ];
+    });
+
+    let batchData = [];
+    if (diaryRows.length > 0) {
+      batchData.push({
+        range: "'Ranked Diary'!A2",
+        values: diaryRows,
+      });
+    }
+    if (watchlistRows.length > 0) {
+      batchData.push({
+        range: "'Watchlist'!A2",
+        values: watchlistRows,
+      });
+    }
+
+    if (batchData.length > 0) {
+      await batchUpdateSheetValues(spreadsheetId, batchData, accessToken);
+    }
+
+    return {
+      filmsPushed: diaryRows.length,
+      watchlistPushed: watchlistRows.length,
+    };
+  }
+
+  /**
+   * Builds an ImportProposal from Google Spreadsheet data.
+   * @param {Object} spreadsheetData Data fetched from Google Sheets.
+   * @param {string[][]} [spreadsheetData.diaryRows] Rows from the Ranked Diary sheet.
+   * @param {string[][]} [spreadsheetData.watchlistRows] Rows from the Watchlist sheet.
+   * @param {string} [spreadsheetData.diaryRaw] Optional raw CSV for diary rows.
+   * @param {string} [spreadsheetData.watchlistRaw] Optional raw CSV for watchlist rows.
+   * @param {Object} [options] Proposal options.
+   * @param {string} [options.spreadsheetId] Google Spreadsheet ID.
+   * @param {string} [options.sourceName] Friendly name for report.
+   * @param {'merge'|'replace'} [options.mode] Merge mode (defaults to 'merge').
+   * @returns {ImportProposal} The reviewed import proposal.
+   */
+  function proposeGoogleSpreadsheetSync(spreadsheetData, options = {}) {
+    let mode = options.mode === "replace" ? "replace" : "merge";
+    let baseState = window.cloneRecord(window.state);
+    let diaryRaw =
+      spreadsheetData.diaryRaw ||
+      (spreadsheetData.diaryRows
+        ? rowsToDelimited(spreadsheetData.diaryRows, ",")
+        : "");
+    let watchlistRaw =
+      spreadsheetData.watchlistRaw ||
+      (spreadsheetData.watchlistRows
+        ? rowsToDelimited(spreadsheetData.watchlistRows, ",")
+        : "");
+
+    try {
+      window.state =
+        mode === "replace"
+          ? window.createClearedLocalState()
+          : window.cloneRecord(baseState);
+      window.rebuildAggregates?.();
+
+      let combinedReport = {
+        source: options.sourceName || "Google Sheets",
+        sourceKind: "google-sheets",
+        filmsParsed: 0,
+        filmsAdded: 0,
+        filmsMerged: 0,
+        awardsAdded: 0,
+        awardsRejected: 0,
+        ruleWarnings: 0,
+        skipped: 0,
+        periods: [],
+        warnings: [],
+        titleVariants: [],
+        ruleViolations: [],
+        ruleWarningDetails: [],
+        skippedDetails: [],
+        missingAllTimeFilms: [],
+        newFilmDetails: [],
+        rankChanges: [],
+        awardChanges: [],
+        preservedFieldDetails: [],
+        sourceConflicts: [],
+        watchlistItemsParsed: 0,
+        watchlistItemsAdded: 0,
+        watchlistItemsUpdated: 0,
+      };
+
+      if (spreadsheetData.diaryRows && spreadsheetData.diaryRows.length > 0) {
+        let diarySchemaWarnings = validateDiarySchema(spreadsheetData.diaryRows, {
+          key: "Ranked Diary",
+        });
+        if (diarySchemaWarnings && diarySchemaWarnings.length > 0) {
+          combinedReport.warnings.push(...diarySchemaWarnings);
+        }
+      }
+
+      if (spreadsheetData.watchlistRows && spreadsheetData.watchlistRows.length > 0) {
+        let watchlistSchemaWarnings = validateWatchlistSchema(
+          spreadsheetData.watchlistRows,
+          { key: "Watchlist" },
+        );
+        if (watchlistSchemaWarnings && watchlistSchemaWarnings.length > 0) {
+          combinedReport.warnings.push(...watchlistSchemaWarnings);
+        }
+      }
+
+      if (diaryRaw && diaryRaw.trim()) {
+        let diaryReport = window.importData(diaryRaw, "diary", {
+          render: false,
+          silentReport: true,
+        });
+        if (diaryReport) {
+          combinedReport.filmsParsed += diaryReport.filmsParsed || 0;
+          combinedReport.filmsAdded += diaryReport.filmsAdded || 0;
+          combinedReport.filmsMerged += diaryReport.filmsMerged || 0;
+          combinedReport.skipped += diaryReport.skipped || 0;
+          if (diaryReport.warnings)
+            combinedReport.warnings.push(...diaryReport.warnings);
+          if (diaryReport.periods) {
+            combinedReport.periods = Array.from(
+              new Set([
+                ...combinedReport.periods,
+                ...Array.from(diaryReport.periods),
+              ]),
+            );
+          }
+        }
+      }
+
+      if (watchlistRaw && watchlistRaw.trim()) {
+        let watchlistReport = window.importData(watchlistRaw, "watchlist", {
+          render: false,
+          silentReport: true,
+        });
+        if (watchlistReport) {
+          combinedReport.watchlistItemsParsed +=
+            watchlistReport.watchlistItemsParsed ||
+            watchlistReport.filmsParsed ||
+            0;
+          combinedReport.watchlistItemsAdded +=
+            watchlistReport.watchlistItemsAdded ||
+            watchlistReport.filmsAdded ||
+            0;
+          combinedReport.watchlistItemsUpdated +=
+            watchlistReport.watchlistItemsUpdated ||
+            watchlistReport.filmsMerged ||
+            0;
+          if (watchlistReport.warnings)
+            combinedReport.warnings.push(...watchlistReport.warnings);
+        }
+      }
+
+      return window.createImportProposal({
+        sourceKind: "google-sheets",
+        mode,
+        baseState,
+        candidateState: window.state,
+        report: combinedReport,
+        sourceRevision: window.canonicalDataRevision({
+          diaryRaw,
+          watchlistRaw,
+        }),
+        sourceConfig: {
+          spreadsheetId: String(options.spreadsheetId || ""),
+          sourceName: String(options.sourceName || "Google Sheets"),
+        },
+      });
+    } finally {
+      window.state = baseState;
+      window.rebuildAggregates?.();
+    }
+  }
+
+  /**
+   * Translates low-level Google Sheets / Drive API or network error strings into friendly, actionable user messages.
+   * @param {*} error Caught error object or string.
+   * @param {string} [defaultMessage] Optional fallback message.
+   * @returns {string} Human-readable actionable error message.
+   */
+  function formatGoogleSheetsError(error, defaultMessage) {
+    let raw = error?.message || String(error || "");
+    if (!raw)
+      return (
+        defaultMessage || "An error occurred communicating with Google Sheets."
+      );
+
+    if (/401\b|unauthenticated|invalid_grant|token expired/i.test(raw)) {
+      return (window.uiText || ((s) => s))(
+        "Google authorization expired or invalid. Please reconnect your Google account and try again.",
+      );
+    }
+    if (/403\b|permission_denied|insufficientPermissions|quota/i.test(raw)) {
+      if (/quota|resource_exhausted/i.test(raw)) {
+        return (window.uiText || ((s) => s))(
+          "Google Drive or Sheets quota exceeded (403). Please free up space or wait before trying again.",
+        );
+      }
+      return (window.uiText || ((s) => s))(
+        "Access denied (403). Make sure your Google account has permission to access or edit this spreadsheet.",
+      );
+    }
+    if (/404\b|not_found|requested entity was not found/i.test(raw)) {
+      return (window.uiText || ((s) => s))(
+        "Spreadsheet not found (404). Please verify that the spreadsheet ID or URL is correct and shared with your account.",
+      );
+    }
+    if (/429\b|rate.?limit/i.test(raw)) {
+      return (window.uiText || ((s) => s))(
+        "Google Sheets API rate limit exceeded. Please wait a moment before trying again.",
+      );
+    }
+    if (/popup_blocked_by_browser/i.test(raw)) {
+      return (window.uiText || ((s) => s))(
+        "Google sign-in popup was blocked by your browser. Please allow popups for this site and try again.",
+      );
+    }
+    if (/timeout|timed out/i.test(raw)) {
+      return (window.uiText || ((s) => s))(
+        "Google sign-in or request timed out. Please check your network connection and try again.",
+      );
+    }
+    return raw;
+  }
+
   // Exposed for src/data/google-sheets-supabase-import.js (issue #469) -
   // that file reuses this OAuth/fetch plumbing directly rather than
   // duplicating it, but writes to Supabase instead of merging into
@@ -1156,6 +1729,11 @@
   window.batchUpdateGoogleSpreadsheet = batchUpdateSpreadsheet;
   window.rowsToDelimited = rowsToDelimited;
   window.rowsToPlainDelimited = rowsToPlainDelimited;
+  window.createGoogleSheetsDocument = createGoogleSheetsDocument;
+  window.fetchGoogleSpreadsheetMetadata = fetchGoogleSpreadsheetMetadata;
+  window.writeGoogleSpreadsheetArchive = writeGoogleSpreadsheetArchive;
+  window.proposeGoogleSpreadsheetSync = proposeGoogleSpreadsheetSync;
+  window.formatGoogleSheetsError = formatGoogleSheetsError;
 
   function maybeResumeGoogleSheetsRedirect() {
     if (!isRedirectSignIn()) return;

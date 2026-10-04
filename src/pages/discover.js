@@ -150,7 +150,6 @@
   function mediumLabel(value) {
     if (value === "live-action") return ui("Live action");
     if (value === "animation") return ui("Animation");
-    if (value === "hybrid") return ui("Hybrid");
     return value;
   }
   function watchlistTierOptions() {
@@ -224,7 +223,7 @@
     <form class="discovery-filters" id="discoveryFilters">
       <label>${escape(ui("Period"))}<select name="period">${periodOptions}</select></label>
       <label>${escape(ui("Profession"))}<select name="profession">${option("", ui("Any profession"), "profession")}${professionOptions}</select></label>
-      <label>${escape(ui("Medium"))}<select name="medium">${option("", ui("Any medium"), "medium")}${option("live-action", ui("Live action"), "medium")}${option("animation", ui("Animation"), "medium")}${option("hybrid", ui("Hybrid"), "medium")}</select></label>
+      <label>${escape(ui("Medium"))}<select name="medium">${option("", ui("Any medium"), "medium")}${option("live-action", ui("Live action"), "medium")}${option("animation", ui("Animation"), "medium")}</select></label>
       <label>${escape(ui("Screenplay"))}<select name="screenplay">${option("", ui("Any screenplay"), "screenplay")}${option("original", ui("Original"), "screenplay")}${option("adapted", ui("Adapted"), "screenplay")}</select></label>
       <label>${escape(ui("Adapted from"))}<select name="adaptationSource">${option("", ui("Any source"), "adaptationSource")}${adaptationSourceOptions}</select></label>
       <label>${escape(ui("Award category"))}<select name="category">${option("", ui("Any category"), "category")}${categoryOptions}</select></label>

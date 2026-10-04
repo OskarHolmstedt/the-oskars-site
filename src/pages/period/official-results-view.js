@@ -51,11 +51,17 @@ window.renderPeriodOfficialResults = function ({
       nomination,
       personalComparison,
     );
-    let title = escape(nomination.sourceTitle);
     let film = nomination.filmRef;
-    let titleHtml = film?.id
-      ? `<a class="official-result-film" href="${escape(window.filmPageUrl(film.id))}">${title}</a>`
-      : `<span class="official-result-film">${title}</span>`;
+    let titleHtml = window.formatDisplayListHtml(
+      window
+        .officialNominationFilms(nomination)
+        .map(({ title, filmRef }) =>
+          filmRef?.id
+            ? `<a class="official-result-film" href="${escape(window.filmPageUrl(filmRef.id))}">${escape(title)}</a>`
+            : `<span class="official-result-film">${escape(title)}</span>`,
+        ),
+      escape,
+    );
     // A nominee not yet in the viewer's own collection gets explicit,
     // opt-in add actions here instead of the previous silent automatic
     // watchlist push (removed - see shared-archive-sync.js). Only offered
@@ -68,9 +74,13 @@ window.renderPeriodOfficialResults = function ({
         : "";
     let creditParts = [];
     if (nomination.recipient)
-      creditParts.push(`<span>${escape(nomination.recipient)}</span>`);
+      creditParts.push(
+        `<span>${escape(window.formatOfficialField(nomination.recipient))}</span>`,
+      );
     if (nomination.detail)
-      creditParts.push(`<span>${escape(nomination.detail)}</span>`);
+      creditParts.push(
+        `<span>${escape(window.formatOfficialField(nomination.detail))}</span>`,
+      );
     if (showSourceCategory && nomination.sourceCategory)
       creditParts.push(
         `<span class="official-result-source-category">${escape(nomination.sourceCategory)}</span>`,

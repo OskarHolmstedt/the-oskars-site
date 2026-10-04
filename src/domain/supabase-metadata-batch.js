@@ -19,21 +19,75 @@
 const ADAPTED_SCREENPLAY_JOBS = new Set([
   "novel",
   "book",
-  "author",
   "comic book",
   "graphic novel",
   "characters",
   "theatre play",
+  "play",
+  "based on the play",
   "short story",
   "based on characters by",
-  "story", // "Story" alone usually means adapted source material
   "based on",
-  "screen story", // often signals a prior-published story
   "based on the novel",
   "based on the book",
   "based on the comic book",
   "based on the graphic novel",
 ]);
+
+/** Returns explicit underlying-source credits, excluding ordinary screenplay development jobs. @param {Object[]} crew TMDB crew. @returns {string[]} Distinct source-material jobs. */
+window.tmdbSourceMaterialJobs = function (crew) {
+  return [
+    ...new Set(
+      (crew || [])
+        .filter((person) =>
+          ADAPTED_SCREENPLAY_JOBS.has(
+            String(person?.job || "")
+              .trim()
+              .toLowerCase(),
+          ),
+        )
+        .map((person) => person.job.trim()),
+    ),
+  ];
+};
+
+// TMDB keywords that name earlier material as a film's basis. Remakes and
+// franchise entries count as adapted, the catalog's convention; a true story
+// or a real person alone is not source material.
+const ADAPTED_SCREENPLAY_KEYWORDS = new Set([
+  "remake",
+  "live action remake",
+  "sequel",
+  "prequel",
+  "spin off",
+  "reboot",
+]);
+const NON_SOURCE_KEYWORDS = new Set([
+  "based on true story",
+  "based on real person",
+  "based on real events",
+]);
+
+/** Returns TMDB keywords that name earlier material as a film's basis. @param {Object|null} details TMDB details with appended keywords. @returns {string[]} Distinct matching keyword names. */
+window.tmdbSourceMaterialKeywords = function (details) {
+  let keywords =
+    details?.keywords?.keywords || details?.keywords?.results || [];
+  return [
+    ...new Set(
+      keywords
+        .map((keyword) =>
+          String(keyword?.name || "")
+            .trim()
+            .toLowerCase(),
+        )
+        .filter(
+          (name) =>
+            ADAPTED_SCREENPLAY_KEYWORDS.has(name) ||
+            (name.startsWith("based on ") && !NON_SOURCE_KEYWORDS.has(name)),
+        ),
+    ),
+  ];
+};
 
 // Genre 16 is TMDB's canonical Animation genre id.
 const TMDB_ANIMATION_GENRE_ID = 16;
@@ -42,14 +96,14 @@ const TMDB_ANIMATION_GENRE_ID = 16;
  * Extracts film classification signals (medium, screenplay type, language)
  * from an already-fetched TMDB movie-details response. Avoids additional
  * API calls — this is a pure derivation over data `lookupTmdbMovieDetails`
- * already returns (genres, credits.crew, original_language).
+ * already returns (genres, credits.crew, keywords, original_language).
  *
  * All three signals are heuristics: TMDB data is crowdsourced and sometimes
  * incomplete. The caller treats an unknown/null result the same as missing
  * data and never hard-blocks on it.
  *
  * @param {Object|null} details TMDB movie-details response (may be null for TV).
- * @returns {{medium: 'animation'|'live-action'|null, screenplayType: 'original'|'adapted'|'unknown'|null, originalLanguage: string|null}}
+ * @returns {{medium: 'animation'|'live-action'|null, screenplayType: 'original'|'adapted'|null, originalLanguage: string|null}}
  */
 window.extractTmdbFilmClassification = function (details) {
   if (!details || details._media_type === "tv") {
@@ -57,39 +111,34 @@ window.extractTmdbFilmClassification = function (details) {
   }
 
   // Medium: animation if genre 16 is present, otherwise live-action.
-  // "hybrid" is not auto-assigned from this signal alone — a human import
-  // path already handles that label.
   let genres = details.genres || [];
   let medium = genres.some((g) => g?.id === TMDB_ANIMATION_GENRE_ID)
     ? "animation"
     : "live-action";
 
-  // Screenplay type: inspect Writing department crew for source-material
-  // jobs. Only a confirmed mismatch sets adapted/original; no writing
-  // credits at all yields "unknown".
+  // Screenplay type: source-material writing jobs or source keywords mean
+  // adapted. Ordinary story, screenplay and adaptation jobs remain original;
+  // with neither writing credits nor source keywords the type stays empty.
   let crew = details?.credits?.crew || details?.crew || [];
   let writingCrew = crew.filter(
     (person) =>
       String(person?.department || "").toLowerCase() === "writing" ||
+      /^(writer|screenplay|story|screen story|original story|adaptation)$/i.test(
+        String(person?.job || "").trim(),
+      ) ||
       ADAPTED_SCREENPLAY_JOBS.has(
         String(person?.job || "")
           .toLowerCase()
           .trim(),
       ),
   );
-  let screenplayType;
-  if (!writingCrew.length) {
-    screenplayType = "unknown";
-  } else {
-    let hasAdaptedSignal = writingCrew.some((person) =>
-      ADAPTED_SCREENPLAY_JOBS.has(
-        String(person?.job || "")
-          .toLowerCase()
-          .trim(),
-      ),
-    );
-    screenplayType = hasAdaptedSignal ? "adapted" : "original";
-  }
+  let screenplayType = null;
+  if (
+    window.tmdbSourceMaterialJobs(writingCrew).length ||
+    window.tmdbSourceMaterialKeywords(details).length
+  )
+    screenplayType = "adapted";
+  else if (writingCrew.length) screenplayType = "original";
 
   let originalLanguage = details.original_language
     ? String(details.original_language).trim().toLowerCase()
@@ -301,6 +350,20 @@ async function isExactTitleMatch(title, providerId, fetchFn) {
  * @returns {Promise<{poster: PosterRecord, correctedYear: number|null}|null>}
  */
 window.lookupTmdbFilmPoster = async function (film, fetchFn) {
+  if (film.tmdb_tv_ref) {
+    let match = await window.lookupTmdbReferenceMatch(
+      window.parseTmdbReference(film.tmdb_tv_ref),
+      fetchFn,
+    );
+    return match
+      ? {
+          ...match,
+          correctedYear: null,
+          mediaType: "tv",
+          tvTmdbRef: film.tmdb_tv_ref,
+        }
+      : null;
+  }
   let knownEpisode = await lookupKnownTvEpisodePoster(film, fetchFn);
   if (knownEpisode)
     return { poster: knownEpisode, correctedYear: null, mediaType: "tv" };
@@ -386,16 +449,20 @@ window.lookupTmdbFilmPoster = async function (film, fetchFn) {
  * right film" is exactly the kind of duplicate matching logic that caused
  * this session's false-positive bugs in the first place.
  *
- * tmdbId always comes back null for a TV match: films.tmdb_id is a plain
- * integer column that only ever means a linked MOVIE id (see the
- * reference-notation comment atop image-providers.js) - a TV show/season/
- * episode has no such id to store there, so this is left honestly unset
- * rather than writing a value nothing downstream can safely interpret.
+ * TV matches return tvTmdbRef separately from the movie-only tmdbId.
+ * The explicit reference persists even when no poster is available.
  * @param {{tmdb_id: number|null, title: string, year: number|null}} film
  * @param {Function} fetchFn
- * @returns {Promise<{poster: PosterRecord, correctedYear: number|null, country: string|null, primaryCountry: string|null, runtimeMinutes: number|null, director: string|null, directors: {tmdbId: number|null, name: string, profilePath: string|null}[], tmdbId: string|null, medium: 'animation'|'live-action'|null, screenplayType: 'original'|'adapted'|'unknown'|null, originalLanguage: string|null}|null>}
+ * @returns {Promise<{poster: PosterRecord, correctedYear: number|null, country: string|null, primaryCountry: string|null, runtimeMinutes: number|null, director: string|null, directors: {tmdbId: number|null, name: string, profilePath: string|null}[], tmdbId: string|null, tvTmdbRef?: string, medium: 'animation'|'live-action'|null, screenplayType: 'original'|'adapted'|null, originalLanguage: string|null}|null>}
  */
 window.lookupTmdbFilmMetadata = async function (film, fetchFn) {
+  if (film.tmdb_tv_ref) {
+    let match = await window.lookupTmdbReferenceMatch(
+      window.parseTmdbReference(film.tmdb_tv_ref),
+      fetchFn,
+    );
+    return match ? { ...match, correctedYear: null, mediaType: "tv" } : null;
+  }
   let result = await window.lookupTmdbFilmPoster(film, fetchFn);
   if (!result) return result;
   if (result.mediaType === "tv") {
@@ -413,6 +480,7 @@ window.lookupTmdbFilmMetadata = async function (film, fetchFn) {
       director: director || null,
       directors: directors || [],
       tmdbId: null,
+      tvTmdbRef: result.poster.providerId,
       medium: null,
       screenplayType: null,
       originalLanguage: null,
@@ -422,6 +490,7 @@ window.lookupTmdbFilmMetadata = async function (film, fetchFn) {
     result.poster.providerId,
     fetchFn,
   );
+  if (!details?.id) throw new Error("TMDB film details unavailable");
   let countries = (details?.production_countries || [])
     .map((country) => String(country.name || "").trim())
     .filter(Boolean);
@@ -440,6 +509,7 @@ window.lookupTmdbFilmMetadata = async function (film, fetchFn) {
     window.extractTmdbFilmClassification(details);
   return {
     ...result,
+    year: Number(String(details.release_date || "").slice(0, 4)) || null,
     country: countries.join(", ") || null,
     primaryCountry: countries[0] || null,
     runtimeMinutes:
@@ -569,90 +639,78 @@ window.filterDismissedDuplicateGroups = function (groups, dismissedPairKeys) {
 };
 
 /**
- * Finds year-less, tmdb_id-less films whose title fuzzy-matches another
- * film in the catalog that DOES have a real year - a bare title search for
- * these has no year to disambiguate a remake/re-release from the original,
- * and TMDB's own popularity-first result ordering means the better-known
- * original wins every time. Found live: a null-year "American Psycho" row
- * (the undated 2026 remake) was auto-assigned the 2000 classic's exact
- * poster this way, since both are genuine exact-title matches and only the
- * year would have told them apart. Reuses groupSupabaseFilmDuplicates'
- * existing null-year-as-wildcard grouping rather than re-deriving the same
- * fuzzy match from scratch - any group it produces that mixes a null-year
- * row with a real-year row is exactly this ambiguous case.
- * A film that already carries a tmdb_id is excluded even if its year is
- * still null - once an id is confirmed (typically via the manual-match
- * override this flag exists to justify), there is no more title-search
- * ambiguity left to guard against, even when the confirmed TMDB entry
- * itself has no release date of its own to copy back (a genuinely
- * "Rumored"/unreleased title, found live: TMDB id 1249693, the very
- * American Psycho remake this whole feature was built for, has
- * `release_date: ''`). Without this, a film could never leave this list
- * even after a correct, deliberate manual match - the exact bug reported
- * live: an owner assigned that id, the poster/tmdb_id wrote through fine,
- * but the film stayed stuck under "Ambiguous" forever since its year was
- * still null.
- * @param {{id: string, tmdb_id: number|null, title: string, year: number|null}[]} films
- * @returns {Set<string>} Ids of films that should be excluded from automatic search-based lookup.
- */
-window.findAmbiguousNullYearFilms = function (films) {
-  let ids = new Set();
-  window.groupSupabaseFilmDuplicates(films).forEach((group) => {
-    if (!group.rows.some((film) => film.year != null)) return;
-    group.rows.forEach((film) => {
-      if (film.year == null && !film.tmdb_id) ids.add(film.id);
-    });
-  });
-  return ids;
-};
-
-/**
  * Looks up an EXACT, owner-confirmed TMDB reference - movie, whole TV
  * series, one season, or one episode - with no search, no scoring, no
  * isExactTitleMatch verification, since a human has already confirmed the
- * match themselves (the intended use is exactly the ambiguous null-year
- * case findAmbiguousNullYearFilms flags, where automatic search can't
- * safely tell a remake from the original - or a title TMDB only lists as
- * TV content, which automatic search can find but never treats as
- * anything more than a poster - see lookupTmdbFilmMetadata).
+ * match themselves (correcting a wrong identity, where automatic search
+ * can't safely tell a remake from the original - or a title TMDB only
+ * lists as TV content, which automatic search can find but never treats
+ * as anything more than a poster - see lookupTmdbFilmMetadata).
  *
- * tmdbId comes back null for a TV reference: films.tmdb_id is a plain
- * integer column that only ever means a linked MOVIE id (see the
- * reference-notation comment atop image-providers.js), so a TV match
- * leaves it honestly unset rather than writing a value nothing downstream
- * can safely interpret as a movie id.
+ * TV identity is returned in tvTmdbRef; tmdbId remains movie-only.
  * @param {{mediaType: "movie"|"tv", id: string, season: number|null, episode: number|null}} reference
  * @param {Function} fetchFn
- * @returns {Promise<{poster: PosterRecord|null, year: number|null, country: string|null, primaryCountry: string|null, runtimeMinutes: number|null, director: string|null, directors: {tmdbId: number|null, name: string, profilePath: string|null}[], releaseYearOptions: string[], runtimeOptions: number[], tmdbId: string|null, title: string}|null>}
+ * @param {string[]} [requestedFields] Eligible fields; omitted for an explicit manual lookup.
+ * @returns {Promise<{poster: PosterRecord|null, year: number|null, country: string|null, primaryCountry: string|null, runtimeMinutes: number|null, director: string|null, directors: {tmdbId: number|null, name: string, profilePath: string|null}[], releaseYearOptions: string[], runtimeOptions: number[], tmdbId: string|null, tvTmdbRef?: string, title: string}|null>}
  */
-window.lookupTmdbReferenceMatch = async function (reference, fetchFn) {
+window.lookupTmdbReferenceMatch = async function (
+  reference,
+  fetchFn,
+  requestedFields,
+) {
   if (reference.mediaType === "tv") {
     let details = await window.lookupTmdbMovieDetails(
-      `TV:${reference.id}${reference.season !== null ? `/S${reference.season}${reference.episode !== null ? `E${reference.episode}` : ""}` : ""}`,
+      `TV:${Number(reference.id)}${reference.season !== null ? `/S${reference.season}${reference.episode !== null ? `E${reference.episode}` : ""}` : ""}`,
       fetchFn,
     );
     if (!details?.id) return null;
     let posterPath = details.poster_path || details.still_path || null;
-    let { country, primaryCountry, runtimeMinutes, director, directors } =
-      await window.lookupTmdbTvMetadataFields(reference, fetchFn);
-    return {
-      poster: posterPath
-        ? window.normalizePosterRecord({
-            url: `https://image.tmdb.org/t/p/w500${posterPath}`,
-            source: "tmdb",
-            sourceUrl: `https://www.themoviedb.org/${window.tmdbResourcePath(reference)}`,
-            providerId: `TV:${reference.id}${reference.season !== null ? `/S${reference.season}${reference.episode !== null ? `E${reference.episode}` : ""}` : ""}`,
-          })
-        : null,
-      year: null,
+    let {
       country,
       primaryCountry,
       runtimeMinutes,
-      director: director || null,
-      directors: directors || [],
-      tmdbId: null,
-      title: details.name || details.title || "",
-    };
+      director,
+      directors,
+      originalLanguage,
+    } = await window.lookupTmdbTvMetadataFields(
+      reference,
+      fetchFn,
+      requestedFields,
+    );
+    return window.completeTmdbFieldLookup(
+      {
+        poster: posterPath
+          ? window.normalizePosterRecord({
+              url: `https://image.tmdb.org/t/p/w500${posterPath}`,
+              source: "tmdb",
+              sourceUrl: `https://www.themoviedb.org/${window.tmdbResourcePath(reference)}`,
+              providerId: `TV:${Number(reference.id)}${reference.season !== null ? `/S${reference.season}${reference.episode !== null ? `E${reference.episode}` : ""}` : ""}`,
+            })
+          : null,
+        year:
+          Number(
+            (details.air_date || details.first_air_date || "").slice(0, 4),
+          ) || null,
+        originalLanguage,
+        country,
+        primaryCountry,
+        runtimeMinutes,
+        director: director || null,
+        directors: directors || [],
+        tmdbId: null,
+        tvTmdbRef: `TV:${Number(reference.id)}${reference.season !== null ? `/S${reference.season}${reference.episode !== null ? `E${reference.episode}` : ""}` : ""}`,
+        title: details.name || details.title || "",
+      },
+      [
+        "poster_url",
+        "country",
+        "runtime_minutes",
+        "directors",
+        "original_language",
+        "year",
+      ],
+      requestedFields,
+    );
   }
   let details = await window.lookupTmdbMovieDetails(reference.id, fetchFn);
   if (!details?.id) return null;
@@ -674,37 +732,50 @@ window.lookupTmdbReferenceMatch = async function (reference, fetchFn) {
   let director = directors.map((d) => d.name).join(", ") || null;
   let { medium, screenplayType, originalLanguage } =
     window.extractTmdbFilmClassification(details);
-  return {
-    poster: details.poster_path
-      ? window.normalizePosterRecord({
-          url: `https://image.tmdb.org/t/p/w500${details.poster_path}`,
-          source: "tmdb",
-          sourceUrl: `https://www.themoviedb.org/movie/${details.id}`,
-          providerId: String(details.id),
-        })
-      : null,
-    year: Number.isFinite(year) ? year : null,
-    country: countries.join(", ") || null,
-    primaryCountry: countries[0] || null,
-    runtimeMinutes:
-      Number(details.runtime) > 0 ? Number(details.runtime) : null,
-    director,
-    directors,
-    // Every OTHER legitimate release year/runtime TMDB lists (regional
-    // release dates, translated-cut runtimes) - lets a caller that force-
-    // corrects a film's data (applyConfirmedTmdbMatch,
-    // src/pages/data-tools.js) tell "the existing value is a different
-    // but still genuinely valid one" from "the existing value is just
-    // wrong", rather than always overwriting with only this single
-    // "primary" pick.
-    releaseYearOptions: window.tmdbReleaseYearOptions?.(details) || [],
-    runtimeOptions: window.tmdbRuntimeOptions?.(details) || [],
-    tmdbId: String(details.id),
-    title: details.title || details.original_title || "",
-    medium,
-    screenplayType,
-    originalLanguage,
-  };
+  return window.completeTmdbFieldLookup(
+    {
+      poster: details.poster_path
+        ? window.normalizePosterRecord({
+            url: `https://image.tmdb.org/t/p/w500${details.poster_path}`,
+            source: "tmdb",
+            sourceUrl: `https://www.themoviedb.org/movie/${details.id}`,
+            providerId: String(details.id),
+          })
+        : null,
+      year: Number.isFinite(year) ? year : null,
+      country: countries.join(", ") || null,
+      primaryCountry: countries[0] || null,
+      runtimeMinutes:
+        Number(details.runtime) > 0 ? Number(details.runtime) : null,
+      director,
+      directors,
+      // Every OTHER legitimate release year/runtime TMDB lists (regional
+      // release dates, translated-cut runtimes) - lets a caller that force-
+      // corrects a film's data (applyConfirmedTmdbMatch,
+      // src/pages/data-tools.js) tell "the existing value is a different
+      // but still genuinely valid one" from "the existing value is just
+      // wrong", rather than always overwriting with only this single
+      // "primary" pick.
+      releaseYearOptions: window.tmdbReleaseYearOptions?.(details) || [],
+      runtimeOptions: window.tmdbRuntimeOptions?.(details) || [],
+      tmdbId: String(details.id),
+      title: details.title || details.original_title || "",
+      medium,
+      screenplayType,
+      originalLanguage,
+    },
+    [
+      "poster_url",
+      "country",
+      "runtime_minutes",
+      "directors",
+      "medium",
+      "screenplay_type",
+      "original_language",
+      "year",
+    ],
+    requestedFields,
+  );
 };
 
 /**
@@ -807,6 +878,35 @@ window.personIdentityRepairCandidates = function (
     )
       continue;
     result.push({ person, tmdbId });
+  }
+  return result;
+};
+
+/**
+ * Marks only requested fields actually checked by a successful provider lookup.
+ * @param {Object|null} match Successful metadata result.
+ * @param {string[]} supported Fields this lookup actually obtained.
+ * @param {string[]} [requested] Missing fields eligible for this exact identity.
+ * @returns {Object|null} Result with explicit checked fields and unrequested values removed.
+ */
+window.completeTmdbFieldLookup = function (match, supported, requested) {
+  if (!match) return null;
+  let checked = supported.filter(
+    (field) => !requested || requested.includes(field),
+  );
+  let result = { ...match, checked_fields: checked };
+  let keys = {
+    poster_url: ["poster", "poster_url", "posterUrl"],
+    country: ["country", "primaryCountry", "primary_country"],
+    runtime_minutes: ["runtimeMinutes", "runtime_minutes"],
+    directors: ["directors", "director"],
+    medium: ["medium"],
+    screenplay_type: ["screenplayType", "screenplay_type"],
+    original_language: ["originalLanguage", "original_language"],
+    year: ["year", "correctedYear", "corrected_year"],
+  };
+  for (let [field, aliases] of Object.entries(keys)) {
+    if (!checked.includes(field)) for (let key of aliases) delete result[key];
   }
   return result;
 };

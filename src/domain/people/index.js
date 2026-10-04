@@ -18,6 +18,73 @@ window.PERSON_AWARD_PROFESSIONS = {
   "Best Costume Design": "Costume designer",
 };
 
+/**
+ * Groups one film's own award recipients by profession (issue #636): every
+ * person nominated for this film, with the roles/songs/details and award
+ * placements from this film alone. Pure, and equivalent to the film's own
+ * slice of `rebuildPeopleIndex()`'s archive-wide `film.peopleByProfession`
+ * (which calls this for every loaded film) - both key each entry by
+ * `window.resolveAwardRecipients()`'s alias-resolved `personId`, so a
+ * caller with only this one film's data reproduces the exact same groups a
+ * full archive read would (in Supabase mode this is a no-op, since it
+ * never populates `state.peopleAliases`, issue #633), letting a compact
+ * page render credits without loading the shared people index.
+ * `supabasePersonId` (a real people.id, when this film's own recipient
+ * rows carry one and no alias remapped them) lets a caller build a direct
+ * link without an index lookup; a caller that has the full people index
+ * can still resolve a better-known id there instead.
+ * @param {FilmRecord} film Film with its own `.awards`.
+ * @returns {Record<string, {id: string, supabasePersonId: string|null, name: string, details: string[], awards: {category: string, period: string, placement: number}[]}[]>}
+ */
+window.buildFilmPeopleByProfession = function (film) {
+  let groups = {};
+  (film?.awards || []).forEach((award) => {
+    let profession = window.PERSON_AWARD_PROFESSIONS[award.category];
+    if (!profession) return;
+    let detail = window.awardDetail(award);
+    window.resolveAwardRecipients(award).forEach((recipient) => {
+      let group = (groups[profession] ||= []);
+      let entry = group.find(
+        (candidate) => candidate.id === recipient.personId,
+      );
+      if (!entry) {
+        entry = {
+          id: recipient.personId,
+          supabasePersonId: recipient.supabasePersonId || null,
+          name: recipient.name,
+          details: [],
+          awards: [],
+        };
+        group.push(entry);
+      } else if (!entry.supabasePersonId && recipient.supabasePersonId) {
+        entry.supabasePersonId = recipient.supabasePersonId;
+      }
+      if (detail && !entry.details.includes(detail)) entry.details.push(detail);
+      let placement = Number(award.placement) || 0;
+      if (
+        !entry.awards.some(
+          (existing) =>
+            existing.category === award.category &&
+            String(existing.period) === String(award.year) &&
+            Number(existing.placement) === placement,
+        )
+      ) {
+        entry.awards.push({
+          category: award.category,
+          period: award.year,
+          placement,
+        });
+      }
+    });
+  });
+  Object.values(groups).forEach((group) =>
+    group.sort((left, right) =>
+      window.comparePersonNamesBySurname(left.name, right.name),
+    ),
+  );
+  return groups;
+};
+
 // TMDB's own cast gender field (0 not set, 1 female, 2 male, 3 non-binary),
 // keyed by the four gendered acting categories this app names after the
 // historical Oscar convention - used only to narrow the default cast list
@@ -91,6 +158,80 @@ window.parsePersonCredit = function (value) {
   };
 };
 
+// Watchlist/catalog edges from read_people_directory_edges(), used only
+// while the watchlist and shared catalog themselves are not loaded. They are
+// the signed-in account's own, so never for a public profile's archive.
+function peopleDirectoryEdges() {
+  if (window.OSKARS_STATE_HYDRATION_COMPLETE === true) return null;
+  if (state.isPublicProfileView) return null;
+  return state.peopleDirectoryEdges || null;
+}
+
+/** Reports whether the people index takes its watchlist and catalog edges from read_people_directory_edges() rows. @returns {boolean} Whether those rows are in use. */
+window.peopleDirectoryEdgesInUse = function () {
+  return Boolean(peopleDirectoryEdges());
+};
+
+/**
+ * Returns a person's watchlist items (issue #633): from the loaded
+ * watchlist, or - while the people index uses read_people_directory_edges()
+ * rows - reshaped from the items those rows carry, which are every item
+ * only when requested with allWatchlistItems.
+ * @param {PersonRecord} person
+ * @returns {WatchlistItem[]} Items in watchlist order.
+ */
+window.personWatchlistItems = function (person) {
+  if (!peopleDirectoryEdges()) {
+    let byId = new Map(
+      (state.watchlist || []).map((item) => [
+        item.id || window.watchlistItemId?.(item),
+        item,
+      ]),
+    );
+    return (person?.watchlistIds || [])
+      .map((id) => byId.get(id))
+      .filter(Boolean);
+  }
+  return (person?.watchlistPreview || [])
+    .map((row) =>
+      window.supabaseLegacyHydrationWatchlistItem?.(
+        row,
+        row.order != null ? Number(row.order) - 1 : null,
+        null,
+      ),
+    )
+    .filter(Boolean);
+};
+
+/** Reports whether this page's own-account archive is partial (no watchlist or shared catalog) and needs read_people_directory_edges() rows for its people index; never for a public profile. @returns {boolean} */
+window.peopleDirectoryEdgesNeeded = function () {
+  return (
+    window.OSKARS_STATE_HYDRATION_COMPLETE === false &&
+    !state.isPublicProfileView &&
+    Boolean(window.loadSupabasePeopleDirectoryEdges)
+  );
+};
+
+/**
+ * Loads read_people_directory_edges() rows into the people index (issue
+ * #633), or the complete archive if that read fails. Never rejects.
+ * @param {{allWatchlistItems?: boolean}} [options]
+ * @returns {Promise<void>}
+ */
+window.loadPeopleDirectoryEdges = async function (options = {}) {
+  try {
+    state.peopleDirectoryEdges =
+      await window.loadSupabasePeopleDirectoryEdges(options);
+    state.peopleIndexVersion = null;
+  } catch (error) {
+    console.warn(
+      "Could not load people edges; loading the full archive.",
+      error,
+    );
+    await window.ensureFocusedShellData?.().catch(() => {});
+  }
+};
+
 /** Rebuilds people, film-profession, and credit-subject indexes. @returns {Record<string, PersonRecord>} People index. */
 window.rebuildPeopleIndex = function () {
   let done = window.startOskarsPerformance?.("rebuildPeopleIndex");
@@ -143,6 +284,16 @@ window.rebuildPeopleIndex = function () {
     return index >= 0 ? record.directorIds?.[index] || null : null;
   }
 
+  // Same index resolution as directorSupabaseId, for the parallel
+  // directorUncredited array (issue #784).
+  function directorIsUncredited(record, name) {
+    let key = window.normalizePersonName(name);
+    let index = (record?.directors || []).findIndex(
+      (candidate) => window.normalizePersonName(candidate) === key,
+    );
+    return index >= 0 ? Boolean(record.directorUncredited?.[index]) : false;
+  }
+
   function addCredit(name, credit, supabasePersonId = null) {
     let person = ensurePerson(name, supabasePersonId);
     if (!person) return;
@@ -183,6 +334,58 @@ window.rebuildPeopleIndex = function () {
       person.watchedOtherIds.push(film.id);
   }
 
+  // Rows from read_people_directory_edges() stand in for the watchlist and
+  // shared-catalog walks below when those domains were never hydrated
+  // (issue #633); each row goes through the same ensurePerson(name, id)
+  // path the walks use, so the resulting person records are identical.
+  function addDirectoryEdges(rows) {
+    let catalogById = new Map();
+    rows.forEach((row) =>
+      (row.catalog_films || []).forEach((film) =>
+        catalogById.set(film.id, {
+          id: film.id,
+          tmdbId: film.tmdb_id != null ? String(film.tmdb_id) : "",
+          title: film.title,
+          year: film.year != null ? String(film.year) : "",
+        }),
+      ),
+    );
+    let unseenIds = new Set(
+      window
+        .sharedArchiveFilmsOutsideCollection([...catalogById.values()])
+        .map((film) => film.id),
+    );
+    rows.forEach((row) => {
+      let person = ensurePerson(row.name, row.person_id);
+      if (!person) return;
+      let professions = (row.catalog_films || [])
+        .filter((film) => unseenIds.has(film.id))
+        .map((film) =>
+          film.role === "director"
+            ? "Director"
+            : String(film.role || "").trim(),
+        );
+      if ((row.watchlist_ids || []).length) professions.push("Director");
+      professions.filter(Boolean).forEach((profession) => {
+        if (!person.professions.includes(profession))
+          person.professions.push(profession);
+      });
+      (row.watchlist_ids || []).forEach((itemId) => {
+        if (!person.watchlistIds.includes(itemId))
+          person.watchlistIds.push(itemId);
+      });
+      (row.watchlist_preview || []).forEach((item) => {
+        person.watchlistPreview ||= [];
+        if (!person.watchlistPreview.some((entry) => entry.id === item.id))
+          person.watchlistPreview.push(item);
+      });
+      (row.catalog_films || []).forEach((film) => {
+        if (unseenIds.has(film.id) && !person.catalogIds.includes(film.id))
+          person.catalogIds.push(film.id);
+      });
+    });
+  }
+
   let films = Object.values(state.filmsById || {});
   let doneCollect = window.startOskarsPerformance?.(
     "rebuildPeopleIndex:collect",
@@ -204,6 +407,7 @@ window.rebuildPeopleIndex = function () {
           placement: null,
           profession: "Director",
           originalCredit: film.director || directors.join(", "),
+          detail: directorIsUncredited(film, name) ? "uncredited" : undefined,
         },
         directorSupabaseId(film, name),
       ),
@@ -255,11 +459,13 @@ window.rebuildPeopleIndex = function () {
       );
     });
   });
-  (state.watchlist || []).forEach((item) => {
-    window
-      .parsePersonCredit(item.director)
-      .names.forEach((name) => addWatchlistDirector(name, item));
-  });
+  let directoryEdges = peopleDirectoryEdges();
+  if (!directoryEdges)
+    (state.watchlist || []).forEach((item) => {
+      window
+        .parsePersonCredit(item.director)
+        .names.forEach((name) => addWatchlistDirector(name, item));
+    });
   (state.watchedOther || []).forEach((film) => {
     let directors = film.directors?.length
       ? film.directors
@@ -279,23 +485,27 @@ window.rebuildPeopleIndex = function () {
   // already carries every profession. Nominee-only records (no real
   // films.id) are skipped - catalogIds only ever holds real catalog rows,
   // since there's no id to link a film.html?id= page to otherwise.
-  (window.sharedArchiveCandidateFilms?.() || []).forEach((film) => {
-    if (!film.id) return;
-    Object.values(film.people || {}).forEach((credit) => {
-      let person = ensurePerson(
-        credit.name,
-        credit.supabasePersonIds?.length === 1
-          ? credit.supabasePersonIds[0]
-          : null,
-      );
-      if (!person) return;
-      (credit.professions || []).forEach((profession) => {
-        if (!person.professions.includes(profession))
-          person.professions.push(profession);
+  if (directoryEdges) addDirectoryEdges(directoryEdges);
+  (directoryEdges ? [] : window.sharedArchiveCandidateFilms?.() || []).forEach(
+    (film) => {
+      if (!film.id) return;
+      Object.values(film.people || {}).forEach((credit) => {
+        let person = ensurePerson(
+          credit.name,
+          credit.supabasePersonIds?.length === 1
+            ? credit.supabasePersonIds[0]
+            : null,
+        );
+        if (!person) return;
+        (credit.professions || []).forEach((profession) => {
+          if (!person.professions.includes(profession))
+            person.professions.push(profession);
+        });
+        if (!person.catalogIds.includes(film.id))
+          person.catalogIds.push(film.id);
       });
-      if (!person.catalogIds.includes(film.id)) person.catalogIds.push(film.id);
-    });
-  });
+    },
+  );
   doneCollect?.();
 
   let doneFinalize = window.startOskarsPerformance?.(
@@ -351,44 +561,7 @@ window.rebuildPeopleIndex = function () {
     "rebuildPeopleIndex:filmProfessions",
   );
   films.forEach((film) => {
-    film.peopleByProfession = {};
-  });
-  Object.values(peopleById).forEach((person) => {
-    person.credits.forEach((credit) => {
-      if (credit.source !== "award") return;
-      if (!credit.profession) return;
-      let film = state.filmsById?.[credit.filmId];
-      if (!film) return;
-      let group = (film.peopleByProfession[credit.profession] ||= []);
-      let entry = group.find((candidate) => candidate.id === person.id);
-      if (!entry) {
-        entry = { id: person.id, name: person.name, details: [], awards: [] };
-        group.push(entry);
-      }
-      if (credit.detail && !entry.details.includes(credit.detail))
-        entry.details.push(credit.detail);
-      if (
-        !entry.awards.some(
-          (award) =>
-            award.category === credit.category &&
-            String(award.period) === String(credit.period) &&
-            Number(award.placement) === Number(credit.placement),
-        )
-      ) {
-        entry.awards.push({
-          category: credit.category,
-          period: credit.period,
-          placement: Number(credit.placement) || 0,
-        });
-      }
-    });
-  });
-  films.forEach((film) => {
-    Object.values(film.peopleByProfession || {}).forEach((group) =>
-      group.sort((left, right) =>
-        window.comparePersonNamesBySurname(left.name, right.name),
-      ),
-    );
+    film.peopleByProfession = window.buildFilmPeopleByProfession(film);
   });
   doneProfession?.();
 

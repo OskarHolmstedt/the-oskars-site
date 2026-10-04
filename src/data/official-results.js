@@ -6,6 +6,14 @@ const OFFICIAL_LONG_FORM_CATEGORIES = [
   [/^CINEMATOGRAPHY(?: \(|$)/, "Best Cinematography"],
   [/^WRITING \(Original Screenplay\)$/, "Best Original Screenplay"],
   [/^WRITING \(Adapted Screenplay\)$/, "Best Adapted Screenplay"],
+  // The Academy's 2nd and 3rd ceremonies (1928/29, 1929/30) gave one
+  // unsplit writing award, with no Original/Adapted distinction to map -
+  // asserting either would misrepresent the ceremony (issue #773). This is
+  // the one entry here whose target isn't in categoryOrder: it stays a
+  // real, visible official category (period/category official views group
+  // and link by it like any other), just outside personal-award
+  // comparison, since the personal taxonomy has no unsplit "Writing" slot.
+  [/^WRITING$/, "Best Writing"],
   [/^ACTOR IN A LEADING ROLE$/, "Best Lead Actor"],
   [/^ACTRESS IN A LEADING ROLE$/, "Best Lead Actress"],
   [/^ACTOR IN A SUPPORTING ROLE$/, "Best Supporting Actor"],

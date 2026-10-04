@@ -117,7 +117,12 @@ window.renderLinkedPeopleNames = function (value, options = {}) {
             window.watchlistItemsByDirector?.(canonicalName).length
           ? window.watchlistDirectorPageUrl(canonicalName)
           : window.personPageUrl(canonicalId);
-    return `<a class="table-film-link" href="${escape(href)}">${escape(canonicalName)}</a>`;
+    // An uncredited/editorial director credit (issue #784) carries a note;
+    // never affects link resolution above.
+    let note = options.uncredited?.[personId]
+      ? '<span class="credit-uncredited-note"> (uncredited)</span>'
+      : "";
+    return `<a class="table-film-link" href="${escape(href)}">${escape(canonicalName)}</a>${note}`;
   });
   if (!links.length) return "";
   if (links.length <= compact.visible.length || options.expanded)
@@ -203,20 +208,26 @@ window.renderLinkedDirectors = function (filmOrNames, options = {}) {
       : typeof filmOrNames === "object" && filmOrNames
         ? filmOrNames.director || ""
         : filmOrNames;
-  // film.directors/film.directorIds are index-aligned (issue #633).
+  // film.directors/film.directorIds/film.directorUncredited are
+  // index-aligned (issues #633, #784).
   let personIds = {};
+  let uncredited = {};
   if (
     filmOrNames &&
     typeof filmOrNames === "object" &&
     !Array.isArray(filmOrNames)
   )
     (filmOrNames.directors || []).forEach((director, index) => {
+      let key = window.normalizePersonName?.(director) || director;
       let id = filmOrNames.directorIds?.[index];
-      if (id)
-        personIds[window.normalizePersonName?.(director) || director] = id;
+      if (id) personIds[key] = id;
+      if (filmOrNames.directorUncredited?.[index]) uncredited[key] = true;
     });
   return window.renderLinkedPeopleNames(
     names,
-    Object.assign({ watchlistDirectorFallback: true, personIds }, options),
+    Object.assign(
+      { watchlistDirectorFallback: true, personIds, uncredited },
+      options,
+    ),
   );
 };

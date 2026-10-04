@@ -14,6 +14,15 @@
  * @property {string} id Stable collection identifier.
  */
 /**
+ * A resolved navigation link or element target for prefetching and pre-warming.
+ * @typedef {Object} NavigationTarget
+ * @property {'film'|'period'|'page'} kind Navigation destination kind.
+ * @property {string} url Resolved relative or same-origin URL.
+ * @property {string} [filmId] Supabase or local film ID when kind is 'film'.
+ * @property {string} [periodType] Period type ('year'|'decade'|'century'|'alltime') when kind is 'period'.
+ * @property {string} [periodKey] Period identifier when kind is 'period'.
+ */
+/**
  * A union or intersection of collection references.
  * @typedef {Object} CollectionFilterGroup
  * @property {'any'|'all'} mode Set operation.
@@ -102,6 +111,7 @@
  * @property {string} [director] Raw credited director text.
  * @property {string[]} [directors] Split director names.
  * @property {(string|null)[]} [directorIds] `people.id` per `directors` entry, index-aligned (issue #633) - null where unresolved.
+ * @property {boolean[]} [directorUncredited] Whether each `directors` entry is an owner-added editorial credit TMDB doesn't list, index-aligned (issue #784).
  * @property {string} [rating] Star rating text (e.g. "★★★★—").
  * @property {number} [ratingValue] Numeric star count.
  * @property {string} [ratingModifier] Rating suffix/modifier, if any.
@@ -115,7 +125,7 @@
  * @property {string} [country] Possibly multiple production countries.
  * @property {string} [primaryCountry] Single normalized country used for
  *   Best International Picture eligibility.
- * @property {'live-action'|'animation'|'hybrid'|'unknown'} [medium]
+ * @property {'live-action'|'animation'|'unknown'} [medium]
  * @property {'original'|'adapted'|'unknown'} [screenplayType]
  * @property {string} [adaptationSource]
  * @property {string} [swedishTitle]
@@ -181,6 +191,7 @@
  * @property {string} [originalTitle] Original-language title, when it differs from sourceTitle.
  * @property {string} [tmdbId] Resolved TMDB movie id - a canon fact (unlike filmRef), so it ships in the shared official-results archive and lets matching bypass title/year entirely once set.
  * @property {{id: string, title: string, year: string}} [filmRef] Existing canonical film match.
+ * @property {{position: number, tmdbId?: string, filmRef?: {id: string, title: string, year: string}}[]} [additionalFilms] Further films of a multi-film nomination, each at the position of its title in sourceTitle (2, 3, ...); tmdbId/filmRef above are the first title's. Read every film through `officialNominationFilms()`.
  */
 
 /**
@@ -298,6 +309,17 @@
  */
 
 /**
+ * One category-period comparison record for award agreement inspections.
+ * @typedef {Object} OfficialAwardAgreementRecord
+ * @property {string} periodKey
+ * @property {string[]} representedYears
+ * @property {string} category
+ * @property {'agreement'|'disagreement'} status
+ * @property {PeriodAwardEntry[]} personalWinners
+ * @property {OfficialNomination[]} officialWinners
+ */
+
+/**
  * Overall personal-vs-official agreement across comparable category-periods.
  * @typedef {Object} OfficialAwardAgreementStatistics
  * @property {number} matches
@@ -308,6 +330,7 @@
  * @property {number} periodCount
  * @property {OfficialAwardAgreementBreakdown[]} categoryRows
  * @property {OfficialAwardAgreementBreakdown[]} decadeRows
+ * @property {OfficialAwardAgreementRecord[]} records
  */
 
 /**
@@ -388,6 +411,7 @@
  * @property {string} [director]
  * @property {string[]} [directors]
  * @property {(string|null)[]} [directorIds] `people.id` per `directors` entry, index-aligned (issue #633) - null where unresolved.
+ * @property {boolean[]} [directorUncredited] Whether each `directors` entry is an owner-added editorial credit TMDB doesn't list, index-aligned (issue #784).
  * @property {string} [country]
  * @property {number|string} [runtimeMinutes]
  * @property {string} [adaptationSource]
@@ -419,7 +443,7 @@
  * @property {string[]} [tags]
  * @property {PosterRecord|null} [poster]
  * @property {number} [runtimeMinutes]
- * @property {'live-action'|'animation'|'hybrid'|'unknown'} [medium]
+ * @property {'live-action'|'animation'|'unknown'} [medium]
  * @property {'original'|'adapted'|'unknown'} [screenplayType]
  * @property {string} [adaptationSource]
  * @property {string} [country]
@@ -1035,11 +1059,19 @@
  */
 
 /**
+ * Shared, owner-curated catalog tag (genre or objective grouping), distinct from a user's personal tags.
+ * @typedef {Object} CatalogTagRecord
+ * @property {string} id Catalog tag id.
+ * @property {string} name
+ * @property {'genre'|'theme'|'form'|'source'} kind
+ */
+
+/**
  * Session-only reviewed import candidate.
  * @typedef {Object} ImportProposal
  * @property {number} schemaVersion Proposal contract version.
  * @property {'preview'|'applied'} status Session state.
- * @property {'google-sheets'|'json'|'delimited'|'official-results'|'letterboxd'} sourceKind Source family.
+ * @property {'google-sheets'|'json'|'delimited'|'official-results'|'letterboxd'|'imdb'} sourceKind Source family.
  * @property {'merge'|'replace'|'foundation'|'refresh'} mode Proposal behavior.
  * @property {string} sourceRevision Deterministic source identity.
  * @property {Object} sourceConfig Non-secret source configuration.
@@ -1457,6 +1489,23 @@ window.getSerializableState = function () {
     selectedPeriodType: window.state.selectedPeriodType,
     selectedYears: window.state.selectedYears,
   };
+};
+
+/**
+ * Restores global runtime state from a snapshot produced by getSerializableState().
+ * @param {Object} backup Serialized state snapshot.
+ * @returns {OskarsState|null} Restored state.
+ */
+window.restoreSerializableState = function (backup) {
+  if (!backup || typeof backup !== "object" || !window.state) return null;
+  if (typeof window.hydrateState === "function") {
+    return window.hydrateState(backup);
+  }
+  Object.assign(window.state, backup);
+  if (window.rebuildAggregates) window.rebuildAggregates();
+  else if (window.markAggregatesDirty)
+    window.markAggregatesDirty("state backup restored");
+  return window.state;
 };
 
 window.OSKARS_WORKSPACE_SCHEMA_VERSION = 1;

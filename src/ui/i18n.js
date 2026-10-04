@@ -19,12 +19,11 @@
     "nav.intake": { sv: "Intag" },
     "nav.build": { sv: "Bygg dina Oskars" },
     "nav.rateWatched": { sv: "Betygsätt sedda" },
+    "nav.rankings": { sv: "Rangordning" },
     "action.view": { sv: "Visa" },
     "search.placeholder": { sv: "Sök" },
     "search.loading": { sv: "Laddar sökning…" },
     "search.error": { sv: "Kunde inte ladda sökningen." },
-    "shell.onDemand": { sv: "Öppna för att ladda ditt arkiv." },
-    "shell.loading": { sv: "Laddar arkiv…" },
     "shell.error": { sv: "Kunde inte ladda arkivet." },
     "shell.retry": { sv: "Försök igen" },
     "search.aria": { sv: "Sök i The Oskars" },
@@ -83,6 +82,18 @@
   };
 
   let literalTranslations = {
+    "An unexpected error occurred.": { sv: "Ett oväntat fel inträffade." },
+    "This page encountered a problem. Reload it or return home.": {
+      sv: "Ett problem uppstod på sidan. Ladda om den eller gå till startsidan.",
+    },
+    "Reload page": { sv: "Ladda om sidan" },
+    "Go to home": { sv: "Gå till startsidan" },
+    Diagnostics: { sv: "Diagnostik" },
+    "This in-memory log is limited to this page and redacts sensitive values.":
+      {
+        sv: "Den här loggen finns bara på sidan och döljer känsliga värden.",
+      },
+    "Export diagnostic log": { sv: "Exportera diagnostiklogg" },
     "Not watched": { sv: "Inte sedd" },
     "Trophy cabinet": { sv: "Troféskåp" },
     "Fixed collections. Every film counts.": {
@@ -101,7 +112,10 @@
       },
 
     "Loading statistics…": { sv: "Laddar statistik…" },
+    "Loading people…": { sv: "Laddar personer…" },
+    "Loading directors…": { sv: "Laddar regissörer…" },
     "Loading…": { sv: "Laddar…" },
+    "Load more": { sv: "Ladda fler" },
     "Could not load completion data.": {
       sv: "Kunde inte ladda färdigställandedata.",
     },
@@ -109,6 +123,33 @@
     "Try again": { sv: "Försök igen" },
     "Use the existing statistics view": {
       sv: "Använd den befintliga statistikvyn",
+    },
+    "No comparison records for this filter.": {
+      sv: "Inga jämförelseposter för detta filter.",
+    },
+    "Your winner (Oskars)": { sv: "Din vinnare (Oskars)" },
+    "Academy winner (Oscars)": { sv: "Akademins vinnare (Oscars)" },
+    "Oskars–Oscars comparison details": {
+      sv: "Jämförelsedetaljer mellan Oskars och Oscars",
+    },
+    "Filter comparisons": { sv: "Filtrera jämförelser" },
+    "Click to inspect matching and differing films": {
+      sv: "Klicka för att granska matchande och skiljande filmer",
+    },
+    "Click to inspect": { sv: "Klicka för att granska" },
+    "Hide details": { sv: "Dölj detaljer" },
+    total: { sv: "totalt" },
+    animated: { sv: "animerat" },
+    foreign: { sv: "utländskt" },
+    adapted: { sv: "adapterat" },
+    original: { sv: "original" },
+    Foreign: { sv: "Utländskt" },
+    "Ceremony thresholds": { sv: "Ceremonitrösklar" },
+    "{count}/{threshold} {label} (threshold met)": {
+      sv: "{count}/{threshold} {label} (tröskel uppnådd)",
+    },
+    "{count}/{threshold} {label} (threshold: {threshold})": {
+      sv: "{count}/{threshold} {label} (tröskel: {threshold})",
     },
     // Data-health finding issue labels and severity tokens
     // (src/domain/data-health.js) - these were
@@ -197,6 +238,319 @@
     "Letterboxd import saved to your account.": {
       sv: "Letterboxd-importen sparades i ditt konto.",
     },
+    "IMDb jumpstart": { sv: "IMDb-start" },
+    "IMDb import": { sv: "IMDb-import" },
+    "IMDb import saved to your account.": {
+      sv: "IMDb-importen sparades i ditt konto.",
+    },
+    "Parsing your spreadsheet…": { sv: "Tolkar ditt kalkylark…" },
+    "Spreadsheet import saved to your account.": {
+      sv: "Kalkylarksimporten sparades i ditt konto.",
+    },
+    "Choose the onboarding path that matches how you want to build and track your films.":
+      {
+        sv: "Välj den introduktionsväg som matchar hur du vill bygga och spåra dina filmer.",
+      },
+    "Path 1 · Start fresh": { sv: "Spår 1 · Börja från början" },
+    "Your film is in your archive. Ratings and viewing dates can wait.": {
+      sv: "Din film finns i ditt arkiv. Betyg och visningsdatum kan vänta.",
+    },
+    "1 film selected": { sv: "1 film vald" },
+    "Saving…": { sv: "Sparar…" },
+    "Invalid film identity.": { sv: "Ogiltig filmidentitet." },
+    "Public profiles are read-only.": {
+      sv: "Offentliga profiler är skrivskyddade.",
+    },
+    "Sign in to add films.": { sv: "Logga in för att lägga till filmer." },
+    "Start with films you remember": { sv: "Börja med filmer du minns" },
+    "Find old favourites, revisit a year, or log your latest watch. Your Oskars starts with one film.":
+      {
+        sv: "Hitta gamla favoriter, återbesök ett år eller logga din senaste film. Dina Oskars börjar med en film.",
+      },
+    "Explore a year": { sv: "Utforska ett år" },
+    "Add a film": { sv: "Lägg till en film" },
+    "Already in your archive": { sv: "Redan i ditt arkiv" },
+    "Selected ✓": { sv: "Vald ✓" },
+    "I've seen this": { sv: "Jag har sett den" },
+    "Your archive has begun": { sv: "Ditt arkiv har fått sin början" },
+    "{count} films are in your archive. Ratings and viewing dates can wait.": {
+      sv: "{count} filmer finns i ditt arkiv. Betyg och visningsdatum kan vänta.",
+    },
+    "Rate your films": { sv: "Betygsätt dina filmer" },
+    "Pick your favourite from {year}": { sv: "Välj din favorit från {year}" },
+    "View your archive": { sv: "Visa ditt arkiv" },
+    "Browse another year": { sv: "Utforska ett annat år" },
+    "Films you remember": { sv: "Filmer du minns" },
+    "Save these as seen. You can rate, rank, or nominate them later.": {
+      sv: "Spara dem som sedda. Du kan betygsätta, rangordna eller nominera dem senare.",
+    },
+    "Save as seen": { sv: "Spara som sedda" },
+    "Choose a release year and select films you've seen. One film is enough.": {
+      sv: "Välj ett premiärår och markera filmer du har sett. En film räcker.",
+    },
+    "Release year is when the film came out, not when you watched it.": {
+      sv: "Premiäråret är året då filmen släpptes, inte när du såg den.",
+    },
+    "Choose a year": { sv: "Välj ett år" },
+    "Can't find a film? Add it by title": {
+      sv: "Hittar du inte en film? Lägg till den via titeln",
+    },
+    "{count} films selected": { sv: "{count} filmer valda" },
+    "Keep browsing": { sv: "Fortsätt utforska" },
+    "Review selection": { sv: "Granska urvalet" },
+    "Some films may already be saved. Retry safely to finish.": {
+      sv: "Vissa filmer kan redan vara sparade. Försök igen för att slutföra utan att ändra sparade uppgifter.",
+    },
+    "Your film is saved. Continue your verdict now, or come back to it later.":
+      {
+        sv: "Din film är sparad. Fortsätt med ditt omdöme nu eller återkom senare.",
+      },
+    "Find a film by title. Ratings and viewing dates can wait.": {
+      sv: "Hitta en film via titeln. Betyg och visningsdatum kan vänta.",
+    },
+    "Blank user": { sv: "Tomt arkiv" },
+    "No external services needed. Explore the catalog, log your latest watches, or build your first annual Oskar ballot.":
+      {
+        sv: "Inga externa tjänster behövs. Utforska katalogen, logga dina senaste sedda filmer eller bygg din första årliga Oskar-omröstning.",
+      },
+    "Browse catalog": { sv: "Bläddra i katalogen" },
+    "Add a watch": { sv: "Lägg till sedd film" },
+    "Path 2 · Letterboxd": { sv: "Spår 2 · Letterboxd" },
+    "Import your Letterboxd export ZIP once, then connect your username to auto-sync future watches via RSS.":
+      {
+        sv: "Importera din Letterboxd-export-ZIP en gång och koppla sedan ditt användarnamn för att autosynka framtida sedda filmer via RSS.",
+      },
+    "Import Letterboxd": { sv: "Importera Letterboxd" },
+    "Path 3 · IMDb": { sv: "Spår 3 · IMDb" },
+    "Import your IMDb ratings and watchlist CSVs. 1–10 ratings are converted directly to our 0.5–5.0★ scale.":
+      {
+        sv: "Importera dina IMDb ratings- och watchlist-CSV:er. Betyg 1–10 konverteras direkt till vår 0,5–5,0★-skala.",
+      },
+    "Import IMDb": { sv: "Importera IMDb" },
+    "Path 4 · Spreadsheets": { sv: "Spår 4 · Kalkylark" },
+    "Google Sheets & Excel": { sv: "Google Sheets & Excel" },
+    "Download our ready-made CSV starter templates or import your custom ranked diary and watchlist spreadsheets.":
+      {
+        sv: "Ladda ner våra färdiga CSV-startmallar eller importera dina anpassade rankade dagboks- och watchlistkalkylark.",
+      },
+    "Explore templates": { sv: "Utforska mallar" },
+    "Create a spreadsheet directly in your Google Drive, download CSV starter templates, or sync your custom sheets.":
+      {
+        sv: "Skapa ett kalkylark direkt på din Google Drive, ladda ner CSV-startmallar eller synka dina anpassade ark.",
+      },
+    "Connect Google Sheets": { sv: "Koppla Google Sheets" },
+    "Connected spreadsheet ID saved.": {
+      sv: "Kopplat kalkylarks-ID sparat.",
+    },
+    "Creating spreadsheet on Google Drive…": {
+      sv: "Skapar kalkylark på Google Drive…",
+    },
+    "Created spreadsheet:": { sv: "Skapade kalkylark:" },
+    "Please connect a spreadsheet first.": {
+      sv: "Vänligen koppla ett kalkylark först.",
+    },
+    "Connecting to Google Sheets…": {
+      sv: "Ansluter till Google Sheets…",
+    },
+    "Spreadsheet sync saved to your account.": {
+      sv: "Kalkylarkssynk sparades på ditt konto.",
+    },
+    "Pushing archive to Google Sheets…": {
+      sv: "Skickar arkivet till Google Sheets…",
+    },
+    "Archive pushed to Google Sheets ({0} film(s), {1} watchlist item(s)).": {
+      sv: "Arkivet skickades till Google Sheets ({0} film(er), {1} watchlist-film(er)).",
+    },
+    "Clicking this will open a Google sign-in prompt.": {
+      sv: "Om du klickar här öppnas en Google-inloggning.",
+    },
+    "Your sheet is connected. Edit films in Google Sheets, then sync back anytime.":
+      {
+        sv: "Ditt kalkylark är anslutet. Redigera filmer i Google Sheets och synka sedan tillbaka när som helst.",
+      },
+    "No Google account? Download starter templates": {
+      sv: "Inget Google-konto? Ladda ner startmallar",
+    },
+    "Track your films locally in Excel, Numbers, or CSV. Download starter templates or preview and import a completed delimited file.":
+      {
+        sv: "Håll koll på dina filmer lokalt i Excel, Numbers eller CSV. Ladda ner startmallar eller förhandsgranska och importera en färdig textfil.",
+      },
+    "Edit in Google Sheets": { sv: "Redigera i Google Sheets" },
+    "Log films, ratings, and watchlist additions in your sheet.": {
+      sv: "Logga filmer, betyg och bevakningslistor i ditt kalkylark.",
+    },
+    "Sync to archive": { sv: "Synka till arkiv" },
+    "Fetch updates and review additions before saving.": {
+      sv: "Hämta uppdateringar och granska tillägg innan du sparar.",
+    },
+    "Push archive back": { sv: "Skicka tillbaka till arket" },
+    "Export your full archive and metadata back to the sheet.": {
+      sv: "Exportera hela ditt arkiv och metadata tillbaka till kalkylarket.",
+    },
+    "Google authorization expired or invalid. Please reconnect your Google account and try again.":
+      {
+        sv: "Google-auktoriseringen har gått ut eller är ogiltig. Återanslut ditt Google-konto och försök igen.",
+      },
+    "Google Drive or Sheets quota exceeded (403). Please free up space or wait before trying again.":
+      {
+        sv: "Kvot för Google Drive eller Sheets har överskridits (403). Frigör utrymme eller vänta innan du försöker igen.",
+      },
+    "Access denied (403). Make sure your Google account has permission to access or edit this spreadsheet.":
+      {
+        sv: "Åtkomst nekad (403). Kontrollera att ditt Google-konto har behörighet att visa eller redigera detta kalkylark.",
+      },
+    "Spreadsheet not found (404). Please verify that the spreadsheet ID or URL is correct and shared with your account.":
+      {
+        sv: "Kalkylarket hittades inte (404). Kontrollera att kalkylarks-ID eller webbadress är korrekt och delad med ditt konto.",
+      },
+    "Google Sheets API rate limit exceeded. Please wait a moment before trying again.":
+      {
+        sv: "Google Sheets API-hastighetsgräns överskriden. Vänta en stund innan du försöker igen.",
+      },
+    "Google sign-in popup was blocked by your browser. Please allow popups for this site and try again.":
+      {
+        sv: "Google-inloggningsfönstret blockerades av din webbläsare. Tillåt popup-fönster för den här webbplatsen och försök igen.",
+      },
+    "Google sign-in or request timed out. Please check your network connection and try again.":
+      {
+        sv: "Google-inloggningen eller förfrågan tog för lång tid. Kontrollera din nätverksanslutning och försök igen.",
+      },
+    "Connect your Letterboxd username on your Profile to auto-sync future watches.":
+      {
+        sv: "Koppla ditt Letterboxd-användarnamn på din profil för att synka framtida filmer automatiskt.",
+      },
+    "Letterboxd sync": { sv: "Letterboxd-synk" },
+    "Letterboxd username": { sv: "Letterboxd-användarnamn" },
+    "Automatically detect new diary watches from your public Letterboxd RSS feed and start an Intake for them.":
+      {
+        sv: "Upptäck automatiskt nya sedda filmer från ditt publika Letterboxd RSS-flöde och starta ett Intake för dem.",
+      },
+    "Last synced with Letterboxd on {date}.": {
+      sv: "Synkades senast med Letterboxd den {date}.",
+    },
+    "Never synced yet. Enter your Letterboxd username to start.": {
+      sv: "Aldrig synkad än. Ange ditt Letterboxd-användarnamn för att starta.",
+    },
+    "Syncing from Letterboxd…": { sv: "Synkar från Letterboxd…" },
+    "Letterboxd settings saved.": {
+      sv: "Letterboxd-inställningarna sparades.",
+    },
+    "Letterboxd username cleared.": {
+      sv: "Letterboxd-användarnamnet rensades.",
+    },
+    "All caught up — no new Letterboxd watches found.": {
+      sv: "Helt ikapp — inga nya sedda filmer hittades på Letterboxd.",
+    },
+    "Synced {count} new watch(es) into Intake.": {
+      sv: "Synkade {count} ny(a) sedd(a) film(er) till Intake.",
+    },
+    "Synced {count} new watch(es)": {
+      sv: "Synkade {count} ny(a) sedd(a) film(er)",
+    },
+    "Synced {date}": {
+      sv: "Synkades {date}",
+    },
+    Connected: { sv: "Kopplad" },
+    "How do I get my Letterboxd export?": {
+      sv: "Hur hämtar jag min Letterboxd-export?",
+    },
+    "How do I get my IMDb export?": {
+      sv: "Hur hämtar jag min IMDb-export?",
+    },
+    "How do I get my export?": {
+      sv: "Hur hämtar jag min export?",
+    },
+    "Go to Letterboxd Settings → Data and click Export Your Data, then upload the ZIP on the Data page.":
+      {
+        sv: "Gå till Inställningar → Data på Letterboxd och klicka på Exportera din data, och ladda sedan upp ZIP-filen på Data-sidan.",
+      },
+    "Open Letterboxd export settings ↗": {
+      sv: "Öppna Letterboxds exportinställningar ↗",
+    },
+    "Go to Your Ratings on IMDb, click the three dots (···) menu and select Export. You can do the same for Your Watchlist.":
+      {
+        sv: "Gå till Dina betyg på IMDb, klicka på trepunktsmenyn (···) och välj Export. Du kan göra detsamma för din Watchlist.",
+      },
+    "Open IMDb ratings export ↗": {
+      sv: "Öppna IMDb:s betygsexport ↗",
+    },
+    "Your IMDb Ratings ↗": {
+      sv: "Dina IMDb-betyg ↗",
+    },
+    "Your IMDb Watchlist ↗": {
+      sv: "Din IMDb-watchlist ↗",
+    },
+    "Rating scale conversion (1–10 → 0.5–5.0★)": {
+      sv: "Betygsskaleomvandling (1–10 → 0,5–5,0★)",
+    },
+    "Ratings convert linearly (IMDb score ÷ 2). You can adjust any rating in your archive after importing.":
+      {
+        sv: "Betyg konverteras linjärt (IMDb-betyg ÷ 2). Du kan justera alla betyg i ditt arkiv efter importen.",
+      },
+    "Enrich your watchlist": {
+      sv: "Berika din watchlist",
+    },
+    "Set tiers for your {count} imported watchlist films": {
+      sv: "Sätt nivåer för dina {count} importerade watchlist-filmer",
+    },
+    "Prioritise your watchlist with S/A/B/C/D tiers to decide what to watch next.":
+      {
+        sv: "Prioritera din watchlist med S/A/B/C/D-nivåer för att bestämma vad du ska se härnäst.",
+      },
+    "Set watchlist tiers": {
+      sv: "Sätt watchlist-nivåer",
+    },
+    "Organise watchlist": {
+      sv: "Organisera watchlist",
+    },
+    "Your {count} films are in! Explore your decades or head to Home.": {
+      sv: "Dina {count} filmer är inne! Utforska dina decennier eller gå till Hem.",
+    },
+    "Explore your decades →": {
+      sv: "Utforska dina decennier →",
+    },
+    "Go to Home": {
+      sv: "Gå till Hem",
+    },
+    "Connect username for RSS sync": {
+      sv: "Koppla användarnamn för RSS-synk",
+    },
+    "Rate your unrated imports": {
+      sv: "Betygsätt dina obetygsatta importer",
+    },
+    "You have {count} unrated films in your archive. Rate them to unlock leaderboards and rankings.":
+      {
+        sv: "Du har {count} obetygsatta filmer i ditt arkiv. Betygsätt dem för att låsa upp topplistor och rankningar.",
+      },
+    "Rate unrated films": {
+      sv: "Betygsätt obetygsatta filmer",
+    },
+    "Explore your archive": {
+      sv: "Utforska ditt arkiv",
+    },
+    "See your decade breakdown": {
+      sv: "Se din decenniefördelning",
+    },
+    "Explore your imported films across decades and pick a year to build your first ceremony.":
+      {
+        sv: "Utforska dina importerade filmer över decennier och välj ett år för att bygga din första ceremoni.",
+      },
+    "Explore decades": {
+      sv: "Utforska decennier",
+    },
+    "Build a ceremony": {
+      sv: "Bygg en ceremoni",
+    },
+    "Build your first ceremony": {
+      sv: "Bygg din första ceremoni",
+    },
+    "Pick your favourite films and nominees for any year in your archive.": {
+      sv: "Välj dina favoritfilmer och nominerade för vilket år som helst i ditt arkiv.",
+    },
+    "Could not fetch Letterboxd feed (check username or profile privacy).": {
+      sv: "Kunde inte hämta Letterboxd-flödet (kontrollera användarnamn eller profilens sekretess).",
+    },
+    "New Letterboxd watch": { sv: "Ny Letterboxd-film" },
     "Saving to your account… this can take a while for a large import. Don't close this tab.":
       {
         sv: "Sparar till ditt konto… det kan ta ett tag för en stor import. Stäng inte den här fliken.",
@@ -321,6 +675,50 @@
     "ranking groups arranged": { sv: "rankningsgrupper ordnade" },
     "award slots filled": { sv: "prisplatser fyllda" },
     "years complete": { sv: "år klara" },
+    "Watched films that have been given a rating": {
+      sv: "Sedda filmer som har fått ett betyg",
+    },
+    "Groups of films with tied ratings placed in order": {
+      sv: "Grupper av filmer med delade betyg i inbördes ordning",
+    },
+    "No tied ratings need arranging into ranking order yet.": {
+      sv: "Inga delade betyg behöver ordnas i inbördes rankning ännu.",
+    },
+    "Ceremony categories with winners and nominees chosen across all years": {
+      sv: "Ceremonikategorier med valda vinnare och nominerade över alla år",
+    },
+    "Years where all films are rated, rankings are confirmed, and awards are reviewed":
+      {
+        sv: "År där alla filmer är betygsatta, rankningar är bekräftade och ceremonier är granskade",
+      },
+    "Nothing to arrange yet": { sv: "Inget att ordna ännu" },
+    "None needed": { sv: "Behövs ej" },
+    "Nothing to arrange": { sv: "Inget att ordna" },
+    "Watched films given a star rating": {
+      sv: "Sedda filmer med stjärnbetyg",
+    },
+    "Award categories with winners and nominees chosen": {
+      sv: "Priskategorier med valda vinnare och nominerade",
+    },
+    "Films from this period that are not yet watched or on your watchlist.": {
+      sv: "Filmer från denna period som du inte har sett eller lagt i din watchlist.",
+    },
+    "Shorts, specials, and standalone works watched outside the main award competition.":
+      {
+        sv: "Kortfilmer, specialprogram och fristående verk sedda utanför huvudtävlan.",
+      },
+    "Films you’ve already watched that you’d like to see again.": {
+      sv: "Filmer du redan har sett och vill se om.",
+    },
+    "Films from this period saved to your watchlist.": {
+      sv: "Filmer från denna period sparade i din watchlist.",
+    },
+    "Official awards and nominations for films from this year.": {
+      sv: "Officiella priser och nomineringar för filmer från detta år.",
+    },
+    "Films with this person that are not yet watched or on your watchlist.": {
+      sv: "Filmer med denna person som du inte har sett eller lagt i din watchlist.",
+    },
     "Continue your journey": { sv: "Fortsätt din resa" },
     "Needs ratings": { sv: "Behöver betyg" },
     "Ready to rank": { sv: "Redo att rankas" },
@@ -927,6 +1325,11 @@
     "Personal award": { sv: "Personligt pris" },
     "Official result": { sv: "Officiellt resultat" },
     "Any tag": { sv: "Alla taggar" },
+    "Any catalog tag": { sv: "Alla katalogtaggar" },
+    "Couldn't load the catalog tag filter.": {
+      sv: "Katalogtaggsfiltret kunde inte läsas in.",
+    },
+    "Clear the catalog tag filter": { sv: "Rensa katalogtaggsfiltret" },
     "All time": { sv: "Alla tider" },
     "Collection filters": { sv: "Samlingsfilter" },
     "Combine collections within groups, then combine the groups. Other filters still apply.":
@@ -1281,6 +1684,7 @@
     "Forward within tiers": { sv: "Framåt inom tiers" },
     "Merge watchlist order": { sv: "Slå ihop watchlist-ordning" },
     "Merge order": { sv: "Slå ihop ordning" },
+    "Merge rankings": { sv: "Slå ihop rankningar" },
     "Merge local rank": { sv: "Slå ihop lokal rankning" },
     franchise: { sv: "franchise" },
     director: { sv: "regissör" },
@@ -1326,6 +1730,7 @@
     "Interest tier": { sv: "Intressetier" },
     "Slightly lower priority": { sv: "Något lägre prioritet" },
     "Slightly higher priority": { sv: "Något högre prioritet" },
+    "Tier refinement": { sv: "Tier-förfining" },
     "Pick an interest tier and two groups within it - two years, a year and its decade, a decade and the rest of the tier - then decide film by film which one ranks higher. Everything outside the two groups keeps its exact position.":
       {
         sv: "Välj en intressetier och två grupper inom den - två år, ett år och dess årtionde, ett årtionde och resten av tiern - avgör sedan film för film vilken som rankas högre. Allt utanför de två grupperna behåller sin exakta plats.",
@@ -1472,7 +1877,6 @@
     "Showing nominees only": { sv: "Visar endast nominerade" },
     "Toggle films shown": { sv: "Växla filmer som visas" },
     Highlights: { sv: "Höjdpunkter" },
-    Hybrid: { sv: "Hybrid" },
     Images: { sv: "Bilder" },
     "Imported posters out of films": { sv: "Importerade posters av filmer" },
     "Imported posters out of watched films": {
@@ -2592,6 +2996,16 @@
     "Same title, different year": { sv: "Samma titel, annat år" },
     "Same title, year unknown": { sv: "Samma titel, okänt år" },
     Tags: { sv: "Taggar" },
+    "Catalog tags": { sv: "Katalogtaggar" },
+    "Catalog tag": { sv: "Katalogtagg" },
+    "Your tags": { sv: "Dina taggar" },
+    "Genres and groupings shared across the catalog, for the films in your library.":
+      {
+        sv: "Genrer och grupperingar som delas i hela katalogen, för filmerna i ditt bibliotek.",
+      },
+    Genre: { sv: "Genre" },
+    Theme: { sv: "Tema" },
+    Form: { sv: "Form" },
     Tag: { sv: "Tagg" },
     "Tag note": { sv: "Tagganteckning" },
     Target: { sv: "Mål" },
@@ -2657,17 +3071,27 @@
     "No unfinished Intake or project.": {
       sv: "Ingen oavslutad Intake eller något öppet projekt.",
     },
+    "Watched entries": { sv: "Sedda verk" },
+    "Release years": { sv: "Utgivningsår" },
+    "Your watched archive": { sv: "Ditt arkiv av sedda verk" },
+    "Revisit your watches": { sv: "Återbesök det du sett" },
+    "Your shorts, series, and other watches are saved. Browse them or add your latest watch.":
+      {
+        sv: "Dina kortfilmer, serier och andra sedda verk är sparade. Bläddra bland dem eller lägg till din senaste tittning.",
+      },
+    "Browse watched entries": { sv: "Bläddra bland sedda verk" },
     "Archive memory": { sv: "Arkivminne" },
     "No memories yet": { sv: "Inga minnen än" },
-    "Watched films will bring a different memory back each day.": {
-      sv: "Sedda filmer kommer att väcka ett nytt minne varje dag.",
+    "Watched entries will bring a different memory back each day.": {
+      sv: "Sedda verk kommer att väcka ett nytt minne varje dag.",
     },
     "Watched on this day in {year}.": {
       sv: "Sedd den här dagen {year}.",
     },
-    "Today's stable pick from {count} watched films.": {
-      sv: "Dagens fasta val bland {count} sedda filmer.",
-    },
+    "Today's stable pick from {count} watched entries, including shorts and series.":
+      {
+        sv: "Dagens fasta val bland {count} sedda verk, inklusive kortfilmer och serier.",
+      },
     "From your watchlist": { sv: "Från din watchlist" },
     "Nothing waiting": { sv: "Inget väntar" },
     "Add films to your watchlist and one will appear here each day.": {
@@ -3640,6 +4064,102 @@
     "Your empty archive is ready.": { sv: "Ditt tomma arkiv är klart." },
     "Add your first film": { sv: "Lägg till din första film" },
     "Skip for now": { sv: "Hoppa över för nu" },
+    "Data sources": { sv: "Datakällor" },
+    "Connected sources": { sv: "Anslutna källor" },
+    "Manage your active sync connections, add a new source, or disconnect a service. Previously imported archive data stays safe when disconnecting.":
+      {
+        sv: "Hantera dina aktiva synkroniseringsanslutningar, lägg till en ny källa eller koppla från en tjänst. Tidigare importerad arkivdata förblir intakt vid frånkoppling.",
+      },
+    "Manual logging & Intake": { sv: "Manuell loggning & Intag" },
+    "Direct logging via Intake and catalog. Always available with no persistent connection needed.":
+      {
+        sv: "Direkt loggning via Intag och katalog. Alltid tillgängligt utan krav på beständig anslutning.",
+      },
+    "Explore years": { sv: "Utforska år" },
+    "Not connected": { sv: "Inte ansluten" },
+    "Imported ({count})": { sv: "Importerad ({count})" },
+    "Not imported": { sv: "Inte importerad" },
+    "RSS auto-sync active for @{user}. {syncInfo}": {
+      sv: "RSS-autosynk aktiv för @{user}. {syncInfo}",
+    },
+    "Public RSS sync is not connected. Enter your username to auto-sync future watches.":
+      {
+        sv: "Offentlig RSS-synk är inte ansluten. Ange ditt användarnamn för att autosynka framtida visningar.",
+      },
+    "Never synced yet.": { sv: "Aldrig synkad ännu." },
+    "Disconnect RSS": { sv: "Koppla från RSS" },
+    "Profile settings": { sv: "Profilinställningar" },
+    "Re-import ZIP": { sv: "Återimportera ZIP" },
+    "Connect username": { sv: "Anslut användarnamn" },
+    "Import ZIP": { sv: "Importera ZIP" },
+    "{count} IMDb-sourced film(s) and watchlist item(s) in your archive.": {
+      sv: "{count} IMDb-baserade filmer och watchlist-objekt i ditt arkiv.",
+    },
+    "Import your ratings.csv and watchlist.csv exports with linear 1–10 to star rating conversion.":
+      {
+        sv: "Importera dina ratings.csv och watchlist.csv-exporter med linjär konvertering från 1–10 till stjärnbetyg.",
+      },
+    "Re-import CSVs": { sv: "Återimportera CSV:er" },
+    "Import CSVs": { sv: "Importera CSV:er" },
+    "Connected spreadsheet ID: {id}. Two-way sync ready.": {
+      sv: "Anslutet kalkylarks-ID: {id}. Tvåvägssynk redo.",
+    },
+    "Create a workbook on Google Drive, connect a sheet ID, or download offline CSV templates.":
+      {
+        sv: "Skapa en arbetsbok på Google Drive, anslut ett kalkylarks-ID eller ladda ner offline-CSV-mallar.",
+      },
+    "Open in Sheets ↗": { sv: "Öppna i Sheets ↗" },
+    "Sync / Push": { sv: "Synka / Skicka" },
+    "Connect sheet": { sv: "Anslut kalkylark" },
+    Disconnect: { sv: "Koppla från" },
+    "Disconnect Letterboxd RSS sync? This stops automatic intake sync and removes your saved username. Previously imported films and ratings will stay in your archive.":
+      {
+        sv: "Koppla från Letterboxd RSS-synk? Detta stoppar automatisk intagssynk och tar bort ditt sparade användarnamn. Tidigare importerade filmer och betyg stannar kvar i ditt arkiv.",
+      },
+    "Disconnect Google Sheet? This removes the connected spreadsheet link and stops syncing. Previously imported films and archive data will stay in your account.":
+      {
+        sv: "Koppla från Google Sheet? Detta tar bort den anslutna kalkylarkslänken och stoppar synkning. Tidigare importerade filmer och arkivdata stannar kvar på ditt konto.",
+      },
+    "Disconnecting Letterboxd RSS sync…": {
+      sv: "Kopplar från Letterboxd RSS-synk…",
+    },
+    "Letterboxd RSS sync disconnected.": {
+      sv: "Letterboxd RSS-synk frånkopplad.",
+    },
+    "Google Sheet disconnected.": { sv: "Google Sheet frånkopplat." },
+    "Last synced on {date}.": { sv: "Senast synkad {date}." },
+    "Sync future watches automatically": {
+      sv: "Synka framtida visningar automatiskt",
+    },
+    "Connect your Letterboxd username to detect new diary entries via RSS and start an Intake for them.":
+      {
+        sv: "Anslut ditt Letterboxd-användarnamn för att upptäcka nya dagboksinlägg via RSS och starta ett Intag för dem.",
+      },
+    "Connect Letterboxd": { sv: "Anslut Letterboxd" },
+    "Track your archive in Google Sheets": {
+      sv: "Följ ditt arkiv i Google Sheets",
+    },
+    "Connect a Google Sheet to edit your films in a spreadsheet and sync changes back anytime.":
+      {
+        sv: "Anslut ett Google Sheet för att redigera dina filmer i ett kalkylark och synka tillbaka ändringar när som helst.",
+      },
+    "Connect Google Sheet": { sv: "Anslut Google Sheet" },
+    "Connected source suggestion": { sv: "Förslag på ansluten källa" },
+    "Dismiss suggestion": { sv: "Avfärda förslag" },
+    "How does fresh start work?": { sv: "Hur fungerar en nystart?" },
+    "Pick a release year to mark films you've seen, or add individual watches with ratings and ceremony ballots in Intake.":
+      {
+        sv: "Välj ett utgivningsår för att markera filmer du har sett, eller lägg till enskilda visningar med betyg och röstsedlar i Intag.",
+      },
+    "Explore release years ↗": { sv: "Utforska utgivningsår ↗" },
+    "How does spreadsheet sync work?": {
+      sv: "Hur fungerar kalkylarkssynk?",
+    },
+    "Create a formatted workbook on Google Drive or download CSV starter templates. Edit in sheets, then sync or push updates anytime.":
+      {
+        sv: "Skapa en formaterad arbetsbok på Google Drive eller ladda ner CSV-startmallar. Redigera i kalkylark och synka eller skicka uppdateringar när som helst.",
+      },
+    "Open spreadsheet templates ↗": { sv: "Öppna kalkylarksmallar ↗" },
   };
 
   let categoryTranslations = {

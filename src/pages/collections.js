@@ -1,4 +1,4 @@
-/** @file Renders the visual Collections hub, with bounded previews and direct discovery links. */
+/** @file Renders the visual Collections hub, with bounded previews and direct discovery links. Reads every archive domain but the shared film catalog (issue #633); the people index takes its catalog edges from read_people_directory_edges(). */
 (function () {
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
@@ -33,12 +33,13 @@
     },
   ];
 
-  function deck(films, type) {
+  function deck(films, type, options = {}) {
     return window.renderPosterDeck(
       films?.length ? films : [{ title: " " }, { title: " " }, { title: " " }],
       {
         classes: `collections-hub-deck collections-hub-deck--${type}`,
         limit: 3,
+        priority: options.priority,
       },
     );
   }
@@ -51,12 +52,12 @@
     if (films.length < 3) films = records[0]?.posters || films;
     return `<a class="collections-hub-tile collections-hub-${type.id}" href="${type.href}">
       <span class="collections-hub-arrow" aria-hidden="true">↗</span>
-      ${deck(films, type.id)}
+      ${deck(films, type.id, { priority: "high" })}
       <div class="collections-hub-tile-body"><h2>${escape(ui(type.name))}${count !== null ? `<span class="collections-hub-count">${escape(count)}</span>` : ""}</h2><p>${escape(ui(type.hint))}</p></div>
     </a>`;
   }
 
-  function suggestion(item) {
+  function suggestion(item, index = 0) {
     let label = {
       directors: "Director",
       franchises: "Franchise",
@@ -71,8 +72,9 @@
         : ui(item.total === 1 ? "1 film" : "{count} films", {
             count: item.total,
           });
+    let priority = index < 2 ? "high" : undefined;
     return `<a class="collections-hub-pick collections-hub-${item.type}" href="${escape(item.href)}">
-      ${deck(item.posters, item.type)}
+      ${deck(item.posters, item.type, { priority })}
       <div><span class="collections-hub-kind">${escape(ui(label))}</span><h3>${escape(item.name)}</h3><span class="collections-hub-pick-hint">${escape(hint)}</span></div>
       <span class="collections-hub-pick-arrow" aria-hidden="true">→</span>
     </a>`;
@@ -121,7 +123,13 @@
     render(false);
     try {
       let [dataResult, customResult] = await Promise.allSettled([
-        window.ensureOskarsData(),
+        window
+          .ensureOskarsData({ domains: window.OSKARS_ENTRY_HYDRATION_DOMAINS })
+          .then(() =>
+            window.peopleDirectoryEdgesNeeded?.()
+              ? window.loadPeopleDirectoryEdges()
+              : null,
+          ),
         readOnly
           ? Promise.resolve([])
           : window.listSupabaseCollections({ includePosters: true }),

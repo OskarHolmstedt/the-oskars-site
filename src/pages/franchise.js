@@ -1,9 +1,10 @@
 /**
  * @file Controls the Supabase-backed franchise detail (issue #439):
  * hierarchy, completion, film sections, notes, sorting, and order
- * editing. Reads hydrate through the same buildLegacyStateFromSupabaseHydration
- * + rebuildAggregates()/rebuildFranchiseIndex() pipeline #438 built for the
- * 15 read-only pages (issue #438) - franchises.js's own domain logic
+ * editing. Reads hydrate through ensureOskarsData() with this entry's
+ * hydration domains (entry-loader.js): the watched archive plus only the
+ * watchlist rows whose film is in a franchise (issue #633), sharing the
+ * session cache with franchises.html - franchises.js's own domain logic
  * (rebuildFranchiseIndex, franchiseCompletion, franchiseUpNext,
  * franchiseRepresentativeFilm, ...) is already pure over window.state, so
  * it works unmodified once fed Supabase-sourced state. Only the write
@@ -12,10 +13,9 @@
  * (supabase-entity-note.js, supabase-watchlist-bulk-tier.js).
  *
  * Source-backed projects use the shared Supabase project action, while
- * state.watchedOther/franchiseLinks stay unpopulated by the hydration
- * source (#438's own documented deferred list) - so "Other watched" and a
- * franchise's sourceUrl link are empty here, same as every #438 hydrated
- * page.
+ * state.franchiseLinks stays unpopulated by the hydration source (#438's
+ * own documented deferred list) - so a franchise's sourceUrl link is empty
+ * here, same as every #438 hydrated page.
  */
 (function () {
   let escape = window.pageEscape;
@@ -373,7 +373,7 @@
         },
         escape,
       );
-      return `<tr${attributes}><td class="leaderboard-position">${escape(item.order || entry.rank || "—")}</td>${window.renderFilmIdentityCell(
+      return `<tr${attributes}><td class="leaderboard-position">${escape(item.order || entry.rank || "NR")}</td>${window.renderFilmIdentityCell(
         film,
         {
           escape,
@@ -421,7 +421,11 @@
         openFilm: false,
         compare: false,
         showYear: true,
-        rankLabel: `${item.order || entry.rank || item.tier || "—"}.`,
+        rankLabel: item.order
+          ? `${item.order}.`
+          : entry.rank
+            ? `${entry.rank}.`
+            : item.tier || "NR",
         escape,
         titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
         directorHtml: directorHtml
@@ -598,7 +602,7 @@
           position === "after" ? tierItems[toIndex + 1]?.id || null : target.id;
         await window.moveSupabaseWatchlistItemWithinTier(
           from.id,
-          window.getSupabaseWorkspace()?.watchlist || [],
+          tierItems,
           beforeId,
           afterId,
         );
@@ -659,13 +663,9 @@
       rerender: reload,
     });
     try {
-      let source = await window.loadSupabaseLegacyHydrationSource();
-      Object.assign(
-        window.state,
-        window.buildLegacyStateFromSupabaseHydration(source),
-      );
-      window.rebuildAggregates();
-      await window.loadSupabaseWorkspace();
+      await window.ensureOskarsData({
+        domains: window.OSKARS_ENTRY_HYDRATION_DOMAINS,
+      });
       franchiseIndex = window.ensureFranchiseIndex();
       franchise = franchiseIndex[franchiseId] || null;
       if (franchise && filmSort === "local") {

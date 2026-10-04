@@ -424,6 +424,25 @@ window.downloadJson = function (value, filename) {
 };
 
 /**
+ * Triggers a browser download of a plain text or CSV file.
+ * @param {string} text Text content to download.
+ * @param {string} filename Output file name.
+ * @param {string} [mimeType="text/plain;charset=utf-8"] MIME type.
+ */
+window.downloadTextFile = function (
+  text,
+  filename,
+  mimeType = "text/plain;charset=utf-8",
+) {
+  let url = URL.createObjectURL(new Blob([text], { type: mimeType }));
+  let link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+};
+
+/**
  * Builds a deterministic timestamped filename.
  * @param {string} prefix Filename prefix.
  * @param {string} [extension="json"] File extension without dot.
@@ -459,4 +478,30 @@ window.formatStarRating = function (value) {
   let num = Number(value);
   if (!Number.isFinite(num)) return "";
   return `${num % 1 ? num : num.toFixed(0)}★`;
+};
+
+/**
+ * Calls back once any of a container's `[data-needs-complete-archive]`
+ * placeholders scrolls into view (issue #636): compact pages load the
+ * complete archive only when a section that needs it is actually seen, not
+ * right after their first paint. A placeholder inside a collapsed section
+ * never intersects, so expanding it is what triggers the load.
+ * @param {Element} container Rendered page content.
+ * @param {() => void} callback Starts the complete-archive load.
+ * @returns {() => void} Stops watching; call before the next render.
+ */
+window.whenCompleteArchiveNeeded = function (container, callback) {
+  let targets = container?.querySelectorAll?.("[data-needs-complete-archive]");
+  if (!targets?.length) return () => {};
+  if (typeof IntersectionObserver !== "function") {
+    callback();
+    return () => {};
+  }
+  let observer = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return;
+    observer.disconnect();
+    callback();
+  });
+  targets.forEach((target) => observer.observe(target));
+  return () => observer.disconnect();
 };

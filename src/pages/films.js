@@ -1,13 +1,14 @@
 /**
  * @file Renders the full film catalog (issue #495) - every watched,
  * watchlisted, and unseen film in one filterable, sortable, paginated
- * browse, backed by `window.buildFullFilmCatalog()`
- * (src/domain/film-catalog.js) merging the already-hydrated
- * `OSKARS_SHARED_FILM_ARCHIVE`/`state.filmsById`/`state.watchlist` - no
- * new fetch, the whole catalog is already loaded and cached by
- * `ensureOskarsData()` for Unseen/global-search/franchise-membership
- * elsewhere. This is the primary nav's own "Films" destination
- * (previously `period.html?type=alltime&view=films`, personal-watched-only).
+ * browse. By default each page comes from Postgres
+ * (read_film_catalog_page(), issue #642, via
+ * src/domain/supabase-film-catalog.js); a filter or tool without an SQL form
+ * (country, adaptation source, franchise, official result, collection
+ * groups) loads the complete archive once and filters it here with the same
+ * film-catalog.js predicates and ordering. This is the primary nav's own
+ * "Films" destination (previously `period.html?type=alltime&view=films`,
+ * personal-watched-only).
  */
 (function () {
   let escape = window.pageEscape;
@@ -31,12 +32,15 @@
     "watchlistTier",
     "category",
   ];
-  // Not part of the shared film-filters.js vocabulary - each is a small
-  // local predicate below (matchesTags/matchesFranchise/matchesPersonalAward/
-  // matchesOfficialResult), same treatment as the free-text search and the
-  // catalog-only `status` field.
+  // Not part of the shared film-filters.js vocabulary: tags and personal
+  // award use film-catalog.js's Films predicates, catalog tag, franchise and
+  // official result the local ones below, same treatment as the free-text
+  // search and the catalog-only `status` field. `tags` is the viewer's
+  // personal tag; `catalogTag` the shared one, kept as its own parameter so a
+  // same-named pair stays two filters.
   let localFilterNames = [
     "tags",
+    "catalogTag",
     "franchise",
     "personalAward",
     "officialResult",
@@ -52,6 +56,10 @@
   let viewState = window.createPageViewState({
     path: "films.html",
     schema: {
+      start: {
+        default: "",
+        validate: (value) => value === "" || value === "fresh",
+      },
       status: {
         default: "",
         validate: (value) =>
@@ -106,6 +114,44 @@
     },
   });
   let currentState = viewState.read();
+  let startFresh =
+    currentState.start === "fresh" &&
+    !window.state?.isPublicProfileView &&
+    !window.resolveActiveProfileSlug?.();
+  let seenSelection = new Map();
+  let savedSeenIds = new Set();
+  let seenReview = false;
+  let seenBusy = false;
+  let seenError = "";
+  let seenSuccess = null;
+
+  function seenActionHtml(film) {
+    if (!startFresh) return "";
+    let id = film.supabaseFilmId || film.id;
+    if (film.catalogStatus === "watched" || savedSeenIds.has(id))
+      return `<span class="films-seen-saved">${escape(ui("Already in your archive"))}</span>`;
+    let selected = seenSelection.has(id);
+    return `<button type="button" data-seen-film="${escape(id)}" aria-pressed="${selected}"${seenBusy ? " disabled" : ""}>${escape(ui(selected ? "Selected ✓" : "I've seen this"))}</button>`;
+  }
+
+  function seenJourneyHtml(data) {
+    if (!startFresh) return "";
+    let year = /^year:(\d{4})$/.exec(currentState.period || "")?.[1] || "";
+    let years = [
+      ...new Set(
+        data.years.map(String).filter((value) => /^\d{4}$/.test(value)),
+      ),
+    ]
+      .sort()
+      .reverse();
+    let success = seenSuccess
+      ? `<section class="films-seen-success" role="status"><h2>${escape(ui("Your archive has begun"))}</h2><p>${escape(ui(seenSuccess.count === 1 ? "Your film is in your archive. Ratings and viewing dates can wait." : "{count} films are in your archive. Ratings and viewing dates can wait.", { count: seenSuccess.count }))}</p><div class="home-daily-actions"><a class="button-link" href="rate-watched.html">${escape(ui("Rate your films"))}</a>${seenSuccess.year ? `<a class="button-link button-secondary" href="rank-year.html?year=${escape(seenSuccess.year)}">${escape(ui("Pick your favourite from {year}", { year: seenSuccess.year }))}</a>` : ""}<a href="index.html">${escape(ui("View your archive"))}</a><button type="button" data-seen-another>${escape(ui("Browse another year"))}</button></div></section>`
+      : "";
+    let review = seenReview
+      ? `<section class="films-seen-review"><h2>${escape(ui("Films you remember"))}</h2><p>${escape(ui("Save these as seen. You can rate, rank, or nominate them later."))}</p><ul>${[...seenSelection].map(([id, film]) => `<li><span>${escape(window.localizedFilmTitle?.(film) || film.title)} (${escape(film.year || "")})</span><button type="button" data-seen-film="${escape(id)}"${seenBusy ? " disabled" : ""}>${escape(ui("Remove"))}</button></li>`).join("")}</ul><button class="button-link" type="button" data-seen-save${seenBusy || !seenSelection.size ? " disabled" : ""}>${escape(ui(seenBusy ? "Saving…" : "Save as seen"))}</button></section>`
+      : "";
+    return `<section class="films-start-fresh"><h1>${escape(ui("Start with films you remember"))}</h1><p>${escape(ui("Choose a release year and select films you've seen. One film is enough."))}</p><p>${escape(ui("Release year is when the film came out, not when you watched it."))}</p><label>${escape(ui("Release year"))}<select data-seen-year${seenBusy ? " disabled" : ""}><option value="">${escape(ui("Choose a year"))}</option>${years.map((value) => `<option value="${value}"${year === value ? " selected" : ""}>${value}</option>`).join("")}</select></label><p><a href="intake.html?start=fresh">${escape(ui("Can't find a film? Add it by title"))}</a> · <a href="index.html">${escape(ui("View your archive"))}</a></p>${success}<div class="films-seen-tray${seenSelection.size && !seenReview ? " films-seen-tray--floating" : ""}"><strong role="status">${escape(ui(seenSelection.size === 1 ? "1 film selected" : "{count} films selected", { count: seenSelection.size }))}</strong><button type="button" data-seen-review${seenBusy || !seenSelection.size ? " disabled" : ""}>${escape(ui(seenReview ? "Keep browsing" : "Review selection"))}</button></div>${review}${seenError ? `<p role="alert">${escape(ui("Some films may already be saved. Retry safely to finish."))} ${escape(seenError)}</p>` : ""}</section>`;
+  }
   let collectionChoices = null;
   let collectionExpression = window.parseCollectionFilter(
     currentState.collections,
@@ -115,6 +161,117 @@
   let officialIndex = null;
   // Standard catalog-scale page size (matches people.js).
   let pageSize = 100;
+  // Paged in Postgres (issue #642, read_film_catalog_page()) until a
+  // filter or tool needs the complete archive, which then loads once and
+  // serves every later render.
+  let compactMode = Boolean(window.OSKARS_FILMS_COMPACT);
+  let fullReady = !compactMode;
+  let fullLoading = null;
+  let compactModel = null;
+  let compactKey = "";
+  let compactRequestId = 0;
+  // The complete-archive path filters in the browser, so it loads the
+  // selected catalog tag's film ids and the option list lazily.
+  let catalogTagFilter = null;
+  let catalogTagRequestKey = null;
+  let catalogTagFailedKey = null;
+
+  function catalogTagKey() {
+    return String(currentState.catalogTag || "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function catalogTagFilterReady() {
+    let key = catalogTagKey();
+    return Boolean(catalogTagFilter) && (!key || catalogTagFilter.key === key);
+  }
+
+  function ensureCatalogTagFilter() {
+    let key = catalogTagKey();
+    if (
+      catalogTagFilterReady() ||
+      catalogTagRequestKey === key ||
+      catalogTagFailedKey === key
+    )
+      return;
+    catalogTagRequestKey = key;
+    window
+      .loadSupabaseFilmCatalogTagFilter(
+        key ? currentState.catalogTag.trim() : "",
+      )
+      .then((data) => {
+        if (catalogTagRequestKey !== key) return;
+        catalogTagFilter = { key, ...data };
+        catalogTagRequestKey = null;
+        catalogTagFailedKey = null;
+        render();
+      })
+      .catch((error) => {
+        if (catalogTagRequestKey !== key) return;
+        console.warn("Catalog tag filter failed to load.", error);
+        catalogTagRequestKey = null;
+        catalogTagFailedKey = key;
+        render();
+      });
+  }
+
+  function matchesCatalogTag(film) {
+    return (
+      !catalogTagKey() ||
+      catalogTagFilter.ids.has(film.supabaseFilmId || film.id)
+    );
+  }
+
+  function ensureFullArchive() {
+    if (fullReady) return;
+    fullLoading ||= (window.ensureFocusedShellData?.() || Promise.resolve())
+      .then(() => {
+        fullReady = true;
+        catalog = null;
+        collectionChoices = null;
+        render();
+        hydrateOfficialResults();
+      })
+      .catch(() => {
+        fullLoading = null;
+      });
+  }
+
+  function ensureCompactPage() {
+    let key = JSON.stringify([
+      window.filmCatalogRpcFilters(currentState),
+      currentState.sort,
+      currentState.order,
+      currentState.page,
+    ]);
+    if (key === compactKey) return;
+    compactKey = key;
+    let requestId = ++compactRequestId;
+    window
+      .loadSupabaseFilmCatalogPage(currentState, {
+        limit: pageSize,
+        offset: (currentState.page - 1) * pageSize,
+      })
+      .then((model) => {
+        if (requestId !== compactRequestId) return;
+        let lastPage = Math.max(1, Math.ceil(model.totalCount / pageSize));
+        if (currentState.page > lastPage) {
+          currentState = { ...currentState, page: lastPage };
+          viewState.replace(currentState);
+        } else compactModel = model;
+        render();
+      })
+      .catch((error) => {
+        if (requestId !== compactRequestId) return;
+        console.warn(
+          "Paged film catalog failed; loading the full archive.",
+          error,
+        );
+        compactMode = false;
+        render();
+      });
+  }
 
   function fullCatalog() {
     if (!catalog) {
@@ -174,13 +331,9 @@
       .join("");
   }
 
-  function periodOptionsHtml(films) {
+  function periodOptionsHtml(yearValues) {
     let years = [
-      ...new Set(
-        films
-          .map((film) => String(film.year || ""))
-          .filter((year) => /^\d{4}$/.test(year)),
-      ),
+      ...new Set(yearValues.filter((year) => /^\d{4}$/.test(year))),
     ].sort((left, right) => Number(right) - Number(left));
     let decades = [
       ...new Set(years.map((year) => window.getDecadeKey(year))),
@@ -191,10 +344,12 @@
     return `${option("", ui("Any period"), "period")}<optgroup label="${escape(ui("Centuries"))}">${centuries.map((key) => option(`century:${key}`, key, "period")).join("")}</optgroup><optgroup label="${escape(ui("Decades"))}">${decades.map((key) => option(`decade:${key}`, key, "period")).join("")}</optgroup><optgroup label="${escape(ui("Years"))}">${years.map((key) => option(`year:${key}`, key, "period")).join("")}</optgroup>`;
   }
 
-  function countryOptionsHtml(films) {
+  function countryOptionsHtml(countryValues) {
     let countries = [
       ...new Set(
-        films.flatMap((film) => window.countryListValues?.(film.country) || []),
+        countryValues.flatMap(
+          (country) => window.countryListValues?.(country) || [],
+        ),
       ),
     ].sort((left, right) => left.localeCompare(right));
     return countries.map((value) => option(value, value, "country")).join("");
@@ -218,42 +373,54 @@
       .join("");
   }
 
-  function tagOptionsHtml() {
-    return (window.getFilmTagIndex?.() || [])
-      .map((entry) => option(entry.name, entry.name, "tags"))
-      .join("");
+  function tagOptionsHtml(tagNames) {
+    return tagNames.map((name) => option(name, name, "tags")).join("");
   }
 
-  function franchiseOptionsHtml() {
-    return Object.values(window.ensureFranchiseIndex?.() || {})
-      .sort((left, right) => left.name.localeCompare(right.name))
+  // Selection ignores case, as the filter does, so a hand-typed URL still
+  // shows its tag chosen.
+  function catalogTagOptionsHtml(names) {
+    let current = catalogTagKey();
+    return `<option value=""${current ? "" : " selected"}>${escape(ui("Any catalog tag"))}</option>${[
+      ...names,
+    ]
+      .sort((left, right) => left.localeCompare(right))
+      .map(
+        (name) =>
+          `<option value="${escape(name)}"${name.toLowerCase() === current ? " selected" : ""}>${escape(name)}</option>`,
+      )
+      .join("")}`;
+  }
+
+  function franchiseOptionsHtml(franchises) {
+    return franchises
       .map((franchise) => option(franchise.id, franchise.name, "franchise"))
       .join("");
   }
 
-  // Wins-then-nominations - not part of the shared film-filters.js
-  // vocabulary (that already covers a specific `category`), used by both
-  // the "Personal award" filter and the "Personal award wins" sort axis.
-  function personalAwardWins(film) {
-    return (film.awards || []).filter((award) => Number(award.placement) === 1)
-      .length;
+  // The option lists from the paged read's names, ordered and deduplicated
+  // the way the tag and franchise indexes order theirs.
+  function compactTagNames(names) {
+    let byKey = new Map();
+    names.forEach((name) => {
+      let tag = window.normalizeFilmTag(name);
+      let key = tag.toLocaleLowerCase();
+      if (tag && !byKey.has(key)) byKey.set(key, tag);
+    });
+    return [...byKey.values()].sort((left, right) => left.localeCompare(right));
   }
-  function personalAwardNominations(film) {
-    return (film.awards || []).length;
-  }
-  function matchesPersonalAward(film, value) {
-    if (!value) return true;
-    return value === "won"
-      ? personalAwardWins(film) > 0
-      : personalAwardNominations(film) > 0;
-  }
-
-  function matchesTags(film, value) {
-    if (!value) return true;
-    let needle = window.normalizeFilmTag(value).toLocaleLowerCase();
-    return window
-      .parseFilmTags(film.tags)
-      .some((tag) => tag.toLocaleLowerCase() === needle);
+  function compactFranchises(names) {
+    let capitals = (name) => (name.match(/[A-Z]/g) || []).length;
+    let byId = new Map();
+    names.forEach((name) => {
+      let id = window.normalizeFranchiseId(name);
+      let existing = byId.get(id);
+      if (!existing || capitals(name) > capitals(existing.name))
+        byId.set(id, { id, name });
+    });
+    return [...byId.values()].sort((left, right) =>
+      left.name.localeCompare(right.name),
+    );
   }
 
   // franchise.films/.watchlistFilms already roll up every descendant
@@ -283,10 +450,12 @@
     Object.values(window.state?.officialResults || {}).forEach((source) => {
       Object.values(source.periods || {}).forEach((period) => {
         (period.nominations || []).forEach((nomination) => {
-          let tmdbId = String(nomination.tmdbId || "").trim();
-          if (!tmdbId) return;
-          nominated.add(tmdbId);
-          if (nomination.winner) won.add(tmdbId);
+          window.officialNominationFilms(nomination).forEach((entry) => {
+            let tmdbId = String(entry.tmdbId || "").trim();
+            if (!tmdbId) return;
+            nominated.add(tmdbId);
+            if (nomination.winner) won.add(tmdbId);
+          });
         });
       });
     });
@@ -303,27 +472,6 @@
       : index.nominated.has(tmdbId);
   }
 
-  // Free-text search over title and director, not part of the shared
-  // film-filter vocabulary (it composes multiple fields, unlike every
-  // other filter's single-field match).
-  function matchesSearch(film, query) {
-    if (!query) return true;
-    let needle = query.trim().toLowerCase();
-    if (!needle) return true;
-    let director = String(
-      film.director ||
-        Object.values(film.people || {}).find((p) =>
-          p.professions?.includes("Director"),
-        )?.name ||
-        "",
-    ).toLowerCase();
-    return (
-      String(film.title || "")
-        .toLowerCase()
-        .includes(needle) || director.includes(needle)
-    );
-  }
-
   function statusLabel(status) {
     return (
       {
@@ -334,13 +482,10 @@
     );
   }
 
-  let watchedOtherIndex = null;
+  // Film ids classified "Other watched", from whichever source is showing.
+  let otherWatchedIds = new Set();
   function isOtherWatchedFilm(film) {
-    if (!watchedOtherIndex)
-      watchedOtherIndex = new Set(
-        (state.watchedOther || []).map((entry) => entry.id),
-      );
-    return watchedOtherIndex.has(film.id);
+    return otherWatchedIds.has(film.id);
   }
 
   function statusBadgeHtml(film) {
@@ -359,7 +504,7 @@
     return `<span class="films-status films-status--unseen">${escape(ui("Unseen"))}</span>`;
   }
 
-  function filmCardHtml(film, locale) {
+  function filmCardHtml(film, locale, index = 0) {
     let title = window.localizedFilmTitle?.(film, locale) || film.title;
     return window.renderSharedFilmCard(film, {
       classes: ["films-card"],
@@ -368,29 +513,20 @@
       escape,
       titleHtml: `<a class="table-film-link" href="${escape(film.href)}">${escape(title)}</a>`,
       showYear: true,
-      bodyHtml: statusBadgeHtml(film),
+      bodyHtml: statusBadgeHtml(film) + seenActionHtml(film),
+      priority: index < 4 ? "high" : undefined,
     });
   }
 
-  function filmRowHtml(film, locale) {
+  function filmRowHtml(film, locale, index = 0) {
     let title = window.localizedFilmTitle?.(film, locale) || film.title;
+    let priority = index < 4 ? "high" : undefined;
     return `<tr>
-      <td class="film-table-cell">${window.renderFilmPoster?.(film, "thumb") || ""}<span><a class="table-film-link" href="${escape(film.href)}">${escape(title)}</a></span></td>
+      <td class="film-table-cell">${window.renderFilmPoster?.(film, "thumb", { priority }) || ""}<span><a class="table-film-link" href="${escape(film.href)}">${escape(title)}</a></span></td>
       <td>${escape(film.year || "")}</td>
       <td>${escape(film.director || "")}</td>
-      <td>${statusBadgeHtml(film)}</td>
+      <td>${statusBadgeHtml(film)}${seenActionHtml(film)}</td>
     </tr>`;
-  }
-
-  function sortValue(film, sort) {
-    if (sort === "year") return Number(film.year) || -Infinity;
-    if (sort === "rating") return window.filmRatingSortValue?.(film) || 0;
-    if (sort === "runtime") return Number(film.runtimeMinutes) || -Infinity;
-    // Ascending places S (rank 0) first - unset/non-watchlist films rank
-    // last, since only a watchlist item ever carries a tier.
-    if (sort === "tier") return window.watchlistTierRank(film.tier);
-    if (sort === "awards") return personalAwardWins(film);
-    return String(film.title || "").toLowerCase();
   }
 
   function collectionChoiceLabel(choice) {
@@ -474,11 +610,8 @@
     }
   }
 
-  function render() {
-    let finish = window.startOskarsPerformance?.("films:render");
-    // Resolved once per render rather than per film below - render() already
-    // re-runs on an "oskars:localechange" event, so this can't go stale.
-    let locale = window.oskarsLocale();
+  // One page plus the counts and option lists, from the complete archive.
+  function fullData() {
     let films = fullCatalog();
     if (!collectionChoices && advancedOpen)
       collectionChoices = window.buildCatalogCollectionChoices(films);
@@ -491,66 +624,137 @@
     let hasCollectionFilters = collectionExpression.groups.some(
       (group) => group.items.length,
     );
-    let filmFilters = Object.fromEntries(
-      filterNames.map((name) => [name, currentState[name]]),
-    );
     let franchiseMembers = currentState.franchise
       ? franchiseMemberIds(currentState.franchise)
       : null;
-    let filtered = films.filter(
-      (film) =>
-        window.filmMatchesFilters(film, filmFilters, {
-          period: { alltimeMatchesAll: true },
-        }) &&
-        (!currentState.status || film.catalogStatus === currentState.status) &&
-        matchesSearch(film, currentState.q) &&
-        (!hasCollectionFilters ||
-          window.matchesCollectionFilter(
-            collectionExpression,
-            (item) =>
-              selectedChoices
-                .get(JSON.stringify([item.type, item.id]))
-                ?.members.has(film) || false,
-          )) &&
-        matchesTags(film, currentState.tags) &&
-        (!franchiseMembers || franchiseMembers.has(film.id)) &&
-        matchesPersonalAward(film, currentState.personalAward) &&
-        matchesOfficialResult(film, currentState.officialResult),
-    );
-    let factor = currentState.order === "desc" ? -1 : 1;
-    let sorted = [...filtered].sort(
-      (left, right) =>
-        factor *
-          (sortValue(left, currentState.sort) <
-          sortValue(right, currentState.sort)
-            ? -1
-            : sortValue(left, currentState.sort) >
-                sortValue(right, currentState.sort)
-              ? 1
-              : 0) || window.compareEnglishTitles(left.title, right.title),
+    let sorted = window.sortFilmCatalog(
+      window.filterFilmCatalog(
+        films,
+        currentState,
+        (film) =>
+          (!hasCollectionFilters ||
+            window.matchesCollectionFilter(
+              collectionExpression,
+              (item) =>
+                selectedChoices
+                  .get(JSON.stringify([item.type, item.id]))
+                  ?.members.has(film) || false,
+            )) &&
+          (!franchiseMembers || franchiseMembers.has(film.id)) &&
+          matchesCatalogTag(film) &&
+          matchesOfficialResult(film, currentState.officialResult),
+      ),
+      currentState,
     );
     let pagination = window.paginationState(
       sorted.length,
       currentState.page,
       pageSize,
     );
-    let pageItems = sorted.slice(pagination.sliceStart, pagination.sliceEnd);
-    let statusCounts = films.reduce((counts, film) => {
-      counts[film.catalogStatus] = (counts[film.catalogStatus] || 0) + 1;
-      return counts;
-    }, {});
+    return {
+      films,
+      total: sorted.length,
+      catalogCount: films.length,
+      pagination,
+      pageItems: sorted.slice(pagination.sliceStart, pagination.sliceEnd),
+      statusCounts: films.reduce((counts, film) => {
+        counts[film.catalogStatus] = (counts[film.catalogStatus] || 0) + 1;
+        return counts;
+      }, {}),
+      years: films.map((film) => String(film.year || "")),
+      countries: films.map((film) => film.country),
+      tagNames: (window.getFilmTagIndex?.() || []).map((entry) => entry.name),
+      catalogTagNames:
+        catalogTagFilter?.names || compactModel?.facets?.catalogTags || [],
+      franchises: Object.values(window.ensureFranchiseIndex?.() || {})
+        .sort((left, right) => left.name.localeCompare(right.name))
+        .map((franchise) => ({ id: franchise.id, name: franchise.name })),
+      otherWatchedIds: new Set(
+        (state.watchedOther || []).map((film) => film.id),
+      ),
+    };
+  }
+
+  // The same, from the paged read's current page and its facets.
+  function compactData() {
+    let facets = compactModel.facets || {};
+    let statusCounts = facets.statusCounts || {};
+    return {
+      films: compactModel.films,
+      total: compactModel.totalCount,
+      catalogCount: Object.values(statusCounts).reduce(
+        (sum, count) => sum + Number(count || 0),
+        0,
+      ),
+      pagination: window.paginationState(
+        compactModel.totalCount,
+        currentState.page,
+        pageSize,
+      ),
+      pageItems: compactModel.films,
+      statusCounts,
+      years: facets.years || [],
+      countries: facets.countries || [],
+      tagNames: compactTagNames(facets.tags || []),
+      catalogTagNames: facets.catalogTags || [],
+      franchises: compactFranchises(facets.franchises || []),
+      otherWatchedIds: compactModel.watchedOtherIds,
+    };
+  }
+
+  function render() {
+    startFresh =
+      currentState.start === "fresh" &&
+      !window.state?.isPublicProfileView &&
+      !window.resolveActiveProfileSlug?.();
+    container.classList.toggle("films-start-fresh-page", startFresh);
+    // Resolved once per render rather than per film below - render() already
+    // re-runs on an "oskars:localechange" event, so this can't go stale.
+    let locale = window.oskarsLocale();
+    let compact =
+      compactMode &&
+      !fullReady &&
+      !window.filmCatalogNeedsCompleteArchive(
+        currentState,
+        collectionExpression,
+      );
+    // A collection group lists every collection in the complete archive.
+    if (!compact || (advancedOpen && collectionExpression.groups.length))
+      ensureFullArchive();
+    if (compact) ensureCompactPage();
+    if (compact ? !compactModel : !fullReady) {
+      container.setAttribute("aria-busy", "true");
+      container.innerHTML = `<p class="detail-empty" role="status">${escape(ui("Loading…"))}</p>`;
+      return;
+    }
+    if (!compact) ensureCatalogTagFilter();
+    if (!compact && catalogTagKey() && !catalogTagFilterReady()) {
+      container.setAttribute("aria-busy", "true");
+      container.innerHTML =
+        catalogTagFailedKey === catalogTagKey()
+          ? `<div class="detail-empty" role="alert"><p>${escape(ui("Couldn't load the catalog tag filter."))}</p><p><a href="${escape(viewUrl({ catalogTag: "", page: 1 }))}">${escape(ui("Clear the catalog tag filter"))}</a></p></div>`
+          : `<p class="detail-empty" role="status">${escape(ui("Loading…"))}</p>`;
+      return;
+    }
+    let finish = window.startOskarsPerformance?.("films:render");
+    container.removeAttribute("aria-busy");
+    let data = compact ? compactData() : fullData();
+    otherWatchedIds = data.otherWatchedIds;
+    let pagination = data.pagination;
+    let pageItems = data.pageItems;
+    let statusCounts = data.statusCounts;
 
     let statusPills = ["", "watched", "watchlist", "unseen"]
       .map((status) => {
         let label = status
           ? `${statusLabel(status)} (${statusCounts[status] || 0})`
-          : `${ui("All")} (${films.length})`;
+          : `${ui("All")} (${data.catalogCount})`;
         return `<a class="films-status-pill${currentState.status === status ? " is-active" : ""}" href="${escape(viewUrl({ status, page: 1 }))}">${escape(label)}</a>`;
       })
       .join("");
 
     let paginationHtml = window.renderPaginationControls({
-      total: sorted.length,
+      total: data.total,
       page: pagination.page,
       pageSize,
       dataAttribute: "data-films-page",
@@ -567,9 +771,13 @@
     });
     let toolbarControlsHtml = `<div class="detail-toolbar-controls">${window.renderChronologyControl({ iconOnly: true, escape, title: currentState.order === "desc" ? ui("Show ascending") : ui("Show descending") })}${window.renderFilmViewToggle({ view: currentState.view, listUrl: viewUrl({ view: "list" }), gridUrl: viewUrl({ view: "grid" }), escape, classes: "films-view-toggle", ariaLabel: ui("Film display") })}${window.renderCopyViewLinkButton({ escape })}</div>`;
 
-    container.innerHTML = `${window.renderDetailHeader({
-      mainHtml: `<h1>${escape(ui("Films"))}</h1><p>${escape(ui("Every film in the catalog — watched, watchlisted, or not yet seen."))}</p>`,
-    })}
+    container.innerHTML = `${seenJourneyHtml(data)}${
+      startFresh
+        ? ""
+        : window.renderDetailHeader({
+            mainHtml: `<h1>${escape(ui("Films"))}</h1><p>${escape(ui("Every film in the catalog — watched, watchlisted, or not yet seen."))}</p>`,
+          })
+    }
     <nav class="films-status-pills" aria-label="${escape(ui("Filter by status"))}">${statusPills}</nav>
     <form class="films-toolbar detail-toolbar" id="filmsToolbar">
       <label class="films-search">${escape(ui("Search"))}<input type="search" name="q" placeholder="${escape(ui("Title or director"))}" value="${escape(currentState.q)}"></label>
@@ -577,13 +785,13 @@
       ${toolbarControlsHtml}
       <details class="films-advanced-filters"${advancedOpen ? " open" : ""}>
         <summary>${escape(ui("Advanced filters"))}</summary>
-        ${advancedOpen ? collectionBuilderHtml() : ""}
+${advancedOpen ? (fullReady || !collectionExpression.groups.length ? collectionBuilderHtml() : `<p role="status">${escape(ui("Loading…"))}</p>`) : ""}
         <div class="films-advanced-filters-grid">
-          <label>${escape(ui("Period"))}<select name="period">${periodOptionsHtml(films)}</select></label>
-          <label>${escape(ui("Medium"))}<select name="medium">${option("", ui("Any medium"), "medium")}${option("live-action", ui("Live action"), "medium")}${option("animation", ui("Animation"), "medium")}${option("hybrid", ui("Hybrid"), "medium")}</select></label>
+          <label>${escape(ui("Period"))}<select name="period">${periodOptionsHtml(data.years)}</select></label>
+          <label>${escape(ui("Medium"))}<select name="medium">${option("", ui("Any medium"), "medium")}${option("live-action", ui("Live action"), "medium")}${option("animation", ui("Animation"), "medium")}</select></label>
           <label>${escape(ui("Screenplay"))}<select name="screenplay">${option("", ui("Any screenplay"), "screenplay")}${option("original", ui("Original"), "screenplay")}${option("adapted", ui("Adapted"), "screenplay")}</select></label>
           <label>${escape(ui("Adapted from"))}<select name="adaptationSource">${option("", ui("Any source"), "adaptationSource")}${(window.getAdaptationSources?.() || []).map((value) => option(value, ui(value), "adaptationSource")).join("")}</select></label>
-          <label>${escape(ui("Country"))}<select name="country">${option("", ui("Any country"), "country")}${countryOptionsHtml(films)}</select></label>
+          <label>${escape(ui("Country"))}<select name="country">${option("", ui("Any country"), "country")}${countryOptionsHtml(data.countries)}</select></label>
           <label>${escape(ui("Minimum rating"))}<select name="minimumRating">${option("", ui("No minimum"), "minimumRating")}${ratingOptions("minimum")}</select></label>
           <label>${escape(ui("Maximum rating"))}<select name="maximumRating">${option("", ui("No maximum"), "maximumRating")}${ratingOptions("maximum")}</select></label>
           <label>${escape(ui("Minimum runtime"))}<select name="minimumRuntime">${option("", ui("No minimum"), "minimumRuntime")}${runtimeOptions("minimum")}</select></label>
@@ -592,8 +800,9 @@
           <label>${escape(ui("Personal award category"))}<select name="category">${option("", ui("Any category"), "category")}${categoryOptionsHtml()}</select></label>
           <label>${escape(ui("Personal award"))}<select name="personalAward">${option("", ui("Any"), "personalAward")}${option("won", ui("Won"), "personalAward")}${option("nominated", ui("Nominated"), "personalAward")}</select></label>
           <label>${escape(ui("Official result"))}<select name="officialResult">${option("", ui("Any"), "officialResult")}${option("won", ui("Won"), "officialResult")}${option("nominated", ui("Nominated"), "officialResult")}</select></label>
-          <label>${escape(ui("Tag"))}<select name="tags">${option("", ui("Any tag"), "tags")}${tagOptionsHtml()}</select></label>
-          <label>${escape(ui("Franchise"))}<select name="franchise">${option("", ui("Any franchise"), "franchise")}${franchiseOptionsHtml()}</select></label>
+          <label>${escape(ui("Tag"))}<select name="tags">${option("", ui("Any tag"), "tags")}${tagOptionsHtml(data.tagNames)}</select></label>
+          <label>${escape(ui("Catalog tag"))}<select name="catalogTag">${catalogTagOptionsHtml(data.catalogTagNames)}</select></label>
+          <label>${escape(ui("Franchise"))}<select name="franchise">${option("", ui("Any franchise"), "franchise")}${franchiseOptionsHtml(data.franchises)}</select></label>
         </div>
       </details>
     </form>
@@ -601,7 +810,7 @@
     ${
       pageItems.length
         ? currentState.view === "grid"
-          ? `<div class="film-grid films-grid">${pageItems.map((film) => filmCardHtml(film, locale)).join("")}</div>`
+          ? `<div class="film-grid films-grid">${pageItems.map((film, index) => filmCardHtml(film, locale, index)).join("")}</div>`
           : window.renderLeaderboardTable({
               headers: [
                 ui("Film"),
@@ -609,7 +818,9 @@
                 ui("Director"),
                 ui("Status"),
               ].map(escape),
-              rows: pageItems.map((film) => filmRowHtml(film, locale)).join(""),
+              rows: pageItems
+                .map((film, index) => filmRowHtml(film, locale, index))
+                .join(""),
             })
         : `<div class="detail-empty"><h2>${escape(ui("No matches"))}</h2><p>${escape(ui("Try relaxing one or two filters."))}</p></div>`
     }
@@ -728,19 +939,130 @@
     });
 
     finish?.(
-      `${films.length} catalog, ${sorted.length} matched, page ${pagination.page}/${pagination.pageCount}`,
+      `${data.catalogCount} catalog, ${data.total} matched, page ${pagination.page}/${pagination.pageCount}${compact ? ", paged" : ""}`,
     );
   }
 
+  container.addEventListener("change", (event) => {
+    if (!startFresh || !event.target.matches?.("[data-seen-year]")) return;
+    currentState = {
+      ...currentState,
+      period: event.target.value ? `year:${event.target.value}` : "",
+      page: 1,
+    };
+    seenReview = false;
+    viewState.replace(currentState);
+    render();
+  });
+  container.addEventListener("click", async (event) => {
+    if (!startFresh) return;
+    let link = event.target.closest("a");
+    if (
+      link &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.shiftKey &&
+      !event.altKey
+    ) {
+      let url = new URL(link.href, window.location.href);
+      if (
+        url.origin === window.location.origin &&
+        url.pathname.endsWith("/films.html")
+      ) {
+        event.preventDefault();
+        if (seenBusy) return;
+        currentState = viewState.read(url.search);
+        viewState.replace(currentState);
+        render();
+        return;
+      }
+    }
+    let button = event.target.closest("button");
+    if (!button || seenBusy) return;
+    let id = button.dataset.seenFilm;
+    if (id) {
+      if (seenSelection.has(id)) seenSelection.delete(id);
+      else {
+        let film = (fullReady ? catalog || [] : compactModel?.films || []).find(
+          (entry) => (entry.supabaseFilmId || entry.id) === id,
+        );
+        if (film && film.catalogStatus !== "watched" && !savedSeenIds.has(id))
+          seenSelection.set(id, film);
+      }
+      if (!seenSelection.size) seenReview = false;
+      seenSuccess = null;
+    } else if (button.hasAttribute("data-seen-review"))
+      seenReview = !seenReview;
+    else if (button.hasAttribute("data-seen-another")) {
+      seenSuccess = null;
+      currentState = {
+        ...currentState,
+        period: "",
+        q: "",
+        status: "",
+        page: 1,
+      };
+      viewState.replace(currentState);
+    } else if (
+      button.hasAttribute("data-seen-save") &&
+      seenReview &&
+      seenSelection.size
+    ) {
+      seenBusy = true;
+      seenError = "";
+      let films = [...seenSelection.values()];
+      render();
+      try {
+        let ids = await window.addSupabaseSeenFilms([...seenSelection.keys()]);
+        ids.forEach((filmId) => savedSeenIds.add(filmId));
+        let years = [...new Set(films.map((film) => String(film.year || "")))];
+        seenSuccess = {
+          count: ids.length,
+          year: years.length === 1 && /^\d{4}$/.test(years[0]) ? years[0] : "",
+        };
+        seenSelection.clear();
+        seenReview = false;
+        compactKey = "";
+        if (fullReady) {
+          fullReady = false;
+          catalog = null;
+          fullLoading = null;
+        }
+      } catch (error) {
+        seenError = ui(error.message || String(error));
+      } finally {
+        seenBusy = false;
+      }
+    } else return;
+    render();
+    if (id) container.querySelector(`[data-seen-film="${id}"]`)?.focus();
+    else if (
+      button.hasAttribute("data-seen-review") ||
+      button.hasAttribute("data-seen-save")
+    ) {
+      let panel = container.querySelector(
+        seenSuccess
+          ? ".films-seen-success"
+          : seenReview
+            ? ".films-seen-review"
+            : ".films-seen-tray",
+      );
+      panel?.setAttribute("tabindex", "-1");
+      panel?.focus();
+    }
+  });
   render();
   window.addEventListener?.("oskars:localechange", render);
   // Fire-and-forget after first paint, matching every other official-
   // results-aware page (category/completion/film/person/period/stats) -
   // the bundled snapshot already renders correctly, this just swaps in
   // live data and re-renders once it resolves.
-  window.hydrateOfficialResultsFromSupabase?.().then((changed) => {
-    if (!changed) return;
-    officialIndex = null;
-    render();
-  });
+  function hydrateOfficialResults() {
+    window.hydrateOfficialResultsFromSupabase?.().then((changed) => {
+      if (!changed) return;
+      officialIndex = null;
+      render();
+    });
+  }
+  if (fullReady) hydrateOfficialResults();
 })();

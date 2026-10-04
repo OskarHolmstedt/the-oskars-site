@@ -83,6 +83,197 @@ window.withoutAnnualBallotNomination = function (
   };
 };
 
+/**
+ * Returns annual-ballot progress with a new nomination inserted, bumping
+ * existing placements down, dropping items exceeding capacity, and reopening its category.
+ * @param {Object} progress Annual award-review progress.
+ * @param {string} category Category name.
+ * @param {Object} film Film object.
+ * @param {number} placement Target placement (1-based).
+ * @param {string[]|string} [recipients] Recipient names.
+ * @param {string} [detail] Nomination detail text.
+ * @param {number} [capacity] Category capacity (5 or 10).
+ * @returns {Object} Updated progress.
+ */
+window.withAnnualBallotNomination = function (
+  progress,
+  category,
+  film,
+  placement,
+  recipients,
+  detail,
+  capacity = 5,
+) {
+  if (!progress || !category || !film?.id) return progress;
+  let numericPlacement = Math.max(
+    1,
+    Math.min(Number(placement) || 1, capacity),
+  );
+  let recipientList = Array.isArray(recipients)
+    ? recipients
+    : typeof recipients === "string" && recipients.trim()
+      ? window.splitRecipientNames?.(recipients) || [recipients]
+      : [];
+  let recipientRows = recipientList.map((r) =>
+    typeof r === "string" ? { recipient_name: r } : r,
+  );
+
+  let newNomination = {
+    id: `opt-${film.id}-${Date.now()}`,
+    film_id: film.id,
+    films: film,
+    placement: numericPlacement,
+    detail: detail || "",
+    personal_nomination_recipients: recipientRows,
+  };
+
+  let categories = (progress?.categories || []).map((entry) => {
+    if (entry.category !== category) return entry;
+    let bumped = entry.nominations
+      .map((nomination) => {
+        let p = Number(nomination.placement);
+        return p >= numericPlacement
+          ? { ...nomination, placement: p + 1 }
+          : nomination;
+      })
+      .filter((nomination) => Number(nomination.placement) <= capacity);
+
+    let nextNominations = [...bumped, newNomination].sort(
+      (a, b) => Number(a.placement) - Number(b.placement),
+    );
+
+    return {
+      ...entry,
+      nominations: nextNominations,
+      review: null,
+      reviewed: false,
+    };
+  });
+
+  return {
+    ...progress,
+    categories,
+    reviewed: categories.filter((entry) => entry.reviewed).length,
+    complete:
+      categories.length > 0 && categories.every((entry) => entry.reviewed),
+    nextCategory: categories.find((entry) => !entry.reviewed)?.category || "",
+    winners: categories
+      .map((entry) =>
+        entry.nominations.find(
+          (nomination) => Number(nomination.placement) === 1,
+        ),
+      )
+      .filter(Boolean),
+  };
+};
+
+/**
+ * Returns annual-ballot progress with a nomination moved to a new placement,
+ * shifting other nominations accordingly and reopening its category.
+ * @param {Object} progress Annual award-review progress.
+ * @param {string} category Category name.
+ * @param {string} filmId Film UUID.
+ * @param {number} fromPlacement Starting placement.
+ * @param {number} toPlacement Destination placement.
+ * @returns {Object} Updated progress.
+ */
+window.withAnnualBallotNominationMove = function (
+  progress,
+  category,
+  filmId,
+  fromPlacement,
+  toPlacement,
+) {
+  let from = Number(fromPlacement);
+  let to = Number(toPlacement);
+  if (!progress || !category || !filmId || from === to) return progress;
+
+  let categories = (progress?.categories || []).map((entry) => {
+    if (entry.category !== category) return entry;
+    let target = entry.nominations.find(
+      (n) => n.film_id === filmId && Number(n.placement) === from,
+    );
+    if (!target) return entry;
+
+    let others = entry.nominations.filter((n) => n !== target);
+    let shifted = others.map((n) => {
+      let p = Number(n.placement);
+      if (from < to && p > from && p <= to) return { ...n, placement: p - 1 };
+      if (from > to && p >= to && p < from) return { ...n, placement: p + 1 };
+      return n;
+    });
+
+    let nextNominations = [...shifted, { ...target, placement: to }].sort(
+      (a, b) => Number(a.placement) - Number(b.placement),
+    );
+
+    return {
+      ...entry,
+      nominations: nextNominations,
+      review: null,
+      reviewed: false,
+    };
+  });
+
+  return {
+    ...progress,
+    categories,
+    reviewed: categories.filter((entry) => entry.reviewed).length,
+    complete:
+      categories.length > 0 && categories.every((entry) => entry.reviewed),
+    nextCategory: categories.find((entry) => !entry.reviewed)?.category || "",
+    winners: categories
+      .map((entry) =>
+        entry.nominations.find(
+          (nomination) => Number(nomination.placement) === 1,
+        ),
+      )
+      .filter(Boolean),
+  };
+};
+
+/**
+ * Returns annual-ballot progress with a nomination's credit details updated.
+ * @param {Object} progress Annual award-review progress.
+ * @param {string} category Category name.
+ * @param {string} nominationId Nomination UUID / temp id.
+ * @param {string[]|string} recipients Recipient names.
+ * @param {string} [detail] Nomination detail text.
+ * @returns {Object} Updated progress.
+ */
+window.withAnnualBallotNominationCredit = function (
+  progress,
+  category,
+  nominationId,
+  recipients,
+  detail,
+) {
+  if (!progress || !category || !nominationId) return progress;
+  let recipientList = Array.isArray(recipients)
+    ? recipients
+    : typeof recipients === "string" && recipients.trim()
+      ? window.splitRecipientNames?.(recipients) || [recipients]
+      : [];
+  let recipientRows = recipientList.map((r) =>
+    typeof r === "string" ? { recipient_name: r } : r,
+  );
+
+  let categories = (progress?.categories || []).map((entry) => {
+    if (entry.category !== category) return entry;
+    let nextNominations = entry.nominations.map((nomination) => {
+      if (nomination.id !== nominationId) return nomination;
+      return {
+        ...nomination,
+        detail: detail !== undefined ? detail : nomination.detail,
+        personal_nomination_recipients: recipientRows,
+      };
+    });
+    return { ...entry, nominations: nextNominations };
+  });
+
+  return { ...progress, categories };
+};
+
 function normalizeMetadataValue(value) {
   return String(value || "")
     .normalize("NFKC")
@@ -96,7 +287,6 @@ function normalizeFilmMedium(value) {
     .replace(/\s+/g, " ");
   if (/\b(?:anim|animated|animation|animerad|tecknad)\b/.test(medium))
     return "animation";
-  if (/\b(?:hybrid|mixed|mixad)\b/.test(medium)) return "hybrid";
   if (/\b(?:live action|liveaction|spelfilm)\b/.test(medium))
     return "live-action";
   return "unknown";
@@ -247,9 +437,66 @@ window.normalizeWatchedDate = function (value) {
   return window.parseWatchedDate(text) || text;
 };
 
-/** Normalizes shared metadata fields on a film in place. @param {FilmRecord|null} film Film. @returns {FilmRecord|null} Normalized film. */
-window.normalizeFilmMetadata = function (film) {
+// Normalized metadata is a fixed point, so a film can skip renormalization
+// while every field normalization reads still holds the value it left there.
+// Arrays are compared element by element because callers push into tags and
+// awards in place.
+let normalizedFilmSnapshots = new WeakMap();
+
+function filmMetadataSnapshot(film) {
+  let values = [
+    film.country,
+    film.primaryCountry,
+    film.rating,
+    film.ratingValue,
+    film.ratingModifier,
+    film.medium,
+    film.liveAction,
+    film.screenplayType,
+    film.adaptation,
+    film.adaptationSource,
+    film.director,
+    film.review,
+    film.dateWatched,
+    film.poster,
+  ];
+  if (film.poster && typeof film.poster === "object")
+    values.push(...Object.values(film.poster));
+  [film.directors, film.tags, film.franchises, film.awards].forEach((list) => {
+    values.push(list);
+    if (Array.isArray(list)) values.push(list.length, ...list);
+  });
+  (film.awards || []).forEach((award) => {
+    values.push(
+      award?.recipients,
+      award?.recipients?.length,
+      award?.recipientText,
+      award?.recipient,
+    );
+  });
+  return values;
+}
+
+function filmMetadataUnchanged(film) {
+  let previous = normalizedFilmSnapshots.get(film);
+  if (!previous) return false;
+  let current = filmMetadataSnapshot(film);
+  return (
+    previous.length === current.length &&
+    previous.every((value, index) => value === current[index])
+  );
+}
+
+/**
+ * Normalizes shared metadata fields on a film in place.
+ * @param {FilmRecord|null} film Film.
+ * @param {Object} [options] Normalization controls.
+ * @param {boolean} [options.skipUnchanged] Whether a film whose metadata is untouched since its last normalization is returned as is.
+ * @returns {FilmRecord|null} Normalized film.
+ */
+window.normalizeFilmMetadata = function (film, options = {}) {
   if (!film) return film;
+  if (options.skipUnchanged && filmMetadataUnchanged(film)) return film;
   let countries =
     window.countryListValues?.(film.country) || parseCountries(film.country);
   film.country = countries.join(", ");
@@ -294,6 +541,7 @@ window.normalizeFilmMetadata = function (film) {
   if (window.normalizeFranchiseMemberships)
     film.franchises = window.normalizeFranchiseMemberships(film.franchises);
   (film.awards || []).forEach(window.normalizeAwardRecipients);
+  normalizedFilmSnapshots.set(film, filmMetadataSnapshot(film));
   return film;
 };
 

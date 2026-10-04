@@ -198,7 +198,7 @@
     return `<a class="project-status-badge project-status-badge--${status} franchise-card-project-marker" href="${escape(window.projectPageUrl(project.id))}" title="${label}" aria-label="${label}">${escape(ui("Project"))}</a>`;
   }
 
-  function renderCard(franchise) {
+  function renderCard(franchise, index = 0) {
     let completion = window.franchiseCompletion(franchise);
     let ratings = franchiseRatingStatistics(franchise);
     let deckFilms = window
@@ -207,17 +207,22 @@
         ...window.franchiseOtherFilms(franchise),
       ])
       .slice(0, 5);
-    let deck = deckFilms.length ? window.renderPosterDeck(deckFilms) : "";
+    let deck = deckFilms.length
+      ? window.renderPosterDeck(deckFilms, {
+          priority: index < 4 ? "high" : undefined,
+        })
+      : "";
     let project = window.projectForSource("franchise", franchise.id);
     return `<article class="franchise-card franchise-card--poster${project ? " franchise-card--project" : ""}">${deck ? `<div class="franchise-card-poster">${deck}</div>` : ""}<div class="franchise-card-body"><div class="franchise-card-heading"><h2><a href="${escape(window.franchisePageUrl(franchise.id))}">${escape(franchise.name)}</a></h2>${franchiseProjectMarker(project)}</div>${franchiseRatingHtml(ratings)}${franchiseStatsHtml(completion, franchise.childIds.length)}<div class="franchise-completion"><span><b>${escape(completion.percent)}%</b> ${escape(ui("complete"))}</span><div class="project-progress-meter" aria-label="${escape(ui("{percent} percent complete", { percent: completion.percent }))}"><span style="width:${escape(completion.percent)}%"></span></div></div></div></article>`;
   }
 
-  function renderRow(franchise) {
+  function renderRow(franchise, index = 0) {
     let completion = window.franchiseCompletion(franchise);
     let ratings = franchiseRatingStatistics(franchise);
     let representative = window.franchiseRepresentativeFilm(franchise);
+    let priority = index < 4 ? "high" : undefined;
     let thumb = representative
-      ? window.renderFilmPoster(representative, "thumb")
+      ? window.renderFilmPoster(representative, "thumb", { priority })
       : "";
     let childCount = franchise.childIds.length;
     return `<tr><td class="film-table-cell">${thumb}<span><a class="table-film-link" href="${escape(window.franchisePageUrl(franchise.id))}"><strong>${escape(franchise.name)}</strong></a>${childCount ? `<span class="leaderboard-meta">${childCount} ${escape(ui("Subfranchises"))}</span>` : ""}</span></td><td>${escape(window.formatAverageRating(ratings.mean))}</td><td>${completion.watchedCount}</td><td>${completion.watchlistCount}</td><td>${completion.percent}%</td><td>${escape(franchiseYearRange(franchise))}</td></tr>`;
@@ -247,8 +252,12 @@
       ariaLabel: ui("Franchise pages"),
       variant: "extended",
     });
-    let cardHtml = visibleRoots.map(renderCard).join("");
-    let rowHtml = visibleRoots.map(renderRow).join("");
+    let cardHtml = visibleRoots
+      .map((franchise, index) => renderCard(franchise, index))
+      .join("");
+    let rowHtml = visibleRoots
+      .map((franchise, index) => renderRow(franchise, index))
+      .join("");
     let listTable = window.renderLeaderboardTable({
       headers: [
         ui("Franchise"),

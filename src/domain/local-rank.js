@@ -77,20 +77,6 @@
     return true;
   };
 
-  /**
-   * Moves one film relative to another within a collection's local order.
-   * Initializes an explicit order from the current merged (implicit-backed)
-   * order on first use, so a single drag doesn't require the whole
-   * collection to already have one.
-   * @param {'franchises'|'people'|'tags'} type Collection kind.
-   * @param {string} id Collection entity id.
-   * @param {string[]} currentIds Current collection film ids, in implicit order.
-   * @param {string} fromFilmId Film being moved.
-   * @param {string} toFilmId Reference film.
-   * @param {'before'|'after'} [position] Placement relative to the reference film.
-   * @param {Object} [options] Save controls.
-   * @returns {boolean} Whether the move applied.
-   */
   function byAllTimeRank(left, right) {
     let leftRank = Number(left.allTimeRank);
     let rightRank = Number(right.allTimeRank);
@@ -171,6 +157,20 @@
     return null;
   };
 
+  /**
+   * Moves one film relative to another within a collection's local order.
+   * Initializes an explicit order from the current merged (implicit-backed)
+   * order on first use, so a single drag doesn't require the whole
+   * collection to already have one.
+   * @param {'franchises'|'people'|'tags'} type Collection kind.
+   * @param {string} id Collection entity id.
+   * @param {string[]} currentIds Current collection film ids, in implicit order.
+   * @param {string} fromFilmId Film being moved.
+   * @param {string} toFilmId Reference film.
+   * @param {'before'|'after'} [position] Placement relative to the reference film.
+   * @param {Object} [options] Save controls.
+   * @returns {boolean} Whether the move applied.
+   */
   window.moveLocalRankFilm = function (
     type,
     id,

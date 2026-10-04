@@ -1,8 +1,10 @@
-/** @file Controls category history, progression, competition views, URL state, and category notes. */
+/** @file Controls category history, progression, competition views, URL state, and category notes. Hydrates only the watched archive, awards, ranks and people (issue #633); the people index's watchlist and catalog edges arrive from read_people_directory_edges() after the first render. */
 
 (function () {
   let categoryEscape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
+  let noteState = { note: "", editing: false, busy: false };
   let categoryLabel = (category) =>
     window.localizedCategoryName?.(category) || category;
 
@@ -264,8 +266,8 @@
 
   function officialResultCreditParts(nomination, showSourceCategory) {
     return [
-      nomination.recipient,
-      nomination.detail,
+      window.formatOfficialField(nomination.recipient),
+      window.formatOfficialField(nomination.detail),
       showSourceCategory ? nomination.sourceCategory : "",
     ]
       .filter(Boolean)
@@ -273,11 +275,16 @@
   }
 
   function officialResultTitleHtml(nomination, classes) {
-    let title = categoryEscape(nomination.sourceTitle);
-    let film = nomination.filmRef;
-    return film?.id
-      ? `<a class="${classes} table-film-link" href="${categoryEscape(window.filmPageUrl(film.id))}">${title}</a>`
-      : `<span class="${classes}">${title}</span>`;
+    return window.formatDisplayListHtml(
+      window
+        .officialNominationFilms(nomination)
+        .map(({ title, filmRef }) =>
+          filmRef?.id
+            ? `<a class="${classes} table-film-link" href="${categoryEscape(window.filmPageUrl(filmRef.id))}">${categoryEscape(title)}</a>`
+            : `<span class="${classes}">${categoryEscape(title)}</span>`,
+        ),
+      categoryEscape,
+    );
   }
 
   function officialNominationIsPersonalPick(nomination, periodKey) {
@@ -569,7 +576,17 @@
       <nav class="category-jump-nav" aria-label="${categoryEscape(ui("Award categories"))}"><b>${categoryEscape(ui("Categories"))}</b><div class="category-jump-list">${categoryLinks}</div></nav>
     </header>
     ${window.renderDetailStats({ itemsHtml: `<span><b>${displayedEntries.length}</b> ${categoryEscape(viewMode === "rankings" ? ui("Nominations") : ui("Winners"))}</span><span><b>${new Set(displayedEntries.map((entry) => entry.award.year)).size}</b> ${categoryEscape(ui("Periods"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape: categoryEscape, ui })}${agreementSummary}` })}
-    ${window.renderEntityNote("categories", category, ui("Category note"))}
+    ${window.renderSupabaseEntityNote({
+      entityKind: "category",
+      entityKey: category,
+      note: noteState.note,
+      editing: noteState.editing,
+      busy: noteState.busy,
+      draft: noteState.draft,
+      label: ui("Category note"),
+      canEdit,
+      escape: categoryEscape,
+    })}
     ${window.renderChronologyControl({ order: chronologyOrder, href: chronologyUrl(), escape: categoryEscape })}
     <div class="category-view-toolbar"><fieldset class="category-view-controls"><legend>${categoryEscape(ui("View"))}</legend><label><input type="radio" name="categoryViewMode" value="rankings" ${viewMode === "rankings" ? "checked" : ""}> ${categoryEscape(ui("Full rankings"))}</label><label><input type="radio" name="categoryViewMode" value="progression" ${viewMode === "progression" ? "checked" : ""}> ${categoryEscape(ui("Progression"))}</label><label><input type="radio" name="categoryViewMode" value="official" ${viewMode === "official" ? "checked" : ""}> ${categoryEscape(ui("Official results"))}</label></fieldset>
     ${
@@ -593,9 +610,27 @@
   }
 
   render();
-  window.bindEntityNoteEditor(container);
+  // Recipient links and portraits resolve through the people index, whose
+  // ids and catalog people need the edges on a partial archive.
+  if (window.peopleDirectoryEdgesNeeded?.())
+    window.loadPeopleDirectoryEdges().then(render);
+  window.bindSupabaseEntityNoteEditor?.({
+    container,
+    entityKind: "category",
+    entityKey: category,
+    state: noteState,
+    canEdit,
+    rerender: render,
+  });
+  window.loadSupabaseEntityNote?.("category", category).then((note) => {
+    let nextNote = note || "";
+    if (noteState.note !== nextNote) {
+      noteState.note = nextNote;
+      render();
+    }
+  });
   window.addEventListener?.("oskars:localechange", render);
-  window.hydrateOfficialResultsFromSupabase?.().then(() => {
+  window.hydrateOfficialResultsForCategory?.(category).then(() => {
     refreshOfficialCategoryComparison();
     render();
   });

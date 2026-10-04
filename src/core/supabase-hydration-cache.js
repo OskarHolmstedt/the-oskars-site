@@ -1,5 +1,5 @@
 /**
- * @file Caches loadSupabaseLegacyHydrationSource()'s raw payload in
+ * @file Caches loadSupabaseHydrationDomains()'s raw payload in
  * sessionStorage so a same-tab page navigation - this is a multi-page app,
  * every nav is a full static-HTML reload - can skip re-fetching and
  * re-joining the entire watched/watchlist/rankings/personal-awards/
@@ -15,7 +15,7 @@
 // Version the key whenever the raw hydration-source contract changes so a
 // payload written by older loader code cannot survive into an incompatible
 // reader after a reload.
-window.OSKARS_HYDRATION_CACHE_KEY = "oskars-supabase-hydration-cache:v3";
+window.OSKARS_HYDRATION_CACHE_KEY = "oskars-supabase-hydration-cache:v5";
 window.OSKARS_HYDRATION_CACHE_TTL_MS = 5 * 60 * 1000;
 
 /**
@@ -42,14 +42,74 @@ window.readCachedSupabaseHydrationSource = function (userId) {
   }
 };
 
+// Domain sets whose serialized source overflowed sessionStorage in this tab.
+// A source holding every domain of such a set is at least as large, so its
+// write is skipped instead of serialized only to fail again.
+window.OSKARS_HYDRATION_CACHE_OVERFLOW_KEY =
+  "oskars-supabase-hydration-cache-overflow:v1";
+
+function hydrationCacheDomains(source) {
+  return Array.isArray(source?.domains) ? source.domains : ["*"];
+}
+
+function readHydrationCacheOverflows(userId) {
+  try {
+    let entry = JSON.parse(
+      sessionStorage.getItem(window.OSKARS_HYDRATION_CACHE_OVERFLOW_KEY) ||
+        "null",
+    );
+    return entry?.userId === userId && Array.isArray(entry.domainSets)
+      ? entry.domainSets
+      : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function hydrationCacheKnownToOverflow(userId, domains) {
+  return readHydrationCacheOverflows(userId).some((overflowed) =>
+    overflowed.includes("*")
+      ? domains.includes("*")
+      : domains.includes("*") ||
+        overflowed.every((domain) => domains.includes(domain)),
+  );
+}
+
+function rememberHydrationCacheOverflow(userId, domains) {
+  try {
+    sessionStorage.setItem(
+      window.OSKARS_HYDRATION_CACHE_OVERFLOW_KEY,
+      JSON.stringify({
+        userId,
+        domainSets: [...readHydrationCacheOverflows(userId), domains],
+      }),
+    );
+  } catch (err) {}
+}
+
+function isStorageQuotaError(err) {
+  return (
+    err?.name === "QuotaExceededError" ||
+    err?.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+    err?.code === 22 ||
+    err?.code === 1014
+  );
+}
+
 /**
  * Writes a freshly-loaded hydration source to the cache.
  * @param {string} userId The signed-in user's id.
- * @param {Object} source The raw source from loadSupabaseLegacyHydrationSource().
+ * @param {Object} source A raw source from loadSupabaseHydrationDomains(); its
+ * `domains` says which parts of the archive it holds.
  */
 window.writeCachedSupabaseHydrationSource = function (userId, source) {
   if (!userId) return;
   let finishWrite = window.startOskarsPerformance?.("hydration:cacheWrite");
+  let domains = hydrationCacheDomains(source);
+  if (hydrationCacheKnownToOverflow(userId, domains)) {
+    finishWrite?.("skipped: too large");
+    return;
+  }
   try {
     sessionStorage.setItem(
       window.OSKARS_HYDRATION_CACHE_KEY,
@@ -57,6 +117,8 @@ window.writeCachedSupabaseHydrationSource = function (userId, source) {
     );
     finishWrite?.("stored");
   } catch (err) {
+    if (isStorageQuotaError(err))
+      rememberHydrationCacheOverflow(userId, domains);
     finishWrite?.("unavailable");
     // Storage quota exceeded or disabled (private browsing, etc.) - caching
     // is a pure optimization, so a write failure just means every page
@@ -64,12 +126,147 @@ window.writeCachedSupabaseHydrationSource = function (userId, source) {
   }
 };
 
+window.OSKARS_PEOPLE_EDGES_CACHE_KEY = "oskars-people-edges-cache:v1";
+
+/**
+ * Reads cached read_people_directory_edges() rows for the given user, if
+ * fresh. Rows cached with every watchlist item also answer a preview
+ * request: the preview is the first three of the same ordered items.
+ * @param {string} userId The signed-in user's id.
+ * @param {boolean} allWatchlistItems Whether the caller needs every item.
+ * @returns {Object[]|null} The rows, or null on a miss.
+ */
+window.readCachedPeopleDirectoryEdges = function (userId, allWatchlistItems) {
+  if (!userId) return null;
+  try {
+    let entry = JSON.parse(
+      sessionStorage.getItem(window.OSKARS_PEOPLE_EDGES_CACHE_KEY) || "null",
+    );
+    if (
+      entry?.userId !== userId ||
+      typeof entry.savedAt !== "number" ||
+      Date.now() - entry.savedAt > window.OSKARS_HYDRATION_CACHE_TTL_MS ||
+      !Array.isArray(entry.rows) ||
+      (allWatchlistItems && !entry.allWatchlistItems)
+    )
+      return null;
+    if (allWatchlistItems || !entry.allWatchlistItems) return entry.rows;
+    return entry.rows.map((row) => ({
+      ...row,
+      watchlist_preview: (row.watchlist_preview || []).slice(0, 3),
+    }));
+  } catch (err) {
+    return null;
+  }
+};
+
+/**
+ * Caches read_people_directory_edges() rows, keeping an existing
+ * every-item entry rather than replacing it with a preview.
+ * @param {string} userId The signed-in user's id.
+ * @param {boolean} allWatchlistItems Whether the rows carry every item.
+ * @param {Object[]} rows The RPC rows.
+ */
+window.writeCachedPeopleDirectoryEdges = function (
+  userId,
+  allWatchlistItems,
+  rows,
+) {
+  if (!userId) return;
+  if (!allWatchlistItems && window.readCachedPeopleDirectoryEdges(userId, true))
+    return;
+  try {
+    sessionStorage.setItem(
+      window.OSKARS_PEOPLE_EDGES_CACHE_KEY,
+      JSON.stringify({
+        userId,
+        savedAt: Date.now(),
+        allWatchlistItems: Boolean(allWatchlistItems),
+        rows,
+      }),
+    );
+  } catch (err) {
+    // Storage full or disabled: the next visit simply fetches again.
+  }
+};
+
+window.OSKARS_FILM_DETAIL_CACHE_PREFIX = "oskars-film-detail-cache:v1:";
+
+/**
+ * Reads cached loadSupabaseFilmDetail() source for a specific user and film, if fresh.
+ * @param {string} [userId] The signed-in user's id.
+ * @param {string} [filmId] The target film's id.
+ * @returns {Object|null} The cached film detail source, or null on a miss.
+ */
+window.readCachedSupabaseFilmDetail = function (userId, filmId) {
+  if (!userId || !filmId) return null;
+  try {
+    let raw = sessionStorage.getItem(
+      `${window.OSKARS_FILM_DETAIL_CACHE_PREFIX}${userId}:${filmId}`,
+    );
+    if (!raw) return null;
+    let entry = JSON.parse(raw);
+    if (
+      entry?.userId !== userId ||
+      entry?.filmId !== filmId ||
+      typeof entry.savedAt !== "number" ||
+      Date.now() - entry.savedAt > window.OSKARS_HYDRATION_CACHE_TTL_MS
+    )
+      return null;
+    return entry.source || null;
+  } catch (err) {
+    return null;
+  }
+};
+
+/**
+ * Writes a freshly-loaded film detail source to sessionStorage.
+ * @param {string} userId The signed-in user's id.
+ * @param {string} filmId The target film's id.
+ * @param {Object} source The raw film detail source.
+ */
+window.writeCachedSupabaseFilmDetail = function (userId, filmId, source) {
+  if (!userId || !filmId || !source) return;
+  try {
+    sessionStorage.setItem(
+      `${window.OSKARS_FILM_DETAIL_CACHE_PREFIX}${userId}:${filmId}`,
+      JSON.stringify({
+        userId,
+        filmId,
+        savedAt: Date.now(),
+        source,
+      }),
+    );
+  } catch (err) {
+    // Storage full or disabled: the next visit simply fetches again.
+  }
+};
+
+/**
+ * Clears all cached film detail entries from sessionStorage.
+ */
+window.clearCachedSupabaseFilmDetails = function () {
+  try {
+    let prefix = window.OSKARS_FILM_DETAIL_CACHE_PREFIX;
+    let toRemove = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      let key = sessionStorage.key(i);
+      if (key && key.indexOf(prefix) === 0) toRemove.push(key);
+    }
+    toRemove.forEach((key) => sessionStorage.removeItem(key));
+  } catch (err) {}
+};
+
 window.OSKARS_HYDRATION_INVALIDATION_KEY = "oskars-hydration-invalidation:v1";
 
-/** Clears cached hydration and notifies active shell consumers. @param {boolean} [broadcast] Whether to notify other tabs after a local write. */
+/** Clears cached hydration (and cached people edges / film details) and notifies active shell consumers. @param {boolean} [broadcast] Whether to notify other tabs after a local write. */
 window.invalidateCachedSupabaseHydrationSource = function (broadcast = true) {
   try {
     sessionStorage.removeItem(window.OSKARS_HYDRATION_CACHE_KEY);
+    sessionStorage.removeItem(window.OSKARS_PEOPLE_EDGES_CACHE_KEY);
+    sessionStorage.removeItem(window.OSKARS_HYDRATION_CACHE_OVERFLOW_KEY);
+    window.clearCachedSupabaseFilmDetails?.();
+    window.clearSupabaseFilmDetailInFlight?.();
   } catch (err) {}
   if (broadcast) {
     try {
@@ -102,6 +299,7 @@ window.addEventListener?.("storage", (event) => {
 // while under-invalidating would silently show stale data.
 window.OSKARS_HYDRATION_CACHE_INVALIDATING_MUTATIONS = [
   "createSupabaseFreshWatchedIntake",
+  "addSupabaseSeenFilms",
   "updateSupabaseIntakeWorkflow",
   "setSupabaseIntakeWatchedFacts",
   "setSupabaseWatchedRating",
@@ -121,6 +319,8 @@ window.OSKARS_HYDRATION_CACHE_INVALIDATING_MUTATIONS = [
   "resolveSupabaseRankingPairReview",
   "reopenSupabaseRankingPairReview",
   "setSupabaseProfileDisplayName",
+  "setSupabaseProfileLetterboxd",
+  "updateSupabaseProfileLetterboxdLastSynced",
   "deleteSupabaseAccount",
   "moveSupabaseRankingEntryToPosition",
   "setSupabaseAwardReview",

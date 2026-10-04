@@ -516,23 +516,20 @@ window.registerWatchlistFilterProjectSource = function (
 };
 
 function watchlistTierEditor(item, escape, ui) {
-  let normalized = window.normalizeWatchlistTier(item.tier);
-  let options = [
-    `<option value=""${normalized ? "" : " selected"}>${escape(ui("Unset"))}</option>`,
-  ]
-    .concat(
-      window.WATCHLIST_TIERS.map(
-        (tier) =>
-          `<option value="${escape(tier)}"${normalized === tier ? " selected" : ""}>${escape(tier)}</option>`,
-      ),
-    )
-    .join("");
   let id = escape(item.id || window.watchlistItemId(item));
-  // The modifier toggle identifies its row by looking up the sibling
-  // select's own id-carrying attribute at click time (handled in
-  // wirePeriodWatchlistControls below), rather than duplicating the id
-  // onto the toggle too.
-  return `<label class="watchlist-tier-editor">${escape(ui("Interest"))} <select data-period-watchlist-tier-editor="${id}">${options}</select>${window.renderTierModifierToggle?.("tierModifier", item.tierModifier, { escape, ui }) || ""}</label>`;
+  // The tier setter's hidden inputs provide both the tier and modifier values,
+  // firing bubbling change events to wirePeriodWatchlistControls.
+  return `<span class="watchlist-tier-editor"><span class="watchlist-tier-editor-label">${escape(ui("Interest"))}</span>${
+    window.renderTierSetter?.({
+      tierName: "tier",
+      tier: item.tier,
+      modifierName: "tierModifier",
+      modifier: item.tierModifier,
+      tierAttributes: `data-period-watchlist-tier-editor="${id}"`,
+      escape,
+      ui,
+    }) || ""
+  }</span>`;
 }
 
 /**
@@ -546,6 +543,7 @@ function watchlistTierEditor(item, escape, ui) {
  * @param {boolean} [options.tierEditMode] Whether the per-item tier editor is shown.
  * @param {boolean} [options.watchlistOrderEditMode] Whether drag-to-reorder attributes are attached.
  * @param {string} [options.periodOrder] Current sort axis, to decide whether to show the order rank label.
+ * @param {number} [options.periodRank] 1-based position within the current period's filtered watchlist (replaces global item.order for the rank label).
  * @returns {string}
  */
 window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
@@ -554,13 +552,15 @@ window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
   let tierEditMode = Boolean(options.tierEditMode);
   let watchlistOrderEditMode = Boolean(options.watchlistOrderEditMode);
   let periodOrder = options.periodOrder;
+  let periodRank = options.periodRank;
   let item = entry.item;
   item.id ||= window.watchlistItemId(item);
   let film = window.watchlistFilmLike(item, entry.archiveFilm);
-  let order = Number(item.order);
   let orderRankLabel =
-    Number.isInteger(order) && order > 0 && periodOrder === "rank"
-      ? `${order}.`
+    periodOrder === "rank"
+      ? Number.isInteger(periodRank) && periodRank > 0
+        ? `${periodRank}.`
+        : "NR"
       : null;
   let directorHtml = window.renderLinkedDirectors(film, {
     escape: escape,
@@ -576,7 +576,9 @@ window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
       scope: "watchlist",
       id: item.id,
       index: visibleIndex,
-      group: window.normalizeWatchlistTier(item.tier),
+      group: window.renderTierWithModifier
+        ? window.renderTierWithModifier(item.tier, item.tierModifier) || "unset"
+        : window.normalizeWatchlistTier(item.tier),
     }),
     openFilm: false,
     rankLabel: orderRankLabel,
@@ -606,12 +608,14 @@ window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
  * @param {(value:*) => string} [options.escape] HTML escaper.
  * @param {boolean} [options.tierEditMode] Whether the per-item tier editor is shown.
  * @param {boolean} [options.watchlistOrderEditMode] Whether drag-to-reorder attributes are attached.
+ * @param {number} [options.periodRank] 1-based position within the current period's filtered watchlist.
  * @returns {string}
  */
 window.renderWatchlistRow = function (entry, visibleIndex = 0, options = {}) {
   let escape = options.escape || window.pageEscape;
   let tierEditMode = Boolean(options.tierEditMode);
   let watchlistOrderEditMode = Boolean(options.watchlistOrderEditMode);
+  let periodRank = options.periodRank;
   let item = entry.item;
   item.id ||= window.watchlistItemId(item);
   let film = window.watchlistFilmLike(item, entry.archiveFilm);
@@ -624,11 +628,15 @@ window.renderWatchlistRow = function (entry, visibleIndex = 0, options = {}) {
       scope: "watchlist",
       id: item.id,
       index: visibleIndex,
-      group: window.normalizeWatchlistTier(item.tier),
+      group: window.renderTierWithModifier
+        ? window.renderTierWithModifier(item.tier, item.tierModifier) || "unset"
+        : window.normalizeWatchlistTier(item.tier),
     },
     escape,
   );
-  return `<tr${attributes}><td class="leaderboard-position">${escape(item.order || "—")}</td>${window.renderFilmIdentityCell(
+  let orderText =
+    Number.isInteger(periodRank) && periodRank > 0 ? `${periodRank}` : "NR";
+  return `<tr${attributes}><td class="leaderboard-position">${escape(orderText)}</td>${window.renderFilmIdentityCell(
     film,
     {
       escape: escape,

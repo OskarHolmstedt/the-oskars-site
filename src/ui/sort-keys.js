@@ -125,7 +125,12 @@ window.filmAxisSortValue = function (record, axis) {
   if (axis === "rating") {
     if (film) return window.filmRatingScore(film.rating) || 0;
     let tierRank = window.watchlistTierRank?.(record?.item?.tier);
-    return Number.isFinite(tierRank) ? 6 - tierRank : -1;
+    if (!Number.isFinite(tierRank)) return -1;
+    let mod = window.normalizeTierModifierValue?.(
+      record?.item?.tier_modifier || record?.item?.tierModifier,
+    );
+    let offset = mod === "plus" ? 0.33 : mod === "minus" ? -0.33 : 0;
+    return 6 - tierRank + offset;
   }
   if (axis === "wins")
     return film ? window.calculateAwardStats(film.awards || []).wins || 0 : 0;

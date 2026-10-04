@@ -72,11 +72,14 @@
         let key = `${periodKey}\n${nomination.id || index}`;
         if (seen.has(key)) return;
         seen.add(key);
-        let filmRef = nomination.filmRef;
-        let compatibleFilm =
-          filmRef?.id && representedYearSet.has(String(filmRef.year || ""))
-            ? filmRef
-            : null;
+        let compatibleFilms = window
+          .officialNominationFilms(nomination)
+          .map((entry) => entry.filmRef)
+          .filter(
+            (filmRef) =>
+              filmRef?.id && representedYearSet.has(String(filmRef.year || "")),
+          );
+        let compatibleFilm = compatibleFilms[0] || null;
         credits.push({
           nominationId: nomination.id || key,
           periodKey,
@@ -84,7 +87,8 @@
           category: nomination.category,
           winner: Boolean(nomination.winner),
           filmId: compatibleFilm?.id || "",
-          filmTitle: nomination.sourceTitle,
+          filmIds: compatibleFilms.map((filmRef) => filmRef.id),
+          filmTitle: window.formatOfficialField(nomination.sourceTitle),
           filmYear: compatibleFilm?.year || representedYears[0] || "",
           recipient,
           detail: String(nomination.detail || ""),

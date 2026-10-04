@@ -44,15 +44,37 @@ function parseWatchlistDelimitedRows(raw) {
 window.WATCHLIST_TIERS = ["S", "A", "B", "C", "D", "E", "F"];
 
 /**
+ * Parses a raw watchlist tier value, extracting the base tier and any plus/minus modifier suffix.
+ * @param {*} value Candidate tier string or object.
+ * @returns {{tier: string, modifier: 'plus'|'minus'|''}}
+ */
+window.parseWatchlistTier = function (value) {
+  let rawText = String(value || "").trim();
+  let normalizedText = rawText.normalize("NFKC");
+  let match = normalizedText.match(/^([sabcdefSABCDEF])\s*([+＋\-–—−])?$/);
+  if (!match) return { tier: "", modifier: "" };
+  let tier = match[1].toUpperCase();
+  if (!window.WATCHLIST_TIERS.includes(tier)) return { tier: "", modifier: "" };
+  let modSymbol = match[2] || "";
+  let modifier = "";
+  if (/[+＋]/.test(modSymbol)) {
+    modifier = "plus";
+  } else if (/[-–—−]/.test(modSymbol)) {
+    modifier = "minus";
+  }
+  return {
+    tier,
+    modifier,
+  };
+};
+
+/**
  * Converts a value to a supported uppercase watchlist tier.
  * @param {*} value Candidate tier.
  * @returns {string}
  */
 window.normalizeWatchlistTier = function (value) {
-  let tier = String(value || "")
-    .trim()
-    .toUpperCase();
-  return window.WATCHLIST_TIERS.includes(tier) ? tier : "";
+  return window.parseWatchlistTier(value).tier;
 };
 
 /**
@@ -106,7 +128,7 @@ window.watchlistTierGrade = function (tier, modifier) {
   let rank = window.watchlistTierRank(tier);
   if (rank >= window.WATCHLIST_TIERS.length) return rank * 3;
   let mod = window.normalizeTierModifierValue(modifier);
-  let offset = mod === "minus" ? 0 : mod === "plus" ? 2 : 1;
+  let offset = mod === "plus" ? 0 : mod === "minus" ? 2 : 1;
   return rank * 3 + offset;
 };
 
@@ -630,7 +652,7 @@ window.setWatchlistMetadata = function (id, values, options = {}) {
       Number.isInteger(runtime) && runtime > 0 ? runtime : "";
   }
   if (Object.prototype.hasOwnProperty.call(values, "medium")) {
-    item.medium = ["live-action", "animation", "hybrid"].includes(values.medium)
+    item.medium = ["live-action", "animation"].includes(values.medium)
       ? values.medium
       : "unknown";
   }
@@ -821,8 +843,14 @@ function compareWatchlistItemsForCanonicalOrder(leftEntry, rightEntry) {
   let left = leftEntry.item;
   let right = rightEntry.item;
   let tierComparison =
-    window.watchlistTierRank(left?.tier) -
-    window.watchlistTierRank(right?.tier);
+    window.watchlistTierGrade(
+      left?.tier,
+      left?.tier_modifier || left?.tierModifier,
+    ) -
+    window.watchlistTierGrade(
+      right?.tier,
+      right?.tier_modifier || right?.tierModifier,
+    );
   if (tierComparison) return tierComparison;
   let leftOrder = Number(left?.order);
   let rightOrder = Number(right?.order);
@@ -851,8 +879,14 @@ window.recomputeWatchlistOrder = function () {
   window.state._watchlistArchiveLookup = null;
   window.state._watchlistItemLookup = null;
   window.state._watchlistDirectorLookup = null;
-  watchlistItemsInCanonicalOrder().forEach((item, index) => {
-    item.order = index + 1;
+  let rankedOrder = 1;
+  watchlistItemsInCanonicalOrder().forEach((item) => {
+    let orderNum = Number(item.order);
+    if (Number.isFinite(orderNum) && orderNum > 0) {
+      item.order = rankedOrder++;
+    } else {
+      item.order = null;
+    }
   });
 };
 
@@ -876,8 +910,12 @@ window.moveWatchlistItemWithinTier = function (
   if (!fromItem || !toItem)
     return { ok: false, reason: "Both films must exist in the watchlist." };
   let fromTier = window.normalizeWatchlistTier(fromItem.tier);
-  let toTier = window.normalizeWatchlistTier(toItem.tier);
-  if (fromTier !== toTier)
+  let fromGrade = window.watchlistTierGrade(
+    fromItem.tier,
+    fromItem.tierModifier,
+  );
+  let toGrade = window.watchlistTierGrade(toItem.tier, toItem.tierModifier);
+  if (fromGrade !== toGrade)
     return {
       ok: false,
       reason: "Watchlist ordering moves are limited to the same interest tier.",
@@ -886,28 +924,37 @@ window.moveWatchlistItemWithinTier = function (
   let orderedItems = watchlistItemsInCanonicalOrder();
   let buckets = new Map();
   orderedItems.forEach((item) => {
-    let tier = window.normalizeWatchlistTier(item.tier);
-    if (!buckets.has(tier)) buckets.set(tier, []);
-    buckets.get(tier).push(item);
+    let grade = window.watchlistTierGrade(item.tier, item.tierModifier);
+    if (!buckets.has(grade)) buckets.set(grade, []);
+    buckets.get(grade).push(item);
   });
-  let tierItems = [...(buckets.get(fromTier) || [])];
-  let fromIndex = tierItems.indexOf(fromItem);
-  let toIndex = tierItems.indexOf(toItem);
+  let gradeItems = [...(buckets.get(fromGrade) || [])];
+  let fromIndex = gradeItems.indexOf(fromItem);
+  let toIndex = gradeItems.indexOf(toItem);
   if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex)
     return { ok: false, reason: "No watchlist move needed." };
   let beforeOrder = fromItem.order || "";
-  tierItems.splice(fromIndex, 1);
-  toIndex = tierItems.indexOf(toItem);
-  tierItems.splice(position === "after" ? toIndex + 1 : toIndex, 0, fromItem);
-  buckets.set(fromTier, tierItems);
+  gradeItems.splice(fromIndex, 1);
+  toIndex = gradeItems.indexOf(toItem);
+  gradeItems.splice(position === "after" ? toIndex + 1 : toIndex, 0, fromItem);
+  buckets.set(fromGrade, gradeItems);
+  let rankedOrder = 1;
   [...buckets.keys()]
-    .sort(
-      (left, right) =>
-        window.watchlistTierRank(left) - window.watchlistTierRank(right),
-    )
-    .flatMap((tier) => buckets.get(tier))
-    .forEach((item, index) => {
-      item.order = index + 1;
+    .sort((a, b) => a - b)
+    .forEach((grade) => {
+      let items = buckets.get(grade);
+      let isTierRanked =
+        grade === fromGrade ||
+        items.some(
+          (it) => Number.isFinite(Number(it.order)) && Number(it.order) > 0,
+        );
+      items.forEach((item) => {
+        if (isTierRanked) {
+          item.order = rankedOrder++;
+        } else {
+          item.order = null;
+        }
+      });
     });
   window.state._watchlistDirectorLookup = null;
   window.markAggregatesDirty?.("watchlist order reordered");
@@ -1019,14 +1066,26 @@ window.applyWatchlistTierMergeOrder = function (
     nextTierItems[slotIndex] = mergedItems[position];
   });
   buckets.set(normalizedTier, nextTierItems);
+  let rankedOrder = 1;
   [...buckets.keys()]
     .sort(
       (left, right) =>
         window.watchlistTierRank(left) - window.watchlistTierRank(right),
     )
-    .flatMap((bucketTier) => buckets.get(bucketTier))
-    .forEach((item, index) => {
-      item.order = index + 1;
+    .forEach((bucketTier) => {
+      let items = buckets.get(bucketTier);
+      let isTierRanked =
+        bucketTier === normalizedTier ||
+        items.some(
+          (it) => Number.isFinite(Number(it.order)) && Number(it.order) > 0,
+        );
+      items.forEach((item) => {
+        if (isTierRanked) {
+          item.order = rankedOrder++;
+        } else {
+          item.order = null;
+        }
+      });
     });
   window.state._watchlistArchiveLookup = null;
   window.state._watchlistItemLookup = null;
@@ -1145,24 +1204,41 @@ window.compareWatchlistItemsBy = function (
   order = "asc",
 ) {
   let tierComparison =
-    window.watchlistTierRank(left?.tier) -
-    window.watchlistTierRank(right?.tier);
+    window.watchlistTierGrade(
+      left?.tier,
+      left?.tier_modifier || left?.tierModifier,
+    ) -
+    window.watchlistTierGrade(
+      right?.tier,
+      right?.tier_modifier || right?.tierModifier,
+    );
   if (tierComparison) return tierComparison;
   let result;
   if (sort === "title") {
     result =
       window.compareEnglishTitles(left?.title, right?.title) ||
       Number(left?.year || 9999) - Number(right?.year || 9999);
-  } else if (sort === "year") {
-    result =
-      Number(left?.year || 9999) - Number(right?.year || 9999) ||
-      window.compareEnglishTitles(left?.title, right?.title);
-  } else {
-    result =
-      Number(left?.order || 999999) - Number(right?.order || 999999) ||
-      Number(left?.year || 9999) - Number(right?.year || 9999) ||
-      window.compareEnglishTitles(left?.title, right?.title);
+    return order === "desc" ? -result : result;
   }
+  if (sort === "year") {
+    result =
+      Number(left?.year || 9999) - Number(right?.year || 9999) ||
+      window.compareEnglishTitles(left?.title, right?.title);
+    return order === "desc" ? -result : result;
+  }
+  let leftOrder = Number(left?.order);
+  let rightOrder = Number(right?.order);
+  let leftRanked = Number.isFinite(leftOrder) && leftOrder > 0;
+  let rightRanked = Number.isFinite(rightOrder) && rightOrder > 0;
+  if (leftRanked && rightRanked) {
+    result = leftOrder - rightOrder;
+    return order === "desc" ? -result : result;
+  }
+  if (leftRanked && !rightRanked) return -1;
+  if (!leftRanked && rightRanked) return 1;
+  result =
+    Number(left?.year || 9999) - Number(right?.year || 9999) ||
+    window.compareEnglishTitles(left?.title, right?.title);
   return order === "desc" ? -result : result;
 };
 
@@ -1241,12 +1317,6 @@ window.loadWatchlistPoster = async function (id, options = {}) {
   }
 };
 
-/**
- * Fetches posters for an eligible, session-deduplicated batch of watchlist items.
- * @param {WatchlistItem[]} items Candidate items.
- * @param {Object} [options] Batch limits, concurrency, fetch, and progress options.
- * @returns {Promise<MetadataBatchResult>} Batch counts and failure details.
- */
 function watchlistItemKey(item) {
   return item.id || window.watchlistItemId(item);
 }
@@ -1264,6 +1334,12 @@ function watchlistFailureRecord(
   };
 }
 
+/**
+ * Fetches posters for an eligible, session-deduplicated batch of watchlist items.
+ * @param {WatchlistItem[]} items Candidate items.
+ * @param {Object} [options] Batch limits, concurrency, fetch, and progress options.
+ * @returns {Promise<MetadataBatchResult>} Batch counts and failure details.
+ */
 window.fetchWatchlistPosters = async function (items, options = {}) {
   return window.runBoundedLookupBatch(
     items,

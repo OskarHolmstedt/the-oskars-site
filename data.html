@@ -37,6 +37,30 @@
         </div>
       </section>
 
+      <section
+        id="dataSourcesPanel"
+        class="data-panel data-sources-panel"
+        aria-labelledby="dataSourcesHeading"
+      >
+        <div class="data-sources-heading">
+          <div>
+            <span class="eyebrow">Import sources</span>
+            <h2 id="dataSourcesHeading">Connected sources</h2>
+          </div>
+          <p id="dataSourcesIntro">
+            Manage your active sync connections, add a new source, or disconnect
+            a service. Previously imported archive data stays safe when
+            disconnecting.
+          </p>
+        </div>
+        <div class="data-sources-grid" id="dataSourcesGrid"></div>
+        <div
+          id="dataSourcesStatus"
+          class="data-panel-status"
+          style="display: none; margin-top: 10px"
+        ></div>
+      </section>
+
       <div class="data-tool-groups">
         <section class="data-tool-group" aria-labelledby="dataImportHeading">
           <div class="data-tool-group-heading">
@@ -67,6 +91,23 @@
                   Apply reviewed import
                 </button>
               </div>
+              <details class="data-template-spec" style="margin-top: 12px">
+                <summary>How do I get my Letterboxd export?</summary>
+                <div class="data-template-spec-content">
+                  <p>
+                    1. Open
+                    <a
+                      href="https://letterboxd.com/settings/data/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >Letterboxd Settings → Data ↗</a
+                    ><br />
+                    2. Click <strong>Export Your Data</strong> at the bottom of
+                    the page.<br />
+                    3. Upload the downloaded <code>.zip</code> file here.
+                  </p>
+                </div>
+              </details>
               <progress
                 id="letterboxdImportProgress"
                 value="0"
@@ -79,6 +120,350 @@
                 role="status"
               >
 The ZIP never leaves this browser.</pre>
+            </section>
+            <section class="data-panel" id="imdbImport">
+              <span class="eyebrow" id="imdbImportEyebrow"
+                >Import from IMDb</span
+              >
+              <h3>IMDb export</h3>
+              <p>
+                Preview your IMDb ratings.csv and watchlist.csv exports. 1–10
+                ratings are converted to the 0.5–5.0★ scale. Rankings and award
+                ballots are never imported.
+              </p>
+              <div class="data-actions">
+                <label class="button-link"
+                  >Choose IMDb CSVs<input
+                    id="imdbCsvInput"
+                    type="file"
+                    accept=".csv,text/csv"
+                    multiple
+                    hidden
+                /></label>
+                <button id="imdbImportApplyBtn" type="button" disabled>
+                  Apply reviewed import
+                </button>
+              </div>
+              <details class="data-template-spec" style="margin-top: 12px">
+                <summary>How do I get my IMDb export?</summary>
+                <div class="data-template-spec-content">
+                  <p>
+                    1. Open
+                    <a
+                      href="https://www.imdb.com/list/ratings/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >Your IMDb Ratings ↗</a
+                    ><br />
+                    2. Click the three dots icon (···) or export link at the top
+                    right and choose <strong>Export</strong>.<br />
+                    3. (Optional) Open
+                    <a
+                      href="https://www.imdb.com/list/watchlist/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >Your IMDb Watchlist ↗</a
+                    >
+                    and export your watchlist CSV.<br />
+                    4. Select your <code>ratings.csv</code> and/or
+                    <code>watchlist.csv</code> files here.
+                  </p>
+                </div>
+              </details>
+              <details
+                class="imdb-scale-preview"
+                id="imdbScalePreview"
+                style="margin-top: 12px"
+              >
+                <summary>Rating scale conversion (1–10 → 0.5–5.0★)</summary>
+                <div class="imdb-scale-grid">
+                  <div class="imdb-scale-item">
+                    <strong>10</strong><span>★★★★★</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>9</strong><span>★★★★+</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>8</strong><span>★★★★</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>7</strong><span>★★★+</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>6</strong><span>★★★</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>5</strong><span>★★+</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>4</strong><span>★★</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>3</strong><span>★+</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>2</strong><span>★</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>1</strong><span>½★</span>
+                  </div>
+                </div>
+                <p class="data-help-text" style="margin: 8px 0 0">
+                  Ratings convert linearly (IMDb score ÷ 2). You can adjust any
+                  rating in your archive after importing.
+                </p>
+              </details>
+              <progress
+                id="imdbImportProgress"
+                value="0"
+                max="1"
+                hidden
+              ></progress>
+              <pre
+                id="imdbImportStatus"
+                class="data-panel-status"
+                role="status"
+              >
+Upload ratings.csv or watchlist.csv (or both).</pre>
+            </section>
+            <section class="data-panel" id="spreadsheetTemplates">
+              <span class="eyebrow">Structured spreadsheets</span>
+              <h3>Google Sheets & templates</h3>
+              <p>
+                Track your films in Google Sheets or Excel? Instantiate a
+                formatted document directly on your Google Drive, download CSV
+                starter templates, or preview and sync your spreadsheets.
+              </p>
+
+              <div class="data-field" style="margin-top: 14px">
+                <span class="data-label">Google Drive integration</span>
+                <p class="data-help-text">
+                  Instantiate a formatted workbook in your Google Drive with
+                  Ranked Diary and Watchlist tabs.
+                </p>
+                <p class="data-help-text" style="margin-bottom: 8px">
+                  Clicking this will open a Google sign-in prompt.
+                </p>
+                <div class="data-actions">
+                  <button
+                    id="createGoogleSheetBtn"
+                    type="button"
+                    class="button-link"
+                  >
+                    Create on Google Drive
+                  </button>
+                  <label
+                    style="
+                      display: inline-flex;
+                      align-items: center;
+                      gap: 6px;
+                      font-size: 0.85em;
+                      cursor: pointer;
+                    "
+                  >
+                    <input
+                      type="checkbox"
+                      id="populateFromArchiveCheckbox"
+                      checked
+                    />
+                    <span>Populate with current archive</span>
+                  </label>
+                </div>
+                <div
+                  id="googleDriveFeedback"
+                  class="data-panel-status"
+                  style="display: none; margin-top: 10px"
+                ></div>
+              </div>
+
+              <div class="data-field" style="margin-top: 14px">
+                <label for="connectedSheetInput"
+                  >Connected Google Sheet ID or URL</label
+                >
+                <div
+                  style="
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                    flex-wrap: wrap;
+                  "
+                >
+                  <input
+                    id="connectedSheetInput"
+                    type="text"
+                    placeholder="Spreadsheet ID or paste Google Sheets URL"
+                    style="flex: 1; min-width: 240px"
+                  />
+                  <button
+                    id="saveConnectedSheetBtn"
+                    type="button"
+                    class="button-link"
+                  >
+                    Connect
+                  </button>
+                  <a
+                    id="openConnectedSheetLink"
+                    href="#"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="button-link"
+                    style="display: none"
+                  >
+                    Open in Google Sheets ↗
+                  </a>
+                  <button
+                    id="disconnectConnectedSheetBtn"
+                    type="button"
+                    class="button-secondary button-danger-subtle"
+                    style="display: none"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+                <div
+                  id="connectedSheetWorkflow"
+                  class="data-spreadsheet-workflow"
+                  style="display: none; margin-top: 12px; margin-bottom: 12px"
+                >
+                  <div class="data-workflow-steps">
+                    <div class="data-workflow-step">
+                      <span class="data-workflow-step-num">1</span>
+                      <div>
+                        <strong>Edit in Google Sheets</strong>
+                        <p>
+                          Log films, ratings, and watchlist additions in your
+                          sheet.
+                        </p>
+                      </div>
+                    </div>
+                    <div class="data-workflow-step">
+                      <span class="data-workflow-step-num">2</span>
+                      <div>
+                        <strong>Sync to archive</strong>
+                        <p>Fetch updates and review additions before saving.</p>
+                      </div>
+                    </div>
+                    <div class="data-workflow-step">
+                      <span class="data-workflow-step-num">3</span>
+                      <div>
+                        <strong>Push archive back</strong>
+                        <p>
+                          Export your full archive and metadata back to the
+                          sheet.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="data-actions" style="margin-top: 8px">
+                  <button
+                    id="syncGoogleSheetBtn"
+                    type="button"
+                    class="button-link"
+                    disabled
+                  >
+                    Sync from Google Sheet
+                  </button>
+                  <button id="syncGoogleSheetApplyBtn" type="button" disabled>
+                    Apply reviewed sync
+                  </button>
+                  <button
+                    id="pushToGoogleSheetBtn"
+                    type="button"
+                    class="button-link"
+                    disabled
+                  >
+                    Push archive to Google Sheet
+                  </button>
+                </div>
+                <pre
+                  id="syncGoogleSheetStatus"
+                  class="data-panel-status"
+                  role="status"
+                  style="display: none"
+                ></pre>
+              </div>
+
+              <div
+                class="data-field"
+                style="
+                  margin-top: 20px;
+                  border-top: 1px solid var(--border-subtle, #eee);
+                  padding-top: 16px;
+                "
+              >
+                <span class="data-label"
+                  >No Google account? Download starter templates</span
+                >
+                <p class="data-help-text">
+                  Track your films locally in Excel, Numbers, or CSV. Download
+                  starter templates or preview and import a completed delimited
+                  file.
+                </p>
+                <div class="data-actions">
+                  <button
+                    id="downloadDiaryTemplateBtn"
+                    type="button"
+                    class="button-link"
+                  >
+                    Download Diary template
+                  </button>
+                  <button
+                    id="downloadWatchlistTemplateBtn"
+                    type="button"
+                    class="button-link"
+                  >
+                    Download Watchlist template
+                  </button>
+                </div>
+                <div class="data-field" style="margin-top: 14px">
+                  <label for="spreadsheetTypeSelect">Spreadsheet format</label>
+                  <select id="spreadsheetTypeSelect">
+                    <option value="ranked" selected>
+                      Ranked Diary / Watched Archive
+                    </option>
+                    <option value="watchlist">Watchlist</option>
+                  </select>
+                </div>
+                <div class="data-actions">
+                  <label class="button-link"
+                    >Preview spreadsheet<input
+                      id="spreadsheetInput"
+                      type="file"
+                      accept=".csv,.tsv,text/csv,text/tab-separated-values"
+                      hidden
+                  /></label>
+                  <button id="spreadsheetImportApplyBtn" type="button" disabled>
+                    Apply reviewed spreadsheet
+                  </button>
+                </div>
+                <pre
+                  id="spreadsheetImportStatus"
+                  class="data-panel-status"
+                  role="status"
+                >
+Choose a ranked diary or watchlist CSV/TSV to preview.</pre>
+                <details class="data-template-spec">
+                  <summary>View spreadsheet column specifications</summary>
+                  <div class="data-template-spec-content">
+                    <h4>Ranked Diary / Archive Columns</h4>
+                    <p>
+                      <code
+                        >Year, Title, Director, Rating, Type, Tag, Medium,
+                        Screenplay, Source, Country, Views, Date, Score,
+                        Franchise, Platform, Runtime, tmdbId, letterboxd</code
+                      >
+                    </p>
+                    <h4>Watchlist Columns</h4>
+                    <p>
+                      <code
+                        >Date, Name, Year, Letterboxd URI, Tier, Director, Tags,
+                        Franchises, TMDB ID</code
+                      >
+                    </p>
+                  </div>
+                </details>
+              </div>
             </section>
           </div>
         </section>
@@ -210,6 +595,6 @@ The ZIP never leaves this browser.</pre>
         </section>
       </div>
     </main>
-    <script src="src/core/entry-loader.js?v=22a33240dea2" data-entry="data"></script>
+    <script src="src/core/entry-loader.js?v=a6734446b6d9" data-entry="data"></script>
   </body>
 </html>

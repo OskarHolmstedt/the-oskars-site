@@ -92,7 +92,10 @@
         profile.ownerName.slice(0, 1).toUpperCase(),
       )}</div>`;
     return `<div class="community-card-posters" aria-hidden="true">${posters
-      .map((url) => `<img src="${escape(url)}" alt="" loading="lazy">`)
+      .map(
+        (url) =>
+          `<img src="${escape(url)}" alt="" loading="lazy" decoding="async">`,
+      )
       .join("")}</div>`;
   }
 
@@ -168,7 +171,7 @@
       .slice(0, 20)
       .map(
         (row) => `<article>
-          ${safePosterUrl(row.film.poster?.url) ? `<img src="${escape(safePosterUrl(row.film.poster.url))}" alt="" loading="lazy">` : ""}
+          ${safePosterUrl(row.film.poster?.url) ? `<img src="${escape(safePosterUrl(row.film.poster.url))}" alt="" loading="lazy" decoding="async">` : ""}
           <div><h3>${escape(row.film.title)}</h3><p>${escape(row.film.year)}</p><div class="community-rating-row">${ratingListHtml(row)}</div></div>
         </article>`,
       )

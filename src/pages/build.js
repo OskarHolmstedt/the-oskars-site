@@ -55,23 +55,31 @@
     return null;
   }
 
-  function meter(label, done, total, complete) {
+  function meter(label, done, total, complete, tooltip = "") {
     let value = total ? Math.round((done / total) * 100) : complete ? 100 : 0;
-    return `<div class="build-stage-meter${complete ? " is-complete" : ""}"><span><b>${escape(label)}</b><small>${escape(done)} / ${escape(total)}</small></span><progress value="${escape(value)}" max="100"></progress></div>`;
+    let countText =
+      total === 0
+        ? complete
+          ? ui("None needed")
+          : ui("Nothing to arrange")
+        : `${escape(done)} / ${escape(total)}`;
+    return `<div class="build-stage-meter${complete ? " is-complete" : ""}"${tooltip ? ` title="${escape(tooltip)}"` : ""}><span><b>${escape(label)}</b><small>${escape(countText)}</small></span><progress value="${escape(value)}" max="100"></progress></div>`;
   }
 
-  function yearCard(year) {
+  function yearCard(year, index = 0) {
     let action = stageAction(year);
     let secondary = secondaryAwardsAction(year);
     let rankingTotal = year.rankingGroupCount;
+    let priority = index < 3 ? "high" : undefined;
     return `<article class="build-year-card" data-build-year="${escape(year.year)}" data-build-stage="${escape(year.stage)}">
-      <a class="build-year-card-visual" href="${escape(action.href)}" aria-label="${escape(`${action.label}: ${year.year}`)}">${window.renderPosterDeck(year.posterFilms)}</a>
+      <a class="build-year-card-visual" href="${escape(action.href)}" aria-label="${escape(`${action.label}: ${year.year}`)}">${window.renderPosterDeck(year.posterFilms, { priority })}</a>
       <div class="build-year-card-body"><div class="build-year-card-heading"><h2>${escape(year.year)}</h2><span class="build-stage-pill build-stage-pill--${escape(year.stage)}">${escape(stageLabel(year.stage))}</span></div>
       <div class="build-year-meters">
-        ${meter(ui("Rated"), year.ratedCount, year.totalCount, year.ratingPercent === 100)}
-        ${meter(ui("Ranking groups"), year.reviewedRankingGroupCount, rankingTotal, year.rankingComplete)}
-        ${meter(ui("Award categories"), year.awardFilledSlots, year.awardTotalSlots, year.awardComplete)}
+        ${meter(ui("Rated"), year.ratedCount, year.totalCount, year.ratingPercent === 100, ui("Watched films given a star rating"))}
+        ${meter(ui("Ranking groups"), year.reviewedRankingGroupCount, rankingTotal, year.rankingComplete, ui("Groups of films with tied ratings placed in order"))}
+        ${meter(ui("Award categories"), year.awardFilledSlots, year.awardTotalSlots, year.awardComplete, ui("Award categories with winners and nominees chosen"))}
       </div>
+      ${window.renderPeriodThresholdBadges ? window.renderPeriodThresholdBadges(year.thresholdStats || year.archiveFilms || [], { escape, ui, periodType: "year" }) : ""}
       ${year.otherFilms.length ? `<p class="build-year-note">${escape(ui("{count} rating-only standalone work(s)", { count: year.otherFilms.length }))}</p>` : ""}
       <div class="build-year-card-actions"><a class="button-link build-year-action" href="${escape(action.href)}">${escape(action.label)} →</a>${secondary ? `<a class="build-year-action-secondary" href="${escape(secondary.href)}">${escape(secondary.label)} →</a>` : ""}</div></div>
     </article>`;
@@ -138,7 +146,7 @@
   function renderMilestone(milestone) {
     if (!milestone || milestoneDismissed(milestone.id)) return "";
     let copy = milestoneCopy(milestone);
-    return `<aside class="build-milestone" data-build-milestone="${escape(milestone.id)}"><button type="button" class="build-milestone-dismiss" data-build-milestone-dismiss aria-label="${escape(ui("Dismiss milestone"))}">×</button><div><span class="eyebrow">${escape(copy.eyebrow)}</span><h2>${escape(copy.title)}</h2><p>${escape(copy.text)}</p><a class="button-link" href="${escape(copy.href)}">${escape(copy.action)} →</a></div>${window.renderPosterDeck(milestone.posterFilms, { classes: "poster-deck--featured" })}</aside>`;
+    return `<aside class="build-milestone" data-build-milestone="${escape(milestone.id)}"><button type="button" class="build-milestone-dismiss" data-build-milestone-dismiss aria-label="${escape(ui("Dismiss milestone"))}">×</button><div><span class="eyebrow">${escape(copy.eyebrow)}</span><h2>${escape(copy.title)}</h2><p>${escape(copy.text)}</p><a class="button-link" href="${escape(copy.href)}">${escape(copy.action)} →</a></div>${window.renderPosterDeck(milestone.posterFilms, { classes: "poster-deck--featured", priority: "high" })}</aside>`;
   }
 
   function render() {
@@ -193,15 +201,27 @@
     document.title = `${ui("Build your Oskars")} · The Oskars`;
     container.innerHTML = `${window.renderDetailHeader({ classes: "build-hero", mainHtml: `<span class="eyebrow">${escape(ui("Your film journey"))}</span><h1>${escape(ui("Build your Oskars"))}</h1><p>${escape(ui("Rate, rank, and celebrate your watched history one release year at a time."))}</p>` })}
       <section class="build-overview" aria-label="${escape(ui("Journey progress"))}">
-        <div><strong>${escape(totals.rated)} / ${escape(totals.watched)}</strong><span>${escape(ui("films rated"))}</span></div>
-        <div><strong>${escape(totals.reviewedGroups)} / ${escape(totals.rankingGroups)}</strong><span>${escape(ui("ranking groups arranged"))}</span></div>
-        <div><strong>${escape(totals.filledSlots)} / ${escape(totals.awardSlots)}</strong><span>${escape(ui("award categories reviewed"))}</span></div>
-        <div><strong>${escape(totals.completeYears)} / ${escape(years.length)}</strong><span>${escape(ui("years complete"))}</span></div>
+        <div title="${escape(ui("Watched films that have been given a rating"))}">
+          <strong>${escape(totals.watched > 0 ? `${totals.rated} / ${totals.watched}` : totals.rated)}</strong>
+          <span>${escape(ui("films rated"))}</span>
+        </div>
+        <div title="${escape(totals.rankingGroups > 0 ? ui("Groups of films with tied ratings placed in order") : ui("No tied ratings need arranging into ranking order yet."))}">
+          <strong>${escape(totals.rankingGroups > 0 ? `${totals.reviewedGroups} / ${totals.rankingGroups}` : "—")}</strong>
+          <span>${escape(totals.rankingGroups > 0 ? ui("ranking groups arranged") : ui("Nothing to arrange yet"))}</span>
+        </div>
+        <div title="${escape(ui("Ceremony categories with winners and nominees chosen across all years"))}">
+          <strong>${escape(totals.awardSlots > 0 ? `${totals.filledSlots} / ${totals.awardSlots}` : totals.filledSlots)}</strong>
+          <span>${escape(ui("award categories reviewed"))}</span>
+        </div>
+        <div title="${escape(ui("Years where all films are rated, rankings are confirmed, and awards are reviewed"))}">
+          <strong>${escape(totals.completeYears)} / ${escape(years.length)}</strong>
+          <span>${escape(ui("years complete"))}</span>
+        </div>
       </section>
       ${renderMilestone(milestone)}
-      ${recommendation ? `<section class="build-continue-card"><div><span class="eyebrow">${escape(ui("Continue your journey"))}</span><h2>${escape(recommendation.year)}</h2><p>${escape(stageLabel(recommendation.stage))} · ${escape(recommendation.ratedCount)} / ${escape(recommendation.totalCount)} ${escape(ui("rated"))}</p><div class="build-year-card-actions"><a class="button-link" href="${escape(recommendationAction.href)}">${escape(recommendationAction.label)} →</a>${recommendationSecondary ? `<a class="build-year-action-secondary" href="${escape(recommendationSecondary.href)}">${escape(recommendationSecondary.label)} →</a>` : ""}</div></div>${window.renderPosterDeck(recommendation.posterFilms, { classes: "poster-deck--featured" })}</section>` : ""}
+      ${recommendation ? `<section class="build-continue-card"><div><span class="eyebrow">${escape(ui("Continue your journey"))}</span><h2>${escape(recommendation.year)}</h2><p>${escape(stageLabel(recommendation.stage))} · ${escape(recommendation.ratedCount)} / ${escape(recommendation.totalCount)} ${escape(ui("rated"))}</p><div class="build-year-card-actions"><a class="button-link" href="${escape(recommendationAction.href)}">${escape(recommendationAction.label)} →</a>${recommendationSecondary ? `<a class="build-year-action-secondary" href="${escape(recommendationSecondary.href)}">${escape(recommendationSecondary.label)} →</a>` : ""}</div></div>${window.renderPosterDeck(recommendation.posterFilms, { classes: "poster-deck--featured", priority: "high" })}</section>` : ""}
       <nav class="build-stage-filters" aria-label="${escape(ui("Filter years by next stage"))}">${filters}</nav>
-      <section><div class="build-year-grid">${visible.map(yearCard).join("") || `<p class="detail-empty">${escape(ui("No years at this stage."))}</p>`}</div></section>`;
+      <section><div class="build-year-grid">${visible.map((year, index) => yearCard(year, index)).join("") || `<p class="detail-empty">${escape(ui("No years at this stage."))}</p>`}</div></section>`;
     finish?.(
       `${years.length} years, ${visible.length} shown, ${recommendation?.year || "complete"}`,
     );
@@ -230,7 +250,7 @@
     }
     try {
       let [workspace, ranking, awardReviews] = await Promise.all([
-        window.loadSupabaseWorkspace(),
+        window.loadSupabaseWorkspace({ parts: ["watched"] }),
         window.loadSupabaseStoredRankings(),
         window.loadSupabaseAwardReviews(),
       ]);

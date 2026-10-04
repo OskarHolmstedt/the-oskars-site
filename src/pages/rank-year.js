@@ -38,7 +38,7 @@
   function renderRankCard(entry, bucketIndex) {
     let film = entry.films || {};
     return `<article class="film-card ranking-edit-card"${canEdit ? ' draggable="true"' : ""} data-setup-rank-film-id="${escape(entry.film_id)}" data-setup-rank-index="${escape(bucketIndex)}">
-      ${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" class="rate-watched-poster-thumb">` : ""}
+      ${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" class="rate-watched-poster-thumb" loading="lazy" decoding="async">` : ""}
       <span class="table-film-link">${escape(film.title || "Unknown film")}</span>
       ${entry.rank_confirmed === false ? `<span class="film-rank">${escape("NR")}</span>` : ""}
     </article>`;
@@ -259,7 +259,7 @@
       return;
     }
     try {
-      await window.loadSupabaseWorkspace();
+      await window.loadSupabaseWorkspace({ parts: ["watched"] });
       let workspace = window.getSupabaseWorkspace();
       watchedByFilmId = new Map(
         (workspace?.watched || []).map((row) => [row.film_id, row]),

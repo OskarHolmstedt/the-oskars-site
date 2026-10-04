@@ -123,6 +123,70 @@
   };
 
   /**
+   * Builds one row for the Diary sheet corresponding to a watched film or work.
+   * @param {Object} film Film record.
+   * @returns {Array<string|number>} 18-cell array.
+   */
+  window.buildDiarySheetRow = function (film) {
+    let year = film.year != null ? film.year : "-";
+    let title = clean(film.title);
+    let director =
+      film.director ||
+      (Array.isArray(film.directors)
+        ? film.directors
+            .map((d) => (typeof d === "string" ? d : d.name))
+            .join(", ")
+        : "") ||
+      "-";
+    let rating = formatRatingForSheet(
+      film.rating,
+      film.rating_modifier || film.ratingModifier,
+    );
+    let type = film.type || "Film";
+    let tag =
+      (Array.isArray(film.tags)
+        ? film.tags.join(", ")
+        : film.tag || film.tags) || "-";
+    let medium = film.medium || "-";
+    let screenplay = film.screenplay || film.screenplay_type || "-";
+    let source = film.source || film.adaptation_source || "-";
+    let country = film.country || film.primary_country || "-";
+    let views =
+      film.views != null && String(film.views).trim() !== ""
+        ? String(film.views)
+        : "1";
+    let date = formatDateForSheet(film.dateWatched || film.date_watched);
+    let score =
+      film.musicScore || film.score || film.music_score || "-";
+    let franchise = film.franchise || "-";
+    let platform = film.platform || "-";
+    let runtime = film.runtime || film.runtime_minutes || "-";
+    let tmdbId = film.tmdbId || film.tmdb_id || "-";
+    let letterboxd = film.letterboxd || film.letterboxd_url || "-";
+
+    return [
+      year,
+      title,
+      director,
+      rating,
+      type,
+      tag,
+      medium,
+      screenplay,
+      source,
+      country,
+      views,
+      date,
+      score,
+      franchise,
+      platform,
+      runtime,
+      tmdbId,
+      letterboxd,
+    ];
+  };
+
+  /**
    * Normalizes film identity key for matching across sheet and app data.
    * @param {Object} film Film object or sheet row values.
    * @returns {string} Key.
@@ -563,8 +627,20 @@
       let key = `${title}::${year}`;
       let existing = rowByKey.get(key);
       if (existing) {
-        let appTier = clean(item.tier).toUpperCase();
-        let sheetTier = existing.tier.toUpperCase();
+        let appModifier = item.tier_modifier || item.tierModifier || "";
+        let appTier = window.renderTierWithModifier
+          ? window.renderTierWithModifier(item.tier, appModifier)
+          : clean(item.tier).toUpperCase();
+        let parsedSheetTier = window.parseWatchlistTier?.(existing.tier) || {
+          tier: clean(existing.tier).toUpperCase(),
+          modifier: "",
+        };
+        let sheetTier = window.renderTierWithModifier
+          ? window.renderTierWithModifier(
+              parsedSheetTier.tier,
+              parsedSheetTier.modifier,
+            )
+          : existing.tier.toUpperCase();
         if (appTier && appTier !== sheetTier) {
           items.push({
             type: "tier",
@@ -577,6 +653,196 @@
         }
       }
     });
+
+    return {
+      hasChanges: batches.length > 0,
+      items,
+      batches,
+    };
+  };
+
+  /**
+   * Diffs watched works in Supabase against Diary spreadsheet rows ('Diary'!A:R).
+   * Updates existing rows if metadata (rating, date, views, platform, score) changed,
+   * and appends new watched works to the end of the sheet.
+   * @param {Array<Array<*>>} sheetRows Current raw rows from Diary sheet.
+   * @param {Array<Object>} watchedWorks Watched works from app.
+   * @param {Object} [options] Options including sheetName.
+   * @returns {Object} Diff summary, items, and value updates.
+   */
+  window.diffDiary = function (sheetRows, watchedWorks, options = {}) {
+    let sheetName = options.sheetName || "'Diary'";
+    let items = [];
+    let batches = [];
+
+    if (!Array.isArray(sheetRows) || !sheetRows.length) {
+      if (Array.isArray(watchedWorks) && watchedWorks.length) {
+        watchedWorks.forEach((w) => {
+          items.push({
+            type: "insert",
+            description: `[Diary Insert] "${w.title} (${w.year ?? "?"})" appended to diary`,
+          });
+        });
+        let newRows = watchedWorks.map((w) => window.buildDiarySheetRow(w));
+        batches.push({
+          range: `${sheetName}!A2:R${newRows.length + 1}`,
+          values: newRows,
+        });
+      }
+      return {
+        hasChanges: batches.length > 0,
+        items,
+        batches,
+      };
+    }
+
+    let existingEntries = sheetRows.slice(1).map((row, idx) => {
+      let sheetRowNumber = idx + 2;
+      return {
+        sheetRowNumber,
+        year: row[0],
+        title: row[1],
+        director: row[2],
+        rating: row[3],
+        type: row[4],
+        tag: row[5],
+        medium: row[6],
+        screenplay: row[7],
+        source: row[8],
+        country: row[9],
+        views: row[10],
+        date: row[11],
+        score: row[12],
+        franchise: row[13],
+        platform: row[14],
+        runtime: row[15],
+        tmdbId: row[16],
+        letterboxd: row[17],
+        rawRow: row,
+      };
+    });
+
+    let existingByKey = new Map();
+    existingEntries.forEach((ee) => {
+      let key = filmIdentityKey(ee);
+      if (!existingByKey.has(key)) {
+        existingByKey.set(key, ee);
+      }
+    });
+
+    // 1. Check existing rows for metadata updates
+    existingEntries.forEach((ee) => {
+      let key = filmIdentityKey(ee);
+      let targetRow = ee.sheetRowNumber;
+      let matchedWork = (watchedWorks || []).find(
+        (w) => filmIdentityKey(w) === key,
+      );
+      if (!matchedWork) return;
+
+      // Rating (Column D)
+      let appRating = formatRatingForSheet(
+        matchedWork.rating,
+        matchedWork.rating_modifier || matchedWork.ratingModifier,
+      );
+      let sheetRating = clean(ee.rating);
+      if (appRating !== "-" && appRating !== sheetRating) {
+        items.push({
+          type: "rating",
+          description: `[Diary Rating] "${matchedWork.title}": "${sheetRating}" → "${appRating}"`,
+        });
+        batches.push({
+          range: `${sheetName}!D${targetRow}`,
+          values: [[appRating]],
+        });
+      }
+
+      // Date (Column L)
+      let appDate = formatDateForSheet(
+        matchedWork.dateWatched || matchedWork.date_watched,
+      );
+      let sheetDate = clean(ee.date);
+      if (appDate !== "-" && appDate !== sheetDate) {
+        items.push({
+          type: "date",
+          description: `[Diary Date] "${matchedWork.title}": "${sheetDate}" → "${appDate}"`,
+        });
+        batches.push({
+          range: `${sheetName}!L${targetRow}`,
+          values: [[appDate]],
+        });
+      }
+
+      // Views (Column K)
+      let appViews =
+        matchedWork.views != null && String(matchedWork.views).trim() !== ""
+          ? String(matchedWork.views)
+          : "";
+      let sheetViews = clean(ee.views);
+      if (appViews && parseInt(appViews, 10) !== parseInt(sheetViews, 10)) {
+        items.push({
+          type: "views",
+          description: `[Diary Views] "${matchedWork.title}": "${sheetViews}" → "${appViews}"`,
+        });
+        batches.push({
+          range: `${sheetName}!K${targetRow}`,
+          values: [[appViews]],
+        });
+      }
+
+      // Platform (Column O)
+      let appPlatform = clean(matchedWork.platform);
+      let sheetPlatform = clean(ee.platform);
+      if (appPlatform && appPlatform !== "-" && appPlatform !== sheetPlatform) {
+        items.push({
+          type: "platform",
+          description: `[Diary Platform] "${matchedWork.title}": "${sheetPlatform}" → "${appPlatform}"`,
+        });
+        batches.push({
+          range: `${sheetName}!O${targetRow}`,
+          values: [[appPlatform]],
+        });
+      }
+
+      // Music Score (Column M)
+      let appScore = clean(
+        matchedWork.musicScore ||
+          matchedWork.score ||
+          matchedWork.music_score,
+      );
+      let sheetScore = clean(ee.score);
+      if (appScore && appScore !== "-" && appScore !== sheetScore) {
+        items.push({
+          type: "score",
+          description: `[Diary Music Score] "${matchedWork.title}": "${sheetScore}" → "${appScore}"`,
+        });
+        batches.push({
+          range: `${sheetName}!M${targetRow}`,
+          values: [[appScore]],
+        });
+      }
+    });
+
+    // 2. Identify new watched works to append
+    let newWorks = (watchedWorks || []).filter((w) => {
+      let key = filmIdentityKey(w);
+      return !existingByKey.has(key);
+    });
+
+    if (newWorks.length > 0) {
+      newWorks.forEach((w) => {
+        items.push({
+          type: "insert",
+          description: `[Diary Insert] "${w.title} (${w.year ?? "?"})" appended to diary`,
+        });
+      });
+
+      let startRow = sheetRows.length + 1;
+      let newRows = newWorks.map((w) => window.buildDiarySheetRow(w));
+      batches.push({
+        range: `${sheetName}!A${startRow}:R${startRow + newRows.length - 1}`,
+        values: newRows,
+      });
+    }
 
     return {
       hasChanges: batches.length > 0,
@@ -600,19 +866,21 @@
     let bracketRange = ranges.bracket || "'The Oskars'!A:ZZ";
     let directorsFranchisesRange =
       ranges.directorsAndFranchises || "'Directors and Franchises'!A:ZZ";
+    let diaryRange = ranges.diary || "'Diary'!A:ZZ";
 
     // 1. Fetch live Google Sheets data (read token)
     await window.loadGoogleIdentity?.();
     let readToken = await window.requestGoogleAccessToken?.();
     let sheetData = await window.fetchGoogleSheetValues?.(
       spreadsheetId,
-      [allTimeRange, bracketRange, directorsFranchisesRange],
+      [allTimeRange, bracketRange, directorsFranchisesRange, diaryRange],
       readToken,
     );
     let valueRanges = sheetData?.valueRanges || [];
     let allTimeSheetRows = valueRanges[0]?.values || [];
     let bracketSheetRows = valueRanges[1]?.values || [];
     let dfSheetRows = valueRanges[2]?.values || [];
+    let diarySheetRows = valueRanges[3]?.values || [];
 
     // 2. Load Supabase data
     let source = await window.loadSupabaseLegacyHydrationSource?.();
@@ -646,6 +914,14 @@
       });
     }
 
+    let allWatchedWorks = (source.watched || []).map((w) => {
+      let film = filmsById.get(w.film_id) || w.films || {};
+      return {
+        ...film,
+        ...w,
+      };
+    });
+
     // 4. Compute diffs
     let allTimeDiff = window.diffAllTimeRanking(
       allTimeSheetRows,
@@ -664,16 +940,23 @@
       filmsById,
       { sheetName: "'Directors and Franchises'" },
     );
+    let diaryDiff = window.diffDiary(
+      diarySheetRows,
+      allWatchedWorks,
+      { sheetName: "'Diary'" },
+    );
 
     let allItems = [
       ...allTimeDiff.items,
       ...bracketDiff.items,
       ...tierDiff.items,
+      ...diaryDiff.items,
     ];
     let allBatches = [
       ...allTimeDiff.batches,
       ...bracketDiff.batches,
       ...tierDiff.batches,
+      ...diaryDiff.batches,
     ];
 
     let summaryLines = [
@@ -681,6 +964,7 @@
       `- All-time ranking / ratings: ${allTimeDiff.items.length} changes`,
       `- Oskar brackets: ${bracketDiff.items.length} changes`,
       `- Watchlist tiers: ${tierDiff.items.length} changes`,
+      `- Diary viewings: ${diaryDiff.items.length} changes`,
     ];
 
     return {

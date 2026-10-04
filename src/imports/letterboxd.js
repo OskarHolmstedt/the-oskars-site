@@ -314,10 +314,6 @@
   function importWatchlist(rows, importedWatchedKeys, report) {
     let current = window.state.watchlist || [];
     let lookup = buildLookup(current);
-    let maximumOrder = current.reduce(
-      (maximum, item) => Math.max(maximum, Number(item.order) || 0),
-      0,
-    );
     rows.forEach((row) => {
       if (!validFilmRow(row)) {
         report.skipped += 1;
@@ -338,7 +334,6 @@
         title: row.name,
         year: row.year,
         letterboxdUrl: row["letterboxd uri"],
-        order: ++maximumOrder,
       });
       if (/^\d{4}-\d{2}-\d{2}$/.test(row.date)) item.added = row.date;
       window.enrichPersonalRecordFromSharedArchive?.(item, "watchlist");
@@ -495,7 +490,7 @@
    * @param {ImportProposal} proposal A Letterboxd proposal, already built.
    * @param {Object} [options] Batch controls.
    * @param {number} [options.concurrency] Parallel lookups, default 4.
-   * @param {function(number, number): void} [options.onProgress] Called
+   * @param {(done: number, total: number) => void} [options.onProgress] Called
    *   as (done, total) after each lookup settles.
    * @returns {Promise<void>} Completion after every lookup settles.
    */

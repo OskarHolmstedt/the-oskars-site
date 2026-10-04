@@ -33,6 +33,46 @@ window.intakePageUrl = function (workflowId) {
     : "intake.html";
 };
 
+/** Retries an idempotent request after transient network, 429, or 5xx failures with bounded exponential backoff. @template T @param {() => Promise<T>} operation Request to retry. @param {{maxAttempts?: number, baseDelayMs?: number, maxDelayMs?: number, jitter?: number, sleep?: (duration: number) => Promise<void>, random?: () => number, shouldRetry?: (error: Error) => boolean}} [options] Retry controls. @returns {Promise<T>} The first successful result. */
+window.withRetry = async function (operation, options = {}) {
+  let maxAttempts = Math.max(1, Math.floor(Number(options.maxAttempts) || 3));
+  let baseDelayMs = Math.max(0, Number(options.baseDelayMs) || 250);
+  let maxDelayMs = Math.max(baseDelayMs, Number(options.maxDelayMs) || 4000);
+  let jitter = Math.max(0, Number(options.jitter) || 0.25);
+  let sleep =
+    options.sleep ||
+    ((duration) => new Promise((resolve) => setTimeout(resolve, duration)));
+  let random = options.random || Math.random;
+  let shouldRetry =
+    options.shouldRetry ||
+    ((error) => {
+      let status = Number(
+        error?.status || error?.statusCode || error?.response?.status,
+      );
+      return (
+        error?.name === "AbortError" ||
+        error instanceof TypeError ||
+        error?.code === "ECONNRESET" ||
+        error?.code === "ETIMEDOUT" ||
+        status === 429 ||
+        (status >= 500 && status <= 599)
+      );
+    });
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt + 1 >= maxAttempts || !shouldRetry(error)) throw error;
+      let exponentialDelay = Math.min(baseDelayMs * 2 ** attempt, maxDelayMs);
+      await sleep(
+        Math.min(maxDelayMs, exponentialDelay * (1 + random() * jitter)),
+      );
+    }
+  }
+  throw new Error("Retry operation completed without a result.");
+};
+
 /**
  * Builds the dedicated year-ranking workflow URL.
  * @param {string|number} year Release year.
@@ -110,6 +150,15 @@ window.categoryPageUrl = function (category) {
  */
 window.tagPageUrl = function (tag) {
   return `tag.html?name=${encodeURIComponent(String(tag || ""))}`;
+};
+
+/**
+ * Builds a catalog tag detail URL (issue #797).
+ * @param {string} tag Catalog tag name.
+ * @returns {string} Relative tag URL that resolves the shared catalog tag.
+ */
+window.catalogTagPageUrl = function (tag) {
+  return `${window.tagPageUrl(tag)}&catalog=1`;
 };
 
 /**

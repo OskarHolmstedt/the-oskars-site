@@ -14,20 +14,6 @@
     return Number(String(period || "").replace(/[^0-9]/g, "")) || 0;
   }
 
-  function rewatchTierOptions(selectedTier) {
-    let normalized = window.normalizeWatchlistTier?.(selectedTier) || "";
-    return [
-      `<option value=""${normalized ? "" : " selected"}>${filmPageEscape(ui("Unset"))}</option>`,
-    ]
-      .concat(
-        (window.WATCHLIST_TIERS || []).map(
-          (tier) =>
-            `<option value="${filmPageEscape(tier)}"${normalized === tier ? " selected" : ""}>${filmPageEscape(tier)}</option>`,
-        ),
-      )
-      .join("");
-  }
-
   function metadataLabel(value) {
     let text = String(value || "").replace(/-/g, " ");
     return text ? ui(text[0].toUpperCase() + text.slice(1)) : "";
@@ -67,6 +53,35 @@
   let awardsView =
     window.pageQueryParam("awards") === "matrix" ? "matrix" : "periods";
   let container = document.getElementById("filmPage");
+
+  // Shared catalog tags (issue #797) load lazily after the first paint so
+  // no film hydration query carries them; they stay out of film.tags, which
+  // the write path saves back to the user's personal film_tags.
+  let catalogTags = [];
+  let catalogTagsRequested = false;
+
+  function catalogTagsHtml() {
+    if (!catalogTags.length) return "";
+    return `<section class="film-tags film-catalog-tags"><h2>${filmPageEscape(ui("Catalog tags"))}</h2><div class="film-tag-list">${catalogTags
+      .map(
+        (tag) =>
+          `<a class="film-tag film-tag--catalog" href="${filmPageEscape(window.catalogTagPageUrl(tag.name))}">${filmPageEscape(tag.name)}</a>`,
+      )
+      .join("")}</div></section>`;
+  }
+
+  function ensureCatalogTags() {
+    if (catalogTagsRequested || !filmId || !window.loadSupabaseFilmCatalogTags)
+      return;
+    catalogTagsRequested = true;
+    window
+      .loadSupabaseFilmCatalogTags(filmId)
+      .then((tags) => {
+        catalogTags = tags;
+        if (tags.length && !currentlyEditing) render(false);
+      })
+      .catch(() => {});
+  }
 
   // Compact film detail (issue #617): window.OSKARS_FILM_COMPACT opts a
   // canonical film.html?id=<filmId> visit into a fast initial paint from
@@ -111,15 +126,39 @@
   let watchedBusy = false;
   let removedWatchlistSnapshot = null;
   let watchlistFranchiseChains = null;
+  let scopedActiveProjects = [];
+  let scopedArchiveMatch = null;
   // Read-only archive-match hint, ported from watchlist-film.js: built
   // from the already-hydrated window.state.filmsById (every watched film,
   // Supabase-side there's no separate "watchedOther" bucket) rather than a
   // live loadSupabaseWorkspace() call watchlist-film.js's own boot() used
   // to make - the data's already sitting in window.state by the time this
-  // runs (in compact mode, only once the real background full hydration
-  // has landed - a compact one-film read has no other titles to compare
-  // against, so this genuinely cross-item check defers alongside credits).
+  // runs (in compact mode, scoped to read_watched_title_matches() rows).
   let watchedTitlesByYear = new Map();
+
+  function archiveMatchCandidateFromMatches(matches, item) {
+    if (!matches?.length || !item) return null;
+    let year = String(item.year || "");
+    let sameTitleYear = year
+      ? matches.find((film) => String(film.year || "") === year)
+      : null;
+    if (sameTitleYear)
+      return {
+        level: "exact",
+        label: ui("Title and year match"),
+        film: sameTitleYear,
+      };
+    let sameTitle = matches[0];
+    if (sameTitle)
+      return {
+        level: "possible",
+        label: year
+          ? ui("Same title, different year")
+          : ui("Same title, year unknown"),
+        film: sameTitle,
+      };
+    return null;
+  }
 
   function refreshWatchlistDetailState() {
     watchlistItem = filmId
@@ -159,6 +198,8 @@
     )
       .then(() => {
         compactActive = false;
+        scopedActiveProjects = [];
+        scopedArchiveMatch = null;
         window.ensurePeopleIndex?.();
         refreshWatchlistDetailState();
         render(currentlyEditing);
@@ -176,9 +217,12 @@
   }
 
   if (compactActive) {
-    window
-      .loadSupabaseFilmDetail(filmId)
-      .then((source) => {
+    let projectsPromise = window.isUuid?.(filmId)
+      ? window.loadSupabaseActiveProjectsForFilm?.(filmId).catch(() => [])
+      : Promise.resolve([]);
+    Promise.all([window.loadSupabaseFilmDetail(filmId), projectsPromise])
+      .then(async ([source, activeProjects]) => {
+        scopedActiveProjects = activeProjects || [];
         Object.assign(
           window.state,
           window.buildLegacyStateFromSupabaseHydration(source),
@@ -190,14 +234,21 @@
         window.rebuildAggregates();
         compactReady = true;
         refreshWatchlistDetailState();
+        if (isWatchlistDetail && watchlistItem?.title) {
+          try {
+            let matches = await window.loadSupabaseWatchedTitleMatches?.(
+              watchlistItem.title,
+            );
+            scopedArchiveMatch = archiveMatchCandidateFromMatches(
+              matches || [],
+              watchlistItem,
+            );
+          } catch {
+            scopedArchiveMatch = null;
+          }
+        }
         render(currentlyEditing);
         ensureOfficialResultsForThisFilm();
-        // Eager background upgrade: once the fast compact paint is
-        // showing, immediately start a full hydration in the background
-        // so writes/credits are almost always already safe to use by the
-        // time a person could actually reach for them - browsing itself
-        // never waits on this.
-        ensureFilmFullyHydrated().catch(() => {});
       })
       .catch(() => {
         // The compact read itself failed (not just the background
@@ -228,15 +279,6 @@
 
   function currentFilm() {
     return window.findFilmById(filmId) || window.findWatchedFilmById?.(filmId);
-  }
-
-  // Ported from watchlist-film.js (issue #457) - metadataLabel/formatRuntime
-  // above are already identical between the two files, reused as-is.
-  function tierOptions(selected) {
-    return `<option value="">${filmPageEscape(ui("Unranked"))}</option>${window.WATCHLIST_TIERS.map(
-      (tier) =>
-        `<option value="${filmPageEscape(tier)}" ${window.normalizeWatchlistTier(selected) === tier ? "selected" : ""}>${filmPageEscape(tier)}</option>`,
-    ).join("")}`;
   }
 
   // Objective catalog metadata - shared verbatim across the Watched
@@ -336,6 +378,7 @@
   // needs no write of its own): a simple normalized-title/year match
   // against the signed-in user's own already-watched titles.
   function archiveMatchCandidate() {
+    if (compactActive) return scopedArchiveMatch;
     let normalizedTitle = window.normalizeTitle(watchlistItem.title || "");
     let year = String(watchlistItem.year || "");
     let sameTitleYear = watchedTitlesByYear.get(`${normalizedTitle}::${year}`);
@@ -401,7 +444,7 @@
       ? `<form class="data-form data-form--inline" data-add-tag-form><label>${filmPageEscape(ui("Add tag"))} <input name="tag" required></label><button type="submit"${watchlistBusy ? " disabled" : ""}>${filmPageEscape(ui("Add"))}</button></form>`
       : "";
     if (!tagsHtml && !addFormHtml) return "";
-    return `<section class="film-tags"><h2>${filmPageEscape(ui("Tags"))}</h2><div class="film-tag-list">${tagsHtml}</div>${addFormHtml}</section>`;
+    return `<section class="film-tags"><h2>${filmPageEscape(ui("Your tags"))}</h2><div class="film-tag-list">${tagsHtml}</div>${addFormHtml}</section>`;
   }
 
   function renderWatchlistFranchiseEditor() {
@@ -450,14 +493,31 @@
         ${localizedTitleMeta}
         ${directorHtml ? `<p>${filmPageEscape(ui("by"))} ${directorHtml}</p>` : ""}
         ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}
-        ${canEdit ? `<label class="data-field">${filmPageEscape(ui("Interest tier"))}<span class="tier-select-row"><select name="tier" data-tier-select${watchlistBusy ? " disabled" : ""}>${tierOptions(watchlistItem.tier)}</select>${window.renderTierModifierToggle("tierModifier", watchlistItem.tierModifier, { escape: filmPageEscape, ui })}</span></label>` : ""}`,
+        ${
+          canEdit
+            ? `<label class="data-field">${filmPageEscape(ui("Interest tier"))}<span class="tier-select-row">${window.renderTierSetter(
+                {
+                  tierName: "tier",
+                  tier: watchlistItem.tier,
+                  modifierName: "tierModifier",
+                  modifier: watchlistItem.tierModifier,
+                  tierAttributes: "data-tier-select",
+                  disabled: watchlistBusy,
+                  escape: filmPageEscape,
+                  ui,
+                },
+              )}</span></label>`
+            : ""
+        }`,
       actionsHtml: canEdit
         ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Mark as watched"), escape: filmPageEscape, attributes: { "data-mark-watchlist-watched": true, disabled: watchlistBusy } })}${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Remove from watchlist"), escape: filmPageEscape, active: true, attributes: { "data-remove-watchlist-film": true, disabled: watchlistBusy } })}`
         : "",
     })}
+    ${catalogTagsHtml()}
     ${renderWatchlistTagEditor()}
     ${renderWatchlistFranchiseEditor()}
     ${archiveMatchHtml}`;
+    window.enhanceTierSetters?.(container);
     window.enhanceTierModifierToggles?.(container);
   }
 
@@ -506,7 +566,11 @@
     if (!periods.length) return null;
     let nominations = periods.flatMap(({ periodKey, period }) =>
       period.nominations
-        .filter((nomination) => nomination.filmRef?.id === film.id)
+        .filter((nomination) =>
+          window
+            .officialNominationFilms(nomination)
+            .some((entry) => entry.filmRef?.id === film.id),
+        )
         .map((nomination) => ({ ...nomination, periodKey })),
     );
     return { source, periods, nominations };
@@ -522,7 +586,7 @@
       ...new Set(
         nominations
           .flatMap((nomination) => [nomination.recipient, nomination.detail])
-          .map((value) => String(value || "").trim())
+          .map((value) => window.formatOfficialField(value))
           .filter(Boolean),
       ),
     ].join(" · ");
@@ -873,6 +937,7 @@
     let viewingHtml = viewingFacts.length
       ? `<div class="film-viewing-summary">${viewingFacts.map((entry) => `<span><b>${filmPageEscape(entry[0])}</b> ${filmPageEscape(entry[1])}</span>`).join("")}</div>`
       : "";
+    film.peopleByProfession ||= window.buildFilmPeopleByProfession?.(film);
     let professionHtml = window.PERSON_PROFESSION_ORDER.filter(
       (profession) => film.peopleByProfession?.[profession]?.length,
     )
@@ -914,8 +979,20 @@
           `<a class="film-tag" href="${filmPageEscape(window.tagPageUrl(tag))}">${filmPageEscape(tag)}</a>`,
       )
       .join("");
+    let activeProjects = compactActive
+      ? scopedActiveProjects.map((row) => ({
+          id: row.id,
+          name: row.name,
+          sourceLabel: row.source_label,
+          pinned: Boolean(row.pinned),
+          progress: {
+            watchedCount: row.watched_count,
+            total: row.total,
+          },
+        }))
+      : window.activeProjectsForFilm?.({ archiveId: film.id }) || [];
     let projectMembershipHtml = window.renderProjectMembershipSection(
-      window.activeProjectsForFilm?.({ archiveId: film.id }) || [],
+      activeProjects,
       { escape: filmPageEscape, title: ui("Active projects") },
     );
     let awardsHtml =
@@ -946,28 +1023,29 @@
       ${film.review ? `<section class="detail-note film-review-compact"><div><h2>${filmPageEscape(ui("Review"))}</h2></div><p>${filmPageEscape(film.review)}</p></section>` : ""}`,
       actionsHtml: `<a class="button-link" href="${filmPageEscape(window.comparePageUrl([film.id]))}">${filmPageEscape(ui("Compare"))}</a>${
         canEdit
-          ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Remove from watched"), escape: filmPageEscape, active: true, attributes: { "data-remove-watched-film": true, disabled: watchedBusy } })}${window.renderCollectionActionButton({ kind: "rewatch", label: ui(film.wantToRewatch ? "Remove from rewatchlist" : "Want to rewatch"), escape: filmPageEscape, active: film.wantToRewatch, attributes: { "data-toggle-film-rewatch": true } })}<button type="button" data-edit-film>${filmPageEscape(ui("Edit"))}</button>`
+          ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Remove from watched"), escape: filmPageEscape, active: true, attributes: { "data-remove-watched-film": true, disabled: watchedBusy } })}${window.renderCollectionActionButton({ kind: "rewatch", label: ui(film.wantToRewatch ? "Remove from rewatchlist" : "Want to rewatch"), escape: filmPageEscape, active: film.wantToRewatch, attributes: { "data-toggle-film-rewatch": true } })}<button type="button" data-edit-film>${filmPageEscape(ui("Edit"))}</button>${
+              film.wantToRewatch && window.renderTierSetter
+                ? `<label class="film-rewatch-tier-label">${filmPageEscape(ui("Rewatch tier"))} <span class="tier-select-row">${window.renderTierSetter({ tierName: "rewatchTier", tier: film.rewatchTier, modifierName: "rewatchTierModifier", modifier: film.rewatchTierModifier, tierAttributes: "data-rewatch-tier-select", escape: filmPageEscape, ui })}</span></label>`
+                : ""
+            }`
           : ""
       }`,
     })}
   ${intakeBannerHtml}
-  ${tagHtml ? `<section class="film-tags"><h2>${filmPageEscape(ui("Tags"))}</h2><div class="film-tag-list">${tagHtml}</div></section>` : ""}
+  ${catalogTagsHtml()}
+  ${tagHtml ? `<section class="film-tags"><h2>${filmPageEscape(ui("Your tags"))}</h2><div class="film-tag-list">${tagHtml}</div></section>` : ""}
   ${franchiseHtml ? `<section class="film-franchises"><h2>${filmPageEscape(ui("Franchises"))}</h2><div class="film-franchise-links">${franchiseHtml}</div></section>` : ""}
   ${relationsHtml}
+  ${projectMembershipHtml}
   ${
-    compactActive
-      ? '<p class="data-panel-status">Loading project memberships…</p>'
-      : projectMembershipHtml
-  }
-  ${
-    compactActive
-      ? `<section class="film-credits"><h2>${filmPageEscape(ui("Award credits"))}</h2><p class="data-panel-status">Loading…</p></section>`
-      : professionHtml
-        ? `<section class="film-credits" data-collapsible-section><h2 data-collapsible-heading>${filmPageEscape(ui("Award credits"))}</h2><div class="film-credit-grid" data-collapsible-body>${professionHtml}</div></section>`
-        : ""
+    professionHtml
+      ? `<section class="film-credits" data-collapsible-section><h2 data-collapsible-heading>${filmPageEscape(ui("Award credits"))}</h2><div class="film-credit-grid" data-collapsible-body>${professionHtml}</div></section>`
+      : ""
   }
   ${awardsHtml}`;
     window.enhanceCollapsibles?.(container);
+    window.enhanceTierSetters?.(container);
+    window.enhanceTierModifierToggles?.(container);
   }
 
   function renderEdit(film) {
@@ -980,7 +1058,16 @@
       <label class="wide">${filmPageEscape(ui("Tags"))} <input name="tags" value="${filmPageEscape(window.formatFilmTags(film.tags))}" placeholder="${filmPageEscape(ui("Noir, courtroom drama, rewatch"))}"><span class="field-help">${filmPageEscape(ui("Separate tags with commas."))}</span></label>
       <label class="wide">${filmPageEscape(ui("Review / comment"))} <textarea name="review" rows="5" maxlength="1000">${filmPageEscape(film.review || "")}</textarea><span class="field-help">${filmPageEscape(ui("A short personal note about the film."))}</span></label>
       <label><input type="checkbox" name="wantToRewatch" ${film.wantToRewatch ? "checked" : ""}> ${filmPageEscape(ui("Rewatchlist"))}</label>
-      <label>${filmPageEscape(ui("Rewatch tier"))} <span class="tier-select-row"><select name="rewatchTier">${rewatchTierOptions(film.rewatchTier)}</select>${window.renderTierModifierToggle("rewatchTierModifier", film.rewatchTierModifier, { escape: filmPageEscape, ui })}</span></label>
+      <label>${filmPageEscape(ui("Rewatch tier"))} <span class="tier-select-row">${window.renderTierSetter(
+        {
+          tierName: "rewatchTier",
+          tier: film.rewatchTier,
+          modifierName: "rewatchTierModifier",
+          modifier: film.rewatchTierModifier,
+          escape: filmPageEscape,
+          ui,
+        },
+      )}</span></label>
     </div></section>
     <section class="film-edit-section"><h2>${filmPageEscape(ui("Award credits"))}</h2><p class="edit-help">${filmPageEscape(ui("Period, placement, and category define the bracket entry and remain structural. Recipients and details can be edited here."))}</p>
       <div class="leaderboard-wrap"><table class="leaderboard film-edit-awards"><thead><tr><th>${filmPageEscape(ui("Period"))}</th><th>${filmPageEscape(ui("Place"))}</th><th>${filmPageEscape(ui("Category"))}</th><th>${filmPageEscape(ui("Recipients"))}</th><th>${filmPageEscape(ui("Detail"))}</th></tr></thead><tbody>${renderEditAwardRows(awards)}</tbody></table></div>
@@ -988,6 +1075,7 @@
     <div class="film-edit-actions"><button type="submit">${filmPageEscape(ui("Save changes"))}</button><button type="button" data-cancel-film-edit>${filmPageEscape(ui("Cancel"))}</button></div>
   </form>`;
     window.enhanceRatingInputs?.(container);
+    window.enhanceTierSetters?.(container);
     window.enhanceTierModifierToggles?.(container);
   }
 
@@ -1060,6 +1148,7 @@
         ? `<div class="collection-action-buttons">${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Add to watchlist"), escape: filmPageEscape, attributes: { "data-add-shared-preview-watchlist": true } })}${window.renderCollectionActionButton({ kind: "watched", label: ui("Add to watched"), escape: filmPageEscape, attributes: { "data-add-shared-preview-watched": true } })}</div>`
         : "",
     })}
+    ${catalogTagsHtml()}
     ${franchiseHtml ? `<section class="film-franchises"><h2>${filmPageEscape(ui("Franchises"))}</h2><div class="film-franchise-links">${franchiseHtml}</div></section>` : ""}
     <p class="detail-empty">${filmPageEscape(ui("This film is in the catalog but hasn't been added to your own collection yet."))}</p>`;
   }
@@ -1067,7 +1156,16 @@
   // Tracked only so the post-hydration re-render below can't kick a user
   // out of an in-progress edit by hardcoding false.
   let currentlyEditing = false;
+  let stopArchiveWatch = () => {};
   function render(editing = false) {
+    renderContent(editing);
+    stopArchiveWatch();
+    stopArchiveWatch = window.whenCompleteArchiveNeeded(container, () =>
+      ensureFilmFullyHydrated().catch(() => {}),
+    );
+  }
+
+  function renderContent(editing = false) {
     currentlyEditing = editing;
     let finishRenderTimer = window.startOskarsPerformance?.("film:render");
     if (compactActive && !compactReady) {
@@ -1213,7 +1311,7 @@
         // film's own id already resolves the detail page.
         window.location.href = window.filmPageUrl(result.item.supabaseFilmId);
       } catch (err) {
-        window.hydrateState(backup);
+        window.restoreSerializableState?.(backup);
         alert(err.message || String(err));
       }
       return;
@@ -1274,10 +1372,12 @@
             wantToRewatch: !film.wantToRewatch,
           }),
         );
-        await window.save();
+        // Render immediately so the button state and the tier picker card
+        // update without waiting for the network round-trip.
         render(false);
+        await window.save();
       } catch (err) {
-        window.hydrateState(backup);
+        window.restoreSerializableState?.(backup);
         alert(err.message || String(err));
         render(false);
       }
@@ -1324,6 +1424,40 @@
       } catch (err) {
         alert(err.message || String(err));
         watchlistBusy = false;
+        render(false);
+      }
+      return;
+    }
+    // Inline rewatch-tier setter on the watched-film view (the tier setter
+    // dispatches change from the hidden rewatchTier / rewatchTierModifier
+    // input; both use data-rewatch-tier-select on their [data-tier-setter]).
+    let rewatchTierChange = event.target.closest("[data-rewatch-tier-select]");
+    if (rewatchTierChange) {
+      let film = currentFilm();
+      let backup = window.cloneRecord(window.getSerializableState());
+      // Read both values from the DOM before re-rendering detaches the node.
+      let setterRoot = rewatchTierChange.closest("[data-tier-setter]");
+      let tierVal =
+        setterRoot?.querySelector('input[data-tier-setter-input="tier"]')
+          ?.value || "";
+      let modVal =
+        setterRoot?.querySelector('input[data-tier-setter-input="modifier"]')
+          ?.value || "";
+      try {
+        window.updateFilmMetadata(
+          film.id,
+          Object.assign(window.filmMetadataFormValues(film), {
+            rewatchTier: tierVal,
+            rewatchTierModifier: modVal,
+          }),
+        );
+        // Optimistic render before the network write so the badge updates
+        // immediately, then save in the background.
+        render(false);
+        await window.save();
+      } catch (err) {
+        window.restoreSerializableState?.(backup);
+        alert(err.message || String(err));
         render(false);
       }
       return;
@@ -1462,7 +1596,7 @@
       updateFilmViewUrl();
       render(false);
     } catch (err) {
-      window.hydrateState(backup);
+      window.restoreSerializableState?.(backup);
       alert(err.message || String(err));
       render(true);
     }
@@ -1498,4 +1632,5 @@
 
   render(false);
   ensureOfficialResultsForThisFilm();
+  ensureCatalogTags();
 })();

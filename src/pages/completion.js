@@ -107,10 +107,11 @@
 
   /**
    * Resolves once window.state holds the complete archive (issue #597).
-   * A no-op once already hydrated. Every write action below (official
-   * watchlist-add, "Start project") calls this first, so a click that
-   * lands before the eager background upgrade finishes still waits for
-   * real data instead of risking a partial-state write; #607's own
+   * A no-op once already hydrated. Runs when the directors, franchises or
+   * projects section is seen (issue #636), and every write action below
+   * (official watchlist-add, "Start project") calls it first, so a write
+   * always waits for real data instead of risking a partial-state write;
+   * #607's own
    * reconcile() guard is the last-resort backstop this is meant to make
    * normally unreachable, not depended on for correctness.
    * @returns {Promise<void>}
@@ -145,7 +146,7 @@
     return completionHydrationPromise;
   }
 
-  /** Fetches the compact Completion projection once (issue #597) and re-renders when it resolves; also kicks off the eager background full-hydration upgrade so writes are almost always already safe by the time a person reaches for them. */
+  /** Fetches the compact Completion projection once (issue #597) and re-renders when it resolves. The complete archive loads only once a section that needs it is seen, or an action needs it (issue #636). */
   function ensureCompactCompletionFresh() {
     if (!completionCompactActive || compactCompletionSource) return;
     window
@@ -161,7 +162,6 @@
         watchGoalCenturies = goalModel.watchGoalCenturies;
         applyCompactOfficialModel();
         render();
-        ensureCompletionFullyHydrated().catch(() => {});
       })
       .catch((error) => {
         compactCompletionError = error;
@@ -444,7 +444,9 @@
 
   function completionTable(section, rows, completeCount, options) {
     if (!rows.length && !completeCount) {
-      return `<p class="completion-empty" role="status">${escape(completionCompactActive ? ui("Loading…") : options.emptyText)}</p>`;
+      return completionCompactActive
+        ? `<p class="completion-empty" role="status" data-needs-complete-archive>${escape(ui("Loading…"))}</p>`
+        : `<p class="completion-empty" role="status">${escape(options.emptyText)}</p>`;
     }
     let sorted = sortRows(rows, section, completionRowValue);
     let page = paginateRows(sorted, section, options.itemLabel);
@@ -1036,7 +1038,26 @@
     );
   }
 
+  let stopArchiveWatch = () => {};
   function render() {
+    renderContent();
+    stopArchiveWatch();
+    stopArchiveWatch = () => {};
+    // Until the compact projection renders, its sections are one-line
+    // placeholders, so a complete-archive section can sit on screen only
+    // until that data pushes it down; it is not "seen" yet.
+    if (
+      completionCompactActive &&
+      !compactCompletionSource &&
+      !compactCompletionError
+    )
+      return;
+    stopArchiveWatch = window.whenCompleteArchiveNeeded(container, () =>
+      ensureCompletionFullyHydrated().catch(() => {}),
+    );
+  }
+
+  function renderContent() {
     let finishRenderTimer =
       window.startOskarsPerformance?.("completion:render");
     // Recomputed on every render, not once at module load (issue #597):
@@ -1158,7 +1179,26 @@ ${officialWatchlistDialog()}`;
   }
 
   render();
-  window.hydrateOfficialResultsFromSupabase?.().then(() => {
+  function fetchOfficialResults() {
+    if (
+      completionCompactActive &&
+      window.loadSupabaseCompletionOfficialProjection
+    ) {
+      return window
+        .loadSupabaseCompletionOfficialProjection()
+        .then((officialResults) => {
+          window.state.officialResults = Object.assign(
+            window.state.officialResults || {},
+            officialResults,
+          );
+          return true;
+        })
+        .catch(() => window.hydrateOfficialResultsFromSupabase?.());
+    }
+    return window.hydrateOfficialResultsFromSupabase?.();
+  }
+
+  fetchOfficialResults()?.then(() => {
     officialResultsHydrated = true;
     if (completionCompactActive) applyCompactOfficialModel();
     else refreshOfficialCompletions();

@@ -113,7 +113,7 @@ window.renderProjectMembershipSection = function (projects, options = {}) {
   let title = options.title || "Projects";
   let rows = projects
     .map((project) => {
-      let progress = window.projectProgress?.(project);
+      let progress = project.progress || window.projectProgress?.(project);
       let status = project.pinned
         ? window.uiText?.("Pinned") || "Pinned"
         : window.uiText?.("Open") || "Open";
@@ -187,7 +187,7 @@ window.renderSharedFilmCard = function (film, options = {}) {
     attributes.tabindex ??= "0";
   }
   return `<${tag} class="${escape(classes)}"${filmCardAttributes(attributes, escape)}>
-    ${options.poster === false ? "" : window.renderFilmPoster(film, options.posterSize || "card")}
+    ${options.poster === false ? "" : window.renderFilmPoster(film, options.posterSize || "card", { priority: options.priority, hero: options.hero })}
     ${options.beforeTitleHtml || ""}
     <div class="film-title">${rank}${title}${options.afterTitleHtml || ""}${year}${ratingHtml}</div>
     ${directorHtml}${options.bodyHtml || ""}${options.actionsHtml || compareHtml}
