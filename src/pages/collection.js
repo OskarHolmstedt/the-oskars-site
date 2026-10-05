@@ -193,11 +193,27 @@
       .join("");
     let watchedCards = sortedWatched.map((record) => itemCard(record)).join("");
     let watchedRows = sortedWatched.map((record) => itemRow(record)).join("");
-
     let queueControls =
       queue.length > 1
         ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-collection-queue-edit-toggle${busy ? " disabled" : ""}>${escape(ui(queueEditMode ? "Finish order" : "Reorder"))}</button>${queueEditMode ? `<span>${escape(ui("Drag to set this collection's queue order."))}</span>` : ""}</div>`
         : "";
+
+    let controlBannerHtml = `<div class="project-control-banner">
+      ${toolbarHtml}
+      ${queueControls ? `<div class="project-settings-bar">${queueControls}</div>` : ""}
+    </div>`;
+
+    let upNextRecord = queue.length ? queue[0] : null;
+    let upNextHtml = upNextRecord
+      ? `<section class="project-up-next" aria-label="${escape(ui("Up next"))}">
+        <div class="project-up-next-header">
+          <span class="eyebrow">${escape(ui("Up next"))}</span>
+        </div>
+        <div class="project-up-next-card">
+          ${itemCard(upNextRecord, 0, false)}
+        </div>
+      </section>`
+      : "";
 
     container.innerHTML = `${window.renderBreadcrumbs([{ label: ui("Collections"), href: "custom-collections.html" }, { label: collection.name }], { escape })}${window.renderDetailHeader(
       {
@@ -208,7 +224,9 @@
     ${window.renderDetailStats({ itemsHtml: `<span><b>${watched.length}</b> ${escape(ui("Watched"))}</span><span><b>${queue.length}</b> ${escape(ui("Queue"))}</span><span><b>${total}</b> ${escape(ui("Total"))}</span><span><b>${percent}%</b> ${escape(ui("Complete"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}
     ${window.renderSupabaseEntityNote({ entityKind: "collection", entityKey: collection.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Collection note"), escape })}
     <div class="project-progress-meter project-progress-meter--detail" aria-label="${escape(ui("{percent} percent complete", { percent }))}"><span style="width:${escape(percent)}%"></span></div>
-    <h2>${escape(ui("Queue"))}</h2>${toolbarHtml}${queueControls}${
+    ${controlBannerHtml}
+    ${upNextHtml}
+    <h2>${escape(ui("Queue"))}</h2>${
       filmView === "grid"
         ? `<div class="film-grid project-film-grid">${queueCards || `<p>${escape(ui("No films"))}</p>`}</div>`
         : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))} / ${escape(ui("Tier"))}</th></tr></thead><tbody>${queueRows || `<tr><td colspan="4">${escape(ui("No films"))}</td></tr>`}</tbody></table></div>`

@@ -210,10 +210,11 @@ window.filmMatchesCatalogSearch = function (film, query) {
 /**
  * Returns a catalog record's primary value for a Films sort axis.
  * @param {Object} film Catalog record.
- * @param {'title'|'year'|'rating'|'runtime'|'tier'|'awards'} sort Sort axis.
+ * @param {'title'|'year'|'rating'|'runtime'|'tier'|'awards'|'communityRating'} sort Sort axis.
  * @returns {number|string} Sort value.
  */
 window.filmCatalogSortValue = function (film, sort) {
+  if (sort === "communityRating") return film?.communityRatingAverage ?? 0;
   if (sort === "year") return Number(film?.year) || -Infinity;
   if (sort === "rating") return window.filmRatingSortValue?.(film) || 0;
   if (sort === "runtime") return Number(film?.runtimeMinutes) || -Infinity;
@@ -248,6 +249,11 @@ const catalogTitleCollator = new Intl.Collator("en", {
  * @returns {number} Comparison result.
  */
 window.compareFilmCatalogEntries = function (left, right, sort, order) {
+  if (sort === "communityRating") {
+    let leftMissing = !(left?.communityRatingCount > 0);
+    let rightMissing = !(right?.communityRatingCount > 0);
+    if (leftMissing !== rightMissing) return leftMissing ? 1 : -1;
+  }
   let leftValue = window.filmCatalogSortValue(left, sort);
   let rightValue = window.filmCatalogSortValue(right, sort);
   let primary = leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0;

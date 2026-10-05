@@ -23,6 +23,40 @@
   let officialResultsHydrated = false;
   let completionHydrationPromise = null;
 
+  let canonicalLists = [];
+  let canonicalListTiers = new Map();
+  let canonicalListStatuses = new Map();
+  let lastCanonicalListAdditions = new Map();
+  let canonicalListFilters = new Map();
+  let canonicalExpandedLists = new Set();
+
+  function canonicalListTierKey(listId) {
+    return `oskars-canonical-list-tier-${listId}`;
+  }
+  function preferredCanonicalListTier(listId) {
+    try {
+      return (
+        window.normalizeWatchlistTier?.(
+          localStorage.getItem(canonicalListTierKey(listId)),
+        ) || "C"
+      );
+    } catch (err) {
+      return "C";
+    }
+  }
+
+  function refreshCanonicalLists(stateOverride) {
+    let options = stateOverride ? { state: stateOverride } : {};
+    canonicalLists = [
+      ...(window.allCanonicalListsCompletion?.(options) || new Map()).values(),
+    ];
+    canonicalLists.forEach((list) => {
+      if (!canonicalListTiers.has(list.id)) {
+        canonicalListTiers.set(list.id, preferredCanonicalListTier(list.id));
+      }
+    });
+  }
+
   // Completion hub (issue #17): directors, franchises, and projects ranked by
   // progress toward watching everything the archive + watchlist know about.
   let finishCollectTimer =
@@ -103,7 +137,10 @@
     });
     finishOfficial?.();
   }
-  if (!completionCompactActive) refreshOfficialCompletions();
+  if (!completionCompactActive) {
+    refreshOfficialCompletions();
+    refreshCanonicalLists();
+  }
 
   /**
    * Resolves once window.state holds the complete archive (issue #597).
@@ -125,6 +162,7 @@
       .then(() => {
         completionCompactActive = false;
         refreshOfficialCompletions();
+        refreshCanonicalLists();
         hub = window.completionHubData();
         bracketCompletion = window.awardBracketCompletion();
         bracketCategoryCompletion = window.awardBracketCategoryCompletion();
@@ -160,6 +198,8 @@
         watchGoalYears = goalModel.watchGoalYears;
         watchGoalDecades = goalModel.watchGoalDecades;
         watchGoalCenturies = goalModel.watchGoalCenturies;
+        let watchedState = window.buildSupabaseCompletionWatchedState(source);
+        refreshCanonicalLists(watchedState);
         applyCompactOfficialModel();
         render();
       })
@@ -225,6 +265,7 @@
     return `officialPeriods:${sourceId}`;
   }
   let sortState = {
+    canonicalLists: { key: "percent", dir: -1 },
     directors: { key: "percent", dir: -1 },
     franchises: { key: "percent", dir: -1 },
     projects: { key: "percent", dir: -1 },
@@ -992,6 +1033,160 @@
       await enrichOfficialWatchlistItems(sourceId, result.added);
   }
 
+  function canonicalListRowValue(row, key) {
+    if (key === "name") return row.name || "";
+    if (key === "watchedCount") return row.watchedCount || 0;
+    if (key === "total") return row.total || 0;
+    return row.percent || 0;
+  }
+
+  function canonicalListWatchlistButton(list, options = {}) {
+    if (!canEdit) return "";
+    let plan = window.canonicalListWatchlistPlan?.(list.id, list);
+    if (!plan || !plan.ready.length) return "";
+    let label = options.shortLabel
+      ? ui("Add unseen")
+      : ui("Add {count} unseen", { count: plan.ready.length });
+    let tier = canonicalListTiers.get(list.id) || "C";
+    let title = ui("Add unseen films to tier {tier}", { tier });
+    return `<button type="button" class="sort-order-button completion-watchlist-action" data-add-canonical-watchlist="${escape(list.id)}" title="${escape(title)}">${escape(label)}</button>`;
+  }
+
+  function canonicalListTable(list) {
+    let currentFilter = canonicalListFilters.get(list.id) || "all";
+    let items = list.items || [];
+    if (currentFilter === "unseen") items = list.unseen;
+    else if (currentFilter === "watched") items = list.watched;
+
+    let filterTabs = `<div class="canonical-filter-tabs">
+      <button type="button" class="canonical-filter-tab" data-canonical-filter="${escape(list.id)}" data-filter-value="all" aria-pressed="${currentFilter === "all" ? "true" : "false"}">${escape(ui("All"))} (${list.total})</button>
+      <button type="button" class="canonical-filter-tab" data-canonical-filter="${escape(list.id)}" data-filter-value="unseen" aria-pressed="${currentFilter === "unseen" ? "true" : "false"}">${escape(ui("Unseen"))} (${list.unseenCount})</button>
+      <button type="button" class="canonical-filter-tab" data-canonical-filter="${escape(list.id)}" data-filter-value="watched" aria-pressed="${currentFilter === "watched" ? "true" : "false"}">${escape(ui("Watched"))} (${list.watchedCount})</button>
+    </div>`;
+
+    let rows = items
+      .map((item) => {
+        let titleHtml = item.href
+          ? `<a href="${escape(item.href)}"><strong>${escape(item.title)}</strong></a>`
+          : `<strong>${escape(item.title)}</strong>`;
+        let statusBadge = item.watched
+          ? `<span class="canonical-status-badge canonical-status-badge--watched">${escape(ui("Watched"))}</span>`
+          : item.watchlistItem
+            ? `<span class="canonical-status-badge canonical-status-badge--watchlist">${escape(ui("Watchlist"))} (${escape(item.watchlistItem.tier || "C")})</span>`
+            : `<span class="canonical-status-badge canonical-status-badge--unseen">${escape(ui("Unseen"))}</span>`;
+        return `<tr>
+          <td>#${item.rank}</td>
+          <td>${titleHtml} <span class="film-table-year">(${escape(item.year)})</span></td>
+          <td>${escape(item.director || "—")}</td>
+          <td>${statusBadge}</td>
+        </tr>`;
+      })
+      .join("");
+
+    return `${filterTabs}
+    <div class="canonical-table-wrap">
+      <table class="canonical-film-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>${escape(ui("Film"))}</th>
+            <th>${escape(ui("Director"))}</th>
+            <th>${escape(ui("Status"))}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows || `<tr><td colspan="4" class="completion-empty">${escape(ui("No films match this filter."))}</td></tr>`}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  function canonicalListCard(list) {
+    let projectAction = minimalSourceProjectAction("canonical-list", list.id);
+    let watchlistAction = canonicalListWatchlistButton(list);
+    let tier = canonicalListTiers.get(list.id) || "C";
+    let tierOptions = window.WATCHLIST_TIERS.map(
+      (option) =>
+        `<option value="${option}"${option === tier ? " selected" : ""}>${option}</option>`,
+    ).join("");
+    let status = canonicalListStatuses.get(list.id) || "";
+    let lastAddition = lastCanonicalListAdditions.get(list.id) || null;
+    let isExpanded = canonicalExpandedLists.has(list.id);
+
+    return `<article class="canonical-list-card" id="completion-canonical-list-${escape(list.id)}">
+      <header>
+        <h3><a href="${escape(list.sourceUrl)}" target="_blank" rel="noopener noreferrer">${escape(list.name)}</a></h3>
+        <p>${escape(list.description)}</p>
+      </header>
+      <div class="canonical-list-stats">
+        <span><b>${list.watchedCount} / ${list.total}</b> ${escape(ui("Watched"))} (${list.percent}%)</span>
+        <span><b>${list.watchlistCount}</b> ${escape(ui("To watch"))}</span>
+      </div>
+      ${meterHtml(list.percent)}
+      <div class="canonical-list-actions">
+        ${projectAction}
+        ${canEdit && watchlistAction ? `<div class="canonical-list-tools"><select data-canonical-watchlist-tier="${escape(list.id)}">${tierOptions}</select>${watchlistAction}</div>` : ""}
+      </div>
+      ${status ? `<p class="data-panel-status oscar-watchlist-status" role="status">${escape(status)}${lastAddition?.length ? ` <button type="button" class="link-button" data-undo-canonical-watchlist="${escape(list.id)}">${escape(ui("Undo"))}</button>` : ""}</p>` : ""}
+      <details class="canonical-list-details"${isExpanded ? " open" : ""} data-canonical-details="${escape(list.id)}">
+        <summary>${escape(ui("Browse films"))} (${list.total})</summary>
+        <div class="canonical-list-browser">
+          ${canonicalListTable(list)}
+        </div>
+      </details>
+    </article>`;
+  }
+
+  function canonicalListsSectionHtml() {
+    if (!canonicalLists.length) {
+      return `<p class="completion-empty" role="status">${escape(completionCompactActive && !compactCompletionSource ? ui("Loading…") : ui("No canonical lists available."))}</p>`;
+    }
+    let sorted = sortRows(
+      canonicalLists,
+      "canonicalLists",
+      canonicalListRowValue,
+    );
+    let cards = sorted.map(canonicalListCard).join("");
+    return `<div class="canonical-lists-grid">${cards}</div>`;
+  }
+
+  async function addCanonicalWatchlistSource(listId) {
+    await ensureCompletionFullyHydrated().catch(() => {});
+    let tier = canonicalListTiers.get(listId) || "C";
+    let plan = window.canonicalListWatchlistPlan?.(listId);
+    if (!plan || !plan.ready.length) return;
+    canonicalListStatuses.set(
+      listId,
+      ui("Adding {count} films…", { count: plan.ready.length }),
+    );
+    render();
+    let result = window.applyCanonicalListWatchlistPlan?.(listId, tier);
+    if (!result?.ok) {
+      canonicalListStatuses.set(
+        listId,
+        result?.reason || ui("Films could not be added."),
+      );
+      render();
+      return;
+    }
+    if (result.persisted?.then) await result.persisted;
+    lastCanonicalListAdditions.set(
+      listId,
+      result.added.map((item) => item.id),
+    );
+    refreshCanonicalLists();
+    canonicalListStatuses.set(
+      listId,
+      result.added.length
+        ? ui("Added {count} films to tier {tier}.", {
+            count: result.added.length,
+            tier: result.tier,
+          })
+        : ui("No new films to add."),
+    );
+    render();
+  }
+
   function completionSection(id, title, subtitle, bodyHtml) {
     return `<section class="completion-section" id="completion-${escape(id)}" data-collapsible-section><header class="completion-section-header" data-collapsible-heading><div><h2>${escape(title)}</h2><p>${escape(subtitle)}</p></div></header><div class="completion-section-body" data-collapsible-body>${bodyHtml}</div></section>`;
   }
@@ -1082,9 +1277,44 @@
     let reachedWatchGoals = watchGoals.filter(
       (row) => row.watchedCount >= row.target,
     ).length;
+    let canonicalSummary = canonicalLists.reduce(
+      (acc, list) => ({
+        watched: acc.watched + list.watchedCount,
+        total: acc.total + list.total,
+        complete:
+          acc.complete +
+          (list.watchedCount >= list.total && list.total > 0 ? 1 : 0),
+      }),
+      { watched: 0, total: 0, complete: 0 },
+    );
+    let activeTab = window.pageQueryParam("tab") || "all";
+    let categoryTabs = [
+      { id: "all", label: ui("All") },
+      { id: "watch-goals", label: ui("Watch goals") },
+      { id: "canonical-lists", label: ui("Canonical lists") },
+      { id: "directors", label: ui("Directors") },
+      { id: "franchises", label: ui("Franchises") },
+      { id: "projects", label: ui("Projects") },
+      { id: "official", label: ui("Official awards") },
+      { id: "brackets", label: ui("Award brackets") },
+    ];
+    let categoryTabsHtml = `<div class="completion-category-tabs period-view-controls" role="tablist" aria-label="${escape(ui("Completion categories"))}">${categoryTabs
+      .map(
+        (tab) =>
+          `<button type="button" class="period-view-pill${activeTab === tab.id ? " is-active" : ""}" data-completion-tab="${escape(tab.id)}" role="tab" aria-selected="${activeTab === tab.id ? "true" : "false"}">${escape(tab.label)}</button>`,
+      )
+      .join("")}</div>`;
+
+    function isTabMatch(tab, sectionId) {
+      if (tab === "all") return true;
+      if (tab === "official") return officialSourceIds.includes(sectionId);
+      return tab === sectionId;
+    }
+
     let summaryHtml = window.renderDetailStats({
       classes: "completion-summary",
       itemsHtml: `${officialSummaryStatItems()}
+  <span><b>${canonicalSummary.watched}/${canonicalSummary.total}</b> ${escape(ui("Canonical list films watched"))}</span>
   <span><b>${hub.directors.length}</b> ${escape(ui("Directors in progress"))}</span>
   <span><b>${hub.franchises.length}</b> ${escape(ui("Franchises in progress"))}</span>
   <span><b>${hub.projects.length}</b> ${escape(ui("Projects in progress"))}</span>
@@ -1105,15 +1335,19 @@ ${
     ? `<p class="detail-empty" role="status">${escape(ui("Could not load completion data."))} <button type="button" class="link-button" data-completion-compact-retry>${escape(ui("Try again"))}</button></p>`
     : ""
 }
-<div class="completion-view-toolbar"><span>${escape(ui("Completion display"))}</span>${window.renderFilmViewToggle(
-      {
-        view: layout,
-        listUrl: completionViewUrl("list"),
-        gridUrl: completionViewUrl("grid"),
-        escape,
-        ariaLabel: ui("Completion display"),
-      },
-    )}</div>
+<div class="completion-control-panel">
+  ${categoryTabsHtml}
+  <div class="completion-view-toolbar"><span>${escape(ui("Completion display"))}</span>${window.renderFilmViewToggle(
+    {
+      view: layout,
+      listUrl: completionViewUrl("list"),
+      gridUrl: completionViewUrl("grid"),
+      escape,
+      ariaLabel: ui("Completion display"),
+    },
+  )}</div>
+</div>
+<div class="completion-section-wrap${!isTabMatch(activeTab, "watch-goals") ? " is-hidden" : ""}">
 ${completionSection(
   "watch-goals",
   ui("Watch goals"),
@@ -1127,6 +1361,18 @@ ${completionSection(
   ),
   `${watchGoalSubsection("watchGoalYears", ui("Years"), watchGoalYears, "year")}${watchGoalSubsection("watchGoalDecades", ui("Decades"), watchGoalDecades, "decade")}${watchGoalSubsection("watchGoalCenturies", ui("Centuries"), watchGoalCenturies, "century")}`,
 )}
+</div>
+<div class="completion-section-wrap${!isTabMatch(activeTab, "canonical-lists") ? " is-hidden" : ""}">
+${completionSection(
+  "canonical-lists",
+  ui("Canonical lists"),
+  ui(
+    "Curated historical and critical film lists — IMDb Top 250, Letterboxd Top 250, Sight & Sound, and TIME 100.",
+  ),
+  canonicalListsSectionHtml(),
+)}
+</div>
+<div class="completion-section-wrap${!isTabMatch(activeTab, "directors") ? " is-hidden" : ""}">
 ${completionSection(
   "directors",
   ui("Directors"),
@@ -1137,6 +1383,8 @@ ${completionSection(
     emptyText: ui("No director watchlist data yet."),
   }),
 )}
+</div>
+<div class="completion-section-wrap${!isTabMatch(activeTab, "franchises") ? " is-hidden" : ""}">
 ${completionSection(
   "franchises",
   ui("Franchises"),
@@ -1147,6 +1395,8 @@ ${completionSection(
     emptyText: ui("No franchise watchlist data yet."),
   }),
 )}
+</div>
+<div class="completion-section-wrap${!isTabMatch(activeTab, "projects") ? " is-hidden" : ""}">
 ${completionSection(
   "projects",
   ui("Projects"),
@@ -1157,7 +1407,11 @@ ${completionSection(
     emptyText: ui("No projects yet"),
   }),
 )}
+</div>
+<div class="completion-section-wrap${!isTabMatch(activeTab, "official") ? " is-hidden" : ""}">
 ${officialCompletionSections()}
+</div>
+<div class="completion-section-wrap${!isTabMatch(activeTab, "brackets") ? " is-hidden" : ""}">
 ${completionSection(
   "brackets",
   ui("Award brackets"),
@@ -1166,6 +1420,7 @@ ${completionSection(
   ),
   `${bracketCompletionTable(bracketCompletion)}<div class="completion-subsection completion-bracket-categories"><h3>${escape(ui("By category"))}</h3><p>${escape(ui("Annual award slots across years with at least one watched film."))}</p>${bracketCategoryCompletionGrid(bracketCategoryCompletion)}</div>`,
 )}
+</div>
 ${completionCompactActive || inProgressTotal || anyOfficialNomineesTotal() ? "" : `<div class="detail-empty"><h2>${escape(ui("Nothing in progress."))}</h2><p>${escape(ui("Import a watchlist or start a project to track completion."))}</p></div>`}
 ${officialWatchlistDialog()}`;
 
@@ -1216,6 +1471,16 @@ ${officialWatchlistDialog()}`;
   });
 
   container.addEventListener("click", async (event) => {
+    let tabButton = event.target.closest("[data-completion-tab]");
+    if (tabButton) {
+      let tab = tabButton.dataset.completionTab;
+      let url = new URL(window.location.href);
+      if (tab === "all") url.searchParams.delete("tab");
+      else url.searchParams.set("tab", tab);
+      window.history?.replaceState?.(null, "", url.toString());
+      render();
+      return;
+    }
     if (event.target.closest("[data-completion-compact-retry]")) {
       compactCompletionError = null;
       ensureCompactCompletionFresh();
@@ -1277,6 +1542,46 @@ ${officialWatchlistDialog()}`;
       render();
       return;
     }
+    let addCanonicalButton = event.target.closest(
+      "[data-add-canonical-watchlist]",
+    );
+    if (addCanonicalButton) {
+      let listId = addCanonicalButton.dataset.addCanonicalWatchlist;
+      await addCanonicalWatchlistSource(listId);
+      return;
+    }
+    let undoCanonicalButton = event.target.closest(
+      "[data-undo-canonical-watchlist]",
+    );
+    if (undoCanonicalButton) {
+      let listId = undoCanonicalButton.dataset.undoCanonicalWatchlist;
+      let result = window.undoCanonicalListWatchlistAdd?.(
+        listId,
+        lastCanonicalListAdditions.get(listId) || [],
+      );
+      if (result?.persisted?.then) await result.persisted;
+      lastCanonicalListAdditions.delete(listId);
+      refreshCanonicalLists();
+      canonicalListStatuses.set(
+        listId,
+        result?.ok
+          ? ui("Removed {count} recently added films.", {
+              count: result.removed.length,
+            })
+          : result?.reason || ui("Undo failed."),
+      );
+      render();
+      return;
+    }
+    let filterTab = event.target.closest("[data-canonical-filter]");
+    if (filterTab) {
+      let listId = filterTab.dataset.canonicalFilter;
+      let filterValue = filterTab.dataset.filterValue;
+      canonicalListFilters.set(listId, filterValue);
+      canonicalExpandedLists.add(listId);
+      render();
+      return;
+    }
     let projectButton = event.target.closest("[data-start-project-source]");
     if (projectButton) {
       projectButton.disabled = true;
@@ -1328,6 +1633,19 @@ ${officialWatchlistDialog()}`;
     render();
   });
 
+  container.addEventListener(
+    "toggle",
+    (event) => {
+      let details = event.target.closest("[data-canonical-details]");
+      if (details) {
+        let listId = details.dataset.canonicalDetails;
+        if (details.open) canonicalExpandedLists.add(listId);
+        else canonicalExpandedLists.delete(listId);
+      }
+    },
+    true,
+  );
+
   container.addEventListener("change", (event) => {
     let tierInput = event.target.closest("[data-oscar-watchlist-tier]");
     if (tierInput) {
@@ -1341,12 +1659,30 @@ ${officialWatchlistDialog()}`;
       }
       return;
     }
+    let canonicalTierInput = event.target.closest(
+      "[data-canonical-watchlist-tier]",
+    );
+    if (canonicalTierInput) {
+      let listId = canonicalTierInput.dataset.canonicalWatchlistTier;
+      let tier = window.normalizeWatchlistTier?.(canonicalTierInput.value);
+      if (tier) {
+        canonicalListTiers.set(listId, tier);
+        try {
+          localStorage.setItem(canonicalListTierKey(listId), tier);
+        } catch (err) {}
+      }
+      return;
+    }
     let input = event.target.closest("[data-completion-sort-axis]");
     if (!input) return;
     let section = input.dataset.completionSortAxis;
     pageState[section] = 1;
     sortState[section].key = input.value;
     sortState[section].dir = sortDefaultDir[input.value] ?? -1;
+    render();
+  });
+
+  window.addEventListener?.("popstate", () => {
     render();
   });
 })();

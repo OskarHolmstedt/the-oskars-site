@@ -357,6 +357,393 @@ window.viewingStatistics = function (
   };
 };
 
+/** Collects sorted unique four-digit watch years from films with recorded watch dates. @param {FilmRecord[]} [films] Films. @returns {string[]} Watch years in descending order. */
+window.availableWatchYears = function (
+  films = Object.values(window.state?.filmsById || {}),
+) {
+  let years = new Set();
+  (films || []).forEach((film) => {
+    let date = window.parseWatchedDate?.(film?.dateWatched) || "";
+    if (date) {
+      let year = date.slice(0, 4);
+      if (/^\d{4}$/.test(year)) years.add(year);
+    }
+  });
+  return [...years].sort((a, b) => b.localeCompare(a));
+};
+
+const YEARLY_MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+/** Calculates a calendar-year viewing breakdown and year-over-year comparison for recorded watch dates. @param {string} watchYear Four-digit watch year. @param {FilmRecord[]} [films] Films. @param {FilmRecord[]} [allFilms] Complete film archive for comparison. @param {Object} [options] Calculation options. @returns {Object} Yearly viewing statistics model. */
+window.yearlyViewingStatistics = function (
+  watchYear,
+  films = Object.values(window.state?.filmsById || {}),
+  allFilms = films,
+  options = {},
+) {
+  let yearString = String(watchYear || "").trim();
+  let pool = allFilms || films || [];
+  let seen = new Set();
+  let yearFilms = pool.filter((film) => {
+    if (!film) return false;
+    let date = window.parseWatchedDate?.(film.dateWatched) || "";
+    if (date.slice(0, 4) !== yearString) return false;
+    let key = ratingStatisticsFilmKey(film);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  let ratings = yearFilms
+    .map((film) => ({
+      film,
+      rating: window.parseFilmRating?.(film) || { value: 0 },
+    }))
+    .filter((entry) => entry.rating.value > 0);
+  let ratingRows = viewingCountRows(
+    ratings.map((entry) => entry.rating.value),
+    { chronological: true },
+  ).sort((left, right) => Number(right.key) - Number(left.key));
+  let ratingStatistics = window.collectionRatingStatistics(yearFilms);
+
+  let monthCounts = new Map();
+  yearFilms.forEach((film) => {
+    let date = window.parseWatchedDate?.(film.dateWatched) || "";
+    if (date.length >= 7) {
+      let month = date.slice(5, 7);
+      monthCounts.set(month, (monthCounts.get(month) || 0) + 1);
+    }
+  });
+  let monthlyRows = YEARLY_MONTH_NAMES.map((name, index) => {
+    let monthKey = String(index + 1).padStart(2, "0");
+    let count = monthCounts.get(monthKey) || 0;
+    return {
+      monthKey,
+      monthName: name,
+      monthIndex: index + 1,
+      count,
+      datePrefix: `${yearString}-${monthKey}`,
+    };
+  });
+  let activeMonths = monthlyRows
+    .filter((m) => m.count > 0)
+    .sort((a, b) => b.count - a.count || a.monthIndex - b.monthIndex);
+  let mostActiveMonth = activeMonths[0] || null;
+
+  let directorsMap = new Map();
+  yearFilms.forEach((film) => {
+    let names = film.directors?.length
+      ? film.directors
+      : window.splitRecipientNames?.(film.director) || [];
+    let grade = window.filmRatingGrade?.(film) || 0;
+    let filmDirectors = new Set();
+    names.forEach((name, index) => {
+      let id =
+        film.directorIds?.[index] || window.normalizePersonName?.(name) || name;
+      if (filmDirectors.has(id)) return;
+      filmDirectors.add(id);
+      let entry = directorsMap.get(id) || {
+        id,
+        name,
+        count: 0,
+        grades: [],
+        films: [],
+      };
+      entry.count += 1;
+      if (grade > 0) entry.grades.push(grade);
+      entry.films.push(film);
+      directorsMap.set(id, entry);
+    });
+  });
+  let directorRows = [...directorsMap.values()]
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      count: d.count,
+      ratedCount: d.grades.length,
+      averageRating: d.grades.length
+        ? d.grades.reduce((sum, g) => sum + g, 0) / d.grades.length / 6
+        : null,
+    }))
+    .sort(
+      (a, b) =>
+        b.count - a.count ||
+        (b.averageRating || 0) - (a.averageRating || 0) ||
+        a.name.localeCompare(b.name) ||
+        a.id.localeCompare(b.id),
+    );
+
+  let countries = [];
+  yearFilms.forEach((film) =>
+    countries.push(...(window.countryListValues?.(film.country) || [])),
+  );
+  let countryRows = viewingCountRows(countries);
+
+  let releaseYearRows = viewingRatingPeriodRows(yearFilms, (film) => {
+    let year = String(window.filmConcreteYear?.(film.year) || film.year || "");
+    return /^\d{4}$/.test(year) ? year : "";
+  }).sort((a, b) => b.count - a.count || b.key.localeCompare(a.key));
+
+  let releaseDecadeRows = viewingRatingPeriodRows(
+    yearFilms,
+    (film) => window.getDecadeKey?.(film.year) || "unknown",
+  ).sort((a, b) => b.count - a.count || b.key.localeCompare(a.key));
+
+  let platforms = viewingCountRows(
+    yearFilms
+      .map((film) => film.platform)
+      .filter((value) => value && !/^(?:-|–|—)$/.test(String(value).trim())),
+  );
+  let media = viewingCountRows(
+    yearFilms.map((film) =>
+      film.medium && film.medium !== "unknown" ? film.medium : "unknown",
+    ),
+  );
+  let screenplays = viewingCountRows(
+    yearFilms.map((film) =>
+      film.screenplayType && film.screenplayType !== "unknown"
+        ? film.screenplayType
+        : "unknown",
+    ),
+  );
+
+  let viewRecords = yearFilms
+    .map((film) => ({ film, views: Number(film.views) }))
+    .filter((entry) => Number.isInteger(entry.views) && entry.views > 0);
+  let viewRows = viewingCountRows(
+    viewRecords.map((entry) => entry.views),
+    { chronological: true },
+  ).sort((left, right) => Number(left.key) - Number(right.key));
+  let rewatches = viewRecords.filter((entry) => entry.views > 1);
+
+  let runtimeRecords = yearFilms
+    .map((film) => ({
+      film,
+      minutes: Number(film.runtimeMinutes),
+      views: Number(film.views),
+    }))
+    .filter((entry) => Number.isFinite(entry.minutes) && entry.minutes > 0);
+  let knownRuntimeMinutes = runtimeRecords.reduce(
+    (sum, entry) => sum + entry.minutes,
+    0,
+  );
+  let viewAdjustedRuntime = runtimeRecords.filter(
+    (entry) => Number.isInteger(entry.views) && entry.views > 0,
+  );
+  let viewAdjustedRuntimeMinutes = viewAdjustedRuntime.reduce(
+    (sum, entry) => sum + entry.minutes * entry.views,
+    0,
+  );
+
+  let topRatedFilms = [...yearFilms]
+    .map((film) => ({
+      film,
+      grade: window.filmRatingGrade?.(film) || 0,
+      date: window.parseWatchedDate?.(film.dateWatched) || "",
+    }))
+    .filter((entry) => entry.grade > 0)
+    .sort(
+      (a, b) =>
+        b.grade - a.grade ||
+        b.date.localeCompare(a.date) ||
+        String(a.film.title).localeCompare(String(b.film.title)),
+    )
+    .map((entry) => entry.film);
+
+  let comparison = { hasPreviousYear: false, previousYear: null };
+  if (!options.skipComparison && /^\d{4}$/.test(yearString)) {
+    let numericYear = Number(yearString);
+    let candidatePrevYear = String(numericYear - 1);
+    let allAvailable = window.availableWatchYears(pool);
+    let prevYear = allAvailable.includes(candidatePrevYear)
+      ? candidatePrevYear
+      : allAvailable.find((y) => Number(y) < numericYear) || null;
+    if (prevYear) {
+      let prevStats = window.yearlyViewingStatistics(prevYear, pool, pool, {
+        skipComparison: true,
+      });
+      if (prevStats && prevStats.filmCount > 0) {
+        comparison = {
+          hasPreviousYear: true,
+          previousYear: prevYear,
+          filmCountDiff: yearFilms.length - prevStats.filmCount,
+          knownRuntimeMinutesDiff:
+            knownRuntimeMinutes - prevStats.knownRuntimeMinutes,
+          averageRatingDiff:
+            ratingStatistics.mean !== null &&
+            prevStats.ratingStatistics.mean !== null
+              ? ratingStatistics.mean - prevStats.ratingStatistics.mean
+              : null,
+          rewatchedFilmCountDiff:
+            rewatches.length - prevStats.rewatchedFilmCount,
+        };
+      }
+    }
+  }
+
+  return {
+    year: yearString,
+    filmCount: yearFilms.length,
+    films: yearFilms,
+    ratingStatistics,
+    ratedCount: ratingStatistics.ratedCount,
+    averageRating: ratingStatistics.mean,
+    ratingCoveragePercent: ratingStatistics.coveragePercent,
+    ratingVariance: ratingStatistics.variance,
+    ratingStandardDeviation: ratingStatistics.standardDeviation,
+    minimumRating: ratingStatistics.minimum,
+    maximumRating: ratingStatistics.maximum,
+    ratingRows,
+    monthlyRows,
+    mostActiveMonth,
+    directorRows,
+    topDirector: directorRows[0] || null,
+    countryRows,
+    topCountry: countryRows[0] || null,
+    releaseYearRows,
+    topReleaseYear: releaseYearRows[0] || null,
+    releaseDecadeRows,
+    topReleaseDecade: releaseDecadeRows[0] || null,
+    mediaRows: media,
+    screenplayRows: screenplays,
+    platformRows: platforms,
+    viewRows,
+    viewKnownCount: viewRecords.length,
+    rewatchedFilmCount: rewatches.length,
+    extraViewCount: rewatches.reduce((sum, entry) => sum + entry.views - 1, 0),
+    runtimeKnownCount: runtimeRecords.length,
+    knownRuntimeMinutes,
+    adjustedRuntimeKnownCount: viewAdjustedRuntime.length,
+    viewAdjustedRuntimeMinutes,
+    topRatedFilms,
+    comparison,
+  };
+};
+
+/** Builds deterministic annual-award leaderboards and sample-qualified rating leaders. @param {FilmRecord[]} [films] Archive films. @returns {Object} Overall statistics with complete evidence rows. */
+window.overallFilmStatistics = function (
+  films = Object.values(window.state?.filmsById || {}),
+) {
+  let seen = new Set();
+  let records = films.filter((film) => {
+    if (!film) return false;
+    let key = ratingStatisticsFilmKey(film);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  let directors = new Map();
+  let nominationRows = [];
+  let awardFilmCount = 0;
+  let creditedAwardFilmCount = 0;
+  records.forEach((film) => {
+    let awards = new Map();
+    (film.awards || []).forEach((award) => {
+      if (
+        window.getAwardPeriodType(award) !== "years" ||
+        !Number.isInteger(Number(award.placement)) ||
+        Number(award.placement) < 1
+      )
+        return;
+      // Distinct recipients in one category remain distinct nominations.
+      let key =
+        award.supabaseNominationId ||
+        award.id ||
+        JSON.stringify([
+          award.year,
+          award.category,
+          award.placement,
+          award.recipientText || "",
+        ]);
+      awards.set(key, award);
+    });
+    if (!awards.size) return;
+    awardFilmCount += 1;
+    let wins = [...awards.values()].filter(
+      (award) => Number(award.placement) === 1,
+    ).length;
+    nominationRows.push({
+      film: {
+        id: film.id,
+        title: film.title,
+        year: film.year,
+        swedishTitle: film.swedishTitle || "",
+      },
+      nominations: awards.size,
+      wins,
+    });
+    let names = film.directors?.length
+      ? film.directors
+      : window.splitRecipientNames?.(film.director) || [];
+    if (names.length) creditedAwardFilmCount += 1;
+    let filmDirectors = new Set();
+    names.forEach((name, index) => {
+      let id =
+        film.directorIds?.[index] || window.normalizePersonName?.(name) || name;
+      if (filmDirectors.has(id)) return;
+      filmDirectors.add(id);
+      let row = directors.get(id) || {
+        id,
+        name,
+        wins: 0,
+        nominations: 0,
+        filmCount: 0,
+      };
+      row.wins += wins;
+      row.nominations += awards.size;
+      row.filmCount += 1;
+      directors.set(id, row);
+    });
+  });
+  let yearRows = viewingRatingPeriodRows(records, (film) => {
+    let year = String(window.filmConcreteYear?.(film.year) || film.year || "");
+    return /^\d{4}$/.test(year) ? year : "";
+  })
+    .filter((row) => row.ratedCount > 0)
+    .sort(
+      (a, b) =>
+        b.mean - a.mean ||
+        b.ratedCount - a.ratedCount ||
+        a.key.localeCompare(b.key),
+    );
+  return {
+    minimumRatedFilms: 5,
+    yearRows,
+    strongestYear: yearRows.find((row) => row.ratedCount >= 5) || null,
+    directorRows: [...directors.values()]
+      .filter((row) => row.wins > 0)
+      .sort(
+        (a, b) =>
+          b.wins - a.wins ||
+          b.nominations - a.nominations ||
+          a.name.localeCompare(b.name) ||
+          a.id.localeCompare(b.id),
+      ),
+    nominationRows: nominationRows.sort(
+      (a, b) =>
+        b.nominations - a.nominations ||
+        b.wins - a.wins ||
+        String(a.film.title).localeCompare(String(b.film.title)) ||
+        String(a.film.id).localeCompare(String(b.film.id)),
+    ),
+    awardFilmCount,
+    creditedAwardFilmCount,
+  };
+};
+
 /** Formats a normalized award score to two decimals. @param {number} score Score. @returns {string} Formatted score. */
 window.formatNormalizedAwardScore = function (score) {
   return Number(score || 0).toFixed(2);

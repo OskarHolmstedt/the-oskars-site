@@ -559,6 +559,8 @@
     "src/domain/franchises.js",
     "src/domain/collection-awards.js",
     "src/domain/official-completion.js",
+    "src/data/canonical-lists.js",
+    "src/domain/canonical-lists.js",
     ...(["period", "category", "stats"].includes(entry)
       ? ["src/domain/official-comparison.js"]
       : []),

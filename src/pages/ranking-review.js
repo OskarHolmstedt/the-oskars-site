@@ -57,13 +57,14 @@
     return null;
   }
 
-  function renderConsistencyCard(entry, side, caption) {
+  function renderConsistencyCard(entry, side, caption, shortcut) {
     let film = entry.films || {};
-    return `<article class="film-card ranking-consistency-card" data-ranking-consistency-pick="${side}" tabindex="0" role="button">
+    return `<article class="film-card ranking-consistency-card" data-ranking-consistency-pick="${side}" tabindex="0" role="button" aria-label="${escape(caption)}: ${escape(film.title || "Unknown film")}">
       ${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" class="rate-watched-poster-thumb" loading="lazy" decoding="async">` : ""}
       <div class="ranking-consistency-card-kicker">${escape(caption)}</div>
       <h3>${escape(film.title || "Unknown film")}</h3>
       <span class="film-year">(${escape(film.year || "—")})</span>
+      ${shortcut ? `<div class="ranking-card-shortcut"><kbd>${escape(shortcut)}</kbd></div>` : ""}
     </article>`;
   }
 
@@ -95,14 +96,20 @@
   function renderReview() {
     let progressText = `${resolvedKeys.size} reviewed · ${pairs.length} pairs remain`;
     return `<section class="ranking-consistency-compare" data-ranking-consistency-compare>
-      <p class="ranking-consistency-progress">Do you still prefer the film above this one? · ${escape(progressText)}</p>
+      <div class="ranking-consistency-header-bar">
+        <p class="ranking-consistency-progress">Do you still prefer the film above this one?</p>
+        <span class="ranking-consistency-badge">${escape(progressText)}</span>
+      </div>
       <div class="ranking-consistency-choice">
-        ${renderConsistencyCard(currentPair.above, "above", "Currently ranked higher")}
+        ${renderConsistencyCard(currentPair.above, "above", "Currently ranked higher", "1 / ←")}
         <span class="ranking-consistency-vs">or</span>
-        ${renderConsistencyCard(currentPair.below, "below", "Currently ranked lower")}
+        ${renderConsistencyCard(currentPair.below, "below", "Currently ranked lower", "2 / →")}
       </div>
       <div class="ranking-consistency-actions">
-        <button type="button" class="sort-order-button" data-ranking-consistency-skip>Skip this pair</button>
+        <button type="button" class="sort-order-button ranking-consistency-skip-btn" data-ranking-consistency-skip>Skip this pair <kbd>Space</kbd></button>
+      </div>
+      <div class="ranking-consistency-hint">
+        <span>Keyboard shortcuts: <kbd>1</kbd> / <kbd>←</kbd> Pick Higher · <kbd>2</kbd> / <kbd>→</kbd> Pick Lower · <kbd>Space</kbd> / <kbd>S</kbd> Skip</span>
       </div>
     </section>`;
   }
@@ -223,11 +230,36 @@
   }
 
   container.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    let pickTarget = event.target.closest("[data-ranking-consistency-pick]");
-    if (!pickTarget) return;
-    event.preventDefault();
-    pick(pickTarget.dataset.rankingConsistencyPick);
+    let active = document.activeElement;
+    let inInput =
+      active &&
+      (active.tagName === "INPUT" ||
+        active.tagName === "TEXTAREA" ||
+        active.isContentEditable);
+    if (inInput) return;
+
+    if (event.key === "ArrowLeft" || event.key === "1") {
+      event.preventDefault();
+      pick("above");
+      return;
+    }
+    if (event.key === "ArrowRight" || event.key === "2") {
+      event.preventDefault();
+      pick("below");
+      return;
+    }
+    if (event.key === " " || event.key === "s" || event.key === "S") {
+      event.preventDefault();
+      skip();
+      return;
+    }
+    if (event.key === "Enter") {
+      let pickTarget = event.target.closest("[data-ranking-consistency-pick]");
+      if (pickTarget) {
+        event.preventDefault();
+        pick(pickTarget.dataset.rankingConsistencyPick);
+      }
+    }
   });
 
   container.addEventListener("click", async (event) => {

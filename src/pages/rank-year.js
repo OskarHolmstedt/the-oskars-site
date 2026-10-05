@@ -48,8 +48,8 @@
     let watched = watchedByFilmId.get(bucketEntries[0].film_id);
     let label = watched?.rating ? window.renderFilmRating(watched) : key;
     if (bucketEntries.length === 1) {
-      return `<div class="setup-year-category-row">
-        <div class="setup-year-category-header">
+      return `<div class="setup-year-category-row setup-year-shelf is-settled">
+        <div class="setup-year-category-header setup-year-shelf-header">
           <span class="setup-year-rank-bucket-label">${escape(label)}</span>
           <span class="setup-year-section-empty">${escape(bucketEntries[0].films?.title || "")}</span>
           <span class="setup-ranking-state is-reviewed">Settled</span>
@@ -60,20 +60,23 @@
       (entry) => entry.rank_confirmed !== false,
     );
     let isExpanded = expandedRatingBucket === key;
-    let header = `<div class="setup-year-category-header">
-      <span class="setup-year-rank-bucket-label">${escape(label)} <small>(${escape(bucketEntries.length)})</small></span>
+    let header = `<div class="setup-year-category-header setup-year-shelf-header">
+      <button type="button" class="setup-year-shelf-toggle" data-setup-rank-bucket-toggle="${escape(key)}" aria-expanded="${isExpanded}">
+        <span class="setup-year-shelf-chevron">${isExpanded ? "▼" : "▶"}</span>
+        <span class="setup-year-rank-bucket-label">${escape(label)} <small>(${escape(bucketEntries.length)})</small></span>
+      </button>
       <span class="setup-ranking-state ${reviewed ? "is-reviewed" : "is-mechanical"}">${escape(reviewed ? "Reviewed" : "Mechanical order")}</span>
       ${canEdit ? `<button type="button" class="sort-order-button" data-setup-rank-bucket-toggle="${escape(key)}">${escape(isExpanded ? "Collapse" : "Reorder")}</button>` : ""}
     </div>`;
     if (!isExpanded)
-      return `<div class="setup-year-category-row">${header}</div>`;
+      return `<div class="setup-year-category-row setup-year-shelf">${header}</div>`;
     let cards = bucketEntries
       .map((entry, index) => renderRankCard(entry, index))
       .join("");
-    return `<div class="setup-year-category-row is-expanded">
+    return `<div class="setup-year-category-row setup-year-shelf is-expanded">
       ${header}
       <div class="film-grid setup-year-pool-grid">${cards}</div>
-      <div class="setup-ranking-actions">${canEdit ? `<button type="button" data-setup-rank-confirm="${escape(key)}">Keep this order</button>` : ""}<a class="button-link" href="ranking-review.html?type=years&amp;key=${escape(year)}">Compare two at a time</a></div>
+      <div class="setup-ranking-actions">${canEdit ? `<button type="button" class="button-link" data-setup-rank-confirm="${escape(key)}">Keep this order</button>` : ""}<a class="button-link" href="ranking-review.html?type=years&amp;key=${escape(year)}">Compare two at a time</a></div>
     </div>`;
   }
 

@@ -15,17 +15,30 @@
   document.title = `${ui("Statistics")} · The Oskars`;
 
   let stats;
+  let overall;
   let personalAnnualAwardEntries;
   let awardAgreement;
+  let archiveFilms = [];
+  let availableYears = [];
+  let selectedWatchYear = "";
+
   function collectLegacyStatistics() {
     let finishStatistics = window.startOskarsPerformance?.("stats:statistics");
-    stats = window.viewingStatistics();
+    archiveFilms = Object.values(window.state?.filmsById || {});
+    stats = window.viewingStatistics(archiveFilms);
+    overall = window.overallFilmStatistics(archiveFilms);
+    availableYears = window.availableWatchYears(archiveFilms);
+    let paramYear = new URLSearchParams(window.location.search).get(
+      "watchYear",
+    );
+    selectedWatchYear =
+      paramYear && availableYears.includes(paramYear)
+        ? paramYear
+        : availableYears[0] || "";
     finishStatistics?.();
     let finishAwardEntries =
       window.startOskarsPerformance?.("stats:awardEntries");
-    personalAnnualAwardEntries = Object.values(
-      window.state?.filmsById || {},
-    ).flatMap((film) =>
+    personalAnnualAwardEntries = archiveFilms.flatMap((film) =>
       (film.awards || [])
         .filter((award) => window.getAwardPeriodType(award) === "years")
         .map((award) => ({ film, award })),
@@ -273,6 +286,362 @@
     ${links}`;
   }
 
+  function overallContent() {
+    let year = overall.strongestYear;
+    let director = overall.directorRows[0];
+    let film = overall.nominationRows[0];
+    function card(title, value, context, href) {
+      return `<article class="stats-insight"><h3>${escape(ui(title))}</h3><strong>${escape(value)}</strong><p>${escape(context)}</p><a href="${escape(href)}">${escape(ui("Explore the evidence"))} →</a></article>`;
+    }
+    let cards = [
+      card(
+        "Strongest release year",
+        year ? year.key : ui("Not enough ratings yet"),
+        year
+          ? ui(
+              "{average}/5 from {rated} rated films of {total}. Minimum five rated films per year.",
+              {
+                average: window.formatRatingStatistic(year.mean),
+                rated: year.ratedCount,
+                total: year.totalCount,
+              },
+            )
+          : ui(
+              "A year needs at least five rated films to lead this comparison.",
+            ),
+        "#stats-overall-years",
+      ),
+      card(
+        "Most-awarded director",
+        director?.name || "—",
+        director
+          ? ui(
+              "{wins} annual wins across {films} nominated films. Counts wins for their films in every category; co-directors share credit.",
+              { wins: director.wins, films: director.filmCount },
+            )
+          : ui("No annual wins with director credits yet."),
+        "#stats-overall-directors",
+      ),
+      card(
+        "Most-nominated film",
+        film ? window.localizedFilmTitle?.(film.film) || film.film.title : "—",
+        film
+          ? ui(
+              "{nominations} annual nominations, including {wins} wins. Every recorded category placement counts.",
+              { nominations: film.nominations, wins: film.wins },
+            )
+          : ui("No annual nominations yet."),
+        "#stats-overall-films",
+      ),
+      card(
+        "Rating snapshot",
+        stats.ratedCount
+          ? `${window.formatRatingStatistic(stats.averageRating)}/5`
+          : "—",
+        ui(
+          "{rated}/{total} films rated. Population standard deviation {spread} on the five-point scale.",
+          {
+            rated: stats.ratedCount,
+            total: stats.filmCount,
+            spread: window.formatRatingStatistic(stats.ratingStandardDeviation),
+          },
+        ),
+        "#stats-ratings",
+      ),
+      card(
+        "Oskars and Oscars",
+        awardAgreement.comparedCount
+          ? `${awardAgreement.agreementPercent}%`
+          : "—",
+        ui(
+          "{matches}/{total} comparable category-periods agree. Only periods with both winners are included.",
+          {
+            matches: awardAgreement.matches,
+            total: awardAgreement.comparedCount,
+          },
+        ),
+        "#stats-awards",
+      ),
+    ];
+    return `<div class="stats-insights">${cards.join("")}</div>`;
+  }
+
+  function overallTables() {
+    let years = statsTable(
+      [ui("Release year"), ui("Average rating"), ui("Rated coverage")],
+      overall.yearRows.map(
+        (row) =>
+          `<tr><th scope="row"><a href="${escape(window.periodPageUrl("year", row.key))}">${escape(row.key)}</a>${row.ratedCount < overall.minimumRatedFilms ? ` <small>${escape(ui("Small sample"))}</small>` : ""}</th><td>${window.formatAverageRating(row.mean)}</td><td>${row.ratedCount}/${row.totalCount} (${row.coveragePercent}%)</td></tr>`,
+      ),
+    );
+    let directors = statsTable(
+      [ui("Director"), ui("Wins"), ui("Nominations"), ui("Films")],
+      overall.directorRows.map(
+        (row) =>
+          `<tr><th scope="row"><a href="${escape(window.personPageUrl(row.id))}">${escape(row.name)}</a></th><td>${row.wins}</td><td>${row.nominations}</td><td>${row.filmCount}</td></tr>`,
+      ),
+    );
+    let films = statsTable(
+      [ui("Film"), ui("Nominations"), ui("Wins")],
+      overall.nominationRows.map(
+        (row) =>
+          `<tr><th scope="row"><a href="${escape(window.filmPageUrl(row.film.id))}">${escape(window.localizedFilmTitle?.(row.film) || row.film.title)}</a> <small>${escape(row.film.year || ui("Unknown"))}</small></th><td>${row.nominations}</td><td>${row.wins}</td></tr>`,
+      ),
+    );
+    return `<p class="stats-evidence-note">${escape(ui("Annual Oskars only; decade, century, all-time and collection awards are excluded. Director credits cover {known}/{total} nominated films. Missing credits contribute no director wins.", { known: overall.creditedAwardFilmCount, total: overall.awardFilmCount }))}</p><div class="stats-grid"><details id="stats-overall-years" class="stats-evidence"><summary>${escape(ui("Top-rated years"))} (${overall.yearRows.length})</summary>${years}</details><details id="stats-overall-directors" class="stats-evidence"><summary>${escape(ui("Directors by film award wins"))} (${overall.directorRows.length})</summary>${directors}</details><details id="stats-overall-films" class="stats-evidence"><summary>${escape(ui("Films by nominations"))} (${overall.nominationRows.length})</summary>${films}</details></div>`;
+  }
+
+  function yearlyContent() {
+    if (!availableYears.length) {
+      return `<p class="stats-empty">${escape(ui("No watch dates recorded yet."))}</p>`;
+    }
+    let currentYear = availableYears.includes(selectedWatchYear)
+      ? selectedWatchYear
+      : availableYears[0];
+    let yearly = window.yearlyViewingStatistics(
+      currentYear,
+      archiveFilms,
+      archiveFilms,
+    );
+
+    let yearPills = availableYears
+      .map(
+        (year) =>
+          `<a class="button-link${year === currentYear ? " is-active" : ""}" href="#stats-yearly" data-watch-year="${escape(year)}">${escape(year)}</a>`,
+      )
+      .join("");
+
+    let pickerHtml = `<div class="stats-year-picker" role="tablist" aria-label="${escape(ui("Select watch year"))}">${yearPills}</div>`;
+
+    let comparisonBadges = [];
+    if (yearly.comparison.hasPreviousYear) {
+      let prevYear = yearly.comparison.previousYear;
+      let filmDiff = yearly.comparison.filmCountDiff;
+      let sign = filmDiff > 0 ? "+" : "";
+      comparisonBadges.push(
+        `<span class="stats-year-comparison-pill ${filmDiff >= 0 ? "is-positive" : "is-negative"}">${escape(ui("{diff} films vs {year}", { diff: `${sign}${filmDiff}`, year: prevYear }))}</span>`,
+      );
+      let hoursDiff = hours(yearly.comparison.knownRuntimeMinutesDiff);
+      let hSign = hoursDiff > 0 ? "+" : "";
+      if (hoursDiff !== 0) {
+        comparisonBadges.push(
+          `<span class="stats-year-comparison-pill ${hoursDiff >= 0 ? "is-positive" : "is-negative"}">${escape(ui("{diff} hours vs {year}", { diff: `${hSign}${hoursDiff}`, year: prevYear }))}</span>`,
+        );
+      }
+      if (yearly.comparison.averageRatingDiff !== null) {
+        let rDiff = yearly.comparison.averageRatingDiff;
+        let rSign = rDiff > 0 ? "+" : "";
+        comparisonBadges.push(
+          `<span class="stats-year-comparison-pill ${rDiff >= 0 ? "is-positive" : "is-negative"}">${escape(ui("{diff} rating vs {year}", { diff: `${rSign}${window.formatRatingStatistic(rDiff)}`, year: prevYear }))}</span>`,
+        );
+      }
+    }
+    let comparisonHtml = comparisonBadges.length
+      ? `<div class="stats-year-comparison">${comparisonBadges.join("")}</div>`
+      : "";
+
+    let activeMonth = yearly.mostActiveMonth;
+    let topDirector = yearly.topDirector;
+    let topDecade = yearly.topReleaseDecade;
+    let topRated = yearly.topRatedFilms[0];
+
+    function card(title, value, context, href) {
+      let linkHtml = href
+        ? `<a href="${escape(href)}">${escape(ui("Explore the evidence"))} →</a>`
+        : "";
+      return `<article class="stats-insight"><h3>${escape(ui(title))}</h3><strong>${escape(value)}</strong><p>${escape(context)}</p>${linkHtml}</article>`;
+    }
+
+    let cards = [
+      card(
+        "Viewing volume",
+        ui("{count} films", { count: yearly.filmCount }),
+        ui(
+          "{count} films watched in {year}. {hours} known hours. {rewatches} rewatched.",
+          {
+            count: yearly.filmCount,
+            year: currentYear,
+            hours: hours(yearly.knownRuntimeMinutes),
+            rewatches: yearly.rewatchedFilmCount,
+          },
+        ),
+        "#stats-yearly-months",
+      ),
+      card(
+        "Most active month",
+        activeMonth ? ui(activeMonth.monthName) : "—",
+        activeMonth
+          ? ui("{count} films watched in {month} ({percent}% of the year).", {
+              count: activeMonth.count,
+              month: ui(activeMonth.monthName),
+              percent: percent(activeMonth.count, yearly.filmCount),
+            })
+          : ui("No dated viewings in this month."),
+        "#stats-yearly-months",
+      ),
+      card(
+        "Top director",
+        topDirector ? topDirector.name : "—",
+        topDirector
+          ? ui("{count} films watched directed by {name}.", {
+              count: topDirector.count,
+              name: topDirector.name,
+            })
+          : ui("No credited directors for this year's watched films."),
+        "#stats-yearly-directors",
+      ),
+      card(
+        "Top release decade",
+        topDecade ? topDecade.key : "—",
+        topDecade
+          ? ui("{count} films from this decade watched in {year}.", {
+              count: topDecade.count,
+              year: currentYear,
+            })
+          : ui("No release decade data."),
+        "#stats-yearly-eras",
+      ),
+      card(
+        "Rating snapshot",
+        yearly.ratedCount
+          ? `${window.formatRatingStatistic(yearly.averageRating)}/5`
+          : "—",
+        yearly.ratedCount
+          ? ui("{rated}/{total} films rated. Average rating {average}/5.", {
+              rated: yearly.ratedCount,
+              total: yearly.filmCount,
+              average: window.formatRatingStatistic(yearly.averageRating),
+            })
+          : ui("No rated films in this year."),
+        "#stats-yearly-ratings",
+      ),
+      card(
+        "Top rated film",
+        topRated
+          ? window.localizedFilmTitle?.(topRated) || topRated.title
+          : "—",
+        topRated
+          ? `${window.renderFilmRating?.(topRated) || ""} (${topRated.year || ""})`
+          : ui("No rated films in this year."),
+        topRated?.id ? window.filmPageUrl(topRated.id) : "",
+      ),
+    ];
+
+    let monthTable = statsTable(
+      [ui("Month"), ui("Films")],
+      yearly.monthlyRows.map((m) => {
+        let label = ui(m.monthName);
+        return `<tr><th scope="row">${escape(label)}</th><td>${countBar(m.count, yearly.filmCount)}</td></tr>`;
+      }),
+      ui("No monthly data yet."),
+    );
+
+    let directorsTable = statsTable(
+      [ui("Director"), ui("Films"), ui("Average rating")],
+      yearly.directorRows.slice(0, 15).map((d) => {
+        let link = `<a href="${escape(window.personPageUrl(d.id))}">${escape(d.name)}</a>`;
+        let avg =
+          d.averageRating !== null
+            ? window.formatAverageRating(d.averageRating)
+            : "—";
+        return `<tr><th scope="row">${link}</th><td>${countBar(d.count, yearly.filmCount)}</td><td>${avg}</td></tr>`;
+      }),
+      ui("No director data yet."),
+    );
+
+    let countriesTable = countTable(yearly.countryRows, {
+      label: ui("Country"),
+      limit: 15,
+      total: yearly.filmCount,
+      emptyText: ui("No country data yet."),
+    });
+
+    let releaseDecadesTable = statsTable(
+      [ui("Release decade"), ui("Films"), ui("Average rating")],
+      yearly.releaseDecadeRows.map((row) => {
+        let link = `<a href="${escape(window.periodPageUrl("decade", row.key))}">${escape(row.key)}</a>`;
+        let avg =
+          row.averageRating !== null
+            ? window.formatAverageRating(row.averageRating)
+            : "—";
+        return `<tr><th scope="row">${link}</th><td>${countBar(row.count, yearly.filmCount)}</td><td>${avg}</td></tr>`;
+      }),
+      ui("No release decade data yet."),
+    );
+
+    let releaseYearsTable = statsTable(
+      [ui("Release year"), ui("Films"), ui("Average rating")],
+      yearly.releaseYearRows.slice(0, 15).map((row) => {
+        let link = `<a href="${escape(window.periodPageUrl("year", row.key))}">${escape(row.key)}</a>`;
+        let avg =
+          row.averageRating !== null
+            ? window.formatAverageRating(row.averageRating)
+            : "—";
+        return `<tr><th scope="row">${link}</th><td>${countBar(row.count, yearly.filmCount)}</td><td>${avg}</td></tr>`;
+      }),
+      ui("No release year data yet."),
+    );
+
+    let topFilmsTable = statsTable(
+      [ui("Film"), ui("Rating"), ui("Date watched")],
+      yearly.topRatedFilms.slice(0, 15).map((film) => {
+        let link = `<a href="${escape(window.filmPageUrl(film.id))}">${escape(window.localizedFilmTitle?.(film) || film.title)}</a> <small>${escape(film.year || "")}</small>`;
+        let ratingStr = window.renderFilmRating?.(film) || "—";
+        let dateStr =
+          window.formatWatchedDate?.(film.dateWatched) ||
+          film.dateWatched ||
+          "—";
+        return `<tr><th scope="row">${link}</th><td>${escape(ratingStr)}</td><td>${escape(dateStr)}</td></tr>`;
+      }),
+      ui("No rated films yet."),
+    );
+
+    let comparisonDetailsHtml = "";
+    if (yearly.comparison.hasPreviousYear) {
+      let pYear = yearly.comparison.previousYear;
+      let prevYearStats = window.yearlyViewingStatistics(
+        pYear,
+        archiveFilms,
+        archiveFilms,
+        { skipComparison: true },
+      );
+      let rows = [
+        `<tr><th scope="row">${escape(ui("Films watched"))}</th><td>${yearly.filmCount}</td><td>${prevYearStats.filmCount}</td><td><b>${yearly.comparison.filmCountDiff > 0 ? `+${yearly.comparison.filmCountDiff}` : yearly.comparison.filmCountDiff}</b></td></tr>`,
+        `<tr><th scope="row">${escape(ui("Total watch time"))}</th><td>${hours(yearly.knownRuntimeMinutes)}h</td><td>${hours(prevYearStats.knownRuntimeMinutes)}h</td><td><b>${hours(yearly.comparison.knownRuntimeMinutesDiff) > 0 ? `+${hours(yearly.comparison.knownRuntimeMinutesDiff)}h` : `${hours(yearly.comparison.knownRuntimeMinutesDiff)}h`}</b></td></tr>`,
+        `<tr><th scope="row">${escape(ui("Average rating"))}</th><td>${window.formatRatingStatistic(yearly.averageRating)}</td><td>${window.formatRatingStatistic(prevYearStats.averageRating)}</td><td><b>${yearly.comparison.averageRatingDiff !== null ? (yearly.comparison.averageRatingDiff > 0 ? `+${window.formatRatingStatistic(yearly.comparison.averageRatingDiff)}` : window.formatRatingStatistic(yearly.comparison.averageRatingDiff)) : "—"}</b></td></tr>`,
+        `<tr><th scope="row">${escape(ui("Rewatches"))}</th><td>${yearly.rewatchedFilmCount}</td><td>${prevYearStats.rewatchedFilmCount}</td><td><b>${yearly.comparison.rewatchedFilmCountDiff > 0 ? `+${yearly.comparison.rewatchedFilmCountDiff}` : yearly.comparison.rewatchedFilmCountDiff}</b></td></tr>`,
+      ];
+      let compTable = statsTable(
+        [
+          ui("Metric"),
+          ui("Current year ({year})", { year: currentYear }),
+          ui("Previous year ({year})", { year: pYear }),
+          ui("Change"),
+        ],
+        rows,
+      );
+      comparisonDetailsHtml = `<details class="stats-evidence" id="stats-yearly-comparison"><summary>${escape(ui("Year-over-year comparison ({current} vs {previous})", { current: currentYear, previous: pYear }))}</summary>${compTable}</details>`;
+    }
+
+    return `${pickerHtml}
+    ${comparisonHtml}
+    <div class="stats-insights">${cards.join("")}</div>
+    <div class="stats-grid">
+      <div id="stats-yearly-months">${split(ui("Monthly viewing"), monthTable)}</div>
+      <div id="stats-yearly-ratings">${split(ui("Top rated films in {year}", { year: currentYear }), topFilmsTable)}</div>
+    </div>
+    <div class="stats-grid stats-grid--three" style="margin-top: 18px;">
+      <div id="stats-yearly-directors">${split(ui("Top directors in {year}", { year: currentYear }), directorsTable)}</div>
+      <div id="stats-yearly-eras">${split(ui("Release decades in {year}", { year: currentYear }), releaseDecadesTable)}</div>
+      <div id="stats-yearly-countries">${split(ui("Top countries in {year}", { year: currentYear }), countriesTable)}</div>
+    </div>
+    <div class="stats-grid" style="margin-top: 18px;">
+      ${split(ui("Release years in {year}", { year: currentYear }), releaseYearsTable)}
+      ${split(ui("Platforms in {year}", { year: currentYear }), countTable(yearly.platformRows, { label: ui("Platform"), total: yearly.filmCount, emptyText: ui("No platform data yet.") }))}
+    </div>
+    ${comparisonDetailsHtml ? `<div style="margin-top: 24px;">${comparisonDetailsHtml}</div>` : ""}`;
+  }
+
   function renderStatsPage() {
     let finishRenderTimer = window.startOskarsPerformance?.("stats:render");
     if (!window.OSKARS_STATS_COMPACT) {
@@ -300,6 +669,10 @@
   <p>${escape(ui("A read-only summary of ratings, coverage, and viewing habits. Counts reflect the currently loaded archive."))}</p>
   ${viewingSummary}
 </header>
+${overallContent()}
+<nav class="stats-navigation" aria-label="${escape(ui("Statistics sections"))}">${["overall", "yearly", "ratings", "coverage", "habits", "awards"].map((id) => `<a href="#stats-${id}">${escape(ui({ overall: "Overall statistics", yearly: "Year in review", ratings: "Ratings", coverage: "Coverage", habits: "Viewing habits", awards: "Awards" }[id]))}</a>`).join("")}</nav>
+${section("overall", ui("Overall statistics"), ui("Ranked evidence behind the highlights. Small samples remain visible but cannot lead the strongest-year insight."), overallTables())}
+${section("yearly", ui("Year in review"), ui("A yearly snapshot of viewing volume, tastes, and habits for any calendar year with recorded watch dates."), yearlyContent())}
 ${section(
   "ratings",
   ui("Ratings"),
@@ -322,14 +695,15 @@ ${section(
   ui(
     "Watch dates describe one recorded viewing date per film; view counts and runtime are summarized separately.",
   ),
-  `<div class="stats-facts">
+  `<p class="stats-evidence-note">${escape(ui("Coverage: watch dates {dates}/{total}; runtime {runtime}/{total}; recorded view counts {views}/{total}. Missing values are excluded from their summaries.", { dates: stats.datedCount, runtime: stats.runtimeKnownCount, views: stats.viewKnownCount, total: stats.filmCount }))}</p>
+  <div class="stats-facts">
     <span><b>${stats.rewatchedFilmCount}</b>${escape(ui("rewatched films"))}</span>
     <span><b>${stats.extraViewCount}</b>${escape(ui("extra recorded views"))}</span>
     <span><b>${hours(stats.viewAdjustedRuntimeMinutes)}</b>${escape(ui("view-adjusted hours"))}<small>${escape(ui("where runtime and views are both known"))}</small></span>
     <span><b>${stats.runtimeKnownCount}</b>${escape(ui("films with runtime"))}<small>${escape(ui("{hours} hours once each", { hours: hours(stats.knownRuntimeMinutes) }))}</small></span>
   </div>
   <div class="stats-grid stats-grid--three">
-    ${split(ui("Watch years"), countTable(stats.watchYearRows, { label: ui("Year"), total: stats.datedCount, emptyText: ui("No watch dates yet.") }))}
+    ${split(ui("Watch years"), countTable(stats.watchYearRows, { label: ui("Year"), total: stats.datedCount, format: (year) => `<a href="#stats-yearly" data-watch-year="${escape(year)}">${escape(year)}</a>`, emptyText: ui("No watch dates yet.") }))}
     ${split(ui("Recent watch months"), countTable(stats.watchMonthRows, { label: ui("Month"), limit: 24, total: stats.datedCount, emptyText: ui("No watch dates yet.") }))}
     ${split(ui("Platforms"), countTable(stats.platformRows, { label: ui("Platform"), limit: 20, total: stats.platformRows.reduce((sum, row) => sum + row.count, 0), emptyText: ui("No platform data yet.") }))}
     ${split(ui("Recorded views per film"), countTable(stats.viewRows, { label: ui("Views"), total: stats.viewKnownCount, emptyText: ui("No view-count data yet.") }))}
@@ -361,6 +735,37 @@ ${section(
       });
     });
 
+    container.querySelectorAll("[data-watch-year]").forEach((link) => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        let year = e.currentTarget.dataset.watchYear;
+        if (year && year !== selectedWatchYear) {
+          selectedWatchYear = year;
+          try {
+            let url = new URL(window.location.href);
+            url.searchParams.set("watchYear", year);
+            window.history.replaceState({}, "", url.toString());
+          } catch (err) {}
+          renderStatsPage();
+          let yearlySec = container.querySelector("#stats-yearly");
+          yearlySec?.scrollIntoView({ behavior: "smooth" });
+        }
+      });
+    });
+
+    container.querySelectorAll(".stats-insight a").forEach((link) => {
+      link.addEventListener("click", () => {
+        let target = container.querySelector(link.getAttribute("href"));
+        if (target?.tagName === "DETAILS") target.open = true;
+      });
+    });
+    let hashTarget =
+      /^#stats-(overall-(years|directors|films)|yearly(-comparison)?)$/.test(
+        window.location?.hash || "",
+      )
+        ? container.querySelector(window.location.hash)
+        : null;
+    if (hashTarget && hashTarget.tagName === "DETAILS") hashTarget.open = true;
     window.enhanceHorizontalScroll?.(container);
 
     finishRenderTimer?.(
@@ -404,8 +809,18 @@ ${section(
           source,
           window.OSKARS_BUNDLED_OFFICIAL_RESULTS?.["academy-awards"],
         );
+        archiveFilms = model.films || [];
         stats = model.statistics;
+        overall = model.overall;
         awardAgreement = model.agreement;
+        availableYears = window.availableWatchYears(archiveFilms);
+        let paramYear = new URLSearchParams(window.location.search).get(
+          "watchYear",
+        );
+        selectedWatchYear =
+          paramYear && availableYears.includes(paramYear)
+            ? paramYear
+            : availableYears[0] || "";
         loadedAt = Date.now();
         renderStatsPage();
         finish?.();

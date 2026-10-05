@@ -41,10 +41,11 @@
 
   function authSectionHtml(user) {
     return `<section id="profileAuthSection" class="data-panel">
-      <h2>Profile</h2>
-      <p>Signed in as ${escape(user.email || "your profile")}.</p>
+      <span class="eyebrow">Session</span>
+      <h2>Account</h2>
+      <p>Signed in as <strong>${escape(user.email || "your profile")}</strong>.</p>
       <p class="data-panel-status"><a href="privacy.html" id="profilePrivacyNoticeLink" data-privacy-notice-trigger>Privacy notice</a></p>
-      <div class="data-actions"><button id="profileSignOutBtn" type="button">Sign out</button></div>
+      <div class="data-actions"><button id="profileSignOutBtn" type="button" class="button-secondary">Sign out</button></div>
     </section>`;
   }
 
@@ -52,9 +53,10 @@
     let suggested = profile?.display_name || "";
     let slug = window.publicProfileSlugify?.(suggested) || "";
     return `<section id="publicProfileNamePanel" class="data-panel">
+      <span class="eyebrow">Public presence</span>
       <h2>Public profile name</h2>
       <p>Used as your public profile's display name and URL slug when you publish one.</p>
-      <label>Name<input type="text" id="publicProfileNameInput" value="${escape(suggested)}" placeholder="${escape(user.email || "")}"></label>
+      <label class="data-field">Name<input type="text" id="publicProfileNameInput" value="${escape(suggested)}" placeholder="${escape(user.email || "")}"></label>
       <p class="data-panel-status">${slug ? `URL slug: ${escape(slug)}` : "Enter a name to see its URL slug."}</p>
       <div class="data-actions">
         <button id="publicProfileNameSaveBtn" type="button">Save</button>
@@ -67,6 +69,7 @@
     let slug = profile?.public_slug || "";
     let name = (profile?.display_name || "").trim();
     return `<section id="publicProfilePublishPanel" class="data-panel">
+      <span class="eyebrow">Sharing</span>
       <h2>Public access</h2>
       <p>Make your archive available through its public link, or keep it private. This changes access immediately.</p>
       <div class="data-actions">
@@ -90,9 +93,10 @@
       ? `Last synced with Letterboxd on ${new Date(lastSynced).toLocaleDateString()}.`
       : "Never synced yet. Enter your Letterboxd username to start.";
     return `<section id="letterboxdProfilePanel" class="data-panel">
+      <span class="eyebrow">Sync &amp; Connections</span>
       <h2>Letterboxd sync</h2>
       <p>Automatically detect new diary watches from your public Letterboxd RSS feed and start an Intake for them.</p>
-      <label>Letterboxd username<input type="text" id="letterboxdUsernameInput" value="${escape(username)}" placeholder="e.g. username" autocomplete="off" spellcheck="false"></label>
+      <label class="data-field">Letterboxd username<input type="text" id="letterboxdUsernameInput" value="${escape(username)}" placeholder="e.g. username" autocomplete="off" spellcheck="false"></label>
       <p class="data-panel-status" id="letterboxdSyncDescription">${escape(lastSyncedText)}</p>
       <div class="data-actions">
         <button id="letterboxdUsernameSaveBtn" type="button">Save</button>
@@ -102,8 +106,21 @@
     </section>`;
   }
 
+  function exportProfileHtml() {
+    return `<section id="profileExportPanel" class="data-panel">
+      <span class="eyebrow">Data portability</span>
+      <h2>Account export</h2>
+      <p>Download a complete JSON backup of every row your account owns in Supabase (watched films, watchlist, rankings, personal awards, projects, notes, and tags).</p>
+      <div class="data-actions">
+        <button id="profileExportBtn" type="button" class="button-secondary">Download account backup</button>
+      </div>
+      <p id="profileExportStatus" class="data-panel-status" role="status"></p>
+    </section>`;
+  }
+
   function deleteProfileHtml(profileRecord) {
-    return `<section id="profileDeletePanel" class="data-panel profile-danger-panel">
+    return `<section id="profileDeletePanel" class="data-panel profile-danger-panel data-danger-zone-list">
+      <span class="eyebrow">Irreversible changes</span>
       <h2>Delete profile</h2>
       <p>Permanently deletes this account and every row it owns in Supabase - watched films, watchlist, rankings, tags, personal awards, projects, and everything else - plus all saved Oskars data in this browser. This cannot be undone: the login itself is deleted, not just its data.</p>
       <p>A complete backup of every row downloads automatically before anything is deleted.</p>
@@ -112,7 +129,7 @@
           ? `<p>Public profile slug set: <strong>${escape(profileRecord.public_slug)}</strong>. Deleting your account removes this too.</p>`
           : ""
       }
-      <div class="data-actions"><button id="profileDeleteBtn" type="button">Delete profile</button></div>
+      <div class="data-actions"><button id="profileDeleteBtn" type="button" class="button-danger">Delete profile</button></div>
       <p id="profileDeleteStatus" class="data-panel-status"></p>
     </section>`;
   }
@@ -120,9 +137,9 @@
   function render(user) {
     container.innerHTML = `<div class="data-workspace-heading">
         <div>
-          <span class="eyebrow">Profile</span>
-          <h1>Profile</h1>
-          <p>Sign in with Google to save your ratings, watchlist, and rankings to your profile.</p>
+          <span class="eyebrow">Settings</span>
+          <h1>Profile &amp; Account</h1>
+          <p>Manage your account identity, public profile, connected services, and archive portability.</p>
         </div>
       </div>
       <div class="data-panel-stack">
@@ -130,6 +147,7 @@
         ${publicProfileNameHtml(user)}
         ${publicProfilePublishHtml()}
         ${letterboxdSyncHtml(profile)}
+        ${exportProfileHtml()}
         ${deleteProfileHtml(profile)}
       </div>`;
     wireEvents(user);
@@ -155,6 +173,23 @@
       ?.addEventListener("click", async () => {
         await window.signOutOfSupabase?.();
         window.location.reload();
+      });
+    document
+      .getElementById("profileExportBtn")
+      ?.addEventListener("click", async (event) => {
+        let button = event.currentTarget;
+        let status = document.getElementById("profileExportStatus");
+        button.disabled = true;
+        if (status) status.textContent = "Building complete account backup…";
+        try {
+          let backup = await window.buildSupabaseAccountBackup();
+          downloadJson(backup, stampedFilename("the-oskars-account-backup"));
+          if (status) status.textContent = "Backup downloaded successfully.";
+        } catch (error) {
+          if (status) status.textContent = error.message || String(error);
+        } finally {
+          button.disabled = false;
+        }
       });
     document
       .getElementById("profileDeleteBtn")

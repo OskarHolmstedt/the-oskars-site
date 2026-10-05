@@ -106,6 +106,8 @@
  *   (import preview, or a canonical record that predates learning its
  *   real id) - `addFilmToStore()` adopts it as `id` once known.
  * @property {string} title
+ * @property {number|null} [communityRatingAverage] Published other-user numeric star average.
+ * @property {number} [communityRatingCount] Number of other-user ratings.
  * @property {string} [normalizedTitle] Cached `normalizeTitle(title)`.
  * @property {string} year Four-digit year as a string.
  * @property {string} [director] Raw credited director text.
@@ -620,6 +622,71 @@
  * @property {string} sourceHref Link back to the source scope.
  * @property {Object[]} ready Unambiguous unseen films ready to add.
  * @property {Object[]} needsReview Unseen films whose release year is ambiguous.
+ * @property {Object[]} alreadyWatched Films already in watched state.
+ * @property {Object[]} alreadyWatchlisted Films already on the watchlist.
+ */
+
+/**
+ * One film item within a canonical curated list.
+ * @typedef {Object} CanonicalListItem
+ * @property {number} rank Rank or position in the list (1-based).
+ * @property {string} title Film title.
+ * @property {string} year Four-digit release year as a string.
+ * @property {string} [director] Credited director name(s).
+ * @property {string} [tmdbId] Resolved TMDB movie ID.
+ */
+
+/**
+ * One curated canonical list definition.
+ * @typedef {Object} CanonicalListDefinition
+ * @property {string} id Unique list slug (e.g. 'imdb-top-250').
+ * @property {string} name Display name (e.g. 'IMDb Top 250').
+ * @property {string} description Human-readable description / snapshot notes.
+ * @property {string} [sourceUrl] Public canonical URL for the list.
+ * @property {string} [snapshotDate] Date when this snapshot was frozen.
+ * @property {CanonicalListItem[]} items Ordered film entries.
+ */
+
+/**
+ * Resolved entry for a canonical list with user watch/watchlist status.
+ * @typedef {Object} CanonicalListResolvedItem
+ * @property {number} rank Position in list.
+ * @property {string} title Film title.
+ * @property {string} year Release year.
+ * @property {string} [director] Director name(s).
+ * @property {string} [tmdbId] TMDB movie ID.
+ * @property {boolean} watched Whether user has watched the film.
+ * @property {FilmRecord|null} watchedFilm Matched watched film record.
+ * @property {WatchlistItem|null} watchlistItem Matched watchlist item.
+ * @property {string} href URL to film page or candidate link.
+ */
+
+/**
+ * Computed completion model for a canonical list.
+ * @typedef {Object} CanonicalListCompletion
+ * @property {string} id List identifier.
+ * @property {string} name List display name.
+ * @property {string} description List description.
+ * @property {string} sourceUrl Public reference URL.
+ * @property {string} [snapshotDate] Snapshot date.
+ * @property {number} total Total films in the list.
+ * @property {number} watchedCount Number of watched films.
+ * @property {number} watchlistCount Number of unwatched films currently on watchlist.
+ * @property {number} unseenCount Number of unwatched films (total - watchedCount).
+ * @property {number} percent Percentage of films watched (0-100).
+ * @property {CanonicalListResolvedItem[]} items All resolved items in rank order.
+ * @property {CanonicalListResolvedItem[]} unseen Unwatched resolved items.
+ * @property {CanonicalListResolvedItem[]} watched Watched resolved items.
+ * @property {CanonicalListResolvedItem|null} nextItem Next unwatched item to watch.
+ */
+
+/**
+ * Non-persisted plan for adding unseen films from a canonical list to the watchlist.
+ * @typedef {Object} CanonicalListWatchlistPlan
+ * @property {string} listId Canonical list identifier.
+ * @property {string} sourceLabel Human-readable list label.
+ * @property {string} sourceHref Link back to the list section.
+ * @property {Object[]} ready Unseen films ready to add to watchlist.
  * @property {Object[]} alreadyWatched Films already in watched state.
  * @property {Object[]} alreadyWatchlisted Films already on the watchlist.
  */
@@ -1747,4 +1814,31 @@ window.browserPersistenceToRuntimeState = function (stored) {
  * @property {number} remaining
  * @property {number} total
  * @property {(FilmRecord|WatchlistItem|SupabaseFilmRow)[]} posters
+ */
+
+/**
+ * One fixed work in a curated trophy, matched by canonical catalog UUID.
+ * @typedef {Object} TrophyWorkProgress
+ * @property {string} id Canonical shared film UUID, including series records.
+ * @property {string} title Fixed display title.
+ * @property {number} year Release year.
+ * @property {string} kind Optional display label, or an empty string for films.
+ * @property {boolean} watched Whether the active archive marks this work watched.
+ */
+/**
+ * A curated fixed collection with qualification derived from watched records.
+ * @typedef {Object} CollectionTrophyProgress
+ * @property {string} id Stable trophy identifier.
+ * @property {string} domId Unique prefix for accessible heading and progress ids.
+ * @property {string} title Collection or director name.
+ * @property {string} emblem Typographic initials.
+ * @property {string} edition Fixed collection size as ornamental text.
+ * @property {string} scope Localizable collection scope.
+ * @property {string} celebration Localizable earned caption.
+ * @property {string} invitation Localizable in-progress caption.
+ * @property {string} criteria Localizable completion rule.
+ * @property {TrophyWorkProgress[]} films Fixed film or series checklist.
+ * @property {number} watchedCount Number of unique watched works in the collection.
+ * @property {number} total Number of required works.
+ * @property {boolean} earned Whether all fixed works are watched.
  */

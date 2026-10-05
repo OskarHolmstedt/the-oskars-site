@@ -227,7 +227,7 @@
         { value: "score", label: "Score" },
       ],
     });
-    let sortControls = `<div class="franchise-film-toolbar"><div class="detail-toolbar-controls">${sortAxisControl}${window.renderChronologyControl({ order: filmOrder, href: franchiseViewUrl({ sort: franchiseReverseTargetSort, order: filmOrder === "asc" ? "desc" : "asc" }), iconOnly: true, escape, title: ui("Reverse current order") })}${window.renderShuffleControl({ href: franchiseViewUrl({ sort: "shuffle", seed: window.freshShuffleSeed() }), escape, label: ui("Shuffle") })}${watchlistEntries.length ? window.renderCombinedSectionsControl({ combined: combinedView, href: franchiseViewUrl({ sections: combinedView ? "split" : "combined" }), escape }) : ""}</div>${window.renderFilmViewToggle(
+    let sortControls = `<div class="franchise-film-toolbar collection-film-toolbar detail-toolbar"><div class="detail-toolbar-controls">${sortAxisControl}${window.renderChronologyControl({ order: filmOrder, href: franchiseViewUrl({ sort: franchiseReverseTargetSort, order: filmOrder === "asc" ? "desc" : "asc" }), iconOnly: true, escape, title: ui("Reverse current order") })}${window.renderShuffleControl({ href: franchiseViewUrl({ sort: "shuffle", seed: window.freshShuffleSeed() }), escape, label: ui("Shuffle") })}${watchlistEntries.length ? window.renderCombinedSectionsControl({ combined: combinedView, href: franchiseViewUrl({ sections: combinedView ? "split" : "combined" }), escape }) : ""}</div>${window.renderFilmViewToggle(
       {
         view: filmView,
         listUrl: franchiseViewUrl({ view: "list" }),

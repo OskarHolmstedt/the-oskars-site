@@ -220,20 +220,33 @@
     );
 
     container.innerHTML = `${window.renderDetailHeader({ mainHtml: `<h1>${escape(ui("Discover"))}</h1><p>${escape(ui("Let the archive choose something for you."))}</p>` })}
-    <form class="discovery-filters" id="discoveryFilters">
-      <label>${escape(ui("Period"))}<select name="period">${periodOptions}</select></label>
-      <label>${escape(ui("Profession"))}<select name="profession">${option("", ui("Any profession"), "profession")}${professionOptions}</select></label>
-      <label>${escape(ui("Medium"))}<select name="medium">${option("", ui("Any medium"), "medium")}${option("live-action", ui("Live action"), "medium")}${option("animation", ui("Animation"), "medium")}</select></label>
-      <label>${escape(ui("Screenplay"))}<select name="screenplay">${option("", ui("Any screenplay"), "screenplay")}${option("original", ui("Original"), "screenplay")}${option("adapted", ui("Adapted"), "screenplay")}</select></label>
-      <label>${escape(ui("Adapted from"))}<select name="adaptationSource">${option("", ui("Any source"), "adaptationSource")}${adaptationSourceOptions}</select></label>
-      <label>${escape(ui("Award category"))}<select name="category">${option("", ui("Any category"), "category")}${categoryOptions}</select></label>
-      <label>${escape(ui("Exact rating"))}<select name="exactRating">${option("", ui("Any rating"), "exactRating")}${exactRatingOptions()}</select></label>
-      <label>${escape(ui("Minimum rating"))}<select name="minimumRating">${option("", ui("No minimum"), "minimumRating")}${ratingOptions("minimum")}</select></label>
-      <label>${escape(ui("Maximum rating"))}<select name="maximumRating">${option("", ui("No maximum"), "maximumRating")}${ratingOptions("maximum")}</select></label>
-      <label>${escape(ui("Tier"))}<select name="watchlistTier">${option("", ui("Any tier"), "watchlistTier")}${watchlistTierOptions()}</select></label>
-      <label>${escape(ui("Director"))}<input type="text" name="director" value="${escape(currentFilters.director || "")}"></label>
-      <div class="discovery-actions"><button type="button" data-discover="film">${escape(ui("Random film"))}</button><button type="button" data-discover="person">${escape(ui("Random person"))}</button><button type="button" data-discover="watchlist">${escape(ui("Surprise me"))}</button><button type="button" data-discover="double-feature">${escape(ui("Double feature"))}</button>${window.renderCopyViewLinkButton({ escape })}</div>
-    </form>
+    <div class="discovery-control-panel">
+      <div class="discovery-generator-toolbar" role="toolbar" aria-label="${escape(ui("Generator modes"))}">
+        <button type="button" class="discovery-mode-btn" data-discover="film"><span class="discovery-mode-icon" aria-hidden="true">🎬</span> ${escape(ui("Random film"))}</button>
+        <button type="button" class="discovery-mode-btn" data-discover="person"><span class="discovery-mode-icon" aria-hidden="true">👤</span> ${escape(ui("Random person"))}</button>
+        <button type="button" class="discovery-mode-btn" data-discover="watchlist"><span class="discovery-mode-icon" aria-hidden="true">✨</span> ${escape(ui("Surprise me"))}</button>
+        <button type="button" class="discovery-mode-btn" data-discover="double-feature"><span class="discovery-mode-icon" aria-hidden="true">🍿</span> ${escape(ui("Double feature"))}</button>
+      </div>
+      <form class="discovery-filters" id="discoveryFilters">
+        <div class="discovery-filter-grid">
+          <label>${escape(ui("Period"))}<select name="period">${periodOptions}</select></label>
+          <label>${escape(ui("Profession"))}<select name="profession">${option("", ui("Any profession"), "profession")}${professionOptions}</select></label>
+          <label>${escape(ui("Minimum rating"))}<select name="minimumRating">${option("", ui("No minimum"), "minimumRating")}${ratingOptions("minimum")}</select></label>
+          <label>${escape(ui("Tier"))}<select name="watchlistTier">${option("", ui("Any tier"), "watchlistTier")}${watchlistTierOptions()}</select></label>
+          <label>${escape(ui("Director"))}<input type="text" name="director" value="${escape(currentFilters.director || "")}"></label>
+          <label>${escape(ui("Medium"))}<select name="medium">${option("", ui("Any medium"), "medium")}${option("live-action", ui("Live action"), "medium")}${option("animation", ui("Animation"), "medium")}</select></label>
+          <label>${escape(ui("Screenplay"))}<select name="screenplay">${option("", ui("Any screenplay"), "screenplay")}${option("original", ui("Original"), "screenplay")}${option("adapted", ui("Adapted"), "screenplay")}</select></label>
+          <label>${escape(ui("Adapted from"))}<select name="adaptationSource">${option("", ui("Any source"), "adaptationSource")}${adaptationSourceOptions}</select></label>
+          <label>${escape(ui("Award category"))}<select name="category">${option("", ui("Any category"), "category")}${categoryOptions}</select></label>
+          <label>${escape(ui("Exact rating"))}<select name="exactRating">${option("", ui("Any rating"), "exactRating")}${exactRatingOptions()}</select></label>
+          <label>${escape(ui("Maximum rating"))}<select name="maximumRating">${option("", ui("No maximum"), "maximumRating")}${ratingOptions("maximum")}</select></label>
+        </div>
+        <div class="discovery-actions">
+          <button type="button" class="discovery-action-link link-button" data-discovery-reset>${escape(ui("Reset filters"))}</button>
+          ${window.renderCopyViewLinkButton({ escape })}
+        </div>
+      </form>
+    </div>
     <section id="discoveryResult" class="discovery-result"><p>${escape(ui("Choose filters if you like, then take a chance."))}</p></section>`;
     finishRenderTimer?.(`${filterNames.length} filter(s)`);
   }
@@ -322,6 +335,18 @@
     return `<div class="detail-empty"><h2>${escape(ui("No matches"))}</h2><p>${escape(ui("Try relaxing one or two filters."))}</p></div>`;
   }
   container.addEventListener("click", (event) => {
+    let resetButton = event.target.closest("[data-discovery-reset]");
+    if (resetButton) {
+      let form = document.getElementById("discoveryFilters");
+      form?.reset();
+      currentFilters = Object.fromEntries(new FormData(form).entries());
+      discoverUrlState.replace(currentFilters);
+      let resultContainer = document.getElementById("discoveryResult");
+      if (resultContainer) {
+        resultContainer.innerHTML = `<p>${escape(ui("Choose filters if you like, then take a chance."))}</p>`;
+      }
+      return;
+    }
     let copyButton = event.target.closest("[data-copy-view-link]");
     if (copyButton) {
       window

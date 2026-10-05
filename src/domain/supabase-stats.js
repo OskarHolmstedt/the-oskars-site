@@ -29,7 +29,12 @@ window.buildSupabaseStatsModel = function (source, officialFallback = null) {
       : officialFallback,
   });
   finishAgreement?.();
-  return { statistics, agreement };
+  return {
+    films,
+    statistics,
+    agreement,
+    overall: window.overallFilmStatistics(films),
+  };
 };
 
 /** Reads one versioned private Stats snapshot; public pages use their existing anonymous loader. @returns {Promise<Object>} Compact Stats inputs. */

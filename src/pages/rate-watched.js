@@ -151,13 +151,17 @@
       ? `<section class="rate-watched-rated-section"><h2>${escape(year)} · Rated</h2><ol class="rate-watched-rated-list">${ratedForYear.map(renderRatedEntry).join("")}</ol></section>`
       : "";
 
-    container.innerHTML = `${header}
-      <section class="rate-watched-progress card"><div><b>${escape(ratedCount)}</b> / ${escape(all.length)} rated</div><progress value="${escape(ratedCount)}" max="${escape(all.length || 1)}"></progress></section>
+    let yearNav = `<div class="rate-watched-toolbar collection-film-toolbar">
       <div class="rate-watched-year-nav">
         ${yearArrow(prevYear, "‹", "Previous year")}
         <label>Release year<select data-rate-watched-year>${yearOptions}</select></label>
         ${yearArrow(nextYear, "›", "Next year")}
       </div>
+    </div>`;
+
+    container.innerHTML = `${header}
+      <section class="rate-watched-progress card"><div><b>${escape(ratedCount)}</b> / ${escape(all.length)} rated</div><progress value="${escape(ratedCount)}" max="${escape(all.length || 1)}"></progress></section>
+      ${yearNav}
       ${unratedBody}
       ${ratedBody}`;
     window.enhanceRatingInputs?.(container);
@@ -229,9 +233,29 @@
     window.renderHeaderAuthStatus?.(user);
   }
 
+  container.addEventListener("click", (event) => {
+    let arrow = event.target.closest("a.rate-watched-year-arrow");
+    if (arrow) {
+      event.preventDefault();
+      let href = arrow.getAttribute("href");
+      if (href) {
+        window.history.pushState(null, "", href);
+        render();
+      }
+    }
+  });
+
   container.addEventListener("change", (event) => {
     let select = event.target.closest("[data-rate-watched-year]");
-    if (select) window.location.href = pageUrl(select.value);
+    if (select) {
+      let targetUrl = pageUrl(select.value);
+      window.history.pushState(null, "", targetUrl);
+      render();
+    }
+  });
+
+  window.addEventListener("popstate", () => {
+    render();
   });
 
   container.addEventListener("submit", async (event) => {

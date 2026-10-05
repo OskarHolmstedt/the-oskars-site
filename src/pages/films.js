@@ -49,6 +49,7 @@
     { value: "title", label: "Title" },
     { value: "year", label: "Year" },
     { value: "rating", label: "Rating" },
+    { value: "communityRating", label: "Highest rated by other users" },
     { value: "runtime", label: "Runtime" },
     { value: "tier", label: "Watchlist tier" },
     { value: "awards", label: "Personal award wins" },
@@ -172,6 +173,27 @@
   let compactRequestId = 0;
   // The complete-archive path filters in the browser, so it loads the
   // selected catalog tag's film ids and the option list lazily.
+  let communityRatings = null;
+  let communityRatingsLoading = false;
+  let communityRatingsError = false;
+  function ensureCommunityRatings() {
+    if (communityRatings || communityRatingsLoading || communityRatingsError)
+      return;
+    communityRatingsLoading = true;
+    window
+      .loadSupabaseFilmCommunityRatings()
+      .then((ratings) => {
+        communityRatings = ratings;
+        communityRatingsLoading = false;
+        render();
+      })
+      .catch((error) => {
+        console.warn("Community ratings failed to load.", error);
+        communityRatingsLoading = false;
+        communityRatingsError = true;
+        render();
+      });
+  }
   let catalogTagFilter = null;
   let catalogTagRequestKey = null;
   let catalogTagFailedKey = null;
@@ -504,6 +526,12 @@
     return `<span class="films-status films-status--unseen">${escape(ui("Unseen"))}</span>`;
   }
 
+  function communityRatingHtml(film) {
+    if (currentState.sort !== "communityRating" || !film.communityRatingCount)
+      return "";
+    return `<span class="film-rating">${escape(Number(film.communityRatingAverage).toFixed(1))} ★ · ${escape(ui(film.communityRatingCount === 1 ? "1 rating" : "{count} ratings", { count: film.communityRatingCount }))}</span>`;
+  }
+
   function filmCardHtml(film, locale, index = 0) {
     let title = window.localizedFilmTitle?.(film, locale) || film.title;
     return window.renderSharedFilmCard(film, {
@@ -513,7 +541,10 @@
       escape,
       titleHtml: `<a class="table-film-link" href="${escape(film.href)}">${escape(title)}</a>`,
       showYear: true,
-      bodyHtml: statusBadgeHtml(film) + seenActionHtml(film),
+      bodyHtml:
+        statusBadgeHtml(film) +
+        communityRatingHtml(film) +
+        seenActionHtml(film),
       priority: index < 4 ? "high" : undefined,
     });
   }
@@ -525,7 +556,7 @@
       <td class="film-table-cell">${window.renderFilmPoster?.(film, "thumb", { priority }) || ""}<span><a class="table-film-link" href="${escape(film.href)}">${escape(title)}</a></span></td>
       <td>${escape(film.year || "")}</td>
       <td>${escape(film.director || "")}</td>
-      <td>${statusBadgeHtml(film)}${seenActionHtml(film)}</td>
+      <td>${statusBadgeHtml(film)}${communityRatingHtml(film)}${seenActionHtml(film)}</td>
     </tr>`;
   }
 
@@ -736,6 +767,21 @@
           : `<p class="detail-empty" role="status">${escape(ui("Loading…"))}</p>`;
       return;
     }
+    if (!compact && currentState.sort === "communityRating") {
+      ensureCommunityRatings();
+      if (!communityRatings) {
+        container.setAttribute("aria-busy", String(!communityRatingsError));
+        container.innerHTML = communityRatingsError
+          ? `<p role="alert">${escape(ui("Couldn't load community ratings."))} <a href="${escape(viewUrl())}">${escape(ui("Try again"))}</a></p>`
+          : `<p role="status">${escape(ui("Loading…"))}</p>`;
+        return;
+      }
+      for (let film of fullCatalog()) {
+        let rating = communityRatings[film.supabaseFilmId || film.id];
+        film.communityRatingAverage = rating?.average ?? null;
+        film.communityRatingCount = rating?.count || 0;
+      }
+    }
     let finish = window.startOskarsPerformance?.("films:render");
     container.removeAttribute("aria-busy");
     let data = compact ? compactData() : fullData();
@@ -826,6 +872,28 @@ ${advancedOpen ? (fullReady || !collectionExpression.groups.length ? collectionB
     }
     ${paginationHtml}`;
 
+    container.querySelectorAll(".films-status-pill").forEach((pill) =>
+      pill.addEventListener("click", (event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+          return;
+        event.preventDefault();
+        let url = new URL(pill.href, window.location.href);
+        currentState = viewState.read(url.search);
+        viewState.replace(currentState);
+        render();
+      }),
+    );
+    container.querySelectorAll(".films-view-toggle a").forEach((toggle) =>
+      toggle.addEventListener("click", (event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+          return;
+        event.preventDefault();
+        let url = new URL(toggle.href, window.location.href);
+        currentState = viewState.read(url.search);
+        viewState.replace(currentState);
+        render();
+      }),
+    );
     container.querySelectorAll("[data-films-page]").forEach((button) =>
       button.addEventListener("click", () => {
         currentState = Object.assign({}, currentState, {
@@ -934,6 +1002,11 @@ ${advancedOpen ? (fullReady || !collectionExpression.groups.length ? collectionB
         Object.fromEntries(new FormData(toolbar).entries()),
         { page: 1 },
       );
+      if (
+        event.target.name === "sort" &&
+        currentState.sort === "communityRating"
+      )
+        currentState.order = "desc";
       viewState.replace(currentState);
       render();
     });
@@ -1052,6 +1125,14 @@ ${advancedOpen ? (fullReady || !collectionExpression.groups.length ? collectionB
     }
   });
   render();
+  window.addEventListener?.("popstate", () => {
+    currentState = viewState.read();
+    collectionExpression = window.parseCollectionFilter(
+      currentState.collections,
+    ) || { mode: "all", groups: [] };
+    advancedOpen = Boolean(currentState.collections);
+    render();
+  });
   window.addEventListener?.("oskars:localechange", render);
   // Fire-and-forget after first paint, matching every other official-
   // results-aware page (category/completion/film/person/period/stats) -

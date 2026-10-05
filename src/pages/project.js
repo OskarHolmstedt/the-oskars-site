@@ -217,6 +217,26 @@
       )
       .join("");
 
+    let controlBannerHtml = `<div class="project-control-banner">
+      ${toolbarHtml}
+      <div class="project-settings-bar">
+        <div class="period-edit-controls project-status-controls" aria-label="${escape(ui("Project status"))}">${statusButtons}</div>
+        ${queueControls}
+      </div>
+    </div>`;
+
+    let upNextRecord = queue.length ? queue[0] : null;
+    let upNextHtml = upNextRecord
+      ? `<section class="project-up-next" aria-label="${escape(ui("Up next"))}">
+        <div class="project-up-next-header">
+          <span class="eyebrow">${escape(ui("Up next"))}</span>
+        </div>
+        <div class="project-up-next-card">
+          ${itemCard(upNextRecord, 0, false)}
+        </div>
+      </section>`
+      : "";
+
     let deckFilms = window.projectPosterDeckFilms
       ? window.projectPosterDeckFilms({
           watchlist: queue,
@@ -239,8 +259,9 @@
     ${window.renderDetailStats({ itemsHtml: `<span><b>${watched.length}</b> ${escape(ui("Watched"))}</span><span><b>${queue.length}</b> ${escape(ui("Queue"))}</span><span><b>${total}</b> ${escape(ui("Total"))}</span><span><b>${percent}%</b> ${escape(ui("Complete"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}
     ${window.renderSupabaseEntityNote({ entityKind: "project", entityKey: project.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Project note"), escape })}
     <div class="project-progress-meter project-progress-meter--detail" aria-label="${escape(ui("{percent} percent complete", { percent }))}"><span style="width:${escape(percent)}%"></span></div>
-    <div class="period-edit-controls">${statusButtons}</div>
-    <h2>${escape(ui("Queue"))}</h2>${toolbarHtml}${queueControls}${
+    ${controlBannerHtml}
+    ${upNextHtml}
+    <h2>${escape(ui("Queue"))}</h2>${
       filmView === "grid"
         ? `<div class="film-grid project-film-grid">${queueCards || `<p>${escape(ui("No films"))}</p>`}</div>`
         : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))} / ${escape(ui("Tier"))}</th></tr></thead><tbody>${queueRows || `<tr><td colspan="4">${escape(ui("No films"))}</td></tr>`}</tbody></table></div>`

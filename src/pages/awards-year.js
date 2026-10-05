@@ -404,13 +404,18 @@
     let draggableAttr = isPending ? 'draggable="false"' : 'draggable="true"';
     let tabindexAttr = isPending ? 'tabindex="-1"' : 'tabindex="0"';
     let busyAttr = isPending ? ' aria-busy="true"' : "";
+    let cardActions = canEdit
+      ? `<div class="setup-year-card-actions">
+      <button type="button" class="card-remove-button card-super-exclude-button" aria-label="Hide ${escape(film.title)} from all categories" title="Remove from all award pools" data-setup-pool-super-exclude="${escape(film.id)}"${savingExclusions ? " disabled" : ""}>⊗</button>
+      <button type="button" class="card-remove-button" aria-label="Hide ${escape(film.title)} from this category" title="Not a contender - hide from this pool" data-setup-pool-exclude>×</button>
+    </div>`
+      : "";
     return `<article class="film-card setup-year-pool-card${filterBadge ? " is-filtered-out" : ""}${pendingClass}" ${draggableAttr} data-setup-award-film="${escape(film.id)}" data-setup-award-add="${escape(category)}" ${tabindexAttr} role="button"${busyAttr}>
       <span class="setup-year-pool-poster">${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" loading="lazy" decoding="async">` : `<span aria-hidden="true">${escape(String(film.title || "?").charAt(0))}</span>`}</span>
       <span class="setup-year-pool-title">${escape(film.title)}</span>
       ${filterBadgeHtml}
       ${creditHint}
-      <button type="button" class="card-remove-button" aria-label="Hide ${escape(film.title)} from this category" title="Not a contender - hide from this pool" data-setup-pool-exclude>×</button>
-      <button type="button" class="card-remove-button card-super-exclude-button" aria-label="Hide ${escape(film.title)} from all categories" title="Remove from all award pools" data-setup-pool-super-exclude="${escape(film.id)}"${savingExclusions ? " disabled" : ""}>⊗</button>
+      ${cardActions}
     </article>`;
   }
 
@@ -517,16 +522,16 @@
       : "";
     let restoreHtml =
       excludedIds.size && canEdit
-        ? `<button type="button" class="sort-order-button" data-setup-pool-restore="${escape(category)}">Show ${escape(excludedIds.size)} hidden</button>`
+        ? `<button type="button" class="sort-order-button setup-pool-action" data-setup-pool-restore="${escape(category)}">Show ${escape(excludedIds.size)} hidden</button>`
         : "";
     let restoreAllHtml =
       globallyExcluded.size && canEdit
-        ? `<button type="button" class="sort-order-button" data-setup-pool-restore-all${savingExclusions ? " disabled" : ""}>Restore films hidden from all categories (${escape(globallyExcluded.size)})</button>`
+        ? `<button type="button" class="sort-order-button setup-pool-action" data-setup-pool-restore-all${savingExclusions ? " disabled" : ""}>Restore films hidden from all categories (${escape(globallyExcluded.size)})</button>`
         : "";
     // "Show N live-action films" / "Show N adapted screenplays" etc.
     let showRestHtml =
       filteredPool.length && canEdit
-        ? `<button type="button" class="sort-order-button setup-year-show-filtered${showRestCategories.has(category) ? " is-active" : ""}" data-setup-pool-show-filtered="${escape(category)}">${escape(filteredPoolButtonLabel(filteredPool.length, category))}</button>`
+        ? `<button type="button" class="sort-order-button setup-pool-action setup-year-show-filtered${showRestCategories.has(category) ? " is-active" : ""}" data-setup-pool-show-filtered="${escape(category)}">${escape(filteredPoolButtonLabel(filteredPool.length, category))}</button>`
         : "";
     // When toggled, render the filtered sub-section with reason badges.
     let filteredPoolHtml =
@@ -539,8 +544,11 @@
     let ballotActions = canEdit
       ? `<div class="setup-ballot-actions">${nominations.length ? `<button type="button" data-setup-award-finish="${escape(category)}"${excess ? " disabled" : ""}>${excess ? `Remove ${excess} before finishing` : "Finish category"}</button>` : `<button type="button" class="button-secondary" data-setup-award-none="${escape(category)}">${isCollection ? "No award for this collection" : "No award this year"}</button>`}${pendingStatus}</div>`
       : "";
+    let poolActionsHtml = [restoreHtml, restoreAllHtml, showRestHtml]
+      .filter(Boolean)
+      .join("");
     let poolSection = canEdit
-      ? `<h4>Eligible films from ${escape(ballotLabel)} · A–Z ${restoreHtml}${restoreAllHtml}${showRestHtml}</h4>${poolHtml}${filteredPoolHtml}`
+      ? `<div class="setup-pool-toolbar"><h4 class="setup-pool-heading">Eligible films from ${escape(ballotLabel)} · A–Z</h4>${poolActionsHtml ? `<div class="setup-pool-actions">${poolActionsHtml}</div>` : ""}</div>${poolHtml}${filteredPoolHtml}`
       : "";
 
     return `${header}

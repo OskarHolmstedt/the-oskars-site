@@ -96,8 +96,8 @@
     "Export diagnostic log": { sv: "Exportera diagnostiklogg" },
     "Not watched": { sv: "Inte sedd" },
     "Trophy cabinet": { sv: "Troféskåp" },
-    "Fixed collections. Every film counts.": {
-      sv: "Fasta samlingar. Varje film räknas.",
+    "Fixed collections from your viewing history.": {
+      sv: "Fasta samlingar från din visningshistorik.",
     },
     "Trophy earned": { sv: "Trofé intjänad" },
     "You did the impossible.": { sv: "Du gjorde det omöjliga." },
@@ -105,7 +105,47 @@
       sv: "Ditt uppdrag: se alla åtta filmer.",
     },
     "{watched} of {total} watched": { sv: "{watched} av {total} sedda" },
-    "View the eight films": { sv: "Visa de åtta filmerna" },
+    "View collection": { sv: "Visa samling" },
+    "{earned} of {total} trophies earned": {
+      sv: "{earned} av {total} troféer intjänade",
+    },
+    "8-film collection": { sv: "Samling med 8 filmer" },
+    "13 feature films": { sv: "13 långfilmer" },
+    "Bonus · 15 feature-length films": { sv: "Bonus · 15 långfilmer" },
+    "4 feature films + 1 series": { sv: "4 långfilmer + 1 serie" },
+    "TV series": { sv: "TV-serie" },
+    "Every piece in place.": { sv: "Varje bit på plats." },
+    "From Following to The Odyssey.": {
+      sv: "Från Following till The Odyssey.",
+    },
+    "Watch these 13 directed features, including The Odyssey. Shorts and producing-only credits are not required. Future films do not change this collection.":
+      {
+        sv: "Se dessa 13 långfilmer i Nolans regi, inklusive The Odyssey. Kortfilmer och filmer där han enbart är producent krävs inte. Framtida filmer ändrar inte samlingen.",
+      },
+    "You took the long way home.": { sv: "Du tog den långa vägen hem." },
+    "From The Cars That Ate Paris to The Way Back.": {
+      sv: "Från The Cars That Ate Paris till The Way Back.",
+    },
+    "Watch these 13 theatrical features. Homesdale and The Plumber belong to the separate bonus trophy and are not required here.":
+      {
+        sv: "Se dessa 13 biolångfilmer. Homesdale och The Plumber ingår i den separata bonustrofén och krävs inte här.",
+      },
+    "The complete journey.": { sv: "Hela resan." },
+    "Go further with Homesdale and The Plumber.": {
+      sv: "Fortsätt med Homesdale och The Plumber.",
+    },
+    "Watch all 13 core features plus Homesdale and The Plumber. The bonus does not replace your 13-film trophy.":
+      {
+        sv: "Se alla 13 grundfilmer plus Homesdale och The Plumber. Bonusen ersätter inte din trofé för de 13 filmerna.",
+      },
+    "You crossed into the dream.": { sv: "Du klev in i drömmen." },
+    "Four features and Paranoia Agent.": {
+      sv: "Fyra långfilmer och Paranoia Agent.",
+    },
+    "Watch the four features and complete Paranoia Agent. The series counts as one work when marked watched in your archive; individual episodes are not tracked here.":
+      {
+        sv: "Se de fyra långfilmerna och hela Paranoia Agent. Serien räknas som ett verk när den är markerad som sedd i ditt arkiv; enskilda avsnitt spåras inte här.",
+      },
     "This collection is fixed at eight films. Existing watches count; future releases do not change it.":
       {
         sv: "Den här samlingen består av åtta fasta filmer. Redan sedda filmer räknas; framtida filmer ändrar inte samlingen.",
@@ -118,6 +158,26 @@
     "Load more": { sv: "Ladda fler" },
     "Could not load completion data.": {
       sv: "Kunde inte ladda färdigställandedata.",
+    },
+    "Completion categories": { sv: "Färdigställandekategorier" },
+    "Official awards": { sv: "Officiella priser" },
+    "Project status": { sv: "Projektstatus" },
+    "Generator modes": { sv: "Generatorlägen" },
+    "Reset filters": { sv: "Återställ filter" },
+    "Canonical lists": { sv: "Kanoniska listor" },
+    "Canonical list films watched": {
+      sv: "Sedda filmer från kanoniska listor",
+    },
+    "Curated historical and critical film lists — IMDb Top 250, Letterboxd Top 250, Sight & Sound, and TIME 100.":
+      {
+        sv: "Kurerade historiska och kritikerhyllade filmlistor — IMDb Top 250, Letterboxd Top 250, Sight & Sound och TIME 100.",
+      },
+    "No canonical lists available.": {
+      sv: "Inga kanoniska listor tillgängliga.",
+    },
+    "Browse films": { sv: "Bläddra bland filmer" },
+    "No films match this filter.": {
+      sv: "Inga filmer matchar detta filter.",
     },
     "Could not load statistics.": { sv: "Kunde inte ladda statistiken." },
     "Try again": { sv: "Försök igen" },
@@ -728,6 +788,10 @@
     "Rank this year": { sv: "Ranka året" },
     "View year": { sv: "Visa året" },
     Ceremonies: { sv: "Ceremonier" },
+    "Journey overview and filters": { sv: "Resans översikt och filter" },
+    "Stage progression for {year}": { sv: "Stegförlopp för {year}" },
+    Rate: { sv: "Betygsätt" },
+    Done: { sv: "Klar" },
     "Filter years by next stage": { sv: "Filtrera år efter nästa steg" },
     "No years at this stage.": { sv: "Inga år befinner sig i detta steg." },
     "Ranking groups": { sv: "Rankningsgrupper" },
@@ -930,6 +994,12 @@
       sv: "Tre tydliga vägar tillbaka till personerna bakom dina filmer.",
     },
     "Most watched": { sv: "Mest sedd" },
+    "Highest rated by other users": { sv: "Högst betyg av andra användare" },
+    "1 rating": { sv: "1 betyg" },
+    "{count} ratings": { sv: "{count} betyg" },
+    "Couldn't load community ratings.": {
+      sv: "Kunde inte ladda andra användares betyg.",
+    },
     "Highest rated": { sv: "Högst betyg" },
     "On your watchlist": { sv: "På din watchlist" },
     "{count} watched films in your archive": {
@@ -1013,6 +1083,60 @@
     "Release century": { sv: "Premiärårhundrade" },
     "rewatched films": { sv: "omtittade filmer" },
     Statistics: { sv: "Statistik" },
+    "Strongest release year": { sv: "Starkaste premiäråret" },
+    "Not enough ratings yet": { sv: "Inte tillräckligt många betyg ännu" },
+    "{average}/5 from {rated} rated films of {total}. Minimum five rated films per year.":
+      {
+        sv: "{average}/5 från {rated} betygsatta filmer av {total}. Minst fem betygsatta filmer per år.",
+      },
+    "A year needs at least five rated films to lead this comparison.": {
+      sv: "Ett år behöver minst fem betygsatta filmer för att leda jämförelsen.",
+    },
+    "Most-awarded director": { sv: "Mest prisbelönade regissör" },
+    "{wins} annual wins across {films} nominated films. Counts wins for their films in every category; co-directors share credit.":
+      {
+        sv: "{wins} årliga vinster för {films} nominerade filmer. Räknar filmernas vinster i alla kategorier; medregissörer delar äran.",
+      },
+    "No annual wins with director credits yet.": {
+      sv: "Inga årliga vinster med regissörsuppgifter ännu.",
+    },
+    "Most-nominated film": { sv: "Mest nominerade film" },
+    "{nominations} annual nominations, including {wins} wins. Every recorded category placement counts.":
+      {
+        sv: "{nominations} årliga nomineringar, inklusive {wins} vinster. Varje registrerad kategoriplacering räknas.",
+      },
+    "No annual nominations yet.": { sv: "Inga årliga nomineringar ännu." },
+    "Rating snapshot": { sv: "Betygsöversikt" },
+    "{rated}/{total} films rated. Population standard deviation {spread} on the five-point scale.":
+      {
+        sv: "{rated}/{total} filmer betygsatta. Populationens standardavvikelse {spread} på femgradig skala.",
+      },
+    "Oskars and Oscars": { sv: "Oskars och Oscars" },
+    "{matches}/{total} comparable category-periods agree. Only periods with both winners are included.":
+      {
+        sv: "{matches}/{total} jämförbara kategoriperioder stämmer överens. Endast perioder med båda vinnarna ingår.",
+      },
+    "Explore the evidence": { sv: "Utforska underlaget" },
+    "Small sample": { sv: "Litet urval" },
+    "Annual Oskars only; decade, century, all-time and collection awards are excluded. Director credits cover {known}/{total} nominated films. Missing credits contribute no director wins.":
+      {
+        sv: "Endast årliga Oskars; priser för årtionden, århundraden, alla tider och samlingar ingår inte. Regissörsuppgifter finns för {known}/{total} nominerade filmer. Saknade uppgifter bidrar inte till regissörsvinster.",
+      },
+    "Top-rated years": { sv: "Högst betygsatta år" },
+    "Directors by film award wins": {
+      sv: "Regissörer efter filmernas prisvinster",
+    },
+    "Films by nominations": { sv: "Filmer efter nomineringar" },
+    "Statistics sections": { sv: "Statistikavsnitt" },
+    "Overall statistics": { sv: "Övergripande statistik" },
+    "Ranked evidence behind the highlights. Small samples remain visible but cannot lead the strongest-year insight.":
+      {
+        sv: "Rangordnat underlag bakom höjdpunkterna. Små urval visas men kan inte leda sammanfattningen av det starkaste året.",
+      },
+    "Coverage: watch dates {dates}/{total}; runtime {runtime}/{total}; recorded view counts {views}/{total}. Missing values are excluded from their summaries.":
+      {
+        sv: "Täckning: tittardatum {dates}/{total}; speltid {runtime}/{total}; registrerade visningsantal {views}/{total}. Saknade värden ingår inte i respektive sammanfattning.",
+      },
     "The archive by the numbers": { sv: "Arkivet i siffror" },
     "Top countries": { sv: "Vanligaste länderna" },
     Value: { sv: "Värde" },
@@ -4181,6 +4305,99 @@
     "Best Visual Effects": { sv: "Bästa visuella effekter" },
     "Best Production Design": { sv: "Bästa scenografi" },
     "Best Costume Design": { sv: "Bästa kostym" },
+    "Year in review": { sv: "Året i backspegeln" },
+    "A yearly snapshot of viewing volume, tastes, and habits for any calendar year with recorded watch dates.":
+      {
+        sv: "En årlig översikt över tittarvolym, smak och vanor för varje kalenderår med sparade visningsdatum.",
+      },
+    "Select watch year": { sv: "Välj visningsår" },
+    "No watch dates recorded yet.": {
+      sv: "Inga visningsdatum sparade ännu.",
+    },
+    "Most active month": { sv: "Mest aktiva månad" },
+    "Top director": { sv: "Toppregissör" },
+    "Top country": { sv: "Toppland" },
+    "Top release decade": { sv: "Toppdecennium" },
+    "Top release year": { sv: "Topp-premiärår" },
+    "Top rated film": { sv: "Högst betygsatta film" },
+    "Top rated films in {year}": { sv: "Högst betygsatta filmer under {year}" },
+    "Viewing volume": { sv: "Tittarvolym" },
+    "Monthly viewing": { sv: "Månadsvis tittande" },
+    "Top directors in {year}": { sv: "Toppregissörer under {year}" },
+    "Release decades in {year}": { sv: "Premiärdecennier under {year}" },
+    "Release years in {year}": { sv: "Premiärår under {year}" },
+    "Top countries in {year}": { sv: "Toppländer under {year}" },
+    "Platforms in {year}": { sv: "Plattformar under {year}" },
+    "{diff} films vs {year}": { sv: "{diff} filmer jmf {year}" },
+    "{diff} hours vs {year}": { sv: "{diff} timmar jmf {year}" },
+    "{diff} rating vs {year}": { sv: "{diff} i betyg jmf {year}" },
+    "{count} films watched in {year}. {hours} known hours. {rewatches} rewatched.":
+      {
+        sv: "{count} filmer sedda under {year}. {hours} kända timmar. {rewatches} omsedda.",
+      },
+    "{count} films watched in {month} ({percent}% of the year).": {
+      sv: "{count} filmer sedda i {month} ({percent} % av året).",
+    },
+    "{count} films watched directed by {name}.": {
+      sv: "{count} sedda filmer regisserade av {name}.",
+    },
+    "{count} films from this decade watched in {year}.": {
+      sv: "{count} filmer från detta decennium sedda under {year}.",
+    },
+    "{count} films from this release year watched in {year}.": {
+      sv: "{count} filmer från detta premiärår sedda under {year}.",
+    },
+    "{count} films from {country}.": { sv: "{count} filmer från {country}." },
+    "{rated}/{total} films rated. Average rating {average}/5.": {
+      sv: "{rated}/{total} filmer betygsatta. Medelbetyg {average}/5.",
+    },
+    "No credited directors for this year's watched films.": {
+      sv: "Inga krediterade regissörer för årets sedda filmer.",
+    },
+    "No release decade data.": {
+      sv: "Ingen information om premiärdecennier.",
+    },
+    "No release year data.": {
+      sv: "Ingen information om premiärår.",
+    },
+    "No rated films in this year.": {
+      sv: "Inga betygsatta filmer detta år.",
+    },
+    "No dated viewings in this month.": {
+      sv: "Inga daterade visningar denna månad.",
+    },
+    "No monthly data yet.": { sv: "Ingen månadsvis information ännu." },
+    "No director data yet.": {
+      sv: "Ingen information om regissörer ännu.",
+    },
+    "No release decade data yet.": {
+      sv: "Ingen information om premiärdecennier ännu.",
+    },
+    "No release year data yet.": {
+      sv: "Ingen information om premiärår ännu.",
+    },
+    "No rated films yet.": { sv: "Inga betygsatta filmer ännu." },
+    "Year-over-year comparison ({current} vs {previous})": {
+      sv: "Jämförelse mot föregående år ({current} mot {previous})",
+    },
+    "Current year ({year})": { sv: "Innevarande år ({year})" },
+    "Previous year ({year})": { sv: "Föregående år ({year})" },
+    Metric: { sv: "Mätvärde" },
+    Change: { sv: "Förändring" },
+    "Total watch time": { sv: "Total tittartid" },
+    Rewatches: { sv: "Omtittar" },
+    January: { sv: "Januari" },
+    February: { sv: "Februari" },
+    March: { sv: "Mars" },
+    April: { sv: "April" },
+    May: { sv: "Maj" },
+    June: { sv: "Juni" },
+    July: { sv: "Juli" },
+    August: { sv: "Augusti" },
+    September: { sv: "September" },
+    October: { sv: "Oktober" },
+    November: { sv: "November" },
+    December: { sv: "December" },
   };
 
   function readLocale() {

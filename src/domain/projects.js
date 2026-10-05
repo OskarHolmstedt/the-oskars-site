@@ -56,6 +56,11 @@ window.projectSourceHref = function (project) {
     return project.sourceHref || "completion.html#completion-watch-goals";
   if (project?.sourceType === "official-results")
     return project.sourceHref || "completion.html#completion-oscars";
+  if (project?.sourceType === "canonical-list")
+    return (
+      project.sourceHref ||
+      `completion.html#completion-canonical-list-${project.sourceId}`
+    );
   return "";
 };
 
@@ -224,6 +229,8 @@ window.projectSourceRecord = function (sourceType, sourceId) {
     return window.officialCollectionProjectSource?.(sourceId) || null;
   if (sourceType === "watch-goal")
     return window.watchGoalProjectSource?.(sourceId) || null;
+  if (sourceType === "canonical-list")
+    return window.canonicalListProjectSource?.(sourceId) || null;
   return null;
 };
 
@@ -233,14 +240,14 @@ window.projectSourceRecord = function (sourceType, sourceId) {
 // in ref.id (since #454, filmsById/findWatchedFilmById are keyed by the
 // real Supabase id whenever a film is Supabase-backed); "watchlist" refs
 // carry the watchlist row's own id instead, resolved through its
-// supabaseFilmId; "official" refs may resolve to either, or to neither
-// (a nomination never watched or watchlisted) - resolveProjectFilmRef
-// already does exactly this three-way resolution.
+// supabaseFilmId; "official" and "canonical" refs may resolve to either,
+// or to neither (a nomination/entry never watched or watchlisted) -
+// resolveProjectFilmRef already does exactly this resolution.
 function projectRefFilmId(ref) {
   if (ref?.type === "archive" || ref?.type === "watched") return ref.id;
   if (ref?.type === "watchlist")
     return window.findWatchlistItemById?.(ref.id)?.supabaseFilmId || null;
-  if (ref?.type === "official") {
+  if (ref?.type === "official" || ref?.type === "canonical") {
     let resolved = window.resolveProjectFilmRef(ref);
     if (!resolved) return null;
     return resolved.status === "watched"
@@ -580,6 +587,56 @@ window.resolveProjectFilmRef = function (ref, options = {}) {
       official,
       status: "watchlist",
       href: official.href,
+      rewatch: false,
+    };
+  }
+  if (ref?.type === "canonical") {
+    let parts = String(ref.id || "").split("::");
+    let listId = parts[0];
+    let rank = Number(parts[1]);
+    let completion = window.canonicalListCompletion?.(listId);
+    let item =
+      completion?.items?.find((i) => i.rank === rank) ||
+      (ref.title ? ref : null);
+    if (!item) return null;
+    if (item.watchedFilm) {
+      let film = item.watchedFilm;
+      return {
+        ref,
+        film,
+        canonicalItem: item,
+        status: "watched",
+        href: window.filmPageUrl(film.id),
+        rewatch: Boolean(film.wantToRewatch),
+      };
+    }
+    if (item.watchlistItem) {
+      let watchlistItem = item.watchlistItem;
+      let film =
+        window.watchlistFilmLike?.(watchlistItem, null) || watchlistItem;
+      return {
+        ref,
+        item: watchlistItem,
+        film,
+        canonicalItem: item,
+        status: "watchlist",
+        href: window.filmPageUrl(watchlistItem.supabaseFilmId),
+        rewatch: false,
+      };
+    }
+    return {
+      ref,
+      film: {
+        id: `canonical::${ref.id}`,
+        title: item.title,
+        year: item.year,
+        director: item.director || "",
+        awards: [],
+        poster: null,
+      },
+      canonicalItem: item,
+      status: "watchlist",
+      href: item.href || "",
       rewatch: false,
     };
   }

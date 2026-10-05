@@ -391,9 +391,9 @@
       </div>`;
           })
           .join("");
-        return `<section class="category-official-source" data-official-source="${categoryEscape(source.id)}" aria-label="${categoryEscape(source.name)}">
-        <header><span class="eyebrow">${categoryEscape(ui("Official results"))}</span><h2>${categoryEscape(source.name)}</h2></header>
-        <div class="category-official-source-history">${periodSections}</div>
+        return `<section class="category-official-source" data-official-source="${categoryEscape(source.id)}" aria-label="${categoryEscape(source.name)}" data-collapsible-section>
+        <header data-collapsible-heading><span class="eyebrow">${categoryEscape(ui("Official results"))}</span><h2>${categoryEscape(source.name)}</h2></header>
+        <div class="category-official-source-history" data-collapsible-body>${periodSections}</div>
       </section>`;
       })
       .join("");
@@ -587,8 +587,7 @@
       canEdit,
       escape: categoryEscape,
     })}
-    ${window.renderChronologyControl({ order: chronologyOrder, href: chronologyUrl(), escape: categoryEscape })}
-    <div class="category-view-toolbar"><fieldset class="category-view-controls"><legend>${categoryEscape(ui("View"))}</legend><label><input type="radio" name="categoryViewMode" value="rankings" ${viewMode === "rankings" ? "checked" : ""}> ${categoryEscape(ui("Full rankings"))}</label><label><input type="radio" name="categoryViewMode" value="progression" ${viewMode === "progression" ? "checked" : ""}> ${categoryEscape(ui("Progression"))}</label><label><input type="radio" name="categoryViewMode" value="official" ${viewMode === "official" ? "checked" : ""}> ${categoryEscape(ui("Official results"))}</label></fieldset>
+    <div class="category-view-toolbar collection-film-toolbar detail-toolbar"><div class="detail-toolbar-controls"><fieldset class="category-view-controls"><legend>${categoryEscape(ui("View"))}</legend><label><input type="radio" name="categoryViewMode" value="rankings" ${viewMode === "rankings" ? "checked" : ""}> ${categoryEscape(ui("Full rankings"))}</label><label><input type="radio" name="categoryViewMode" value="progression" ${viewMode === "progression" ? "checked" : ""}> ${categoryEscape(ui("Progression"))}</label><label><input type="radio" name="categoryViewMode" value="official" ${viewMode === "official" ? "checked" : ""}> ${categoryEscape(ui("Official results"))}</label></fieldset>${window.renderChronologyControl({ order: chronologyOrder, href: chronologyUrl(), escape: categoryEscape, iconOnly: true })}</div>
     ${
       viewMode === "rankings" || viewMode === "official"
         ? window.renderFilmViewToggle({

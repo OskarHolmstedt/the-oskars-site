@@ -98,6 +98,18 @@
     };
   };
 
+  /**
+   * Reads published other-user averages for complete-archive sorting.
+   * @returns {Promise<Record<string, {average: number, count: number}>>} Ratings by film id.
+   */
+  window.loadSupabaseFilmCommunityRatings = async function () {
+    let ready = await window.ensureSupabaseClient();
+    if (!ready) throw new Error("Supabase not configured.");
+    let { data, error } = await ready.client.rpc("read_film_community_ratings");
+    if (error) throw error;
+    return data || {};
+  };
+
   // Status counts and option lists don't depend on the filters: fetched
   // once per account, dropped whenever a write invalidates the archive.
   let facetsByUser = new Map();
@@ -161,10 +173,16 @@
     }
     let pageIds = data.pageIds || [];
     let source = await window.loadSupabaseFilmsSource(pageIds);
+    let records = window.buildFilmCatalogPageRecords(source, pageIds);
+    for (let film of records.films) {
+      let rating = data.communityRatings?.[film.supabaseFilmId || film.id];
+      film.communityRatingAverage = rating?.average ?? null;
+      film.communityRatingCount = rating?.count || 0;
+    }
     return {
       totalCount: Number(data.totalCount) || 0,
       facets,
-      ...window.buildFilmCatalogPageRecords(source, pageIds),
+      ...records,
     };
   };
 })();

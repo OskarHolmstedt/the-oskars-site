@@ -676,7 +676,7 @@
         classes: "person-official-table",
         wrapClasses: "person-official-table-wrap",
       });
-      return `<section class="person-official-awards" aria-labelledby="${headingId}"><div class="person-official-heading"><h2 id="${headingId}">${personPageEscape(sourceName)}</h2><span>${personPageEscape(ui("Official results"))}</span></div>${window.renderDetailStats({ itemsHtml: `<span><b>${record.wins}</b> ${personPageEscape(ui(record.wins === 1 ? "Win" : "Wins"))}</span><span><b>${record.nominations}</b> ${personPageEscape(ui(record.nominations === 1 ? "Nomination" : "Nominations"))}</span>` })}${table}</section>`;
+      return `<section class="person-official-awards" aria-labelledby="${headingId}" data-collapsible-section><div class="person-official-heading" data-collapsible-heading><h2 id="${headingId}">${personPageEscape(sourceName)}</h2><span>${personPageEscape(ui("Official results"))}</span></div><div data-collapsible-body>${window.renderDetailStats({ itemsHtml: `<span><b>${record.wins}</b> ${personPageEscape(ui(record.wins === 1 ? "Win" : "Wins"))}</span><span><b>${record.nominations}</b> ${personPageEscape(ui(record.nominations === 1 ? "Nomination" : "Nominations"))}</span>` })}${table}</div></section>`;
     }
 
     function renderPersonAwardRows(periodAwards) {
@@ -1070,8 +1070,7 @@
       ${heroEmptyStateText ? `<p class="person-hero-empty">${personPageEscape(heroEmptyStateText)}</p>` : ""}
       ${signatureFilmsHtml}
       <div class="person-hero-metrics">${personMetadataHtml ? `<dl class="film-metadata">${personMetadataHtml}</dl>` : ""}
-      ${personStatsHtml}</div>
-      ${window.renderSupabaseEntityNote({ entityKind: "person", entityKey: window.personStorageKey(person), note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Person note"), escape: personPageEscape })}`,
+      ${personStatsHtml}</div>`,
       actionsHtml: [
         isDirector && canEdit
           ? `<a class="button-link" href="${personPageEscape(window.collectionBallotUrl("director", window.personStorageKey(person)))}">${personPageEscape(ui("Build your Oskars"))}</a>`
@@ -1091,7 +1090,8 @@
         .filter(Boolean)
         .join(""),
     })}
-  ${isDirector ? collectionViewControlsHtml() : ""}
+    ${window.renderSupabaseEntityNote({ entityKind: "person", entityKey: window.personStorageKey(person), note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Person note"), escape: personPageEscape })}
+    ${isDirector ? collectionViewControlsHtml() : ""}
   <div data-collection-page-view="films" ${collectionPageView === "films" ? "" : "hidden"}>
   <h2 id="person-filmography">${personPageEscape(ui("Filmography"))}</h2>
   <div class="person-filmography-toolbar collection-film-toolbar detail-toolbar"><div class="detail-toolbar-controls">${personSortAxisControl}${window.renderChronologyControl({ order: chronologyOrder, href: personViewUrl(chronologyOrder === "asc" ? "desc" : "asc", personReverseTargetSort), ascLabel: reverseLabel, descLabel: reverseLabel, title: ui("Reverse current order"), escape: personPageEscape, iconOnly: true })}${window.renderShuffleControl({ href: personViewUrl(chronologyOrder, "shuffle", filmographyView, window.freshShuffleSeed()), escape: personPageEscape, label: ui("Shuffle") })}${watchlistItems.length ? window.renderCombinedSectionsControl({ combined: combinedView, href: personViewUrl(chronologyOrder, filmographySort, filmographyView, filmographySeed, combinedView ? "split" : "combined"), escape: personPageEscape }) : ""}${personSortNote}</div>${window.renderFilmViewToggle(
