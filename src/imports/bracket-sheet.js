@@ -21,12 +21,13 @@ window.bracketPeriodFromMeta = function (type, value) {
         ? "allTime"
         : "years";
 
+  let periodStart = value.match(/\d{4}/)?.[0];
   let year =
     periodType === "allTime"
       ? "alltime"
       : periodType === "years"
         ? value
-        : `${value.replace(/s$/, "")}s`;
+        : `${periodStart || value.replace(/s$/, "")}s`;
 
   return { periodType, year };
 };
@@ -84,6 +85,21 @@ window.splitBracketSheetBlocks = function (rows, options = {}) {
     ];
   }
 
+  // Position and Period are the parser's two identifying columns; category
+  // fields remain matched by their header names.
+  let sourceHeader = rows[headerIndex];
+  let positionCol = sourceHeader.findIndex(
+    (cell) => clean(cell) === "Position",
+  );
+  let periodCol = metaColumn(sourceHeader);
+  let order = [
+    positionCol,
+    periodCol,
+    ...sourceHeader
+      .map((_, index) => index)
+      .filter((index) => index !== positionCol && index !== periodCol),
+  ];
+  rows = rows.map((row) => order.map((index) => row[index] ?? ""));
   let header = rows[headerIndex];
   let metaCol = metaColumn(header);
 

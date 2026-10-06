@@ -5,14 +5,16 @@
   let ui = window.uiText || ((text) => text);
   let container = document.getElementById("buildPage");
   let journeyYears = [];
+  // Director and franchise ceremonies load after the year map renders.
+  let collectionCeremonies = { loading: true };
 
   function stageLabel(stage) {
     return ui(
       {
         rating: "Needs ratings",
         ranking: "Ready to rank",
-        awards: "Build the ceremony",
-        complete: "Year complete",
+        awards: "Ready for ceremony",
+        complete: "Complete",
       }[stage],
     );
   }
@@ -120,6 +122,81 @@
     </article>`;
   }
 
+  function collectionCeremonyCard(ceremony, suggested) {
+    let pill = suggested
+      ? ["awards", ui("Ready for ceremony")]
+      : ceremony.complete
+        ? ["complete", ui("Complete")]
+        : [
+            "ranking",
+            ui("{reviewed}/{total} categories", {
+              reviewed: ceremony.reviewed,
+              total: ceremony.total,
+            }),
+          ];
+    let action = suggested
+      ? ui("Hold ceremony")
+      : ceremony.complete
+        ? ui("View ceremony")
+        : ui("Continue ceremony");
+    return `<article class="build-collection-card" data-build-collection="${escape(ceremony.type)}">
+      <a class="build-collection-card-visual" href="${escape(ceremony.href)}" aria-label="${escape(`${action}: ${ceremony.name}`)}">${window.renderPosterDeck(ceremony.films.slice(0, 5))}</a>
+      <div class="build-collection-card-body">
+        <span class="eyebrow">${escape(ui(ceremony.type === "director" ? "Director" : "Franchise"))}</span>
+        <h3><a href="${escape(ceremony.href)}">${escape(ceremony.name)}</a></h3>
+        <span class="build-stage-pill build-stage-pill--${pill[0]}">${escape(pill[1])}</span>
+        <p>${escape(ui(ceremony.filmCount === 1 ? "{count} watched film" : "{count} watched films", { count: ceremony.filmCount }))}</p>
+        <a class="build-year-action-secondary" href="${escape(ceremony.href)}">${escape(action)} →</a>
+      </div>
+    </article>`;
+  }
+
+  function collectionCeremoniesHtml() {
+    let body;
+    if (collectionCeremonies.loading)
+      body = `<p role="status">${escape(ui("Loading collection ceremonies…"))}</p>`;
+    else if (collectionCeremonies.error)
+      body = `<p role="alert">${escape(ui("Could not load collection ceremonies."))} <button type="button" class="link-button" data-build-collections-retry>${escape(ui("Try again"))}</button></p>`;
+    else {
+      let { saved, suggested } = collectionCeremonies.model;
+      if (!saved.length && !suggested.length) return "";
+      body = `<div class="build-collection-grid">${saved.map((ceremony) => collectionCeremonyCard(ceremony, false)).join("")}${suggested.map((ceremony) => collectionCeremonyCard(ceremony, true)).join("")}</div>`;
+    }
+    return `<section class="build-collections" aria-labelledby="buildCollectionsHeading"><div class="build-section-heading"><h2 id="buildCollectionsHeading">${escape(ui("Collection ceremonies"))}</h2><p>${escape(ui("Director and franchise awards from your own watched films."))}</p></div>${body}</section>`;
+  }
+
+  function loadCollectionCeremonies() {
+    collectionCeremonies = { loading: true };
+    let finish = window.startOskarsPerformance?.("build:collections");
+    window
+      .loadSupabaseCollectionCeremonySource()
+      .then((source) => {
+        collectionCeremonies = {
+          model: window.buildCollectionCeremonies(source, {
+            categories: window.getOrderedCategories?.() || [],
+          }),
+        };
+      })
+      .catch((error) => {
+        collectionCeremonies = { error: error.message || String(error) };
+      })
+      .then(() => {
+        refreshCollectionCeremonies();
+        let model = collectionCeremonies.model;
+        finish?.(
+          model
+            ? `${model.saved.length} saved, ${model.suggested.length} suggested`
+            : "failed",
+        );
+      });
+  }
+
+  // Updates only this section, so the year map isn't rendered twice.
+  function refreshCollectionCeremonies() {
+    let section = container.querySelector("[data-build-collections]");
+    if (section) section.innerHTML = collectionCeremoniesHtml();
+  }
+
   function filterUrl(stage) {
     return stage === "all" ? "build.html" : `build.html?stage=${stage}`;
   }
@@ -222,7 +299,7 @@
       ["all", ui("All years")],
       ["rating", ui("Needs ratings")],
       ["ranking", ui("Ready to rank")],
-      ["awards", ui("Ceremonies")],
+      ["awards", ui("Ready for ceremony")],
       ["complete", ui("Complete")],
     ]
       .map(
@@ -258,13 +335,19 @@
       </section>
       ${renderMilestone(milestone)}
       ${recommendation ? `<section class="build-continue-card"><div><span class="eyebrow">${escape(ui("Continue your journey"))}</span><h2>${escape(recommendation.year)}</h2><p>${escape(stageLabel(recommendation.stage))} · ${escape(recommendation.ratedCount)} / ${escape(recommendation.totalCount)} ${escape(ui("rated"))}</p><div class="build-year-card-actions"><a class="button-link" href="${escape(recommendationAction.href)}">${escape(recommendationAction.label)} →</a>${recommendationSecondary ? `<a class="build-year-action-secondary" href="${escape(recommendationSecondary.href)}">${escape(recommendationSecondary.label)} →</a>` : ""}</div></div>${window.renderPosterDeck(recommendation.posterFilms, { classes: "poster-deck--featured", priority: "high" })}</section>` : ""}
-      <section><div class="build-year-grid">${visible.map((year, index) => yearCard(year, index)).join("") || `<p class="detail-empty">${escape(ui("No years at this stage."))}</p>`}</div></section>`;
+      <div data-build-collections>${collectionCeremoniesHtml()}</div>
+      <section class="build-years" aria-labelledby="buildYearsHeading"><div class="build-section-heading"><h2 id="buildYearsHeading">${escape(ui("Annual ceremonies"))}</h2></div><div class="build-year-grid">${visible.map((year, index) => yearCard(year, index)).join("") || `<p class="detail-empty">${escape(ui("No years at this stage."))}</p>`}</div></section>`;
     finish?.(
       `${years.length} years, ${visible.length} shown, ${recommendation?.year || "complete"}`,
     );
   }
 
   container.addEventListener("click", (event) => {
+    if (event.target.closest("[data-build-collections-retry]")) {
+      loadCollectionCeremonies();
+      refreshCollectionCeremonies();
+      return;
+    }
     let dismiss = event.target.closest("[data-build-milestone-dismiss]");
     if (!dismiss) return;
     let milestone = dismiss.closest("[data-build-milestone]");
@@ -300,6 +383,7 @@
         window.getOrderedCategories?.() || [],
       );
       render();
+      loadCollectionCeremonies();
     } catch (error) {
       container.innerHTML = `<section class="detail-empty"><h2>${escape(ui("Could not load your journey"))}</h2><p>${escape(error.message || String(error))}</p></section>`;
     }

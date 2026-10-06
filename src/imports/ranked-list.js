@@ -75,7 +75,7 @@ function parseRankedList(raw, options = {}) {
       ? 4
       : 3;
   let rankIndex = columns
-    ? columnIndex(["fixed rank"])
+    ? columnIndex(["rank", "fixed rank"])
     : rankPrefixedRows
       ? 0
       : -1;

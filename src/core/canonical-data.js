@@ -54,6 +54,8 @@ const CANONICAL_FILM_FIELDS = new Set([
   "dateWatched",
   "decadeRank",
   "director",
+  "directorIds",
+  "directorUncredited",
   "directors",
   "franchises",
   "genre",
@@ -83,6 +85,9 @@ const CANONICAL_FILM_FIELDS = new Set([
   "screenplayType",
   "suppressAllTimeRank",
   "swedishTitle",
+  "supabaseFilmId",
+  "supabaseWatchedId",
+  "supabaseWatchedUpdatedAt",
   "tags",
   "title",
   "tmdbId",
@@ -99,6 +104,8 @@ const CANONICAL_WATCHLIST_FIELDS = new Set([
   "adaptationSource",
   "country",
   "director",
+  "directorIds",
+  "directorUncredited",
   "directors",
   "franchises",
   "id",
@@ -109,6 +116,9 @@ const CANONICAL_WATCHLIST_FIELDS = new Set([
   "poster",
   "runtimeMinutes",
   "screenplayType",
+  "supabaseFilmId",
+  "supabaseWatchlistPosition",
+  "supabaseWatchlistUpdatedAt",
   "swedishTitle",
   "tags",
   "tier",
@@ -482,7 +492,7 @@ function canonicalValidateAwards(errors, awards, path) {
           errors,
           recipient,
           recipientPath,
-          new Set(["name", "personId"]),
+          new Set(["name", "personId", "supabasePersonId"]),
         );
         canonicalCheckString(
           errors,
@@ -495,6 +505,16 @@ function canonicalValidateAwards(errors, awards, path) {
           recipient.personId,
           `${recipientPath}.personId`,
         );
+        if (
+          recipient.supabasePersonId !== undefined &&
+          recipient.supabasePersonId !== null
+        ) {
+          canonicalCheckString(
+            errors,
+            recipient.supabasePersonId,
+            `${recipientPath}.supabasePersonId`,
+          );
+        }
       });
     }
   });
@@ -516,6 +536,30 @@ function canonicalValidateFilm(errors, film, path, allowed) {
     )
       canonicalError(errors, `${path}.${field}`, "must be an array of strings");
   });
+  if (
+    film.directorIds !== undefined &&
+    film.directorIds !== null &&
+    (!Array.isArray(film.directorIds) ||
+      film.directorIds.some(
+        (value) => value !== null && typeof value !== "string",
+      ))
+  )
+    canonicalError(
+      errors,
+      `${path}.directorIds`,
+      "must be an array of strings or nulls",
+    );
+  if (
+    film.directorUncredited !== undefined &&
+    film.directorUncredited !== null &&
+    (!Array.isArray(film.directorUncredited) ||
+      film.directorUncredited.some((value) => typeof value !== "boolean"))
+  )
+    canonicalError(
+      errors,
+      `${path}.directorUncredited`,
+      "must be an array of booleans",
+    );
   [
     "adaptation",
     "adaptationSource",
@@ -534,6 +578,11 @@ function canonicalValidateFilm(errors, film, path, allowed) {
     "ratingModifier",
     "review",
     "screenplayType",
+    "supabaseFilmId",
+    "supabaseWatchedId",
+    "supabaseWatchedUpdatedAt",
+    "supabaseWatchlistPosition",
+    "supabaseWatchlistUpdatedAt",
     "swedishTitle",
     "tmdbId",
     "type",
@@ -1665,6 +1714,8 @@ const CANONICAL_PRIVATE_FILM_FIELDS = new Set([
   "review",
   "rewatchTier",
   "rewatchTierModifier",
+  "supabaseWatchedId",
+  "supabaseWatchedUpdatedAt",
   "views",
   "wantToRewatch",
 ]);
@@ -1680,6 +1731,8 @@ const CANONICAL_PUBLIC_FILM_FIELDS = new Set([
   "country",
   "decadeRank",
   "director",
+  "directorIds",
+  "directorUncredited",
   "directors",
   "franchises",
   "id",
@@ -1701,6 +1754,7 @@ const CANONICAL_PUBLIC_FILM_FIELDS = new Set([
   "screenplayType",
   "suppressAllTimeRank",
   "swedishTitle",
+  "supabaseFilmId",
   "tags",
   "title",
   "tmdbId",

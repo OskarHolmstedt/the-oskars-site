@@ -49,6 +49,6 @@
   window.renderRatingStatisticsItems = function (statistics, options) {
     let escape = options.escape;
     let ui = options.ui || ((text) => text);
-    return `<span><b>${escape(window.formatAverageRating(statistics.mean))}</b> ${escape(ui("average rating"))}</span><span><b>${escape(window.formatRatingStatistic(statistics.standardDeviation))}</b> ${escape(ui("standard deviation"))}</span><span><b>${escape(`${statistics.ratedCount}/${statistics.totalCount}`)}</b> ${escape(ui("rated"))}<small>${escape(statistics.coveragePercent)}% ${escape(ui("coverage"))}</small></span>`;
+    return `<span><b>${window.formatAverageRatingHtml(statistics.mean, { escape })}</b> ${escape(ui("average rating"))}</span><span><b>${escape(window.formatRatingStatistic(statistics.standardDeviation))}</b> ${escape(ui("standard deviation"))}</span><span><b>${escape(`${statistics.ratedCount}/${statistics.totalCount}`)}</b> ${escape(ui("rated"))}<small>${escape(statistics.coveragePercent)}% ${escape(ui("coverage"))}</small></span>`;
   };
 })();

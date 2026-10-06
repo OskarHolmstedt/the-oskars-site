@@ -662,6 +662,8 @@
   let compactWatchlistRequestId = 0;
   let compactWatchlistError = null;
   let watchlistHydrationPromise = null;
+  const WATCHLIST_UP_NEXT_SIZE = 5;
+  let compactUpNext = { key: null, entries: [], loading: false };
 
   /**
    * Resolves once window.state holds the complete watchlist (issue #598).
@@ -746,6 +748,59 @@
         compactWatchlistError = error;
         render();
       });
+  }
+
+  /**
+   * Returns the top of the current watchlist filters in interest order,
+   * whatever the view's own sort and page. In compact mode a view that isn't
+   * already on page 1 of interest order reads those five rows separately.
+   * @param {Object} filters Current watchlist filters.
+   * @param {Object[]} entries Entries the view is rendering.
+   * @returns {{entries: Object[], loading?: boolean}}
+   */
+  function watchlistUpNext(filters, entries) {
+    let interestOrder =
+      filters.order === "rank" && filters.direction !== "desc";
+    let interestFirstPage = interestOrder && filmPage === 1;
+    if (!watchlistCompactActive) {
+      let ordered = interestOrder
+        ? entries
+        : window.periodWatchlistEntries({
+            ...filters,
+            order: "rank",
+            direction: "asc",
+          });
+      return { entries: ordered.slice(0, WATCHLIST_UP_NEXT_SIZE) };
+    }
+    if (!compactWatchlistModel) return { entries: [], loading: true };
+    if (interestFirstPage)
+      return {
+        entries: compactWatchlistModel.page.slice(0, WATCHLIST_UP_NEXT_SIZE),
+      };
+    let upNextFilters = {
+      ...filters,
+      order: "rank",
+      direction: "asc",
+      shuffleSeed: "",
+    };
+    let key = JSON.stringify(upNextFilters);
+    if (compactUpNext.key !== key) {
+      compactUpNext = { key, entries: [], loading: true };
+      window
+        .loadSupabaseWatchlistPage(upNextFilters, {
+          limit: WATCHLIST_UP_NEXT_SIZE,
+          offset: 0,
+          includeIds: false,
+        })
+        .then((model) => model.page)
+        .catch(() => [])
+        .then((upNextEntries) => {
+          if (compactUpNext.key !== key) return;
+          compactUpNext = { key, entries: upNextEntries, loading: false };
+          render();
+        });
+    }
+    return compactUpNext;
   }
 
   function periodViewStateValues() {
@@ -972,7 +1027,7 @@
 
   function renderOtherWatchedList(films) {
     if (!films.length)
-      return `<div class="detail-empty"><p>${periodEscape(ui("No other watched entries in this period."))}</p></div>`;
+      return `<div class="detail-empty"><p>${periodEscape(ui("No shorts, documentaries or TV watched in this period."))}</p></div>`;
     let rows = films
       .map(
         (film) =>
@@ -1070,10 +1125,10 @@
   function sharedArchiveEmptyHtml() {
     let status = window.OSKARS_SHARED_FILM_ARCHIVE_STATUS;
     if (status === "loading" || status === "idle")
-      return `<p class="detail-empty">${periodEscape(ui("Loading unseen films…"))}</p>`;
+      return `<p class="detail-empty">${periodEscape(ui("Loading other films…"))}</p>`;
     if (sharedSearch)
-      return `<p class="detail-empty">${periodEscape(ui("No unseen films match this search."))}</p>`;
-    return `<p class="detail-empty">${periodEscape(ui("No unseen films in this period."))}</p>`;
+      return `<p class="detail-empty">${periodEscape(ui("No other films match this search."))}</p>`;
+    return `<p class="detail-empty">${periodEscape(ui("Every film in this period is watched or on your watchlist."))}</p>`;
   }
 
   function shortenCredit(value, maxLength = 56) {
@@ -1675,18 +1730,63 @@
             pageSize: FILMS_PER_PAGE,
           })
         : "";
-    let watchlistCards = visibleWatchlistPage
-      .map((entry, visibleIndex) =>
-        window.renderWatchlistCard(entry, visibleIndex, {
-          tierEditMode,
-          watchlistOrderEditMode,
-          periodOrder,
-          periodRank: (filmPage - 1) * FILMS_PER_PAGE + visibleIndex + 1,
-          escape: periodEscape,
-          ui,
-        }),
-      )
-      .join("");
+    let renderWatchlistGridCard = (entry, visibleIndex) =>
+      window.renderWatchlistCard(entry, visibleIndex, {
+        tierEditMode,
+        watchlistOrderEditMode,
+        periodOrder,
+        periodRank: (filmPage - 1) * FILMS_PER_PAGE + visibleIndex + 1,
+        escape: periodEscape,
+        ui,
+      });
+    let renderWatchlistListRow = (entry, visibleIndex) =>
+      window.renderWatchlistRow(entry, visibleIndex, {
+        tierEditMode,
+        watchlistOrderEditMode,
+        periodRank: (filmPage - 1) * FILMS_PER_PAGE + visibleIndex + 1,
+        escape: periodEscape,
+      });
+    // Tier shelves follow interest order only, and stay out of the edit
+    // modes so drag-and-drop indexing sees plain cards.
+    let watchlistShelfTotals =
+      viewMode === "watchlist" &&
+      periodOrder === "rank" &&
+      !tierEditMode &&
+      !watchlistOrderEditMode
+        ? window.watchlistTierCounts(watchlistFilters, {
+            tierCounts: watchlistCompactActive
+              ? compactWatchlistModel?.tierCounts
+              : undefined,
+          })
+        : null;
+    let watchlistItemsHtml = (renderEntry, layout) =>
+      watchlistShelfTotals
+        ? window.renderWatchlistTierShelves(visibleWatchlistPage, renderEntry, {
+            counts: watchlistShelfTotals,
+            layout,
+            escape: periodEscape,
+            ui,
+          })
+        : visibleWatchlistPage.map(renderEntry).join("");
+    let watchlistCards =
+      viewMode === "watchlist" && layout === "grid"
+        ? watchlistItemsHtml(renderWatchlistGridCard, "grid")
+        : "";
+    let watchlistRows =
+      viewMode === "watchlist" && layout !== "grid"
+        ? watchlistItemsHtml(renderWatchlistListRow, "list")
+        : "";
+    let watchlistUpNextHtml =
+      viewMode === "watchlist"
+        ? (() => {
+            let upNext = watchlistUpNext(watchlistFilters, watchlistEntries);
+            return window.renderWatchlistUpNext(upNext.entries, {
+              loading: upNext.loading,
+              escape: periodEscape,
+              ui,
+            });
+          })()
+        : "";
     finishCardsTimer?.(
       `${visibleFilmPage.length} film record(s), ${visibleWatchlistPage.length} watchlist record(s), ${awards.length} award row(s)`,
     );
@@ -1766,8 +1866,8 @@
       viewMode === "official"
         ? `<span><b>${officialNominations.length}</b> ${periodEscape(ui("Official nominations"))}</span><span><b>${officialNominations.filter((entry) => entry.winner).length}</b> ${periodEscape(ui("Official winners"))}</span>${officialAgreementSummaryHtml}`
         : viewMode === "shared"
-          ? `<span><b>${films.length}</b> ${periodEscape(ui("Unseen films"))}</span><span>${periodEscape(ui("Not watched or watchlisted"))}</span>`
-          : `<span><b>${viewMode === "watchlist" ? watchlistFilteredCount : films.length}</b> ${periodEscape(viewMode === "watchlist" ? "Watchlist" : viewMode === "rewatch" ? ui("Rewatchlist") : viewMode === "other" ? ui("Other watched") : ui("Films"))}</span>${viewMode === "other" ? "" : `<span><b>${awards.length}</b> ${periodEscape(ui("Nominations"))}</span>`}${viewMode === "awards" ? officialAgreementSummaryHtml : ""}${viewMode === "films" ? window.renderRatingStatisticsItems(periodRatingStatistics, { escape: periodEscape, ui }) : viewMode === "other" ? window.renderRatingStatisticsItems(otherRatingStatistics, { escape: periodEscape, ui }) : ""}`;
+          ? `<span><b>${films.length}</b> ${periodEscape(ui("Other films"))}</span><span>${periodEscape(ui("Not watched or watchlisted"))}</span>`
+          : `<span><b>${viewMode === "watchlist" ? watchlistFilteredCount : films.length}</b> ${periodEscape(viewMode === "watchlist" ? "Watchlist" : viewMode === "rewatch" ? ui("Rewatchlist") : viewMode === "other" ? ui("Shorts, docs & TV") : ui("Films"))}</span>${viewMode === "other" ? "" : `<span><b>${awards.length}</b> ${periodEscape(ui("Nominations"))}</span>`}${viewMode === "awards" ? officialAgreementSummaryHtml : ""}${viewMode === "films" ? window.renderRatingStatisticsItems(periodRatingStatistics, { escape: periodEscape, ui }) : viewMode === "other" ? window.renderRatingStatisticsItems(otherRatingStatistics, { escape: periodEscape, ui }) : ""}`;
     let ceremonyActionHtml =
       hasNominees && (viewMode === "awards" || viewMode === "official")
         ? `<a class="button-link" href="presentation.html?scope=period&amp;id=${periodEscape(encodeURIComponent(`${type}:${key}`))}&amp;section=ceremony">${periodEscape(ui("Run ceremony"))}</a>`
@@ -1779,7 +1879,7 @@
       "rewatch",
       "watchlist",
     ].includes(viewMode)
-      ? `<div class="detail-toolbar">${periodOrderControls()}<div class="period-toolbar-actions">${viewMode === "shared" ? `<label class="period-shared-search">${periodEscape(ui("Search unseen films"))}<input type="search" value="${periodEscape(sharedSearch)}" placeholder="${periodEscape(ui("Title or director"))}" data-period-shared-search></label>` : ""}${viewMode === "films" ? `<button type="button" class="sort-order-button sort-order-button--icon period-film-scope-toggle${scope === "all" ? " is-active" : ""}" title="${periodEscape(ui(scope === "all" ? "Showing all films" : "Showing nominees only"))}" aria-label="${periodEscape(ui("Toggle films shown"))}" aria-pressed="${scope === "all" ? "true" : "false"}" data-period-film-scope-toggle ${hasNominees ? "" : "disabled"}>${periodEscape(ui("All"))}</button>` : ""}${(viewMode === "films" || viewMode === "rewatch") && layout === "grid" ? `<a class="sort-order-button" href="${periodEscape(periodViewUrl({ showAwards: !showAwards }))}">${periodEscape(showAwards ? ui("Hide awards") : ui("Show awards"))}</a>` : ""}${viewMode === "shared" ? "" : window.renderFilmViewToggle({ view: layout, listUrl: periodViewUrl({ layout: "list" }), gridUrl: periodViewUrl({ layout: "grid" }), escape: periodEscape, classes: "period-film-view-toggle", ariaLabel: ui("Period film display") })}</div></div>`
+      ? `<div class="detail-toolbar">${periodOrderControls()}<div class="period-toolbar-actions">${viewMode === "shared" ? `<label class="period-shared-search">${periodEscape(ui("Search other films"))}<input type="search" value="${periodEscape(sharedSearch)}" placeholder="${periodEscape(ui("Title or director"))}" data-period-shared-search></label>` : ""}${viewMode === "films" ? `<button type="button" class="sort-order-button sort-order-button--icon period-film-scope-toggle${scope === "all" ? " is-active" : ""}" title="${periodEscape(ui(scope === "all" ? "Showing all films" : "Showing nominees only"))}" aria-label="${periodEscape(ui("Toggle films shown"))}" aria-pressed="${scope === "all" ? "true" : "false"}" data-period-film-scope-toggle ${hasNominees ? "" : "disabled"}>${periodEscape(ui("All"))}</button>` : ""}${(viewMode === "films" || viewMode === "rewatch") && layout === "grid" ? `<a class="sort-order-button" href="${periodEscape(periodViewUrl({ showAwards: !showAwards }))}">${periodEscape(showAwards ? ui("Hide awards") : ui("Show awards"))}</a>` : ""}${viewMode === "shared" ? "" : window.renderFilmViewToggle({ view: layout, listUrl: periodViewUrl({ layout: "list" }), gridUrl: periodViewUrl({ layout: "grid" }), escape: periodEscape, classes: "period-film-view-toggle", ariaLabel: ui("Period film display") })}</div></div>`
       : "";
     let viewModeDescription = {
       shared: ui(
@@ -1813,8 +1913,9 @@
     ${viewMode === "films" || viewMode === "awards" ? (window.renderPeriodThresholdBadges ? window.renderPeriodThresholdBadges(allFilms, { escape: periodEscape, ui, periodType: type }) : "") : ""}
     ${viewMode === "films" || viewMode === "awards" ? renderPeriodHighlights() : ""}
     ${viewMode === "films" ? renderRatingHistogram() : ""}
-    <fieldset class="period-view-controls" aria-label="${periodEscape(ui("View"))}"><legend>${periodEscape(ui("View"))}</legend><label class="period-view-pill${viewMode === "films" ? " is-active" : ""}"><input type="radio" name="periodViewMode" value="films" ${viewMode === "films" ? "checked" : ""}> ${periodEscape(ui("Watched"))}</label><label class="period-view-pill${viewMode === "watchlist" ? " is-active" : ""}"><input type="radio" name="periodViewMode" value="watchlist" ${viewMode === "watchlist" ? "checked" : ""}> Watchlist</label>${canEdit ? `<label class="period-view-pill${viewMode === "shared" ? " is-active" : ""}"><input type="radio" name="periodViewMode" value="shared" ${viewMode === "shared" ? "checked" : ""}> ${periodEscape(ui("Unseen"))}</label>` : ""}<label class="period-view-pill${viewMode === "rewatch" ? " is-active" : ""}"><input type="radio" name="periodViewMode" value="rewatch" ${viewMode === "rewatch" ? "checked" : ""}> ${periodEscape(ui("Rewatchlist"))}</label><label class="period-view-pill${viewMode === "other" ? " is-active" : ""}"><input type="radio" name="periodViewMode" value="other" ${viewMode === "other" ? "checked" : ""}> ${periodEscape(ui("Other watched"))}</label><label class="period-view-pill${viewMode === "awards" ? " is-active" : ""}${hasNominees ? "" : " is-disabled"}"><input type="radio" name="periodViewMode" value="awards" ${viewMode === "awards" ? "checked" : ""} ${hasNominees ? "" : "disabled"}> ${periodEscape(ui("Award bracket"))}</label>${type === "year" ? `<label class="period-view-pill${viewMode === "official" ? " is-active" : ""}${hasOfficialResults ? "" : " is-disabled"}"><input type="radio" name="periodViewMode" value="official" ${viewMode === "official" ? "checked" : ""} ${hasOfficialResults ? "" : "disabled"}> ${periodEscape(ui("Official results"))}</label>` : ""}</fieldset>
+    <fieldset class="period-view-controls" aria-label="${periodEscape(ui("View"))}"><legend>${periodEscape(ui("View"))}</legend><label class="period-view-pill${viewMode === "films" ? " is-active" : ""}"><input type="radio" name="periodViewMode" value="films" ${viewMode === "films" ? "checked" : ""}> ${periodEscape(ui("Watched"))}</label><label class="period-view-pill${viewMode === "watchlist" ? " is-active" : ""}"><input type="radio" name="periodViewMode" value="watchlist" ${viewMode === "watchlist" ? "checked" : ""}> Watchlist</label>${canEdit ? `<label class="period-view-pill${viewMode === "shared" ? " is-active" : ""}"><input type="radio" name="periodViewMode" value="shared" ${viewMode === "shared" ? "checked" : ""}> ${periodEscape(ui("Other"))}</label>` : ""}<label class="period-view-pill${viewMode === "rewatch" ? " is-active" : ""}"><input type="radio" name="periodViewMode" value="rewatch" ${viewMode === "rewatch" ? "checked" : ""}> ${periodEscape(ui("Rewatchlist"))}</label><label class="period-view-pill${viewMode === "other" ? " is-active" : ""}"><input type="radio" name="periodViewMode" value="other" ${viewMode === "other" ? "checked" : ""}> ${periodEscape(ui("Shorts, docs & TV"))}</label><label class="period-view-pill${viewMode === "awards" ? " is-active" : ""}${hasNominees ? "" : " is-disabled"}"><input type="radio" name="periodViewMode" value="awards" ${viewMode === "awards" ? "checked" : ""} ${hasNominees ? "" : "disabled"}> ${periodEscape(ui("Award bracket"))}</label>${type === "year" ? `<label class="period-view-pill${viewMode === "official" ? " is-active" : ""}${hasOfficialResults ? "" : " is-disabled"}"><input type="radio" name="periodViewMode" value="official" ${viewMode === "official" ? "checked" : ""} ${hasOfficialResults ? "" : "disabled"}> ${periodEscape(ui("Official results"))}</label>` : ""}</fieldset>
     ${viewModeDescriptionHtml}
+    ${watchlistUpNextHtml}
     ${viewMode === "awards" && canEditBracket && canEdit ? `<details class="period-secondary-controls period-maintenance-controls"${editMode ? " open" : ""}><summary>${periodEscape(ui("Edit bracket"))}</summary><div>${periodEditControls()}</div></details>` : ""}
     ${viewMode === "films" && (decadeMergeControls() || rankingEditControls()) ? `<details class="period-secondary-controls period-maintenance-controls"${rankingEditMode ? " open" : ""}><summary>${periodEscape(ui("Edit period"))}</summary><div>${decadeMergeControls()}${rankingEditControls()}</div></details>` : ""}
     ${viewMode === "watchlist" && watchlistNonEmptyForUi && watchlistEditControls() ? `<details class="period-secondary-controls period-maintenance-controls"${tierEditMode || watchlistOrderEditMode ? " open" : ""}><summary>${periodEscape(ui("Edit watchlist"))}</summary><div>${watchlistEditControls()}</div></details>` : ""}
@@ -1846,12 +1947,12 @@
           : viewMode === "rewatch"
             ? `${renderRewatchTierFilter()}<fieldset class="period-filter-controls"><legend>${periodEscape(ui("Rewatchlist filters"))}</legend>${filmRuntimeFilterInputsHtml()}</fieldset>${pagination}${pageTotal ? (layout === "grid" ? `<div class="film-grid period-film-grid">${filmCards}</div>` : renderPeriodFilmList(visibleFilmPage, { showRewatchTier: true })) : `<p class="detail-empty">${periodEscape(ui("No films are marked for rewatch yet."))}</p>`}${pagination}`
             : viewMode === "other"
-              ? `${pagination}${pageTotal ? (layout === "grid" ? `<div class="film-grid period-film-grid">${otherCards}</div>` : renderOtherWatchedList(visibleFilmPage)) : `<p class="detail-empty">${periodEscape(ui("No other watched entries in this period."))}</p>`}${pagination}`
+              ? `${pagination}${pageTotal ? (layout === "grid" ? `<div class="film-grid period-film-grid">${otherCards}</div>` : renderOtherWatchedList(visibleFilmPage)) : `<p class="detail-empty">${periodEscape(ui("No shorts, documentaries or TV watched in this period."))}</p>`}${pagination}`
               : viewMode === "films"
                 ? `${renderFilmFilterControls(sourceOptions, countryOptions)}
       ${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid">${filmCards}</div>` : renderPeriodFilmList(visibleFilmPage)}${pagination}${unrankedPeriodSectionHtml()}`
                 : viewMode === "watchlist"
-                  ? `${window.renderAddWatchlistForm({ escape: periodEscape, ui, open: !watchlistNonEmptyForUi })}${window.watchlistSubPeriodControls(watchlistFilters, { escape: periodEscape, ui, subPeriodCounts: watchlistCompactActive ? compactWatchlistModel?.subPeriodCounts : undefined })}${window.renderWatchlistTierFilter(watchlistFilters, { escape: periodEscape, ui, tierCounts: watchlistCompactActive ? compactWatchlistModel?.tierCounts : undefined })}${window.watchlistFilterControls(watchlistFilters, { filteredCount: watchlistFilteredCount, projectSourceId: watchlistFilterProjectSourceId, bulkTierValue: bulkTierControl?.value(), queueVisible: watchlistQueueVisible, escape: periodEscape, ui })}${watchlistQueueHtml}${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid watchlist-grid">${watchlistCards || watchlistEmptyHtml}</div>` : `<div class="leaderboard-wrap watchlist-list"><table class="leaderboard"><thead><tr><th>${periodEscape(ui("Interest"))}</th><th>${periodEscape(ui("Film"))}</th><th>${periodEscape(ui("Director"))}</th><th>${periodEscape(ui("Tier"))}</th></tr></thead><tbody>${visibleWatchlistPage.map((entry, visibleIndex) => window.renderWatchlistRow(entry, visibleIndex, { tierEditMode, watchlistOrderEditMode, periodRank: (filmPage - 1) * FILMS_PER_PAGE + visibleIndex + 1, escape: periodEscape })).join("") || `<tr><td colspan="4">${watchlistEmptyHtml}</td></tr>`}</tbody></table></div>`}${pagination}`
+                  ? `${window.renderAddWatchlistForm({ escape: periodEscape, ui, open: !watchlistNonEmptyForUi })}${window.watchlistSubPeriodControls(watchlistFilters, { escape: periodEscape, ui, subPeriodCounts: watchlistCompactActive ? compactWatchlistModel?.subPeriodCounts : undefined })}${window.renderWatchlistTierFilter(watchlistFilters, { escape: periodEscape, ui, tierCounts: watchlistCompactActive ? compactWatchlistModel?.tierCounts : undefined })}${window.watchlistFilterControls(watchlistFilters, { filteredCount: watchlistFilteredCount, projectSourceId: watchlistFilterProjectSourceId, bulkTierValue: bulkTierControl?.value(), queueVisible: watchlistQueueVisible, escape: periodEscape, ui })}${watchlistQueueHtml}${pagination}${layout === "grid" ? `<div class="film-grid period-film-grid watchlist-grid">${watchlistCards || watchlistEmptyHtml}</div>` : `<div class="leaderboard-wrap watchlist-list"><table class="leaderboard"><thead><tr><th>${periodEscape(ui("Interest"))}</th><th>${periodEscape(ui("Film"))}</th><th>${periodEscape(ui("Director"))}</th><th>${periodEscape(ui("Tier"))}</th></tr></thead><tbody>${watchlistRows || `<tr><td colspan="4">${watchlistEmptyHtml}</td></tr>`}</tbody></table></div>`}${pagination}`
                   : `<div class="period-award-view">${categorySections}</div>`
     }
     ${decadeMergeDialog()}`;

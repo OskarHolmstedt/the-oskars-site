@@ -38,7 +38,9 @@ window.createImportProposal = function (input) {
     candidateState.editLog = candidateState.editLog.slice(0, 498);
     candidateState.editLog.push(window.cloneRecord(foundationHistory));
   }
-  let baseCanonical = window.getCanonicalData(input.baseState, { clone: false });
+  let baseCanonical = window.getCanonicalData(input.baseState, {
+    clone: false,
+  });
   let importedCanonical = window.getCanonicalData(candidateState, {
     clone: false,
   });
@@ -139,52 +141,6 @@ window.hasSheetsImportFoundation = function (source = window.state) {
 };
 
 /**
- * Runs a TSV/CSV/text importer against temporary state and returns a proposal.
- * @param {string} raw Raw delimited source text.
- * @param {string} importType Supported importer format identifier.
- * @param {Object} [options] Proposal and parser options.
- * @param {'merge'|'replace'} [options.mode] Candidate behavior.
- * @param {string} [options.sourceName] User-facing source name.
- * @param {Object} [options.importOptions] Low-level parser options.
- * @returns {ImportProposal} Session-only delimited proposal.
- */
-window.proposeDelimitedImport = function (raw, importType, options = {}) {
-  let mode = options.mode === "replace" ? "replace" : "merge";
-  let baseState = window.cloneRecord(window.state);
-  try {
-    window.state =
-      mode === "replace"
-        ? window.createClearedLocalState()
-        : window.cloneRecord(baseState);
-    window.rebuildAggregates?.();
-    let report = window.importData(raw, importType, {
-      ...(options.importOptions || {}),
-      render: false,
-      silentReport: true,
-    });
-    if (!report) throw new Error("Delimited import could not build a proposal");
-    report.source = String(
-      options.sourceName || report.source || "Delimited file",
-    );
-    return window.createImportProposal({
-      sourceKind: "delimited",
-      mode,
-      baseState,
-      candidateState: window.state,
-      report,
-      sourceRevision: window.canonicalDataRevision({ importType, raw }),
-      sourceConfig: {
-        importType: String(importType || ""),
-        sourceName: String(options.sourceName || ""),
-      },
-    });
-  } finally {
-    window.state = baseState;
-    window.rebuildAggregates?.();
-  }
-};
-
-/**
  * Plans whether an exact reviewed proposal can still be applied.
  * @param {ImportProposal} proposal Session proposal.
  * @param {OskarsState} [currentState] Current state.
@@ -253,7 +209,7 @@ window.importProposalDraftMetadata = function (
  * Applies the exact reviewed proposal after recovery, revalidation, and a stale check.
  * @param {ImportProposal} proposal Session proposal.
  * @param {Object} [options] Apply options.
- * @param {(label: string, doneStages: number, totalStages: number) => void} [options.onProgress]
+ * @param {(label: string, done: number, total: number) => void} [options.onProgress]
  *   Forwarded to window.save() - see saveSupabaseHydratedState's onProgress.
  * @returns {Promise<{ok: boolean, errors?: string[], report?: ImportReport}>} Apply result.
  */

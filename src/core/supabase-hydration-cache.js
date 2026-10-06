@@ -344,6 +344,7 @@ window.OSKARS_HYDRATION_CACHE_INVALIDATING_MUTATIONS = [
   "promoteSupabaseCollectionToProject",
   "setSupabaseProjectStatus",
   "setSupabaseProjectPinned",
+  "setSupabaseWatchedRewatch",
   "deleteSupabaseCollection",
   "removeSupabaseCollectionItem",
   "moveSupabaseCollectionItem",

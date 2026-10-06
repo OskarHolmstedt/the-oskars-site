@@ -1016,7 +1016,7 @@
       classes: posterHtml ? "has-poster" : "",
       leadingHtml: posterHtml,
       mainClasses: "detail-header-main film-detail-main",
-      mainHtml: `<div class="film-title-row"><h1>${filmPageEscape(displayTitle)}</h1>${film.rating ? `<strong class="detail-rating">${filmPageEscape(film.rating)}</strong>` : ""}</div>${localizedTitleMeta}${directorHtml ? `<p>${filmPageEscape(ui("by"))} ${directorHtml}</p>` : ""}
+      mainHtml: `<div class="film-title-row"><h1>${filmPageEscape(displayTitle)}</h1>${film.rating ? `<strong class="detail-rating">${window.renderFilmRatingHtml(film, { escape: filmPageEscape })}</strong>` : ""}</div>${localizedTitleMeta}${directorHtml ? `<p>${filmPageEscape(ui("by"))} ${directorHtml}</p>` : ""}
       ${statsHtml}
       ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}
       ${viewingHtml}

@@ -30,6 +30,29 @@
   };
 
   /**
+   * Reports whether a film is a non-feature title ("Shorts, docs & TV"):
+   * its type is set and isn't "Film", and the viewer hasn't ranked it
+   * anywhere. A ranked TV film or anthology stays in the ranked archive, since
+   * its type is a classification, not a reason to exclude it. A watchlisted
+   * or unseen film has no rank, so for it the type alone decides.
+   * read_film_catalog_page() applies the same rule in SQL.
+   * @param {FilmRecord} film Watched film, watchlist item, or catalog record.
+   * @returns {boolean} Whether the film is a non-feature title.
+   */
+  window.isNonFeatureFilm = function (film) {
+    let type = String(film?.type || "")
+      .trim()
+      .toLowerCase();
+    if (!type || type === "film") return false;
+    return !(
+      Number(film.allTimeRank) > 0 ||
+      Number(film.yearRank) > 0 ||
+      Number(film.decadeRank) > 0 ||
+      Number(film.centuryRank) > 0
+    );
+  };
+
+  /**
    * Reshapes the shared Supabase film catalog into the discovery archive
    * contract used by period Shared view, global search, and preview pages.
    * @param {Object[]} films Raw shared `films` rows with credit and membership joins.
@@ -407,30 +430,8 @@
 
     let years = {};
     let watchedOther = [];
-    // "Other watched" is for a watched entry with no real rank anywhere
-    // (typically a Short/Stage/TV-series Diary viewing that was never
-    // meant to compete in the ranked archive) - NOT for every non-"Film"
-    // type. A TV-film or Anthology the owner explicitly ranked (a real
-    // Fixed/Dynamic Rank in their own All-time sheet) belongs in the
-    // normal ranked years/all-time lists like any other film; `type` is
-    // a classification/tag on it, not a reason to exclude an otherwise-
-    // ranked film from where its own rank already places it. Excluding
-    // by type alone previously dropped every ranked TV-film/Anthology
-    // from both its year page and the all-time list entirely.
-    function isOther(film) {
-      let type = String(film.type || "")
-        .trim()
-        .toLowerCase();
-      if (!type || type === "film") return false;
-      return !(
-        Number(film.allTimeRank) > 0 ||
-        Number(film.yearRank) > 0 ||
-        Number(film.decadeRank) > 0 ||
-        Number(film.centuryRank) > 0
-      );
-    }
     filmsBySupabaseId.forEach((film) => {
-      if (isOther(film)) {
+      if (window.isNonFeatureFilm(film)) {
         watchedOther.push(film);
         return;
       }
@@ -440,7 +441,7 @@
     });
     years.alltime = {
       periodType: "allTime",
-      films: allTimeFilms.filter((film) => !isOther(film)),
+      films: allTimeFilms.filter((film) => !window.isNonFeatureFilm(film)),
     };
 
     // A subset of the watchlist when that is all this page loaded (issue

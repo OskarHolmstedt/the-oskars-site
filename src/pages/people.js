@@ -285,7 +285,7 @@
       );
     if (ratings.ratedCount)
       items.push(
-        `<span class="people-hub-main-stat"><b>${escape(window.formatAverageRating(ratings.mean))}</b> ${escape(ui("average rating"))}<small>${escape(ratings.ratedCount)} ${escape(ui("rated"))}</small></span>`,
+        `<span class="people-hub-main-stat"><b>${window.formatAverageRatingHtml(ratings.mean, { escape })}</b> ${escape(ui("average rating"))}<small>${escape(ratings.ratedCount)} ${escape(ui("rated"))}</small></span>`,
       );
     if (wins)
       items.push(

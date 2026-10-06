@@ -200,6 +200,34 @@ window.formatAverageRating = function (value) {
     .join(" ");
 };
 
+/**
+ * Renders an average rating as HTML: the nearest exact grade's stars and
+ * modifier mark (window.renderFilmRatingHtml) followed by the number.
+ * @param {*} value Mean star value.
+ * @param {Object} [options] Rendering options.
+ * @param {(value: *) => string} [options.escape] HTML escaping function.
+ * @returns {string} Average-rating HTML, or "—" without a usable mean.
+ */
+window.formatAverageRatingHtml = function (value, options = {}) {
+  let escape = options.escape || window.pageEscape;
+  let numeric = Number(value);
+  if (
+    value === null ||
+    value === undefined ||
+    !Number.isFinite(numeric) ||
+    numeric <= 0
+  )
+    return "—";
+  let grade = Math.max(1, Math.min(30, Math.round(numeric * 6)));
+  let rating = window.filmRatingFromGrade?.(grade);
+  let stars = rating
+    ? window.renderFilmRatingHtml?.(rating, { escape }) || ""
+    : "";
+  return [stars, escape(window.formatRatingStatistic(numeric))]
+    .filter(Boolean)
+    .join(" ");
+};
+
 function viewingRatingPeriodRows(records, keyForFilm) {
   let periods = new Map();
   records.forEach((film) => {

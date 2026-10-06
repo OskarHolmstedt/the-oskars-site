@@ -920,7 +920,7 @@
       metadataRow(ui("Wins"), stats.wins || 0, "#person-awards"),
       metadataRow(ui("Nominations"), stats.nominations || 0, "#person-awards"),
     ].join("");
-    let personStatsHtml = `<div class="detail-stat-grid"><div class="detail-stat-head"><b></b><span>${personPageEscape(ui("All-time"))}</span><span>${personPageEscape(ui("Century"))}</span><span>${personPageEscape(ui("Decade"))}</span><span>${personPageEscape(ui("Year"))}</span></div><div class="detail-stat-row"><b>${personPageEscape(ui("Score"))}</b><span><b>${awardScores.allTime}</b></span><span><b>${awardScores.century}</b></span><span><b>${awardScores.decade}</b></span><span><b>${awardScores.year}</b></span></div></div><div class="detail-stat-summary"><span><b>${person.filmIds.length}</b> ${personPageEscape(ui("Films"))}</span>${otherWatched.length ? `<span><b>${otherWatched.length}</b> ${personPageEscape(ui("Other watched"))}</span>` : ""}<span><b>${stats.wins || 0}</b> ${personPageEscape(ui("Wins"))}</span><span><b>${stats.nominations || 0}</b> ${personPageEscape(ui("Nominations"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape: personPageEscape, ui })}</div>${officialTotals.nominations ? `<div class="detail-stat-summary person-official-summary"><span><b>${personPageEscape(ui("Official results"))}</b></span><span><b>${officialTotals.wins}</b> ${personPageEscape(ui(officialTotals.wins === 1 ? "Win" : "Wins"))}</span><span><b>${officialTotals.nominations}</b> ${personPageEscape(ui(officialTotals.nominations === 1 ? "Nomination" : "Nominations"))}</span></div>` : ""}`;
+    let personStatsHtml = `<div class="detail-stat-grid"><div class="detail-stat-head"><b></b><span>${personPageEscape(ui("All-time"))}</span><span>${personPageEscape(ui("Century"))}</span><span>${personPageEscape(ui("Decade"))}</span><span>${personPageEscape(ui("Year"))}</span></div><div class="detail-stat-row"><b>${personPageEscape(ui("Score"))}</b><span><b>${awardScores.allTime}</b></span><span><b>${awardScores.century}</b></span><span><b>${awardScores.decade}</b></span><span><b>${awardScores.year}</b></span></div></div><div class="detail-stat-summary"><span><b>${person.filmIds.length}</b> ${personPageEscape(ui("Films"))}</span>${otherWatched.length ? `<span><b>${otherWatched.length}</b> ${personPageEscape(ui("Shorts, docs & TV"))}</span>` : ""}<span><b>${stats.wins || 0}</b> ${personPageEscape(ui("Wins"))}</span><span><b>${stats.nominations || 0}</b> ${personPageEscape(ui("Nominations"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape: personPageEscape, ui })}</div>${officialTotals.nominations ? `<div class="detail-stat-summary person-official-summary"><span><b>${personPageEscape(ui("Official results"))}</b></span><span><b>${officialTotals.wins}</b> ${personPageEscape(ui(officialTotals.wins === 1 ? "Win" : "Wins"))}</span><span><b>${officialTotals.nominations}</b> ${personPageEscape(ui(officialTotals.nominations === 1 ? "Nomination" : "Nominations"))}</span></div>` : ""}`;
 
     // Hero model (issue #204): lead with identity, signature works, and
     // one personal-relationship signal before the dense archive-wide
@@ -1072,17 +1072,14 @@
       <div class="person-hero-metrics">${personMetadataHtml ? `<dl class="film-metadata">${personMetadataHtml}</dl>` : ""}
       ${personStatsHtml}</div>`,
       actionsHtml: [
-        isDirector && canEdit
-          ? `<a class="button-link" href="${personPageEscape(window.collectionBallotUrl("director", window.personStorageKey(person)))}">${personPageEscape(ui("Build your Oskars"))}</a>`
-          : "",
         window.renderSourceProjectAction(
           "person",
           window.personStorageKey(person),
-          {
-            escape: personPageEscape,
-            buttonClass: "button-link",
-          },
+          { escape: personPageEscape },
         ),
+        isDirector && canEdit
+          ? `<a class="button-link" href="${personPageEscape(window.collectionBallotUrl("director", window.personStorageKey(person)))}">${personPageEscape(ui("Hold ceremony"))}</a>`
+          : "",
         primaryAction
           ? `<a class="button-link person-hero-primary-action" href="${personPageEscape(primaryAction.href)}">${personPageEscape(primaryAction.label)}</a>`
           : "",
@@ -1106,8 +1103,8 @@
   )}</div>
   ${!combinedView ? `<h3 id="person-watched" class="person-filmography-subheading">${personPageEscape(ui("Watched"))}</h3>` : ""}
   <section data-person-filmography-films>${personFilmographyFilmsHtml()}</section>
-  ${otherWatched.length && filmographySort !== "local-rank" ? `<section class="person-other-watched"><h3 class="person-filmography-subheading">${personPageEscape(ui("Other watched"))}</h3><p class="section-description">${personPageEscape(ui("Shorts, specials, and standalone works watched outside the main award competition."))}</p><div data-person-other-watched="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Type"), ui("Rating")].map(personPageEscape), rows: otherWatched.map(personOtherWatchedRow).join("") })}</div><div data-person-other-watched="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${otherWatched.map(personOtherWatchedCard).join("")}</div></div></section>` : ""}
-  ${unseenFilms.length ? `<section class="person-unseen"><h3 class="person-filmography-subheading">${personPageEscape(ui("Unseen"))}</h3><p class="section-description">${personPageEscape(ui("Films with this person that are not yet watched or on your watchlist."))}</p><div data-person-unseen="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title")].map(personPageEscape), rows: unseenFilms.map(personUnseenRow).join("") })}</div><div data-person-unseen="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${unseenFilms.map(personUnseenCard).join("")}</div></div></section>` : ""}
+  ${otherWatched.length && filmographySort !== "local-rank" ? `<section class="person-other-watched"><h3 class="person-filmography-subheading">${personPageEscape(ui("Shorts, docs & TV"))}</h3><p class="section-description">${personPageEscape(ui("Shorts, specials, and standalone works watched outside the main award competition."))}</p><div data-person-other-watched="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Type"), ui("Rating")].map(personPageEscape), rows: otherWatched.map(personOtherWatchedRow).join("") })}</div><div data-person-other-watched="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${otherWatched.map(personOtherWatchedCard).join("")}</div></div></section>` : ""}
+  ${unseenFilms.length ? `<section class="person-unseen"><h3 class="person-filmography-subheading">${personPageEscape(ui("Other films"))}</h3><p class="section-description">${personPageEscape(ui("Films with this person that are not yet watched or on your watchlist."))}</p><div data-person-unseen="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title")].map(personPageEscape), rows: unseenFilms.map(personUnseenRow).join("") })}</div><div data-person-unseen="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${unseenFilms.map(personUnseenCard).join("")}</div></div></section>` : ""}
   ${!combinedView && watchlistItems.length ? `<section data-person-watchlist-section>${personWatchlistContentHtml()}</section>` : ""}
   <h2 id="person-awards">${personPageEscape(ui("Awards"))}</h2>
   <fieldset class="person-awards-view-controls"><legend>${personPageEscape(ui("Display"))}</legend><label><input type="radio" name="personAwardsView" value="periods" ${personAwardsView === "periods" ? "checked" : ""}> ${personPageEscape(ui("Period tables"))}</label><label><input type="radio" name="personAwardsView" value="progression" ${personAwardsView === "progression" ? "checked" : ""}> ${personPageEscape(ui("Progression table"))}</label></fieldset>

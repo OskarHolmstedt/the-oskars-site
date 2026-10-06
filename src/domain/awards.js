@@ -571,7 +571,14 @@ window.getAwardPeriodType = function (award, fallback) {
   return state.years?.[key]?.periodType || "";
 };
 
-/** Validates placement and category-specific award eligibility. @param {FilmRecord} film Film. @param {AwardRecord} award Award. @param {Object} [context] Validation context. @returns {{valid: boolean, errors: string[], warnings: string[]}} Validation result. */
+/**
+ * Validates placement and optionally category-specific award eligibility.
+ * @param {FilmRecord} film Film.
+ * @param {AwardRecord} award Award.
+ * @param {Object} [context] Validation context.
+ * @param {boolean} [context.checkEligibility] Whether to check catalog metadata; defaults to true.
+ * @returns {{valid: boolean, errors: string[], warnings: string[]}} Validation result.
+ */
 window.validateAward = function (film, award, context = {}) {
   let errors = [];
   let warnings = [];
@@ -600,6 +607,9 @@ window.validateAward = function (film, award, context = {}) {
       );
     }
   }
+
+  if (context.checkEligibility === false)
+    return { valid: errors.length === 0, errors, warnings };
 
   // Bulk validators may establish this invariant once for a shared film.
   // Interactive callers retain the defensive per-call normalization default.

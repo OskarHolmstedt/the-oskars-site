@@ -194,13 +194,13 @@ function dataHealthMissingQueues() {
         .map(filmEntry),
     ),
     dataHealthQueue(
-      // A watchedOther entry is only browsable today through its director's
-      // or franchise's "Other watched" section (issue #290) - one with
-      // neither link is otherwise invisible outside search and Data Health,
-      // so this queue exists to make that state visible rather than silent
+      // A watchedOther entry appears on director and franchise pages only
+      // through their "Shorts, docs & TV" section (issue #290) - one with
+      // neither link shows up only in films.html, search and Data Health,
+      // so this queue makes that state visible rather than silent
       // (issue #67).
       "watchedOtherUnlinked",
-      "Other watched entries with no franchise or director link",
+      "Shorts, docs & TV with no franchise or director link",
       "",
       otherWatched
         .filter(

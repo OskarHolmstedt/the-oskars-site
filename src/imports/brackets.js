@@ -8,6 +8,7 @@
  * Parses a bracket table and attaches its valid placements to resolved films.
  * @param {string} raw Raw tab-delimited bracket text.
  * @param {Object} [options] Optional preparsed rows, period hints, and result mode.
+ * @param {boolean} [options.checkEligibility] Whether to check nomination eligibility against metadata; defaults to true.
  * @returns {Object} Parsed period metadata, films, source URL, and diagnostics.
  */
 function parseTable(raw, options = {}) {
@@ -168,10 +169,10 @@ function parseTable(raw, options = {}) {
     if (periodType === "allTime") {
       year = "alltime";
     } else if (periodType === "years") {
-      let match = metaValue.match(/(?:18|19|20)\d{2}/);
+      let match = metaValue.match(/\d{4}/);
       year = match ? match[0] : "";
     } else {
-      let match = metaValue.match(/(?:18|19|20)\d{2}s?/);
+      let match = metaValue.match(/\d{4}s?/);
       year = match ? match[0].replace(/s?$/, "s") : "";
     }
 
@@ -594,6 +595,7 @@ function parseTable(raw, options = {}) {
       periodType,
       placementOwners,
       allowTie,
+      checkEligibility: options.checkEligibility,
     });
 
     result.errors.forEach((message) => {

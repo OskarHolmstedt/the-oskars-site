@@ -270,7 +270,11 @@ window.createSupabaseFreshWatchedIntake = async function (values) {
       year,
     );
     if (!catalogId) {
-      identity = await window.lookupTmdbFilmIdentity({ title, year });
+      identity = await window.lookupTmdbFilmIdentity({
+        title,
+        year,
+        letterboxdUrl: values?.letterboxdUrl || values?.url,
+      });
       if (!identity)
         throw new Error(
           window.catalogIdentityWarning("film", [
@@ -514,6 +518,44 @@ window.removeFromSupabaseWatched = async function (watchedId) {
       (row) => row.id !== watchedId,
     );
   }
+};
+
+/**
+ * Sets or clears rewatch intent on a watched film row.
+ * @param {string} filmId Supabase film id.
+ * @param {boolean} wantToRewatch Whether the user wants to rewatch this film.
+ * @returns {Promise<void>}
+ */
+window.setSupabaseWatchedRewatch = async function (filmId, wantToRewatch) {
+  let ready = await window.ensureSupabaseClient();
+  let auth = await window.resolveSupabaseAuthState();
+  if (!ready || auth.status !== "signed-in")
+    throw new Error("Sign in to update rewatch status.");
+  let userId = auth.user.id;
+  let isCurrent = beginWorkspaceMutation();
+  let { error } = await ready.client
+    .from("watched")
+    .update({
+      want_to_rewatch: Boolean(wantToRewatch),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId)
+    .eq("film_id", filmId);
+  if (error) throw error;
+  assertCurrentWorkspaceMutation(isCurrent);
+  if (workspaceState?.watched) {
+    let row = workspaceState.watched.find((r) => r.film_id === filmId);
+    if (row) row.want_to_rewatch = Boolean(wantToRewatch);
+  }
+  let localFilm = window.getFilm?.(filmId);
+  if (localFilm) {
+    if (wantToRewatch) {
+      localFilm.wantToRewatch = true;
+    } else {
+      delete localFilm.wantToRewatch;
+    }
+  }
+  window.invalidateCachedSupabaseHydrationSource?.();
 };
 
 /**
@@ -1187,10 +1229,9 @@ window.loadSupabaseAwardCandidateCredits = async function (filmIds) {
  * (src/data/google-sheets-supabase-import.js) so a nomination confirmed
  * with a TMDB-suggested recipient benefits every future viewer, not just
  * this session. `credits` has no update grant for `authenticated` (a
- * shared, append-only catalog fact) - a plain insert tolerating the
- * primary key's unique violation is "create if missing", the same
- * intentional shape the importer already uses. A name without a TMDB ID
- * links an existing person with that name, or else the person TMDB finds for
+ * shared, append-only catalog fact). Conflict-ignoring inserts create missing
+ * credits without changing existing rows or producing duplicate errors. A name
+ * without a TMDB ID links an existing person, or else the person TMDB finds for
  * it on this film; a name matching neither is skipped and returned, since no
  * person is ever created without a TMDB ID.
  * @param {string} filmId Film UUID.
@@ -1235,13 +1276,13 @@ window.persistSupabaseFilmCredits = async function (filmId, role, people) {
       notAdded.push(name);
       continue;
     }
-    let { error: creditError } = await ready.client.from("credits").insert({
-      film_id: filmId,
-      person_id: personId,
-      role,
-      billing_order: index,
-    });
-    if (creditError && creditError.code !== "23505") throw creditError;
+    let { error: creditError } = await ready.client
+      .from("credits")
+      .upsert(
+        { film_id: filmId, person_id: personId, role, billing_order: index },
+        { onConflict: "film_id,person_id,role", ignoreDuplicates: true },
+      );
+    if (creditError) throw creditError;
   }
   return notAdded;
 };
@@ -3432,6 +3473,7 @@ window.createSupabaseWatchlistWatchedIntake = async function (
  * @param {string} watchlistId
  * @param {string} tier
  * @param {'minus'|'plus'|''} [modifier]
+ * @returns {Promise<Object|null>} The updated, cache-shaped watchlist row.
  */
 window.setSupabaseWatchlistTier = async function (watchlistId, tier, modifier) {
   let ready = await window.ensureSupabaseClient();
@@ -3472,6 +3514,7 @@ window.setSupabaseWatchlistTier = async function (watchlistId, tier, modifier) {
     );
     if (idx >= 0) workspaceState.watchlist[idx] = data;
   }
+  return data;
 };
 
 /**
@@ -3706,6 +3749,38 @@ window.loadSupabaseFranchiseCatalog = async function () {
   let ready = await window.ensureSupabaseClient();
   if (!ready) throw new Error("Supabase not configured.");
   return HYDRATION_DOMAIN_LOADERS.franchises(ready.client);
+};
+
+/**
+ * Loads the director credits and franchise links of every film on the
+ * signed-in user's watched rows or watchlist, plus the franchise hierarchy -
+ * the input indexSupabaseQueueMembership() turns into director and
+ * franchise groups for the queue pages.
+ * @param {'watched'|'watchlist'} part Whose films to read.
+ * @returns {Promise<{rows: Object[], franchises: Object[]}>} `rows` are `{film_id, films: {credits, film_franchises}}`; `franchises` are `{id, name, parent_id}`.
+ */
+window.loadSupabaseQueueMembership = async function (part) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let ownerId = window.getSupabaseCurrentUser?.()?.id;
+  if (!ownerId) throw new Error("Sign in to group your films.");
+  let [rows, franchises] = await Promise.all([
+    fetchAllSupabaseRows((withCount) =>
+      ready.client
+        .from(part)
+        .select(
+          "film_id, films(credits(role, people(id, name)), film_franchises(franchise_id))",
+          withCount ? { count: "exact" } : undefined,
+        )
+        .eq("user_id", ownerId)
+        .eq("films.credits.role", "director")
+        .order("id"),
+    ),
+    HYDRATION_DOMAIN_LOADERS.franchises(ready.client),
+  ]);
+  if (window.getSupabaseCurrentUser?.()?.id !== ownerId)
+    throw new Error("Account changed while loading — reload first.");
+  return { rows, franchises };
 };
 
 let entityNotesCache = new Map();
@@ -4184,7 +4259,7 @@ window.createSupabaseProjectFromSource = async function (
 
 /**
  * Lists the signed-in user's own projects for the projects.html hub,
- * newest-updated first, with each project's raw item count (issue #439).
+ * newest-updated first, with its raw item count and first five queue films.
  * Per-project watched/queue progress is deliberately not computed here -
  * that needs a watched/watchlist cross-reference per item, cheap enough
  * on one project's detail page (loadSupabaseProject) but not worth a
@@ -4197,13 +4272,19 @@ window.listSupabaseProjects = async function () {
   let { data, error } = await ready.client
     .from("projects")
     .select(
-      "id, status, pinned, updated_at, collections(name, source_label, created_at, collection_items(count))",
+      "id, status, pinned, updated_at, collections(name, source_label, created_at, collection_items(count), poster_items:collection_items(position, film_id, films(id, title, poster_url)))",
     )
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .order("position", { referencedTable: "collections.poster_items" })
+    .order("film_id", { referencedTable: "collections.poster_items" })
+    .limit(5, { referencedTable: "collections.poster_items" });
   if (error) throw error;
   return (data || []).map((row) => ({
     ...flattenProjectRow(row),
     itemCount: row.collections?.collection_items?.[0]?.count || 0,
+    posterFilms: (row.collections?.poster_items || [])
+      .map((item) => item.films)
+      .filter(Boolean),
   }));
 };
 
@@ -4999,4 +5080,67 @@ window.reconcileSupabasePersonIdentity = async function (personId) {
   if (error) throw error;
   window.invalidateSupabaseHydrationCache?.();
   return data;
+};
+
+/** Searches catalog people or franchises for project creation.
+ * @param {'person'|'franchise'} kind Source kind.
+ * @param {string} query Name search.
+ * @returns {Promise<Object[]>} Matching sources.
+ */
+window.searchSupabaseProjectSources = async function (kind, query) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let term = String(query || "")
+    .trim()
+    .replace(/[%_]/g, "");
+  if (!term) return [];
+  let { data, error } = await ready.client
+    .from(kind === "person" ? "people" : "franchises")
+    .select("id, name")
+    .ilike("name", `%${term}%`)
+    .order("name")
+    .limit(20);
+  if (error) throw error;
+  return data || [];
+};
+
+/** Loads known catalog films for a filmography or franchise, including child franchises.
+ * @param {'person'|'franchise'} kind Source kind.
+ * @param {string} id Source identity.
+ * @returns {Promise<Object[]>} Deduplicated films in release order.
+ */
+window.loadSupabaseProjectSourceFilms = async function (kind, id) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let ids = new Set([id]);
+  if (kind === "franchise") {
+    let catalog = await window.loadSupabaseFranchiseCatalog();
+    let added;
+    do {
+      added = false;
+      for (let row of catalog) {
+        if (ids.has(row.parent_id) && !ids.has(row.id)) {
+          ids.add(row.id);
+          added = true;
+        }
+      }
+    } while (added);
+  }
+  let rows = await fetchAllSupabaseRows((withCount) => {
+    let request = ready.client
+      .from(kind === "person" ? "credits" : "film_franchises")
+      .select(
+        "film_id, films(id, title, year)",
+        withCount ? { count: "exact" } : undefined,
+      )
+      .order("film_id");
+    return kind === "person"
+      ? request.eq("person_id", id).order("role")
+      : request.in("franchise_id", [...ids]).order("franchise_id");
+  });
+  let films = new Map();
+  for (let row of rows) if (row.films) films.set(row.film_id, row.films);
+  return [...films.values()].sort(
+    (a, b) => (a.year || 0) - (b.year || 0) || a.title.localeCompare(b.title),
+  );
 };

@@ -293,7 +293,7 @@ window.startProjectFromSourceAndOpen = async function (sourceType, sourceId) {
 
 // Resolves one collection_items row's film_id to a ProjectFilmRef
 // (issue #458): "archive" if it's a watched film already in the ranked
-// archive, "watched" for Other watched titles, "watchlist" (keyed by the
+// archive, "watched" for Shorts, docs & TV titles, "watchlist" (keyed by the
 // watchlist row's own id, not the film id) if it's watchlisted instead, or omitted entirely if the
 // viewer has neither - matching the same accepted-gap pattern an
 // unresolvable official-results nominee ref already has.
@@ -384,6 +384,34 @@ window.projectForSource = function (sourceType, sourceId) {
   return null;
 };
 
+/**
+ * Renders the checklist icon button that starts a watch project from a source.
+ * @param {string} sourceType Source type.
+ * @param {string} sourceId Source id.
+ * @param {Object} [options] Rendering controls.
+ * @param {(value: *) => string} [options.escape] HTML escaping function.
+ * @param {boolean} [options.disabled] Renders the button disabled.
+ * @returns {string} Icon-button HTML.
+ */
+window.renderStartProjectButton = function (
+  sourceType,
+  sourceId,
+  options = {},
+) {
+  let ui = window.uiText || ((text) => text);
+  return window.renderCollectionActionButton({
+    kind: "project",
+    label: ui("Start watch project"),
+    classes: "source-project-start",
+    escape: options.escape,
+    attributes: {
+      "data-start-project-source": sourceType,
+      "data-project-source-id": sourceId,
+      disabled: Boolean(options.disabled),
+    },
+  });
+};
+
 /** Renders the create/open action for a source-backed project. @param {string} sourceType Source type. @param {string} sourceId Source id. @param {Object} [options] Rendering controls. @returns {string} HTML. */
 window.renderSourceProjectAction = function (
   sourceType,
@@ -401,7 +429,7 @@ window.renderSourceProjectAction = function (
     // page (Completion, Tags, Compare) showed a mutation control with no
     // account behind it to save the click (found live on Completion).
     if (!(window.oskarsCapabilities?.().canEdit ?? true)) return "";
-    return `<button type="button" class="${escape(options.buttonClass || "")}" data-start-project-source="${escape(sourceType)}" data-project-source-id="${escape(sourceId)}">${escape(ui(options.startLabel || "Start project"))}</button>`;
+    return window.renderStartProjectButton(sourceType, sourceId, { escape });
   }
   let actionClasses = `source-project-action${options.compact ? " source-project-action--compact" : ""}`;
   let actionLink = `<a class="${escape(options.linkClass || "button-link")}" href="${escape(window.projectPageUrl(project.id))}">${escape(options.viewText || ui("View project"))}</a>`;

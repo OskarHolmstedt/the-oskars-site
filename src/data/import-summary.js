@@ -324,3 +324,43 @@ window.compactImportReport = function (report, options = {}) {
   snapshot.preview = Boolean(options.preview);
   return snapshot;
 };
+
+/**
+ * Formats individual import problems as readable, plain-text groups.
+ * @param {ImportReport} report Import report.
+ * @returns {{label: string, lines: string[]}[]} Problem groups.
+ */
+window.googleSheetsImportProblemGroups = function (report) {
+  let context = (detail) =>
+    [detail.film || detail.title, detail.year || detail.period, detail.category]
+      .filter(Boolean)
+      .join(" · ");
+  return [
+    {
+      label: "Values kept from your archive",
+      lines: (report.preservedFieldDetails || []).map(
+        (detail) =>
+          `${context(detail)} — ${String(detail.field || "Value").replace(/([a-z])([A-Z])/g, "$1 $2")}: kept “${detail.local}”; sheet has “${detail.incoming}”.`,
+      ),
+    },
+    {
+      label: "Award nominations rejected",
+      lines: (report.ruleViolations || []).map(
+        (detail) => `${context(detail)} — ${detail.message}`,
+      ),
+    },
+    {
+      label: "Eligibility needs metadata",
+      lines: (report.ruleWarningDetails || []).map(
+        (detail) => `${context(detail)} — ${detail.message}`,
+      ),
+    },
+    {
+      label: "Rows that could not be imported",
+      lines: (report.skippedDetails || []).map(
+        (detail) =>
+          `${detail.source || "Sheet"}${detail.rowNumber ? ` row ${detail.rowNumber}` : ""} — ${detail.reason}${detail.values?.length ? ` (${detail.values.join(" · ")})` : ""}`,
+      ),
+    },
+  ].filter((group) => group.lines.length);
+};

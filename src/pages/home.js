@@ -139,7 +139,7 @@
             count: watchedCount,
           },
         );
-    return `<article class="home-daily-card">${homeFilmMedia(film)}<div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Archive memory"))}</span><h2>${href ? `<a href="${homeEscape(href)}">${homeEscape(window.localizedFilmTitle?.(film) || film.title)}</a>` : homeEscape(film.title)}</h2><p class="home-daily-film-meta">${homeFilmMeta(film)}</p><p>${homeEscape(reason)}</p>${film.rating ? `<strong class="rating">${homeEscape(film.rating)}</strong>` : ""}</div></article>`;
+    return `<article class="home-daily-card">${homeFilmMedia(film)}<div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Archive memory"))}</span><h2>${href ? `<a href="${homeEscape(href)}">${homeEscape(window.localizedFilmTitle?.(film) || film.title)}</a>` : homeEscape(film.title)}</h2><p class="home-daily-film-meta">${homeFilmMeta(film)}</p><p>${homeEscape(reason)}</p>${film.rating ? `<strong class="rating">${window.renderFilmRatingHtml(film, { escape: homeEscape })}</strong>` : ""}</div></article>`;
   }
 
   function homeWatchlistHtml(pick, count) {
@@ -182,7 +182,7 @@
       );
       actions = `<a class="button-link" href="profile.html#letterboxdProfilePanel">${homeEscape(ui("Connect Letterboxd"))}</a><a class="button-link button-secondary" href="data.html#letterboxdImport">${homeEscape(ui("Import ZIP"))}</a>`;
     } else if (!sheetsConnected) {
-      eyebrow = ui("Path 4 · Spreadsheets");
+      eyebrow = ui("Path 4 · Google Sheets");
       heading = ui("Track your archive in Google Sheets");
       description = ui(
         "Connect a Google Sheet to edit your films in a spreadsheet and sync changes back anytime.",
@@ -287,17 +287,17 @@
       </article>
       <article class="home-daily-card home-daily-card--text home-onboarding-card">
         <div class="home-daily-card-body">
-          <span class="eyebrow">${homeEscape(ui("Path 4 · Spreadsheets"))}</span>
-          <h2>${homeEscape(ui("Google Sheets & Excel"))}</h2>
-          <p>${homeEscape(ui("Create a spreadsheet directly in your Google Drive, download CSV starter templates, or sync your custom sheets."))}</p>
+          <span class="eyebrow">${homeEscape(ui("Path 4 · Google Sheets"))}</span>
+          <h2>${homeEscape(ui("Google Sheets"))}</h2>
+          <p>${homeEscape(ui("Create a formatted workbook in your Google Drive or connect an existing sheet, then sync changes in either direction."))}</p>
           <div class="home-daily-actions">
             <a class="button-link" href="data.html#spreadsheetTemplates">${homeEscape(ui("Connect Google Sheets"))}</a>
           </div>
           <details class="home-onboarding-how-to">
-            <summary>${homeEscape(ui("How does spreadsheet sync work?"))}</summary>
+            <summary>${homeEscape(ui("How does Google Sheets sync work?"))}</summary>
             <p>
-              ${homeEscape(ui("Create a formatted workbook on Google Drive or download CSV starter templates. Edit in sheets, then sync or push updates anytime."))}<br />
-              <a href="data.html#spreadsheetTemplates">${homeEscape(ui("Open spreadsheet templates ↗"))}</a>
+              ${homeEscape(ui("Your sheet keeps Watched, Watchlist, and Awards tabs. Edit it in Google Sheets, then sync changes into your archive or push your archive back anytime."))}<br />
+              <a href="data.html#spreadsheetTemplates">${homeEscape(ui("Open Google Sheets import ↗"))}</a>
             </p>
           </details>
         </div>
@@ -350,7 +350,10 @@
         let rank = Number(entry.film.allTimeRank);
         return rank > 0 ? `#${homeEscape(rank)}` : "—";
       }
-      if (homeTopSort === "rating") return homeEscape(entry.film.rating || "—");
+      if (homeTopSort === "rating")
+        return (
+          window.renderFilmRatingHtml(entry.film, { escape: homeEscape }) || "—"
+        );
       if (homeTopSort === "wins") return homeEscape(entry.allStats.wins);
       if (homeTopSort === "nominations")
         return homeEscape(entry.allStats.nominations);
@@ -376,7 +379,7 @@
     <td class="leaderboard-position">${index + 1}</td>
     <td class="film-table-cell">${window.renderFilmPoster(entry.film, "thumb", { priority: index < 4 ? "high" : undefined })}<span><a class="table-film-link" href="${homeEscape(window.filmPageUrl(entry.film.id))}"><strong>${homeEscape(window.localizedFilmTitle?.(entry.film) || entry.film.title)}</strong></a><span class="leaderboard-meta">${homeEscape(entry.film.year || "")}${entry.film.director ? ` · ${window.renderCompactNameListText(entry.film.director, { escape: homeEscape })}` : ""}</span></span></td>
     <td>${allTimeRankCell(entry.film)}</td>
-    <td>${homeEscape(entry.film.rating || "")}</td>
+    <td>${window.renderFilmRatingHtml(entry.film, { escape: homeEscape })}</td>
     <td><strong>${entry.yearScoreStats.awardScore}</strong><span class="normalized-score">${window.formatNormalizedAwardScore(entry.yearScoreStats.normalizedAwardScore)}</span></td>
     <td><strong>${entry.decadeScoreStats.awardScore}</strong><span class="normalized-score">${window.formatNormalizedAwardScore(entry.decadeScoreStats.normalizedAwardScore)}</span></td>
     <td><strong>${entry.centuryScoreStats.awardScore}</strong><span class="normalized-score">${window.formatNormalizedAwardScore(entry.centuryScoreStats.normalizedAwardScore)}</span></td>

@@ -270,7 +270,7 @@
       escape,
       beforeTitleHtml: `<span class="discovery-count">${escape(ui("Chosen from {count} films", { count }))}</span>`,
       titleHtml: `<h2><a href="${escape(window.filmPageUrl(film.id))}">${escape(title)}</a></h2>`,
-      bodyHtml: `<p>${escape(film.year || "")}${film.director ? ` · ${escape(film.director)}` : ""}</p><strong class="rating">${escape(film.rating || "")}${window.renderTop250Marker(film)}</strong>${tags.length ? `<div class="film-tag-list">${tags.map((tag) => `<a class="film-tag" href="${escape(window.tagPageUrl(tag))}">${escape(tag)}</a>`).join("")}</div>` : ""}`,
+      bodyHtml: `<p>${escape(film.year || "")}${film.director ? ` · ${escape(film.director)}` : ""}</p><strong class="rating">${window.renderFilmRatingHtml(film, { escape })}${window.renderTop250Marker(film)}</strong>${tags.length ? `<div class="film-tag-list">${tags.map((tag) => `<a class="film-tag" href="${escape(window.tagPageUrl(tag))}">${escape(tag)}</a>`).join("")}</div>` : ""}`,
     });
   }
   function renderPerson(person, count) {

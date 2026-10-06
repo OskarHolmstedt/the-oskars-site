@@ -21,22 +21,6 @@
         </div>
       </div>
 
-      <section id="dataHealthView" class="data-panel data-health-panel">
-        <div class="data-health-heading">
-          <div>
-            <span class="eyebrow">Your archive</span>
-            <h2 id="dataHealthHeading">Data summary</h2>
-          </div>
-          <p id="dataHealthMessage">Loading your archive…</p>
-        </div>
-        <div class="data-health-summary">
-          <div><b id="dataHealthWatched">–</b><span>Watched</span></div>
-          <div><b id="dataHealthWatchlist">–</b><span>Watchlist</span></div>
-          <div><b id="dataHealthRankings">–</b><span>Ranking scopes</span></div>
-          <div><b id="dataHealthAwards">–</b><span>Award placements</span></div>
-        </div>
-      </section>
-
       <section
         id="dataSourcesPanel"
         class="data-panel data-sources-panel"
@@ -68,28 +52,66 @@
             <h2 id="dataImportHeading">Import</h2>
             <p>Review incoming records before anything is saved.</p>
           </div>
-          <div class="data-panel-grid">
-            <section class="data-panel" id="letterboxdImport">
+          <div
+            class="data-import-tabs"
+            role="tablist"
+            aria-label="Import methods"
+          >
+            <button
+              type="button"
+              class="data-import-tab is-active"
+              role="tab"
+              id="tab-letterboxdImport"
+              aria-selected="true"
+              aria-controls="letterboxdImport"
+            >
+              Letterboxd
+            </button>
+            <button
+              type="button"
+              class="data-import-tab"
+              role="tab"
+              id="tab-imdbImport"
+              aria-selected="false"
+              aria-controls="imdbImport"
+            >
+              IMDb
+            </button>
+            <button
+              type="button"
+              class="data-import-tab"
+              role="tab"
+              id="tab-spreadsheetTemplates"
+              aria-selected="false"
+              aria-controls="spreadsheetTemplates"
+            >
+              Google Sheets
+            </button>
+          </div>
+          <div class="data-import-panels">
+            <section
+              class="data-panel data-import-panel"
+              id="letterboxdImport"
+              role="tabpanel"
+              aria-labelledby="tab-letterboxdImport"
+            >
               <span class="eyebrow" id="letterboxdImportEyebrow"
                 >Import from another service</span
               >
               <h3>Letterboxd export</h3>
               <p>
-                Preview the original Letterboxd ZIP, then save watched films,
-                ratings, diary facts, tags, and watchlist changes to your
-                account. Rankings and award ballots are never imported.
+                Import watched films, ratings, diary facts, tags, and watchlist
+                changes from your Letterboxd export ZIP into your account.
+                Rankings and award ballots are never imported.
               </p>
               <div class="data-actions">
                 <label class="button-link"
-                  >Preview Letterboxd ZIP<input
+                  >Import Letterboxd ZIP<input
                     id="letterboxdZipInput"
                     type="file"
                     accept="application/zip,.zip"
                     hidden
                 /></label>
-                <button id="letterboxdImportApplyBtn" type="button" disabled>
-                  Apply reviewed import
-                </button>
               </div>
               <details class="data-template-spec" style="margin-top: 12px">
                 <summary>How do I get my Letterboxd export?</summary>
@@ -114,22 +136,29 @@
                 max="1"
                 hidden
               ></progress>
-              <pre
+              <div
                 id="letterboxdImportStatus"
                 class="data-panel-status"
                 role="status"
               >
-The ZIP never leaves this browser.</pre>
+                The ZIP never leaves this browser.
+              </div>
             </section>
-            <section class="data-panel" id="imdbImport">
+            <section
+              class="data-panel data-import-panel"
+              id="imdbImport"
+              role="tabpanel"
+              aria-labelledby="tab-imdbImport"
+              hidden
+            >
               <span class="eyebrow" id="imdbImportEyebrow"
                 >Import from IMDb</span
               >
               <h3>IMDb export</h3>
               <p>
-                Preview your IMDb ratings.csv and watchlist.csv exports. 1–10
-                ratings are converted to the 0.5–5.0★ scale. Rankings and award
-                ballots are never imported.
+                Upload your IMDb ratings.csv and watchlist.csv exports to bring
+                in watched films, star ratings, and your watchlist. 1–10 ratings
+                are converted to the 0.5–5.0★ scale.
               </p>
               <div class="data-actions">
                 <label class="button-link"
@@ -140,9 +169,6 @@ The ZIP never leaves this browser.</pre>
                     multiple
                     hidden
                 /></label>
-                <button id="imdbImportApplyBtn" type="button" disabled>
-                  Apply reviewed import
-                </button>
               </div>
               <details class="data-template-spec" style="margin-top: 12px">
                 <summary>How do I get my IMDb export?</summary>
@@ -178,34 +204,34 @@ The ZIP never leaves this browser.</pre>
                 <summary>Rating scale conversion (1–10 → 0.5–5.0★)</summary>
                 <div class="imdb-scale-grid">
                   <div class="imdb-scale-item">
-                    <strong>10</strong><span>★★★★★</span>
-                  </div>
-                  <div class="imdb-scale-item">
-                    <strong>9</strong><span>★★★★+</span>
-                  </div>
-                  <div class="imdb-scale-item">
-                    <strong>8</strong><span>★★★★</span>
-                  </div>
-                  <div class="imdb-scale-item">
-                    <strong>7</strong><span>★★★+</span>
-                  </div>
-                  <div class="imdb-scale-item">
-                    <strong>6</strong><span>★★★</span>
-                  </div>
-                  <div class="imdb-scale-item">
-                    <strong>5</strong><span>★★+</span>
-                  </div>
-                  <div class="imdb-scale-item">
-                    <strong>4</strong><span>★★</span>
-                  </div>
-                  <div class="imdb-scale-item">
-                    <strong>3</strong><span>★+</span>
+                    <strong>1</strong><span>½</span>
                   </div>
                   <div class="imdb-scale-item">
                     <strong>2</strong><span>★</span>
                   </div>
                   <div class="imdb-scale-item">
-                    <strong>1</strong><span>½★</span>
+                    <strong>3</strong><span>★½</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>4</strong><span>★★</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>5</strong><span>★★½</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>6</strong><span>★★★</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>7</strong><span>★★★½</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>8</strong><span>★★★★</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>9</strong><span>★★★★½</span>
+                  </div>
+                  <div class="imdb-scale-item">
+                    <strong>10</strong><span>★★★★★</span>
                   </div>
                 </div>
                 <p class="data-help-text" style="margin: 8px 0 0">
@@ -219,27 +245,35 @@ The ZIP never leaves this browser.</pre>
                 max="1"
                 hidden
               ></progress>
-              <pre
+              <div
                 id="imdbImportStatus"
                 class="data-panel-status"
                 role="status"
               >
-Upload ratings.csv or watchlist.csv (or both).</pre>
+                Upload ratings.csv or watchlist.csv (or both). The files never
+                leave this browser.
+              </div>
             </section>
-            <section class="data-panel" id="spreadsheetTemplates">
-              <span class="eyebrow">Structured spreadsheets</span>
-              <h3>Google Sheets & templates</h3>
+            <section
+              class="data-panel data-import-panel"
+              id="spreadsheetTemplates"
+              role="tabpanel"
+              aria-labelledby="tab-spreadsheetTemplates"
+              hidden
+            >
+              <span class="eyebrow">Import from Google Sheets</span>
+              <h3>Google Sheets</h3>
               <p>
-                Track your films in Google Sheets or Excel? Instantiate a
-                formatted document directly on your Google Drive, download CSV
-                starter templates, or preview and sync your spreadsheets.
+                Keep your archive in a Google Sheet. Create a formatted workbook
+                on your Google Drive or connect an existing sheet, then sync
+                changes in and push your archive back.
               </p>
 
               <div class="data-field" style="margin-top: 14px">
                 <span class="data-label">Google Drive integration</span>
                 <p class="data-help-text">
                   Instantiate a formatted workbook in your Google Drive with
-                  Ranked Diary and Watchlist tabs.
+                  Watched, Watchlist, and Awards tabs.
                 </p>
                 <p class="data-help-text" style="margin-bottom: 8px">
                   Clicking this will open a Google sign-in prompt.
@@ -277,9 +311,11 @@ Upload ratings.csv or watchlist.csv (or both).</pre>
               </div>
 
               <div class="data-field" style="margin-top: 14px">
-                <label for="connectedSheetInput"
-                  >Connected Google Sheet ID or URL</label
-                >
+                <label for="connectedSheetInput">Google Sheet link</label>
+                <p class="data-help-text">
+                  Sync reads the Watched tab, plus the Watchlist and Awards tabs
+                  when present. Tab names must match exactly.
+                </p>
                 <div
                   style="
                     display: flex;
@@ -291,7 +327,7 @@ Upload ratings.csv or watchlist.csv (or both).</pre>
                   <input
                     id="connectedSheetInput"
                     type="text"
-                    placeholder="Spreadsheet ID or paste Google Sheets URL"
+                    placeholder="Paste your Google Sheets link"
                     style="flex: 1; min-width: 240px"
                   />
                   <button
@@ -348,8 +384,8 @@ Upload ratings.csv or watchlist.csv (or both).</pre>
                       <div>
                         <strong>Push archive back</strong>
                         <p>
-                          Export your full archive and metadata back to the
-                          sheet.
+                          Review and push watched films, watchlist items, and
+                          Awards back to your connected workbook.
                         </p>
                       </div>
                     </div>
@@ -362,10 +398,10 @@ Upload ratings.csv or watchlist.csv (or both).</pre>
                     class="button-link"
                     disabled
                   >
-                    Sync from Google Sheet
+                    Read Google Sheet
                   </button>
                   <button id="syncGoogleSheetApplyBtn" type="button" disabled>
-                    Apply reviewed sync
+                    Confirm import
                   </button>
                   <button
                     id="pushToGoogleSheetBtn"
@@ -373,93 +409,67 @@ Upload ratings.csv or watchlist.csv (or both).</pre>
                     class="button-link"
                     disabled
                   >
-                    Push archive to Google Sheet
+                    Review export
+                  </button>
+                  <button id="pushGoogleSheetApplyBtn" type="button" disabled>
+                    Confirm export
                   </button>
                 </div>
-                <pre
+                <progress
+                  id="googleSheetProgress"
+                  style="display: none"
+                  aria-label="Google Sheets progress"
+                  hidden
+                ></progress>
+                <div
                   id="syncGoogleSheetStatus"
                   class="data-panel-status"
                   role="status"
-                  style="display: none"
-                ></pre>
-              </div>
-
-              <div
-                class="data-field"
-                style="
-                  margin-top: 20px;
-                  border-top: 1px solid var(--border-subtle, #eee);
-                  padding-top: 16px;
-                "
-              >
-                <span class="data-label"
-                  >No Google account? Download starter templates</span
-                >
-                <p class="data-help-text">
-                  Track your films locally in Excel, Numbers, or CSV. Download
-                  starter templates or preview and import a completed delimited
-                  file.
-                </p>
-                <div class="data-actions">
-                  <button
-                    id="downloadDiaryTemplateBtn"
-                    type="button"
-                    class="button-link"
-                  >
-                    Download Diary template
-                  </button>
-                  <button
-                    id="downloadWatchlistTemplateBtn"
-                    type="button"
-                    class="button-link"
-                  >
-                    Download Watchlist template
-                  </button>
-                </div>
-                <div class="data-field" style="margin-top: 14px">
-                  <label for="spreadsheetTypeSelect">Spreadsheet format</label>
-                  <select id="spreadsheetTypeSelect">
-                    <option value="ranked" selected>
-                      Ranked Diary / Watched Archive
-                    </option>
-                    <option value="watchlist">Watchlist</option>
-                  </select>
-                </div>
-                <div class="data-actions">
-                  <label class="button-link"
-                    >Preview spreadsheet<input
-                      id="spreadsheetInput"
-                      type="file"
-                      accept=".csv,.tsv,text/csv,text/tab-separated-values"
-                      hidden
-                  /></label>
-                  <button id="spreadsheetImportApplyBtn" type="button" disabled>
-                    Apply reviewed spreadsheet
-                  </button>
-                </div>
-                <pre
-                  id="spreadsheetImportStatus"
-                  class="data-panel-status"
-                  role="status"
-                >
-Choose a ranked diary or watchlist CSV/TSV to preview.</pre>
-                <details class="data-template-spec">
-                  <summary>View spreadsheet column specifications</summary>
+                  style="display: none; white-space: pre-line"
+                ></div>
+                <details class="data-template-spec" style="margin-top: 12px">
+                  <summary>Which columns does each tab need?</summary>
                   <div class="data-template-spec-content">
-                    <h4>Ranked Diary / Archive Columns</h4>
+                    <p>
+                      A workbook made with Create on Google Drive already has
+                      these headers. Match them when connecting a sheet you set
+                      up yourself.
+                    </p>
+                    <h4>Watched Columns</h4>
                     <p>
                       <code
-                        >Year, Title, Director, Rating, Type, Tag, Medium,
-                        Screenplay, Source, Country, Views, Date, Score,
-                        Franchise, Platform, Runtime, tmdbId, letterboxd</code
+                        >Dynamic Rank, Rank, Year, Title, Director, Rating, Tag,
+                        Views, Date, Platform</code
                       >
+                    </p>
+                    <p>
+                      A Rank of <code>-</code> marks a film you haven't ranked.
                     </p>
                     <h4>Watchlist Columns</h4>
                     <p>
-                      <code
-                        >Date, Name, Year, Letterboxd URI, Tier, Director, Tags,
-                        Franchises, TMDB ID</code
-                      >
+                      <code>Name, Year, Director, Tier, Tag</code>
+                    </p>
+                    <h4>Awards Columns</h4>
+                    <p>
+                      <code>Position</code> and <code>Period</code>, then one or
+                      more columns per award category, such as
+                      <code>Director (Recipient)</code> and
+                      <code>Director (Film)</code>.
+                    </p>
+                    <p>
+                      Each period is a block of rows numbered 1 to 5 for a year,
+                      10 for a decade, 20 for a century, and 25 for all-time.
+                      The block's first <code>Period</code> cell names the type
+                      (<code>Year</code>, <code>Decade</code>,
+                      <code>Century</code> or <code>All-time</code>) and the
+                      second names the period, such as <code>1999</code> or
+                      <code>1990s</code>. Create on Google Drive lays out every
+                      block from 1900 to 2029, the 1900s to 2020s, the 20th and
+                      21st centuries, and all-time. Push adds any missing
+                      periods. Blank blocks leave your awards unchanged when
+                      syncing; a populated block replaces its supplied award
+                      categories. Leave a dash (-) in an award film cell to
+                      clear a whole ballot.
                     </p>
                   </div>
                 </details>
@@ -580,7 +590,119 @@ Choose a ranked diary or watchlist CSV/TSV to preview.</pre>
                 notes)</label
               >
             </div>
-            <div id="deleteDataRows"></div>
+            <div id="deleteDataRows">
+              <label class="data-delete-row">
+                <input type="checkbox" data-delete-category="watched" />
+                <span>
+                  <h4>Watched history</h4>
+                  <p>
+                    Removes every watched film, along with its rating, review,
+                    and rewatch preference.
+                  </p>
+                </span>
+              </label>
+              <label class="data-delete-row">
+                <input type="checkbox" data-delete-category="ratings" />
+                <span>
+                  <h4>Ratings and reviews</h4>
+                  <p>
+                    Clears star ratings, music scores, and written reviews.
+                    Watch dates and history stay.
+                  </p>
+                </span>
+              </label>
+              <label class="data-delete-row">
+                <input type="checkbox" data-delete-category="rewatch" />
+                <span>
+                  <h4>Rewatch preferences</h4>
+                  <p>
+                    Clears &quot;want to rewatch&quot; flags and rewatch tiers.
+                  </p>
+                </span>
+              </label>
+              <label class="data-delete-row">
+                <input type="checkbox" data-delete-category="watchlist" />
+                <span>
+                  <h4>Watchlist</h4>
+                  <p>
+                    Removes every film from your watchlist, including its tier
+                    and order.
+                  </p>
+                </span>
+              </label>
+              <label class="data-delete-row">
+                <input type="checkbox" data-delete-category="watchlist-tiers" />
+                <span>
+                  <h4>Watchlist tiers</h4>
+                  <p>
+                    Clears interest tiers on watchlist entries. Membership and
+                    order stay.
+                  </p>
+                </span>
+              </label>
+              <label class="data-delete-row">
+                <input
+                  type="checkbox"
+                  data-delete-category="watchlist-ranking"
+                />
+                <span>
+                  <h4>Watchlist ranking</h4>
+                  <p>
+                    Clears your manual watchlist order. Membership and tiers
+                    stay.
+                  </p>
+                </span>
+              </label>
+              <label class="data-delete-row">
+                <input type="checkbox" data-delete-category="rankings" />
+                <span>
+                  <h4>Rankings (watched films)</h4>
+                  <p>
+                    Deletes every year/decade/century/all-time ranking, and
+                    saved ranking-review progress.
+                  </p>
+                </span>
+              </label>
+              <label class="data-delete-row">
+                <input type="checkbox" data-delete-category="awards" />
+                <span>
+                  <h4>Awards</h4>
+                  <p>
+                    Deletes every personal award ballot, its nominations,
+                    reviewed status, and hidden annual candidate films.
+                  </p>
+                </span>
+              </label>
+              <label class="data-delete-row">
+                <input type="checkbox" data-delete-category="notes" />
+                <span>
+                  <h4>Notes</h4>
+                  <p>
+                    Deletes notes left on people, periods, franchises, tags,
+                    categories, and projects.
+                  </p>
+                </span>
+              </label>
+              <label class="data-delete-row">
+                <input type="checkbox" data-delete-category="tags" />
+                <span>
+                  <h4>Tags</h4>
+                  <p>
+                    Deletes your custom tags and removes them from every film.
+                  </p>
+                </span>
+              </label>
+              <label class="data-delete-row">
+                <input type="checkbox" data-delete-category="projects" />
+                <span>
+                  <h4>Projects and collections</h4>
+                  <p>
+                    Deletes every project and collection you've built, and any
+                    local film order inside them.
+                  </p>
+                </span>
+              </label>
+            </div>
             <div class="data-panel-actions">
               <button id="deleteSelectedBtn" type="button" disabled>
                 Delete selected
@@ -595,6 +717,6 @@ Choose a ranked diary or watchlist CSV/TSV to preview.</pre>
         </section>
       </div>
     </main>
-    <script src="src/core/entry-loader.js?v=fd3715f7e7b3" data-entry="data"></script>
+    <script src="src/core/entry-loader.js?v=905701fee3dc" data-entry="data"></script>
   </body>
 </html>

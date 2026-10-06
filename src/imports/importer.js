@@ -12,23 +12,55 @@
 function importFieldValuesDiffer(field, localValue, incomingValue) {
   if (field === "country" && window.countryListValues) {
     return (
-      window.countryListValues(localValue).join("\n") !==
-      window.countryListValues(incomingValue).join("\n")
+      window.countryListValues(localValue).slice().sort().join("\n") !==
+      window.countryListValues(incomingValue).slice().sort().join("\n")
     );
+  }
+  if (field === "adaptationSource" && window.normalizeAdaptationSource) {
+    return (
+      window.normalizeAdaptationSource(localValue) !==
+      window.normalizeAdaptationSource(incomingValue)
+    );
+  }
+  if (field === "director") {
+    let norm = (val) => {
+      let names = window.splitRecipientNames
+        ? window.splitRecipientNames(val)
+        : String(val || "")
+            .split(/[,;&|/]/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+      return names
+        .map(
+          (name) =>
+            window.resolveAwardRecipientPersonId?.(name) ||
+            window.normalizePersonName?.(name) ||
+            window.normalizeTitle?.(name) ||
+            String(name).trim().toLowerCase(),
+        )
+        .filter(Boolean)
+        .sort()
+        .join("\n");
+    };
+    return norm(localValue) !== norm(incomingValue);
   }
   return String(localValue) !== String(incomingValue);
 }
+window.importFieldValuesDiffer = importFieldValuesDiffer;
 
 /**
  * Imports one supported data format into application state and reports the merge.
  * @param {string} raw Raw import text.
  * @param {string} importType Import format identifier selected by the UI.
  * @param {Object} [options] Merge, parsing, persistence, and reporting options.
+ * @param {boolean} [options.confirmDerivedRanks] Whether ranked imports confirm the year, decade, and century positions derived from global order.
+ * @param {boolean} [options.checkEligibility] Whether to check nomination eligibility against metadata; defaults to true.
  * @returns {ImportReport|null|undefined} Import report, null on exceptions, or
  *   undefined when input or import type validation stops the transaction.
  */
 window.importData = function (raw, importType, options = {}) {
   try {
+    if (importType === "ranked") importType = "list";
     let suppliedRows =
       options.rows ||
       options.tableRows ||
@@ -175,6 +207,7 @@ window.importData = function (raw, importType, options = {}) {
       film.awards = (film.awards || []).filter((award) => {
         let result = window.validateAward(validationFilm, award, {
           periodType,
+          checkEligibility: options.checkEligibility,
         });
         report.ruleWarnings += result.warnings.length;
         result.warnings.forEach((message) =>
@@ -377,22 +410,48 @@ window.importData = function (raw, importType, options = {}) {
             after: existing.rank,
           });
         }
-        if (!existing.rating && f.rating) {
+        let existingRating = window.parseFilmRating?.(existing);
+        let incomingRating = window.parseFilmRating?.(f);
+        let existingHasRating = Boolean(
+          existingRating?.value || existing.rating,
+        );
+        let incomingHasRating = Boolean(incomingRating?.value || f.rating);
+
+        if (!existingHasRating && incomingHasRating) {
           existing.rating = f.rating;
-          existing.ratingValue = f.ratingValue;
-          existing.ratingModifier = f.ratingModifier || "";
-        } else if (
-          existing.rating &&
-          f.rating &&
-          f.rating !== existing.rating
-        ) {
-          report.preservedFieldDetails.push({
-            title: existing.title,
-            year,
-            field: "rating",
-            local: existing.rating,
-            incoming: f.rating,
-          });
+          existing.ratingValue = incomingRating?.value ?? f.ratingValue;
+          existing.ratingModifier =
+            incomingRating?.modifier ?? f.ratingModifier ?? "";
+        } else if (existingHasRating && incomingHasRating) {
+          let sameBaseValue =
+            Boolean(existingRating?.value) &&
+            existingRating.value === incomingRating?.value;
+          let incomingHigherResolution =
+            sameBaseValue &&
+            !existingRating.modifier &&
+            Boolean(incomingRating?.modifier);
+          let sameRatingSemantics =
+            sameBaseValue &&
+            (existingRating.modifier || "") ===
+              (incomingRating?.modifier || "");
+          let localHigherResolution =
+            sameBaseValue &&
+            Boolean(existingRating.modifier) &&
+            !incomingRating?.modifier;
+
+          if (incomingHigherResolution) {
+            existing.rating = f.rating;
+            existing.ratingValue = incomingRating.value;
+            existing.ratingModifier = incomingRating.modifier || "";
+          } else if (!sameRatingSemantics && !localHigherResolution) {
+            report.preservedFieldDetails.push({
+              title: existing.title,
+              year,
+              field: "rating",
+              local: existing.rating,
+              incoming: f.rating,
+            });
+          }
         }
         window.normalizeFilmRatingFields?.(existing);
         existing.url = preserveLocalField("url", f.url || f.letterboxdUrl);
@@ -401,10 +460,11 @@ window.importData = function (raw, importType, options = {}) {
         existing.type = preserveLocalField("type", f.type);
         existing.liveAction = preserveLocalField("liveAction", f.liveAction);
         existing.adaptation = preserveLocalField("adaptation", f.adaptation);
-        existing.adaptationSource = preserveLocalField(
-          "adaptationSource",
-          f.adaptationSource,
-        );
+        existing.adaptationSource = window.normalizeAdaptationSource
+          ? window.normalizeAdaptationSource(
+              preserveLocalField("adaptationSource", f.adaptationSource),
+            )
+          : preserveLocalField("adaptationSource", f.adaptationSource);
         existing.tmdbId = preserveLocalField("tmdbId", f.tmdbId);
         existing.letterboxdUrl = preserveLocalField(
           "letterboxdUrl",
@@ -439,6 +499,14 @@ window.importData = function (raw, importType, options = {}) {
           Object.prototype.hasOwnProperty.call(f, "rankConfirmed")
         ) {
           existing.rankConfirmed = f.rankConfirmed;
+        }
+        if (options.replaceRanks && !f.suppressAllTimeRank) {
+          existing.rankConfirmed = true;
+          existing.rankConfirmedByScope = {
+            ...existing.rankConfirmedByScope,
+            ...f.rankConfirmedByScope,
+            allTime: true,
+          };
         }
         if (f.compositeParts?.length)
           existing.compositeParts = f.compositeParts;
@@ -1062,8 +1130,12 @@ window.importData = function (raw, importType, options = {}) {
           ? parseTable("", {
               rows: block.rows,
               periodTypeHint: options.tablePeriodType,
+              checkEligibility: options.checkEligibility,
             })
-          : parseTable(chunk, { periodTypeHint: options.tablePeriodType });
+          : parseTable(chunk, {
+              periodTypeHint: options.tablePeriodType,
+              checkEligibility: options.checkEligibility,
+            });
 
         if (!data) {
           report.skipped += 1;
@@ -1153,10 +1225,54 @@ window.importData = function (raw, importType, options = {}) {
         data.films.forEach((f, idx) => {
           if (!f.suppressAllTimeRank && !Number.isFinite(f.rank))
             f.rank = idx + 1;
+          if (!f.suppressAllTimeRank) {
+            f.rankConfirmed = true;
+            f.rankConfirmedByScope = options.confirmDerivedRanks
+              ? { allTime: true, years: true, decades: true, centuries: true }
+              : { allTime: true };
+          }
           addOrUpdateYearFilm(data.yearKey, f, {
             addToAllTime: !f.suppressAllTimeRank,
             addToDerivedPeriods: false,
             replaceRanks: true,
+          });
+        });
+        // Every source copy must carry the reviewed order. Later award merges
+        // read these records rather than the temporary canonical film store.
+        let reviewedRanks = new Map(
+          data.films
+            .filter((film) => !film.suppressAllTimeRank)
+            .map((film) => [
+              window.filmIdentityKey(film, { includePeriodKey: true }),
+              film,
+            ]),
+        );
+        Object.entries(state.years).forEach(([key, period]) => {
+          (period.films || []).forEach((film) => {
+            let reviewed = reviewedRanks.get(
+              window.filmIdentityKey(film, { includePeriodKey: true }),
+            );
+            if (!reviewed) return;
+            ["allTimeRank", "yearRank", "decadeRank", "centuryRank"].forEach(
+              (field) => {
+                film[field] = reviewed[field];
+              },
+            );
+            film.rankConfirmed = true;
+            film.rankConfirmedByScope = {
+              ...film.rankConfirmedByScope,
+              ...reviewed.rankConfirmedByScope,
+            };
+            film.suppressAllTimeRank = false;
+            let scopeType =
+              period.periodType ||
+              (key === "alltime"
+                ? "allTime"
+                : /^\d{4}$/.test(key)
+                  ? "years"
+                  : "");
+            let rankField = window.RANK_FIELD_BY_SCOPE_TYPE[scopeType];
+            if (rankField) film.rank = reviewed[rankField];
           });
         });
         state.selectedYears = [data.yearKey];

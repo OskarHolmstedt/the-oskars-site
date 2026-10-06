@@ -16,15 +16,22 @@ function collectionActionIcon(kind) {
     return `<svg class="collection-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7a8.5 8.5 0 0 1 14.8 1.5"></path><path d="M19 4v5h-5"></path><path d="M20 17a8.5 8.5 0 0 1-14.8-1.5"></path><path d="M5 20v-5h5"></path></svg>`;
   if (kind === "remove")
     return `<svg class="collection-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"></path></svg>`;
+  if (kind === "project")
+    return `<svg class="collection-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m3.5 6.5 1.75 1.75L8.5 5"></path><path d="M11.5 6.75h9"></path><path d="m3.5 12.25 1.75 1.75 3.25-3.25"></path><path d="M11.5 12.5h9"></path><rect x="4" y="16.25" width="4" height="4" rx="1"></rect><path d="M11.5 18.25h9"></path></svg>`;
   return `<svg class="collection-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.5 3.5h11v17l-5.5-3.5-5.5 3.5z"></path><path d="M12 7v6M9 10h6"></path></svg>`;
 }
 
+/** Renders a collection action symbol. @param {string} kind Action kind. @returns {string} Icon HTML. */
+window.renderCollectionActionIcon = function (kind) {
+  return collectionActionIcon(kind);
+};
+
 /**
  * Renders an accessible icon-only action for adding one film to a
- * collection, or (with `active`) a pressed toggle representing "already in
- * this collection, click to remove."
+ * collection, starting a watch project, or (with `active`) a pressed toggle
+ * representing "already in this collection, click to remove."
  * @param {Object} options Action kind, label, attributes, and escaping.
- * @param {'watchlist'|'watched'|'rewatch'|'remove'} options.kind Destination collection, rewatch toggle, or removal.
+ * @param {'watchlist'|'watched'|'rewatch'|'remove'|'project'} options.kind Destination collection, rewatch toggle, removal, or watch-project start.
  * @param {string} options.label Localized accessible action name.
  * @param {boolean} [options.active] Renders a filled/pressed toggle state
  *   (`is-active` class, `aria-pressed="true"`) for a removal action, instead
@@ -36,7 +43,7 @@ function collectionActionIcon(kind) {
  */
 window.renderCollectionActionButton = function (options = {}) {
   let escape = options.escape || window.pageEscape;
-  let kind = ["watched", "rewatch", "remove"].includes(options.kind)
+  let kind = ["watched", "rewatch", "remove", "project"].includes(options.kind)
     ? options.kind
     : "watchlist";
   let label = String(options.label || "").trim();
@@ -143,7 +150,10 @@ window.renderSharedFilmCard = function (film, options = {}) {
     .filter(Boolean)
     .join(" ");
   let top250 = options.top250 === false ? "" : window.renderTop250Marker(film);
-  let rating = options.rating === false ? "" : String(film.rating || "");
+  let rating =
+    options.rating === false
+      ? ""
+      : window.renderFilmRatingHtml(film, { escape });
   let displayTitle = window.localizedFilmTitle?.(film) || film.title;
   let title =
     options.titleHtml ??
@@ -159,7 +169,7 @@ window.renderSharedFilmCard = function (film, options = {}) {
     options.rating === false
       ? ""
       : rating || top250
-        ? `<span class="rating">${escape(rating)}${top250}</span>`
+        ? `<span class="rating">${rating}${top250}</span>`
         : "";
   let director = String(options.director || "").trim();
   let compactDirector = director

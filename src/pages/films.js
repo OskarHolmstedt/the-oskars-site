@@ -45,6 +45,7 @@
     "personalAward",
     "officialResult",
   ];
+  const FORMATS = ["feature", "non-feature"];
   let sortAxes = [
     { value: "title", label: "Title" },
     { value: "year", label: "Year" },
@@ -65,6 +66,10 @@
         default: "",
         validate: (value) =>
           window.filmFilterDefinition("status")?.validate(value),
+      },
+      format: {
+        default: "",
+        validate: (value) => ["", ...FORMATS].includes(value),
       },
       ...Object.fromEntries(
         filterNames.map((name) => [
@@ -297,13 +302,10 @@
 
   function fullCatalog() {
     if (!catalog) {
-      // A Letterboxd (or Directors/Franchise sheet) row that doesn't match
-      // the ranked archive lands in state.watchedOther instead (see
-      // src/imports/letterboxd.js) - it never enters ranked lists or award
-      // brackets, but it was still watched, so it belongs in this browse's
-      // "Watched" status too (issue: imported films going missing from the
-      // one global Watched destination). statusBadgeHtml() below tags these
-      // "Other watched" rather than letting them read as fully ranked.
+      // A watched non-feature title lands in state.watchedOther, outside the
+      // ranked lists and award brackets, but it was still watched, so it
+      // belongs in this browse's "Watched" status too. formatChipHtml()
+      // below tags it with its type.
       let watchedFilms = [
         ...Object.values(state.filmsById || {}),
         ...(state.watchedOther || []),
@@ -499,23 +501,32 @@
       {
         watched: ui("Watched"),
         watchlist: ui("Watchlist"),
-        unseen: ui("Unseen"),
+        unseen: ui("Other"),
       }[status] || status
     );
   }
 
-  // Film ids classified "Other watched", from whichever source is showing.
-  let otherWatchedIds = new Set();
-  function isOtherWatchedFilm(film) {
-    return otherWatchedIds.has(film.id);
+  function formatLabel(format) {
+    return {
+      "": ui("All formats"),
+      feature: ui("Feature films"),
+      "non-feature": ui("Shorts, docs & TV"),
+    }[format];
+  }
+
+  function formatChipHtml(film) {
+    if (!window.isNonFeatureFilm(film)) return "";
+    let type = String(film.type).trim();
+    let label = window.isPlaceholderValue(type)
+      ? formatLabel("non-feature")
+      : ui(type);
+    return `<span class="films-status films-status--format">${escape(label)}</span>`;
   }
 
   function statusBadgeHtml(film) {
     if (film.catalogStatus === "watched") {
-      if (isOtherWatchedFilm(film))
-        return `<span class="films-status films-status--watched films-status--other">${escape(ui("Other watched"))}</span>`;
       return film.rating
-        ? `<span class="films-status films-status--watched">${escape(film.rating)}</span>`
+        ? `<span class="films-status films-status--watched">${window.renderFilmRatingHtml(film, { escape })}</span>`
         : `<span class="films-status films-status--watched">${escape(ui("Watched"))}</span>`;
     }
     if (film.catalogStatus === "watchlist")
@@ -523,7 +534,7 @@
       // item hasn't been tiered yet, so "Watchlist" is the only fact left
       // to state.
       return `<span class="films-status films-status--watchlist">${film.tier ? escape(film.tier) : escape(ui("Watchlist"))}</span>`;
-    return `<span class="films-status films-status--unseen">${escape(ui("Unseen"))}</span>`;
+    return `<span class="films-status films-status--unseen">${escape(ui("Not seen"))}</span>`;
   }
 
   function communityRatingHtml(film) {
@@ -543,6 +554,7 @@
       showYear: true,
       bodyHtml:
         statusBadgeHtml(film) +
+        formatChipHtml(film) +
         communityRatingHtml(film) +
         seenActionHtml(film),
       priority: index < 4 ? "high" : undefined,
@@ -556,7 +568,7 @@
       <td class="film-table-cell">${window.renderFilmPoster?.(film, "thumb", { priority }) || ""}<span><a class="table-film-link" href="${escape(film.href)}">${escape(title)}</a></span></td>
       <td>${escape(film.year || "")}</td>
       <td>${escape(film.director || "")}</td>
-      <td>${statusBadgeHtml(film)}${communityRatingHtml(film)}${seenActionHtml(film)}</td>
+      <td>${statusBadgeHtml(film)}${formatChipHtml(film)}${communityRatingHtml(film)}${seenActionHtml(film)}</td>
     </tr>`;
   }
 
@@ -685,11 +697,17 @@
     return {
       films,
       total: sorted.length,
-      catalogCount: films.length,
       pagination,
       pageItems: sorted.slice(pagination.sliceStart, pagination.sliceEnd),
       statusCounts: films.reduce((counts, film) => {
         counts[film.catalogStatus] = (counts[film.catalogStatus] || 0) + 1;
+        return counts;
+      }, {}),
+      formatStatusCounts: films.reduce((counts, film) => {
+        let format = window.isNonFeatureFilm(film) ? "non-feature" : "feature";
+        counts[format] ||= {};
+        counts[format][film.catalogStatus] =
+          (counts[format][film.catalogStatus] || 0) + 1;
         return counts;
       }, {}),
       years: films.map((film) => String(film.year || "")),
@@ -700,36 +718,28 @@
       franchises: Object.values(window.ensureFranchiseIndex?.() || {})
         .sort((left, right) => left.name.localeCompare(right.name))
         .map((franchise) => ({ id: franchise.id, name: franchise.name })),
-      otherWatchedIds: new Set(
-        (state.watchedOther || []).map((film) => film.id),
-      ),
     };
   }
 
   // The same, from the paged read's current page and its facets.
   function compactData() {
     let facets = compactModel.facets || {};
-    let statusCounts = facets.statusCounts || {};
     return {
       films: compactModel.films,
       total: compactModel.totalCount,
-      catalogCount: Object.values(statusCounts).reduce(
-        (sum, count) => sum + Number(count || 0),
-        0,
-      ),
       pagination: window.paginationState(
         compactModel.totalCount,
         currentState.page,
         pageSize,
       ),
       pageItems: compactModel.films,
-      statusCounts,
+      statusCounts: facets.statusCounts || {},
+      formatStatusCounts: facets.formatStatusCounts || {},
       years: facets.years || [],
       countries: facets.countries || [],
       tagNames: compactTagNames(facets.tags || []),
       catalogTagNames: facets.catalogTags || [],
       franchises: compactFranchises(facets.franchises || []),
-      otherWatchedIds: compactModel.watchedOtherIds,
     };
   }
 
@@ -785,18 +795,40 @@
     let finish = window.startOskarsPerformance?.("films:render");
     container.removeAttribute("aria-busy");
     let data = compact ? compactData() : fullData();
-    otherWatchedIds = data.otherWatchedIds;
     let pagination = data.pagination;
     let pageItems = data.pageItems;
-    let statusCounts = data.statusCounts;
+    let total = (counts) =>
+      Object.values(counts || {}).reduce(
+        (sum, count) => sum + Number(count || 0),
+        0,
+      );
+    let catalogCount = total(data.statusCounts);
+    // Each row's counts follow the other row's selection.
+    let statusCounts = currentState.format
+      ? data.formatStatusCounts[currentState.format] || {}
+      : data.statusCounts;
+    let formatCount = (format) => {
+      let counts = format
+        ? data.formatStatusCounts[format] || {}
+        : data.statusCounts;
+      return currentState.status
+        ? Number(counts[currentState.status] || 0)
+        : total(counts);
+    };
 
     let statusPills = ["", "watched", "watchlist", "unseen"]
       .map((status) => {
         let label = status
           ? `${statusLabel(status)} (${statusCounts[status] || 0})`
-          : `${ui("All")} (${data.catalogCount})`;
+          : `${ui("All")} (${total(statusCounts)})`;
         return `<a class="films-status-pill${currentState.status === status ? " is-active" : ""}" href="${escape(viewUrl({ status, page: 1 }))}">${escape(label)}</a>`;
       })
+      .join("");
+    let formatPills = ["", ...FORMATS]
+      .map(
+        (format) =>
+          `<a class="films-status-pill${currentState.format === format ? " is-active" : ""}" href="${escape(viewUrl({ format, page: 1 }))}">${escape(`${formatLabel(format)} (${formatCount(format)})`)}</a>`,
+      )
       .join("");
 
     let paginationHtml = window.renderPaginationControls({
@@ -825,6 +857,7 @@
           })
     }
     <nav class="films-status-pills" aria-label="${escape(ui("Filter by status"))}">${statusPills}</nav>
+    <nav class="films-format-pills" aria-label="${escape(ui("Filter by format"))}">${formatPills}</nav>
     <form class="films-toolbar detail-toolbar" id="filmsToolbar">
       <label class="films-search">${escape(ui("Search"))}<input type="search" name="q" placeholder="${escape(ui("Title or director"))}" value="${escape(currentState.q)}"></label>
       ${sortControl}
@@ -1012,7 +1045,7 @@ ${advancedOpen ? (fullReady || !collectionExpression.groups.length ? collectionB
     });
 
     finish?.(
-      `${data.catalogCount} catalog, ${data.total} matched, page ${pagination.page}/${pagination.pageCount}${compact ? ", paged" : ""}`,
+      `${catalogCount} catalog, ${data.total} matched, page ${pagination.page}/${pagination.pageCount}${compact ? ", paged" : ""}`,
     );
   }
 

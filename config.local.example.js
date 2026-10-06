@@ -11,15 +11,12 @@ window.OSKARS_LOCAL_CONFIG = {
     spreadsheetId: "your-private-google-sheet-id",
     signInMode: "oneTap", // 'oneTap': silent token first, popup consent only if needed. 'redirect'/'popup': see below.
     redirectSignIn: false, // legacy fallback for redirect mode
-    // redirectUri: 'https://localhost:1234/data.html',
+    // redirectUri: 'https://localhost:1234/data-tools.html',
+    // Owner catalog ingestion only. Connect personal archive Sheets on data.html.
     ranges: {
-      bracketBlocks: "'The Oskars'!A:ZZ",
-      allTimeRankedList: "'All-time'!A:ZZ",
-      diary: "'Diary'!A:R",
-      watchlist: "'Watchlist'!A:ZZ",
       franchises: "'Franchises'!A:ZZ",
       directors: "'Directors'!A:ZZ",
-      collectionAwards: "'Collection Awards'!A:ZZ",
+      // directorsAndFranchises: "'Directors and Franchises'!A:Z",
     },
   },
 };

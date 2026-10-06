@@ -151,7 +151,7 @@
   }
 
   function franchiseRatingHtml(ratings) {
-    return `<div class="franchise-card-rating"><b>${escape(window.formatAverageRating(ratings.mean))}</b> ${escape(ui("average rating"))}</div>`;
+    return `<div class="franchise-card-rating"><b>${window.formatAverageRatingHtml(ratings.mean, { escape })}</b> ${escape(ui("average rating"))}</div>`;
   }
 
   function franchiseStatsHtml(completion, childCount) {

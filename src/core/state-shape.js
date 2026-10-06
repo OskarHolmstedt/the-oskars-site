@@ -105,6 +105,8 @@
  *   tracked separately from `id` for records still on the legacy id
  *   (import preview, or a canonical record that predates learning its
  *   real id) - `addFilmToStore()` adopts it as `id` once known.
+ * @property {string} [supabaseWatchedId] Supabase `watched.id` UUID (issue #438).
+ * @property {string} [supabaseWatchedUpdatedAt] Timestamp of last update in Supabase `watched` table.
  * @property {string} title
  * @property {number|null} [communityRatingAverage] Published other-user numeric star average.
  * @property {number} [communityRatingCount] Number of other-user ratings.
@@ -414,6 +416,9 @@
  * @property {string[]} [directors]
  * @property {(string|null)[]} [directorIds] `people.id` per `directors` entry, index-aligned (issue #633) - null where unresolved.
  * @property {boolean[]} [directorUncredited] Whether each `directors` entry is an owner-added editorial credit TMDB doesn't list, index-aligned (issue #784).
+ * @property {string} [supabaseFilmId] Shared `films.id` UUID in Supabase.
+ * @property {string} [supabaseWatchlistUpdatedAt] Timestamp of last update in Supabase `watchlist` table.
+ * @property {string} [supabaseWatchlistPosition] Fractional lexicographical position string in Supabase `watchlist` table.
  * @property {string} [country]
  * @property {number|string} [runtimeMinutes]
  * @property {string} [adaptationSource]

@@ -36,6 +36,7 @@
       : "";
     return {
       status: view.status || "",
+      format: view.format || "",
       period: view.period || "",
       medium: view.medium || "",
       screenplay: view.screenplay || "",
@@ -66,7 +67,7 @@
    * steps the complete archive goes through, in the page's order.
    * @param {Object} source loadSupabaseFilmsSource() result for the page.
    * @param {string[]} pageIds Film uuids in page order.
-   * @returns {{films: Object[], watchedOtherIds: Set<string>}}
+   * @returns {{films: Object[]}}
    */
   window.buildFilmCatalogPageRecords = function (source, pageIds) {
     let pageState = Object.assign(
@@ -80,22 +81,21 @@
     } finally {
       window.state = savedState;
     }
-    let watchedOther = pageState.watchedOther || [];
     let records = window.buildFullFilmCatalog(
       window.buildSharedFilmArchiveFromSupabase(
         source.catalogFilms,
         source.franchises,
       ),
-      [...Object.values(pageState.filmsById || {}), ...watchedOther],
+      [
+        ...Object.values(pageState.filmsById || {}),
+        ...(pageState.watchedOther || []),
+      ],
       pageState.watchlist || [],
     );
     let byFilmId = new Map(
       records.map((record) => [record.supabaseFilmId || record.id, record]),
     );
-    return {
-      films: pageIds.map((id) => byFilmId.get(id)).filter(Boolean),
-      watchedOtherIds: new Set(watchedOther.map((film) => film.id)),
-    };
+    return { films: pageIds.map((id) => byFilmId.get(id)).filter(Boolean) };
   };
 
   /**
@@ -147,7 +147,7 @@
    * order, the matching total, and the status counts and option lists.
    * @param {Object} view films.html's URL state (sort, order, filters).
    * @param {{limit: number, offset: number}} page Page window.
-   * @returns {Promise<{totalCount: number, films: Object[], watchedOtherIds: Set<string>, facets: Object}>}
+   * @returns {Promise<{totalCount: number, films: Object[], facets: Object}>}
    */
   window.loadSupabaseFilmCatalogPage = async function (view, page) {
     let auth = await window.resolveSupabaseAuthState();

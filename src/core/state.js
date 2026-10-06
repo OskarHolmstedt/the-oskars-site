@@ -299,10 +299,23 @@ window.addFilmToStore = function (year, film, options = {}) {
       options.replaceRanks && !preserveExistingRankForUnrankedMetadata
         ? film.allTimeRank || null
         : film.allTimeRank || existing.allTimeRank;
+    let existingRating = window.parseFilmRating?.(existing);
+    let incomingRating = window.parseFilmRating?.(film);
     if (!existing.rating && film.rating) {
       existing.rating = film.rating;
       existing.ratingValue = film.ratingValue;
       existing.ratingModifier = film.ratingModifier || "";
+    } else if (
+      existingRating?.value &&
+      incomingRating?.value &&
+      existingRating.value === incomingRating.value &&
+      !existingRating.modifier &&
+      incomingRating.modifier
+    ) {
+      existing.rating = film.rating;
+      existing.ratingValue = incomingRating.value;
+      existing.ratingModifier = incomingRating.modifier || "";
+      window.normalizeFilmRatingFields?.(existing);
     }
     existing.director = existing.director || film.director;
     existing.directors = existing.directors?.length
@@ -337,7 +350,10 @@ window.addFilmToStore = function (year, film, options = {}) {
     existing.runtimeMinutes =
       existing.runtimeMinutes ?? film.runtimeMinutes ?? null;
     if (film.rankConfirmedByScope)
-      existing.rankConfirmedByScope = { ...film.rankConfirmedByScope };
+      existing.rankConfirmedByScope = {
+        ...existing.rankConfirmedByScope,
+        ...film.rankConfirmedByScope,
+      };
     existing.rankingGroupId =
       existing.rankingGroupId || film.rankingGroupId || "";
     existing.rankingGroupTitle =
@@ -350,6 +366,12 @@ window.addFilmToStore = function (year, film, options = {}) {
     ) {
       existing.rankConfirmed = film.rankConfirmed;
     }
+    if (
+      options.replaceRanks &&
+      !film.suppressAllTimeRank &&
+      film.rankConfirmed === true
+    )
+      existing.rankConfirmed = true;
     if (film.compositeParts?.length)
       existing.compositeParts = film.compositeParts.map((part) =>
         typeof part === "object" && part ? { ...part } : part,

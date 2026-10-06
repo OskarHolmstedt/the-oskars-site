@@ -259,14 +259,25 @@ window.parseWatchlist = function (raw) {
       .toLowerCase(),
   );
   let hasHeader = header.some((value) =>
-    ["date", "name", "year", "letterboxd uri", "letterboxd url"].includes(
-      value,
-    ),
+    [
+      "date",
+      "name",
+      "title",
+      "year",
+      "director",
+      "tier",
+      "rank",
+      "letterboxd uri",
+      "letterboxd url",
+    ].includes(value),
   );
   let dataRows = hasHeader ? rows.slice(1) : rows;
   let indexes = hasHeader
     ? {
-        title: header.indexOf("name"),
+        title:
+          header.indexOf("name") >= 0
+            ? header.indexOf("name")
+            : header.indexOf("title"),
         year: header.indexOf("year"),
         letterboxdUrl: Math.max(
           header.indexOf("letterboxd uri"),
@@ -274,7 +285,10 @@ window.parseWatchlist = function (raw) {
         ),
         tier: Math.max(header.indexOf("tier"), header.indexOf("rank")),
         director: header.indexOf("director"),
-        tags: header.indexOf("tags"),
+        tags:
+          header.indexOf("tags") >= 0
+            ? header.indexOf("tags")
+            : header.indexOf("tag"),
         franchises: header.indexOf("franchises"),
         tmdbId: Math.max(header.indexOf("tmdb id"), header.indexOf("tmdbid")),
         order: Math.max(

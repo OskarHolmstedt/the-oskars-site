@@ -289,10 +289,22 @@ const FILM_CATALOG_FILTERS = [
 ];
 
 /**
+ * Tests the Films "Format" filter: feature films against shorts,
+ * documentaries, TV and other non-feature titles (isNonFeatureFilm()).
+ * @param {Object} film Catalog record.
+ * @param {''|'feature'|'non-feature'} value Filter value.
+ * @returns {boolean} Whether the film matches.
+ */
+window.filmMatchesCatalogFormat = function (film, value) {
+  if (!value) return true;
+  return window.isNonFeatureFilm(film) === (value === "non-feature");
+};
+
+/**
  * Filters catalog records by a Films view: the shared film filters,
- * status, search, tag and personal award, plus any predicate the caller
- * adds for filters that need its own indexes (franchise, official result,
- * collection expressions).
+ * status, format, search, tag and personal award, plus any predicate the
+ * caller adds for filters that need its own indexes (franchise, official
+ * result, collection expressions).
  * @param {Object[]} films Catalog records.
  * @param {Object} view films.html's URL state.
  * @param {(film: Object) => boolean} [extraMatch] Additional predicate.
@@ -308,6 +320,7 @@ window.filterFilmCatalog = function (films, view, extraMatch) {
         period: { alltimeMatchesAll: true },
       }) &&
       (!view?.status || film.catalogStatus === view.status) &&
+      window.filmMatchesCatalogFormat(film, view?.format) &&
       window.filmMatchesCatalogSearch(film, view?.q) &&
       window.filmMatchesCatalogTag(film, view?.tags) &&
       window.filmMatchesPersonalAward(film, view?.personalAward) &&

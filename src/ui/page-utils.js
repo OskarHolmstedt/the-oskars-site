@@ -399,7 +399,7 @@ window.renderTop250Marker = function (film) {
   if (window.isFilmRankConfirmed?.(film, "allTime") === false) return "";
   let rank = Number(film?.allTimeRank);
   if (!Number.isInteger(rank) || rank < 1 || rank > 250) return "";
-  return `<span class="top-250-marker" title="Top 250 · All-time rank ${rank}" aria-label="Top 250, all-time rank ${rank}"><span aria-hidden="true">★</span><small>${rank}</small></span>`;
+  return `<span class="top-250-marker" title="Top 250 · All-time rank ${rank}" aria-label="Top 250, all-time rank ${rank}"><span aria-hidden="true">#</span><small>${rank}</small></span>`;
 };
 
 /** Extracts the numeric component of a period key. @param {*} value Period value. @returns {number} */

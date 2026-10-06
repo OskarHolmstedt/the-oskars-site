@@ -98,7 +98,7 @@
           priority: isHero ? "high" : undefined,
         })
       : "";
-    let ratingLine = `<b>${escape(window.formatAverageRating(tag.ratingStatistics.mean))}</b> ${escape(ui("average rating"))} · <span class="tag-card-rated-count"><b>${escape(tag.ratingStatistics.ratedCount)}</b> ${escape(ui("rated"))}</span>`;
+    let ratingLine = `<b>${window.formatAverageRatingHtml(tag.ratingStatistics.mean, { escape })}</b> ${escape(ui("average rating"))} · <span class="tag-card-rated-count"><b>${escape(tag.ratingStatistics.ratedCount)}</b> ${escape(ui("rated"))}</span>`;
     return `<article class="tag-card tag-card--poster">${deck ? `<div class="tag-card-poster">${deck}</div>` : ""}<div class="tag-card-body"><h2><a href="${escape(isCatalog ? window.catalogTagPageUrl(tag.name) : window.tagPageUrl(tag.name))}">${escape(tag.name)}</a></h2><div><b>${tag.films.length}</b> ${escape(ui(tag.films.length === 1 ? "film" : "films"))}${(isCatalog ? tag.watchlistCount : tag.watchlist?.length) ? ` · <b>${isCatalog ? tag.watchlistCount : tag.watchlist.length}</b> watchlist` : ""}</div><div>${ratingLine}</div>${isCatalog ? "" : window.renderSourceProjectAction("tag", tag.name, { escape, compact: true })}</div></article>`;
   }
 

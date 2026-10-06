@@ -138,6 +138,163 @@
     return { ...context, ownerId, ballot };
   };
 
+  /**
+   * Loads what the Build hub needs to list collection ceremonies: the
+   * owner's saved ballots, their watched films' director credits and
+   * franchise links, and the franchise hierarchy.
+   * @returns {Promise<{ballots: Object[], watched: Object[], franchises: Object[]}>} Raw rows.
+   */
+  window.loadSupabaseCollectionCeremonySource = async function () {
+    let { client, ownerId } = await readyClient();
+    let [ballots, watched, franchises] = await Promise.all([
+      window.fetchAllSupabaseRows((count) =>
+        client
+          .from(table)
+          .select(
+            "collection_type, collection_id, collection_name, nominations, reviews",
+            count ? { count: "exact" } : undefined,
+          )
+          .order("collection_name"),
+      ),
+      window.fetchAllSupabaseRows((count) =>
+        client
+          .from("watched")
+          .select(
+            "film_id, films(id, title, year, poster_url, credits(role, people(id, name)), film_franchises(franchise_id))",
+            count ? { count: "exact" } : undefined,
+          )
+          .eq("user_id", ownerId)
+          .eq("films.credits.role", "director")
+          .order("id"),
+      ),
+      window.fetchAllSupabaseRows((count) =>
+        client
+          .from("franchises")
+          .select("id, name, parent_id", count ? { count: "exact" } : undefined)
+          .order("id"),
+      ),
+    ]);
+    if (window.getSupabaseCurrentUser?.()?.id !== ownerId)
+      throw new Error("Account changed. Reload this page.");
+    return { ballots, watched, franchises };
+  };
+
+  /**
+   * Builds the Build hub's collection ceremonies: every saved director or
+   * franchise ballot with its reviewed-category progress, and the directors
+   * and franchises with enough watched films to suggest a ceremony.
+   * Franchise films include their sub-franchises', as in the builder.
+   * @param {{ballots: Object[], watched: Object[], franchises: Object[]}} source Rows from loadSupabaseCollectionCeremonySource().
+   * @param {Object} [options] Model options.
+   * @param {string[]} [options.categories] Ordered award categories a ballot reviews.
+   * @param {number} [options.minimumFilms] Watched films a suggestion needs.
+   * @param {number} [options.suggestionLimit] Most suggestions returned.
+   * @returns {{saved: Object[], suggested: Object[]}} Ceremony cards, each `{type, id, name, href, films, filmCount}` plus `reviewed`/`total`/`complete` when saved.
+   */
+  window.buildCollectionCeremonies = function (source, options = {}) {
+    let categories = options.categories || [];
+    let minimumFilms = options.minimumFilms ?? 5;
+    let suggestionLimit = options.suggestionLimit ?? 6;
+    let franchiseRows = new Map(
+      (source.franchises || []).map((row) => [row.id, row]),
+    );
+    let collections = new Map();
+    function collect(type, id, name, film, aliases = []) {
+      let key = `${type}::${id}`;
+      let collection = collections.get(key);
+      if (!collection) {
+        collection = { type, id, name, films: new Map(), aliases };
+        collections.set(key, collection);
+      }
+      collection.films.set(film.id, film);
+    }
+    for (let row of source.watched || []) {
+      let film = row.films;
+      if (!film?.id) continue;
+      for (let credit of film.credits || []) {
+        let person = credit.people;
+        if (credit.role !== "director" || !person?.name) continue;
+        let slug = window.normalizePersonName(person.name);
+        collect("director", person.id || slug, person.name, film, [slug]);
+      }
+      let franchiseIds = new Set();
+      for (let link of film.film_franchises || []) {
+        let franchiseId = link.franchise_id || link.franchises?.id;
+        while (franchiseId && !franchiseIds.has(franchiseId)) {
+          franchiseIds.add(franchiseId);
+          franchiseId = franchiseRows.get(franchiseId)?.parent_id;
+        }
+      }
+      for (let franchiseId of franchiseIds) {
+        let franchise = franchiseRows.get(franchiseId);
+        if (franchise?.name)
+          collect(
+            "franchise",
+            window.normalizeTitle(franchise.name),
+            franchise.name,
+            film,
+          );
+      }
+    }
+    function card(collection) {
+      let films = [...collection.films.values()];
+      return {
+        type: collection.type,
+        id: collection.id,
+        name: collection.name,
+        href: window.collectionBallotUrl(collection.type, collection.id),
+        films,
+        filmCount: films.length,
+      };
+    }
+    let byKey = new Map();
+    for (let collection of collections.values())
+      for (let id of [collection.id, ...collection.aliases])
+        byKey.set(`${collection.type}::${id}`, collection);
+    let ballotKeys = new Set();
+    let saved = (source.ballots || []).map((ballot) => {
+      let collection = byKey.get(
+        `${ballot.collection_type}::${ballot.collection_id}`,
+      );
+      if (collection) ballotKeys.add(collection);
+      let reviews = ballot.reviews || {};
+      let reviewed = categories.filter((category) => reviews[category]).length;
+      return {
+        ...(collection
+          ? card(collection)
+          : {
+              type: ballot.collection_type,
+              id: ballot.collection_id,
+              name: ballot.collection_name,
+              href: window.collectionBallotUrl(
+                ballot.collection_type,
+                ballot.collection_id,
+              ),
+              films: [],
+              filmCount: 0,
+            }),
+        name: ballot.collection_name || collection?.name || "",
+        reviewed,
+        total: categories.length,
+        complete: categories.length > 0 && reviewed === categories.length,
+        nominationCount: (ballot.nominations || []).length,
+      };
+    });
+    let suggested = [...collections.values()]
+      .filter(
+        (collection) =>
+          !ballotKeys.has(collection) && collection.films.size >= minimumFilms,
+      )
+      .sort(
+        (left, right) =>
+          right.films.size - left.films.size ||
+          left.name.localeCompare(right.name),
+      )
+      .slice(0, suggestionLimit)
+      .map(card);
+    return { saved, suggested };
+  };
+
   /** Validates a collection ballot before saving or restoring a backup. @param {CollectionBallotRecord} ballot Stored ballot fields. */
   window.validateCollectionBallot = function (ballot) {
     if (

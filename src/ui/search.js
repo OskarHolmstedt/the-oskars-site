@@ -78,7 +78,7 @@
     // their own to surface that context.
     (window.state.watchedOther || []).forEach((film) =>
       entries.push({
-        type: "Other watched",
+        type: "Shorts, docs & TV",
         name: film.title,
         meta: film.year || "",
         searchText: [
@@ -136,7 +136,7 @@
         ? String(film.year)
         : "";
       entries.push({
-        type: "Unseen",
+        type: "Not seen",
         name: window.localizedFilmTitle?.(film) || film.title,
         meta: year,
         searchText: [

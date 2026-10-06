@@ -359,7 +359,8 @@
   }
 
   function completionViewUrl(view) {
-    return `completion.html?view=${escape(view)}`;
+    let tab = window.pageQueryParam("tab");
+    return `completion.html?view=${escape(view)}${tab ? `&amp;tab=${escape(encodeURIComponent(tab))}` : ""}`;
   }
 
   function completionGridControls(section, options) {
@@ -414,17 +415,14 @@
     return window.renderSourceProjectAction(sourceType, sourceId, {
       escape,
       compact: true,
-      buttonClass: actionClass,
       linkClass: `${actionClass} completion-project-action--view`,
       linkOnlyWhenExisting: true,
-      startLabel: options.startLabel,
       viewText: options.viewText,
     });
   }
 
   function projectColumnActionOptions() {
     return {
-      startLabel: "Start",
       viewText: window.t?.("action.view", "View") || "View",
       shortAction: true,
     };
@@ -1287,9 +1285,8 @@
       }),
       { watched: 0, total: 0, complete: 0 },
     );
-    let activeTab = window.pageQueryParam("tab") || "all";
     let categoryTabs = [
-      { id: "all", label: ui("All") },
+      { id: "trophies", label: ui("Trophies") },
       { id: "watch-goals", label: ui("Watch goals") },
       { id: "canonical-lists", label: ui("Canonical lists") },
       { id: "directors", label: ui("Directors") },
@@ -1298,6 +1295,10 @@
       { id: "official", label: ui("Official awards") },
       { id: "brackets", label: ui("Award brackets") },
     ];
+    let requestedTab = window.pageQueryParam("tab");
+    let activeTab = categoryTabs.some((tab) => tab.id === requestedTab)
+      ? requestedTab
+      : "trophies";
     let categoryTabsHtml = `<div class="completion-category-tabs period-view-controls" role="tablist" aria-label="${escape(ui("Completion categories"))}">${categoryTabs
       .map(
         (tab) =>
@@ -1306,8 +1307,6 @@
       .join("")}</div>`;
 
     function isTabMatch(tab, sectionId) {
-      if (tab === "all") return true;
-      if (tab === "official") return officialSourceIds.includes(sectionId);
       return tab === sectionId;
     }
 
@@ -1329,7 +1328,6 @@
   <p>${escape(ui("Official completion covers every imported official nominee, per source. Director, franchise, and project completion covers known films in the archive and watchlist."))}</p>
   ${summaryHtml}
 </header>
-${window.renderTrophyCabinet()}
 ${
   compactCompletionError
     ? `<p class="detail-empty" role="status">${escape(ui("Could not load completion data."))} <button type="button" class="link-button" data-completion-compact-retry>${escape(ui("Try again"))}</button></p>`
@@ -1346,6 +1344,9 @@ ${
       ariaLabel: ui("Completion display"),
     },
   )}</div>
+</div>
+<div class="completion-section-wrap${!isTabMatch(activeTab, "trophies") ? " is-hidden" : ""}">
+${window.renderTrophyCabinet()}
 </div>
 <div class="completion-section-wrap${!isTabMatch(activeTab, "watch-goals") ? " is-hidden" : ""}">
 ${completionSection(
@@ -1475,7 +1476,7 @@ ${officialWatchlistDialog()}`;
     if (tabButton) {
       let tab = tabButton.dataset.completionTab;
       let url = new URL(window.location.href);
-      if (tab === "all") url.searchParams.delete("tab");
+      if (tab === "trophies") url.searchParams.delete("tab");
       else url.searchParams.set("tab", tab);
       window.history?.replaceState?.(null, "", url.toString());
       render();

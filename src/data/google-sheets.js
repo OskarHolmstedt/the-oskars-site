@@ -36,7 +36,9 @@
     return googleSheetsSignInMode() === "oneTap";
   }
 
-  function getStoredGoogleAccessToken(requiredScope = GOOGLE_SHEETS_READ_SCOPE) {
+  function getStoredGoogleAccessToken(
+    requiredScope = GOOGLE_SHEETS_READ_SCOPE,
+  ) {
     let token = sessionStorage.getItem(OAUTH_TOKEN_KEY);
     let expiresAt = Number(
       sessionStorage.getItem(OAUTH_TOKEN_EXPIRES_KEY) || 0,
@@ -409,11 +411,16 @@
       );
       return warnings;
     }
-    let normalized = header.map(normalizeHeaderCell);
-    let hasFixedRank = normalized.includes("fixed rank");
+    let normalized = header
+      .map(normalizeHeaderCell)
+      .filter((value) => value !== "country");
+    let hasRank = normalized.includes("rank");
+    let hasFixedRank = normalized.includes("fixed rank") || hasRank;
     let hasDynamicRank = normalized.includes("dynamic rank");
     let expected;
     let aliases = {
+      rank: ["rank", "fixed rank"],
+      "fixed rank": ["rank", "fixed rank"],
       tmdbid: ["tmdbid", "tmdb id"],
       letterboxd: ["letterboxd", "letterboxd url", "letterboxd uri"],
     };
@@ -431,7 +438,6 @@
         "medium",
         "screenplay",
         "source",
-        "country",
         "views",
         "date",
         "score",
@@ -453,7 +459,6 @@
         "medium",
         "screenplay",
         "source",
-        "country",
         "views",
         "date watched",
         "score",
@@ -477,7 +482,6 @@
         "medium",
         "screenplay",
         "source",
-        "country",
         "views",
         "date watched",
         "score",
@@ -501,7 +505,6 @@
         "medium",
         "screenplay",
         "source",
-        "country",
         "views",
         "date watched",
         "score",
@@ -534,22 +537,18 @@
     let warnings = [];
     let rows = values || [];
     let header = rows[0] || [];
-    let normalized = header.map(normalizeHeaderCell);
+    let normalized = header
+      .map(normalizeHeaderCell)
+      .filter((value) => value !== "country");
     let hasHeader = normalized.some((value) =>
-      ["date", "name", "year", "letterboxd uri", "letterboxd url"].includes(
-        value,
-      ),
+      ["name", "title", "year"].includes(value),
     );
     if (!hasHeader) return warnings;
-    ["date", "name", "year"].forEach((headerName) => {
-      if (!normalized.includes(headerName))
-        warnings.push(`${spec.key} header is missing "${headerName}".`);
-    });
-    if (
-      !normalized.includes("letterboxd uri") &&
-      !normalized.includes("letterboxd url")
-    ) {
-      warnings.push(`${spec.key} header is missing "Letterboxd URI".`);
+    if (!normalized.includes("name") && !normalized.includes("title")) {
+      warnings.push(`${spec.key} header is missing "Name".`);
+    }
+    if (!normalized.includes("year")) {
+      warnings.push(`${spec.key} header is missing "Year".`);
     }
     return warnings;
   }
@@ -566,7 +565,9 @@
       );
       return warnings;
     }
-    let normalized = header.map(normalizeHeaderCell);
+    let normalized = header
+      .map(normalizeHeaderCell)
+      .filter((value) => value !== "country");
     let expected = [
       "year",
       "title",
@@ -577,7 +578,6 @@
       "medium",
       "screenplay",
       "source",
-      "country",
       "views",
       "date",
       "score",
@@ -780,7 +780,12 @@
     return [];
   };
 
-  async function fetchSheetValues(spreadsheetId, ranges, accessToken, options = {}) {
+  async function fetchSheetValues(
+    spreadsheetId,
+    ranges,
+    accessToken,
+    options = {},
+  ) {
     let params = new URLSearchParams();
     ranges.forEach((range) => params.append("ranges", range));
     params.set("majorDimension", options.majorDimension || "ROWS");
@@ -1154,15 +1159,373 @@
    */
   window.mergeImportedGoogleState = mergeImportedGoogleState;
 
+  let DEFAULT_SHEET_ROW_COUNT = 1000;
+  let AWARDS_SHEET_FIRST_YEAR = 1900;
+  let AWARDS_SHEET_LAST_YEAR = 2029;
+
+  function sheetListText(value) {
+    return Array.isArray(value)
+      ? value.filter(Boolean).join(", ")
+      : String(value || "");
+  }
+
+  function sheetPositiveNumber(value) {
+    let number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : "";
+  }
+
+  // "-" marks a film explicitly unranked; a blank Rank would make the next
+  // sync invent an all-time rank from the row order.
+  function watchedSheetRank(film) {
+    if (film.suppressAllTimeRank) return "-";
+    return (
+      sheetPositiveNumber(film.allTimeRank) ||
+      sheetPositiveNumber(film.rank) ||
+      "-"
+    );
+  }
+
+  let WATCHED_SHEET_COLUMNS = [
+    {
+      header: "Dynamic Rank",
+      formula: (rowNumber) => `=SUBTOTAL(103, $C$2:C${rowNumber})`,
+    },
+    { header: "Rank", aliases: ["fixed rank"], value: watchedSheetRank },
+    { header: "Year", value: (film) => sheetPositiveNumber(film.year) },
+    { header: "Title", value: (film) => film.title || "" },
+    {
+      header: "Director",
+      value: (film) => film.director || sheetListText(film.directors),
+    },
+    {
+      header: "Rating",
+      value: (film) => film.rating || window.renderFilmRating?.(film) || "",
+    },
+    {
+      header: "Tag",
+      aliases: ["tags"],
+      value: (film) => sheetListText(film.tags),
+    },
+    { header: "Views", value: (film) => sheetPositiveNumber(film.views) },
+    {
+      header: "Date",
+      aliases: ["date watched", "watched date"],
+      value: (film) => film.dateWatched || "",
+    },
+    { header: "Platform", value: (film) => film.platform || "" },
+  ];
+
+  let WATCHLIST_SHEET_COLUMNS = [
+    {
+      header: "Name",
+      aliases: ["title"],
+      value: (item) => item.title || item.name || "",
+    },
+    { header: "Year", value: (item) => sheetPositiveNumber(item.year) },
+    {
+      header: "Director",
+      value: (item) => item.director || sheetListText(item.directors),
+    },
+    { header: "Tier", aliases: ["rank"], value: (item) => item.tier || "" },
+    {
+      header: "Tag",
+      aliases: ["tags"],
+      value: (item) => sheetListText(item.tags),
+    },
+  ];
+
+  let AWARDS_SHEET_HEADERS = [
+    "Position",
+    "Period",
+    "Picture (1st half)",
+    "Picture (2nd half)",
+    "Director (Recipient)",
+    "Director (Film)",
+    "Cinematography (Recipient)",
+    "Cinematography (Film)",
+    "Original Screenplay (Recipient)",
+    "Original Screenplay (Film)",
+    "Adapted Screenplay (Recipient)",
+    "Adapted Screenplay (Film)",
+    "Lead Actor (Recipient)",
+    "Lead Actor (Role)",
+    "Lead Actor (Film)",
+    "Lead Actress (Recipient)",
+    "Lead Actress (Role)",
+    "Lead Actress (Film)",
+    "Supporting Actor (Recipient)",
+    "Supporting Actor (Role)",
+    "Supporting Actor (Film)",
+    "Supporting Actress (Recipient)",
+    "Supporting Actress (Role)",
+    "Supporting Actress (Film)",
+    "International Picture",
+    "Animated Picture",
+    "Score (Recipient)",
+    "Score (Film)",
+    "Song (Work)",
+    "Song (Recipient)",
+    "Song (Film)",
+    "Casting",
+    "Editing (Recipient)",
+    "Editing (Film)",
+    "Visual Effects",
+    "Production Design",
+    "Costume Design",
+  ];
+
+  // The ranked-list importer matches Watched columns by header name, so
+  // only a missing header loses data; column order doesn't matter.
+  function validateWatchedSheetSchema(values) {
+    let header = (values || []).find((row) =>
+      rowHasHeader(row, ["year", "title"]),
+    );
+    if (!header) return ['Watched has no header row with "Year" and "Title".'];
+    let normalized = header
+      .map(normalizeHeaderCell)
+      .filter((value) => value !== "country");
+    return WATCHED_SHEET_COLUMNS.filter(
+      (column) =>
+        !column.formula &&
+        ![column.header, ...(column.aliases || [])].some((name) =>
+          normalized.includes(normalizeHeaderCell(name)),
+        ),
+    ).map((column) => `Watched header is missing "${column.header}".`);
+  }
+
+  // Each film once (hydration lists a ranked film under both its year and
+  // all-time), in all-time rank order with unranked films last.
+  function watchedSheetFilms(state) {
+    let seen = new Set();
+    let films = [
+      ...allSourceFilms(state),
+      ...(state.watchedOther || []),
+    ].filter((film) => {
+      if (!film?.title) return false;
+      let key =
+        film.supabaseFilmId ||
+        film.id ||
+        `${film.year || ""}::${window.normalizeTitle(film.title)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    let rankOf = (film) => {
+      let rank = watchedSheetRank(film);
+      return rank === "-" ? Infinity : rank;
+    };
+    return films.sort(
+      (left, right) =>
+        rankOf(left) - rankOf(right) ||
+        String(left.year || "").localeCompare(String(right.year || "")) ||
+        String(left.title).localeCompare(String(right.title)),
+    );
+  }
+
+  function sheetRows(columns, records) {
+    return [
+      columns.map((column) => column.header),
+      ...records.map((record, index) =>
+        columns.map((column) =>
+          column.formula ? column.formula(index + 2) : column.value(record),
+        ),
+      ),
+    ];
+  }
+
+  function awardsSheetPeriodBlocks() {
+    let blocks = [];
+    for (
+      let year = AWARDS_SHEET_FIRST_YEAR;
+      year <= AWARDS_SHEET_LAST_YEAR;
+      year += 1
+    )
+      blocks.push({ periodType: "years", marker: "Year", value: String(year) });
+    for (
+      let decade = AWARDS_SHEET_FIRST_YEAR;
+      decade <= AWARDS_SHEET_LAST_YEAR;
+      decade += 10
+    )
+      blocks.push({
+        periodType: "decades",
+        marker: "Decade",
+        value: `${decade}s`,
+      });
+    blocks.push(
+      {
+        periodType: "centuries",
+        marker: "Century",
+        value: "20th century (1900s)",
+      },
+      {
+        periodType: "centuries",
+        marker: "Century",
+        value: "21st century (2000s)",
+      },
+      { periodType: "allTime", marker: "All-time", value: "" },
+    );
+    return blocks;
+  }
+
+  // Each block is one bracket: Position 1-N (the period's category
+  // capacity), with the Period column's first two cells naming the period
+  // type and value, as splitBracketSheetBlocks() and parseTable() read them.
+  function awardsSheetLayoutRows() {
+    return awardsSheetPeriodBlocks().flatMap((block) =>
+      Array.from(
+        { length: window.bracketCapacities(block.periodType).category },
+        (_, index) =>
+          index === 0
+            ? [1, block.marker]
+            : index === 1 && block.value
+              ? [2, block.value]
+              : [index + 1],
+      ),
+    );
+  }
+
+  function sheetCellData(value) {
+    return typeof value === "number"
+      ? { userEnteredValue: { numberValue: value } }
+      : { userEnteredValue: { stringValue: String(value ?? "") } };
+  }
+
+  function sheetHeaderRowData(headers, targetColumnCount = headers.length) {
+    return {
+      values: Array.from({ length: targetColumnCount }, (_, index) => ({
+        userEnteredValue: {
+          stringValue: index < headers.length ? headers[index] : "",
+        },
+        userEnteredFormat: { textFormat: { bold: true } },
+      })),
+    };
+  }
+
+  function sheetGridRows(
+    columns,
+    rows,
+    targetColumnCount = columns.length,
+    targetRowCount = rows.length,
+  ) {
+    let headerRow = sheetHeaderRowData(rows[0], targetColumnCount);
+    let dataRows = rows.slice(1).map((row) => ({
+      values: Array.from({ length: targetColumnCount }, (_, columnIndex) => {
+        if (columnIndex < row.length) {
+          return columns[columnIndex]?.formula
+            ? { userEnteredValue: { formulaValue: row[columnIndex] } }
+            : sheetCellData(row[columnIndex]);
+        }
+        return { userEnteredValue: { stringValue: "" } };
+      }),
+    }));
+    let emptyRow = {
+      values: Array.from({ length: targetColumnCount }, () => ({
+        userEnteredValue: { stringValue: "" },
+      })),
+    };
+    let paddedRows = [headerRow, ...dataRows];
+    while (paddedRows.length < targetRowCount) {
+      paddedRows.push(emptyRow);
+    }
+    return paddedRows;
+  }
+
+  function awardsSheetGridRows() {
+    return [
+      sheetHeaderRowData(AWARDS_SHEET_HEADERS),
+      ...awardsSheetLayoutRows().map((row) =>
+        row[0] === 1
+          ? {
+              values: AWARDS_SHEET_HEADERS.map((_, columnIndex) => ({
+                ...(columnIndex < row.length
+                  ? sheetCellData(row[columnIndex])
+                  : {}),
+                userEnteredFormat: {
+                  borders: { top: { style: "SOLID_MEDIUM" } },
+                  ...(columnIndex === 1 ? { textFormat: { bold: true } } : {}),
+                },
+              })),
+            }
+          : { values: row.map(sheetCellData) },
+      ),
+    ];
+  }
+
+  function sheetDefinition(title, rowData, columnCount, options = {}) {
+    return {
+      properties: {
+        title,
+        gridProperties: {
+          rowCount: Math.max(rowData.length, options.minRowCount || 0),
+          columnCount,
+          frozenRowCount: 1,
+          frozenColumnCount: options.frozenColumnCount || 0,
+        },
+      },
+      data: [{ startRow: 0, startColumn: 0, rowData }],
+    };
+  }
+
   /**
-   * Creates a new Google Spreadsheet document on the user's Google Drive.
-   * Configures 'Ranked Diary' and 'Watchlist' tabs with frozen header rows.
+   * Builds the spreadsheets.create payload for the Create on Google Drive
+   * workbook: Watched, Watchlist, and a pre-laid-out Awards tab, each grid
+   * exactly as wide as its columns.
+   * @param {Object} [options] Workbook options.
+   * @param {string} [options.title] Document title.
+   * @param {boolean} [options.populateFromArchive] Whether to fill Watched and Watchlist from window.state.
+   * @param {FilmRecord[]} [options.films] Explicit films for the Watched tab.
+   * @param {WatchlistItem[]} [options.watchlist] Explicit items for the Watchlist tab.
+   * @returns {Object} Sheets API Spreadsheet resource.
+   */
+  function buildGoogleSheetsWorkbook(options = {}) {
+    let films =
+      options.films ||
+      (options.populateFromArchive
+        ? watchedSheetFilms(window.state || {})
+        : []);
+    let watchlist =
+      options.watchlist ||
+      (options.populateFromArchive ? window.state?.watchlist || [] : []);
+    let awardsRows = awardsSheetGridRows();
+    return {
+      properties: {
+        title: options.title || "The Oskars — Film Archive & Awards",
+      },
+      sheets: [
+        sheetDefinition(
+          "Watched",
+          sheetGridRows(
+            WATCHED_SHEET_COLUMNS,
+            sheetRows(WATCHED_SHEET_COLUMNS, films),
+          ),
+          WATCHED_SHEET_COLUMNS.length,
+          { minRowCount: DEFAULT_SHEET_ROW_COUNT, frozenColumnCount: 4 },
+        ),
+        sheetDefinition(
+          "Watchlist",
+          sheetGridRows(
+            WATCHLIST_SHEET_COLUMNS,
+            sheetRows(WATCHLIST_SHEET_COLUMNS, watchlist),
+          ),
+          WATCHLIST_SHEET_COLUMNS.length,
+          { minRowCount: DEFAULT_SHEET_ROW_COUNT, frozenColumnCount: 2 },
+        ),
+        sheetDefinition("Awards", awardsRows, AWARDS_SHEET_HEADERS.length, {
+          frozenColumnCount: 2,
+        }),
+      ],
+    };
+  }
+
+  /**
+   * Creates a new Google Spreadsheet document on the user's Google Drive
+   * from buildGoogleSheetsWorkbook().
    * @param {Object} [options] Creation options.
    * @param {string} [options.title] Document title.
    * @param {boolean} [options.populateFromArchive] Whether to populate rows from existing films and watchlist.
    * @param {string} [options.accessToken] Active Google OAuth access token.
-   * @param {Array<Object>} [options.films] Optional explicit films to populate.
-   * @param {Array<Object>} [options.watchlist] Optional explicit watchlist items to populate.
+   * @param {FilmRecord[]} [options.films] Optional explicit films to populate.
+   * @param {WatchlistItem[]} [options.watchlist] Optional explicit watchlist items to populate.
    * @returns {Promise<{spreadsheetId: string, spreadsheetUrl: string, title: string}>} Created spreadsheet info.
    */
   async function createGoogleSheetsDocument(options = {}) {
@@ -1173,192 +1536,20 @@
         scope: GOOGLE_SHEETS_WRITE_SCOPE,
       }));
 
-    let title = options.title || "The Oskars — Film Archive & Watchlist";
+    let payload = buildGoogleSheetsWorkbook(options);
+    let title = payload.properties.title;
 
-    let diaryHeaders = [
-      "Year",
-      "Title",
-      "Director",
-      "Rating",
-      "Type",
-      "Tag",
-      "Medium",
-      "Screenplay",
-      "Source",
-      "Country",
-      "Views",
-      "Date",
-      "Score",
-      "Franchise",
-      "Platform",
-      "Runtime",
-      "tmdbId",
-      "letterboxd",
-    ];
-
-    let watchlistHeaders = [
-      "Date",
-      "Name",
-      "Year",
-      "Letterboxd URI",
-      "Tier",
-      "Director",
-      "Tags",
-      "Franchises",
-      "TMDB ID",
-    ];
-
-    function cell(v) {
-      if (v === null || v === undefined)
-        return { userEnteredValue: { stringValue: "" } };
-      if (typeof v === "number")
-        return { userEnteredValue: { numberValue: v } };
-      return { userEnteredValue: { stringValue: String(v) } };
-    }
-
-    let diaryRowData = [
+    let response = await fetch(
+      "https://sheets.googleapis.com/v4/spreadsheets",
       {
-        values: diaryHeaders.map((h) => ({
-          userEnteredValue: { stringValue: h },
-          userEnteredFormat: { textFormat: { bold: true } },
-        })),
-      },
-    ];
-
-    let watchlistRowData = [
-      {
-        values: watchlistHeaders.map((h) => ({
-          userEnteredValue: { stringValue: h },
-          userEnteredFormat: { textFormat: { bold: true } },
-        })),
-      },
-    ];
-
-    let films =
-      options.films ||
-      (options.populateFromArchive ? allSourceFilms(window.state || {}) : []);
-    if (films && films.length > 0) {
-      for (let film of films) {
-        let ratingStr = film.ratingValue
-          ? String(film.ratingValue) + (film.ratingModifier || "")
-          : "";
-        let directorsStr = Array.isArray(film.directors)
-          ? film.directors.join(", ")
-          : film.directors || "";
-        let countriesStr = Array.isArray(film.countries)
-          ? film.countries.join(", ")
-          : film.countries || "";
-        let tagsStr = Array.isArray(film.tags)
-          ? film.tags.join(", ")
-          : film.tags || "";
-        let franchisesStr = Array.isArray(film.franchises)
-          ? film.franchises.join(", ")
-          : film.franchises || "";
-        let viewsCount =
-          (film.viewings && film.viewings.length) || (film.watchedDate ? 1 : "");
-
-        diaryRowData.push({
-          values: [
-            cell(film.year ? Number(film.year) : ""),
-            cell(film.title || ""),
-            cell(directorsStr),
-            cell(ratingStr),
-            cell(film.type || "Film"),
-            cell(tagsStr),
-            cell(film.medium || ""),
-            cell(film.screenplay || ""),
-            cell(film.adaptationSource || ""),
-            cell(countriesStr),
-            cell(viewsCount),
-            cell(film.watchedDate || ""),
-            cell(ratingStr),
-            cell(franchisesStr),
-            cell(film.platform || ""),
-            cell(film.runtimeMinutes ? Number(film.runtimeMinutes) : ""),
-            cell(film.tmdbId ? Number(film.tmdbId) : ""),
-            cell(film.letterboxdUrl || film.url || ""),
-          ],
-        });
-      }
-    }
-
-    let watchlist =
-      options.watchlist ||
-      (options.populateFromArchive ? window.state?.watchlist || [] : []);
-    if (watchlist && watchlist.length > 0) {
-      for (let item of watchlist) {
-        let directorsStr = Array.isArray(item.directors)
-          ? item.directors.join(", ")
-          : item.directors || "";
-        let tagsStr = Array.isArray(item.tags)
-          ? item.tags.join(", ")
-          : item.tags || "";
-        let franchisesStr = Array.isArray(item.franchises)
-          ? item.franchises.join(", ")
-          : item.franchises || "";
-
-        watchlistRowData.push({
-          values: [
-            cell(item.dateAdded || item.date || ""),
-            cell(item.title || item.name || ""),
-            cell(item.year ? Number(item.year) : ""),
-            cell(item.letterboxdUrl || item.url || ""),
-            cell(item.tier || ""),
-            cell(directorsStr),
-            cell(tagsStr),
-            cell(franchisesStr),
-            cell(item.tmdbId ? Number(item.tmdbId) : ""),
-          ],
-        });
-      }
-    }
-
-    let payload = {
-      properties: {
-        title,
-      },
-      sheets: [
-        {
-          properties: {
-            title: "Ranked Diary",
-            gridProperties: {
-              frozenRowCount: 1,
-            },
-          },
-          data: [
-            {
-              startRow: 0,
-              startColumn: 0,
-              rowData: diaryRowData,
-            },
-          ],
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
         },
-        {
-          properties: {
-            title: "Watchlist",
-            gridProperties: {
-              frozenRowCount: 1,
-            },
-          },
-          data: [
-            {
-              startRow: 0,
-              startColumn: 0,
-              rowData: watchlistRowData,
-            },
-          ],
-        },
-      ],
-    };
-
-    let response = await fetch("https://sheets.googleapis.com/v4/spreadsheets", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    });
+    );
 
     if (!response.ok) {
       let errText = await response.text().catch(() => "");
@@ -1381,14 +1572,14 @@
   }
 
   /**
-   * Fetches metadata for a Google Spreadsheet, including its title and sheet tab names.
+   * Fetches metadata for a Google Spreadsheet: its title, tab names, and each tab's id and grid size.
    * @param {string} spreadsheetId Target spreadsheet ID.
    * @param {string} accessToken Active Google OAuth access token.
-   * @returns {Promise<{title: string, sheetTitles: string[]}>} Document metadata.
+   * @returns {Promise<{title: string, sheetTitles: string[], sheets: Array<{sheetId: number, title: string, rowCount: number, columnCount: number}>}>} Document metadata.
    */
   async function fetchGoogleSpreadsheetMetadata(spreadsheetId, accessToken) {
     let response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}?fields=properties.title,sheets.properties.title`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}?fields=properties.title,sheets.properties(sheetId,title,gridProperties(rowCount,columnCount))`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
       },
@@ -1400,131 +1591,489 @@
       );
     }
     let data = await response.json();
+    let sheets = (data.sheets || [])
+      .map((sheet) => sheet.properties || {})
+      .filter((properties) => properties.title)
+      .map((properties) => ({
+        sheetId: properties.sheetId,
+        title: properties.title,
+        rowCount: Number(properties.gridProperties?.rowCount) || 0,
+        columnCount: Number(properties.gridProperties?.columnCount) || 0,
+      }));
     return {
       title: data.properties?.title || "Untitled Spreadsheet",
-      sheetTitles: (data.sheets || [])
-        .map((s) => s.properties?.title)
-        .filter(Boolean),
+      sheetTitles: sheets.map((sheet) => sheet.title),
+      sheets,
+    };
+  }
+
+  // Plans stay in this browser session; OAuth tokens are never part of a plan.
+  let archivePushPlans = new WeakMap();
+
+  function archivePushSource(options = {}) {
+    return {
+      films: options.films || watchedSheetFilms(window.state || {}),
+      watchlist: options.watchlist || window.state?.watchlist || [],
+    };
+  }
+
+  function archivePushRevision(source) {
+    return JSON.stringify(source);
+  }
+
+  async function archivePushSnapshot(spreadsheetId, accessToken) {
+    let metadata = await fetchGoogleSpreadsheetMetadata(
+      spreadsheetId,
+      accessToken,
+    );
+    let sheets = metadata.sheets.filter((sheet) =>
+      ["Watched", "Watchlist", "Awards"].includes(sheet.title),
+    );
+    let data = sheets.length
+      ? await fetchSheetValues(
+          spreadsheetId,
+          sheets.map((sheet) => `'${sheet.title}'`),
+          accessToken,
+          { valueRenderOption: "FORMULA" },
+        )
+      : { valueRanges: [] };
+    return sheets.map((sheet, index) => ({
+      ...sheet,
+      rows: data.valueRanges[index]?.values || [],
+    }));
+  }
+
+  function awardScope(type, value) {
+    let periodType = window.normalizeAwardPeriodType(type);
+    let year =
+      periodType === "allTime" ? "alltime" : String(value || "").trim();
+    let number = Number(year.replace(/s$/, ""));
+    if (
+      !["years", "decades", "centuries", "allTime"].includes(periodType) ||
+      (periodType !== "allTime" &&
+        (!/^\d{4}s?$/.test(year) ||
+          number <= 0 ||
+          (periodType === "years"
+            ? /s$/.test(year)
+            : !/s$/.test(year) ||
+              number % (periodType === "decades" ? 10 : 100) !== 0)))
+    )
+      throw new Error(`Invalid Awards period: ${type} ${value}.`);
+    return { periodType, year, key: `${periodType}::${year}` };
+  }
+
+  function awardColumnSpec(header) {
+    let match = header.match(/^(.+?)(?: \((.+)\))?$/);
+    return {
+      category: `Best ${match[1]}`,
+      field:
+        match[2] === "Recipient"
+          ? "recipient"
+          : ["Role", "Work"].includes(match[2])
+            ? "detail"
+            : "film",
+      secondHalf: match[2] === "2nd half",
+    };
+  }
+
+  function archiveAwardScopes(films) {
+    let scopes = new Map();
+    let categories = new Set(
+      AWARDS_SHEET_HEADERS.slice(2).map(
+        (header) => awardColumnSpec(header).category,
+      ),
+    );
+    films.forEach((film) =>
+      (film.awards || []).forEach((award) => {
+        let scope = awardScope(window.getAwardPeriodType(award), award.year);
+        let capacity = window.bracketCapacities(scope.periodType);
+        let placement = Number(award.placement);
+        if (
+          !categories.has(award.category) ||
+          !Number.isInteger(placement) ||
+          placement < 1 ||
+          placement >
+            (award.category === "Best Picture"
+              ? capacity.picture
+              : capacity.category)
+        )
+          throw new Error(
+            `Cannot export Awards placement: ${scope.year} ${award.category} #${award.placement}.`,
+          );
+        if (!scopes.has(scope.key))
+          scopes.set(scope.key, { ...scope, nominations: new Map() });
+        let nominations = scopes.get(scope.key).nominations;
+        let key = `${award.category}::${placement}`;
+        if (nominations.has(key))
+          throw new Error(
+            `Multiple films share Awards ${scope.year} ${award.category} #${placement}. Resolve this placement before pushing.`,
+          );
+        nominations.set(key, {
+          film: film.title,
+          recipient:
+            award.recipientText ||
+            (award.recipients || [])
+              .map((recipient) => recipient.name)
+              .join(", "),
+          detail: award.detail || "",
+        });
+      }),
+    );
+    return scopes;
+  }
+
+  function awardScopeMarker(scope) {
+    return {
+      years: "Year",
+      decades: "Decade",
+      centuries: "Century",
+      allTime: "All-time",
+    }[scope.periodType];
+  }
+
+  function awardsPushRequests(sheet, scopes) {
+    let requests = [];
+    let changes = [];
+    let rows = sheet.rows;
+    let empty = !rows.some((row) =>
+      row.some((cell) => String(cell ?? "").trim()),
+    );
+    let header = empty
+      ? AWARDS_SHEET_HEADERS
+      : (rows[0] || []).map((cell) => String(cell).trim());
+    let columns = AWARDS_SHEET_HEADERS.map((name) => {
+      let matches = header
+        .map((cell, index) => (cell === name ? index : -1))
+        .filter((index) => index >= 0);
+      if (matches.length !== 1)
+        throw new Error(
+          `Awards must have exactly one "${name}" column. No changes were written.`,
+        );
+      return matches[0];
+    });
+    let positionColumn = columns[0];
+    let periodColumn = columns[1];
+    let blocks = new Map();
+    let populated = (row) =>
+      columns.some((column) => String(row?.[column] ?? "").trim());
+    for (let row = 1; row < rows.length; row++) {
+      let marker = String(rows[row]?.[periodColumn] || "").trim();
+      if (!/^(Year|Decade|Century|All-time)$/i.test(marker)) {
+        if (populated(rows[row]))
+          throw new Error(
+            `Awards row ${row + 1} is outside a valid period block. No changes were written.`,
+          );
+        continue;
+      }
+      let parsed = window.bracketPeriodFromMeta(
+        marker,
+        rows[row + 1]?.[periodColumn],
+      );
+      let scope = awardScope(parsed.periodType, parsed.year);
+      if (blocks.has(scope.key))
+        throw new Error(
+          `Awards has duplicate ${marker} ${scope.year} blocks. No changes were written.`,
+        );
+      let capacity = window.bracketCapacities(scope.periodType).category;
+      let positions = new Map();
+      for (let offset = 0; offset < capacity; offset++) {
+        let sourceRow = rows[row + offset];
+        let position = Number(sourceRow?.[positionColumn]);
+        if (
+          !Number.isInteger(position) ||
+          position < 1 ||
+          position > capacity ||
+          positions.has(position) ||
+          (offset > 0 &&
+            /^(Year|Decade|Century|All-time)$/i.test(
+              String(sourceRow?.[periodColumn] || "").trim(),
+            ))
+        )
+          throw new Error(
+            `Awards ${marker} ${scope.year} needs each Position 1–${capacity} exactly once. No changes were written.`,
+          );
+        positions.set(position, row + offset);
+      }
+      blocks.set(scope.key, { ...scope, positions });
+      row += capacity - 1;
+    }
+    let nextRow = Math.max(rows.length, 1);
+    if (empty && scopes.size)
+      requests.push({
+        updateCells: {
+          start: { sheetId: sheet.sheetId, rowIndex: 0, columnIndex: 0 },
+          rows: [sheetHeaderRowData(header)],
+          fields: "userEnteredValue",
+        },
+      });
+    for (let scope of scopes.values()) {
+      if (blocks.has(scope.key)) continue;
+      let capacity = window.bracketCapacities(scope.periodType).category;
+      let positions = new Map();
+      for (let position = 1; position <= capacity; position++) {
+        positions.set(position, nextRow);
+        let values = Array.from({ length: header.length }, () => ({}));
+        values[positionColumn] = sheetCellData(position);
+        values[periodColumn] = sheetCellData(
+          position === 1
+            ? awardScopeMarker(scope)
+            : position === 2 && scope.periodType !== "allTime"
+              ? scope.year
+              : "",
+        );
+        requests.push({
+          updateCells: {
+            start: {
+              sheetId: sheet.sheetId,
+              rowIndex: nextRow++,
+              columnIndex: 0,
+            },
+            rows: [{ values }],
+            fields: "userEnteredValue",
+          },
+        });
+      }
+      blocks.set(scope.key, { ...scope, positions });
+      changes.push(`Add ${awardScopeMarker(scope)} ${scope.year} block.`);
+    }
+    let awardsPushed = 0;
+    let awardsCleared = 0;
+    for (let block of blocks.values()) {
+      let nominations = scopes.get(block.key)?.nominations || new Map();
+      awardsPushed += nominations.size;
+      let capacity = window.bracketCapacities(block.periodType).category;
+      AWARDS_SHEET_HEADERS.slice(2).forEach((name, index) => {
+        let column = columns[index + 2];
+        let spec = awardColumnSpec(name);
+        for (let [position, row] of block.positions) {
+          let placement = position + (spec.secondHalf ? capacity : 0);
+          let value =
+            nominations.get(`${spec.category}::${placement}`)?.[spec.field] ||
+            "";
+          let current = rows[row]?.[column] ?? "";
+          if (String(current) === String(value)) continue;
+          if (spec.field === "film" && current && !value) awardsCleared++;
+          changes.push(
+            `${awardScopeMarker(block)} ${block.year} · ${name} #${placement}: ${current || "(empty)"} → ${value || "(empty)"}`,
+          );
+          requests.push({
+            updateCells: {
+              start: {
+                sheetId: sheet.sheetId,
+                rowIndex: row,
+                columnIndex: column,
+              },
+              rows: [{ values: [value === "" ? {} : sheetCellData(value)] }],
+              fields: "userEnteredValue",
+            },
+          });
+        }
+      });
+    }
+    let growRequests =
+      nextRow > sheet.rowCount
+        ? [
+            {
+              appendDimension: {
+                sheetId: sheet.sheetId,
+                dimension: "ROWS",
+                length: nextRow - sheet.rowCount,
+              },
+            },
+          ]
+        : [];
+    if (header.length > sheet.columnCount)
+      growRequests.push({
+        appendDimension: {
+          sheetId: sheet.sheetId,
+          dimension: "COLUMNS",
+          length: header.length - sheet.columnCount,
+        },
+      });
+    return {
+      requests: [...growRequests, ...requests],
+      changes,
+      awardsPushed,
+      awardsCleared,
     };
   }
 
   /**
-   * Pushes the current watched films and watchlist items to a connected Google Sheet.
-   * Overwrites values starting at row 2 in 'Ranked Diary' and 'Watchlist' tabs.
+   * Previews a connected workbook push, validating Awards blocks and capturing the reviewed archive and Sheet values.
    * @param {string} spreadsheetId Target spreadsheet ID.
-   * @param {Object} [options] Push options.
-   * @param {string} [options.accessToken] Active Google OAuth access token.
-   * @param {Array<Object>} [options.films] Optional explicit films to push.
-   * @param {Array<Object>} [options.watchlist] Optional explicit watchlist items to push.
-   * @returns {Promise<{filmsPushed: number, watchlistPushed: number}>} Summary of written rows.
+   * @param {Object} [options] Optional access token, films and watchlist overrides.
+   * @returns {Promise<Object>} Session-only review summary and proposed Awards cell changes.
+   */
+  async function previewGoogleSpreadsheetArchive(spreadsheetId, options = {}) {
+    let accessToken = options.accessToken || (await requestGoogleAccessToken());
+    let snapshot = await archivePushSnapshot(spreadsheetId, accessToken);
+    let source = archivePushSource(options);
+    let scopes = archiveAwardScopes(source.films);
+    let requests = [];
+    let summary = {
+      filmsPushed: 0,
+      watchlistPushed: 0,
+      awardsPushed: 0,
+      awardsCleared: 0,
+    };
+    let warnings = [];
+    for (let tab of [
+      {
+        title: "Watched",
+        columns: WATCHED_SHEET_COLUMNS,
+        records: source.films,
+        count: "filmsPushed",
+      },
+      {
+        title: "Watchlist",
+        columns: WATCHLIST_SHEET_COLUMNS,
+        records: source.watchlist,
+        count: "watchlistPushed",
+      },
+    ]) {
+      let sheet = snapshot.find((entry) => entry.title === tab.title);
+      if (!sheet || !tab.records.length) {
+        warnings.push(
+          `${tab.title}: left untouched (${!sheet ? "missing tab" : "empty app collection"}).`,
+        );
+        continue;
+      }
+      let rows = sheetRows(tab.columns, tab.records);
+      let rowCount = Math.max(rows.length, sheet.rowCount);
+      let columnCount = Math.max(tab.columns.length, sheet.columnCount);
+      if (rows.length > sheet.rowCount)
+        requests.push({
+          appendDimension: {
+            sheetId: sheet.sheetId,
+            dimension: "ROWS",
+            length: rows.length - sheet.rowCount,
+          },
+        });
+      if (tab.columns.length > sheet.columnCount)
+        requests.push({
+          appendDimension: {
+            sheetId: sheet.sheetId,
+            dimension: "COLUMNS",
+            length: tab.columns.length - sheet.columnCount,
+          },
+        });
+      requests.push({
+        updateCells: {
+          range: {
+            sheetId: sheet.sheetId,
+            startRowIndex: 0,
+            endRowIndex: rowCount,
+            startColumnIndex: 0,
+            endColumnIndex: columnCount,
+          },
+          rows: sheetGridRows(tab.columns, rows, columnCount, rowCount),
+          fields: "userEnteredValue",
+        },
+      });
+      summary[tab.count] = tab.records.length;
+    }
+    let awardsSheet = snapshot.find((sheet) => sheet.title === "Awards");
+    if (!awardsSheet && scopes.size) {
+      let sheetId = Math.max(0, ...snapshot.map((sheet) => sheet.sheetId)) + 1;
+      // Let Google allocate an id outside every tab in the workbook.
+      let metadata = await fetchGoogleSpreadsheetMetadata(
+        spreadsheetId,
+        accessToken,
+      );
+      sheetId = Math.max(
+        sheetId,
+        ...metadata.sheets.map((sheet) => sheet.sheetId + 1),
+      );
+      awardsSheet = {
+        sheetId,
+        rows: [],
+        rowCount: 1,
+        columnCount: AWARDS_SHEET_HEADERS.length,
+      };
+      requests.push({
+        addSheet: {
+          properties: {
+            sheetId,
+            title: "Awards",
+            gridProperties: {
+              rowCount: 1,
+              columnCount: AWARDS_SHEET_HEADERS.length,
+              frozenRowCount: 1,
+              frozenColumnCount: 2,
+            },
+          },
+        },
+      });
+    }
+    let awards = awardsSheet
+      ? awardsPushRequests(awardsSheet, scopes)
+      : { requests: [], changes: [], awardsPushed: 0, awardsCleared: 0 };
+    requests.push(...awards.requests);
+    summary.awardsPushed = awards.awardsPushed;
+    summary.awardsCleared = awards.awardsCleared;
+    let plan = {
+      spreadsheetId,
+      ...summary,
+      warnings,
+      awardChanges: awards.changes,
+      hasChanges: requests.length > 0,
+    };
+    archivePushPlans.set(plan, {
+      spreadsheetId,
+      snapshot,
+      sourceRevision: archivePushRevision(source),
+      requests,
+      summary,
+    });
+    return plan;
+  }
+
+  /**
+   * Applies a reviewed workbook push after checking the archive and live Sheet for changes, using one atomic batch.
+   * @param {string} spreadsheetId Target spreadsheet ID.
+   * @param {Object} options Reviewed plan and optional access token, films and watchlist overrides.
+   * @returns {Promise<Object>} Counts of exported films, watchlist items and awards.
    */
   async function writeGoogleSpreadsheetArchive(spreadsheetId, options = {}) {
+    let reviewed = archivePushPlans.get(options.plan);
+    if (!reviewed || reviewed.spreadsheetId !== spreadsheetId)
+      throw new Error("Preview the archive push before applying it.");
     let accessToken =
       options.accessToken ||
       (await requestGoogleAccessToken({
         write: true,
         scope: GOOGLE_SHEETS_WRITE_SCOPE,
       }));
-
-    let films = options.films || allSourceFilms(window.state || {});
-    let watchlist = options.watchlist || window.state?.watchlist || [];
-
-    let diaryRows = films.map((film) => {
-      let ratingStr = film.ratingValue
-        ? String(film.ratingValue) + (film.ratingModifier || "")
-        : "";
-      let directorsStr = Array.isArray(film.directors)
-        ? film.directors.join(", ")
-        : film.directors || "";
-      let countriesStr = Array.isArray(film.countries)
-        ? film.countries.join(", ")
-        : film.countries || "";
-      let tagsStr = Array.isArray(film.tags)
-        ? film.tags.join(", ")
-        : film.tags || "";
-      let franchisesStr = Array.isArray(film.franchises)
-        ? film.franchises.join(", ")
-        : film.franchises || "";
-      let viewsCount =
-        (film.viewings && film.viewings.length) || (film.watchedDate ? 1 : "");
-
-      return [
-        film.year ? Number(film.year) : "",
-        film.title || "",
-        directorsStr,
-        ratingStr,
-        film.type || "Film",
-        tagsStr,
-        film.medium || "",
-        film.screenplay || "",
-        film.adaptationSource || "",
-        countriesStr,
-        viewsCount,
-        film.watchedDate || "",
-        ratingStr,
-        franchisesStr,
-        film.platform || "",
-        film.runtimeMinutes ? Number(film.runtimeMinutes) : "",
-        film.tmdbId ? Number(film.tmdbId) : "",
-        film.letterboxdUrl || film.url || "",
-      ];
-    });
-
-    let watchlistRows = watchlist.map((item) => {
-      let directorsStr = Array.isArray(item.directors)
-        ? item.directors.join(", ")
-        : item.directors || "";
-      let tagsStr = Array.isArray(item.tags)
-        ? item.tags.join(", ")
-        : item.tags || "";
-      let franchisesStr = Array.isArray(item.franchises)
-        ? item.franchises.join(", ")
-        : item.franchises || "";
-
-      return [
-        item.dateAdded || item.date || "",
-        item.title || item.name || "",
-        item.year ? Number(item.year) : "",
-        item.letterboxdUrl || item.url || "",
-        item.tier || "",
-        directorsStr,
-        tagsStr,
-        franchisesStr,
-        item.tmdbId ? Number(item.tmdbId) : "",
-      ];
-    });
-
-    let batchData = [];
-    if (diaryRows.length > 0) {
-      batchData.push({
-        range: "'Ranked Diary'!A2",
-        values: diaryRows,
-      });
+    let snapshot = await archivePushSnapshot(spreadsheetId, accessToken);
+    if (
+      JSON.stringify(snapshot) !== JSON.stringify(reviewed.snapshot) ||
+      archivePushRevision(archivePushSource(options)) !==
+        reviewed.sourceRevision
+    ) {
+      archivePushPlans.delete(options.plan);
+      throw new Error(
+        "The Sheet or archive changed after preview. Preview the push again before applying it.",
+      );
     }
-    if (watchlistRows.length > 0) {
-      batchData.push({
-        range: "'Watchlist'!A2",
-        values: watchlistRows,
-      });
-    }
-
-    if (batchData.length > 0) {
-      await batchUpdateSheetValues(spreadsheetId, batchData, accessToken);
-    }
-
-    return {
-      filmsPushed: diaryRows.length,
-      watchlistPushed: watchlistRows.length,
-    };
+    if (reviewed.requests.length)
+      await batchUpdateSpreadsheet(
+        spreadsheetId,
+        reviewed.requests,
+        accessToken,
+      );
+    archivePushPlans.delete(options.plan);
+    return reviewed.summary;
   }
 
   /**
    * Builds an ImportProposal from Google Spreadsheet data.
    * @param {Object} spreadsheetData Data fetched from Google Sheets.
-   * @param {string[][]} [spreadsheetData.diaryRows] Rows from the Ranked Diary sheet.
+   * @param {string[][]} [spreadsheetData.watchedRows] Rows from the Watched sheet.
    * @param {string[][]} [spreadsheetData.watchlistRows] Rows from the Watchlist sheet.
-   * @param {string} [spreadsheetData.diaryRaw] Optional raw CSV for diary rows.
-   * @param {string} [spreadsheetData.watchlistRaw] Optional raw CSV for watchlist rows.
+   * @param {string[][]} [spreadsheetData.awardsRows] Rows from the Awards sheet.
+   * @param {string} [spreadsheetData.watchedRaw] Optional raw CSV/TSV for watched rows.
+   * @param {string} [spreadsheetData.watchlistRaw] Optional raw CSV/TSV for watchlist rows.
+   * @param {string} [spreadsheetData.awardsRaw] Optional raw CSV/TSV for awards rows.
    * @param {Object} [options] Proposal options.
    * @param {string} [options.spreadsheetId] Google Spreadsheet ID.
    * @param {string} [options.sourceName] Friendly name for report.
@@ -1534,16 +2083,19 @@
   function proposeGoogleSpreadsheetSync(spreadsheetData, options = {}) {
     let mode = options.mode === "replace" ? "replace" : "merge";
     let baseState = window.cloneRecord(window.state);
-    let diaryRaw =
-      spreadsheetData.diaryRaw ||
-      (spreadsheetData.diaryRows
-        ? rowsToDelimited(spreadsheetData.diaryRows, ",")
-        : "");
+    let watchedRows = spreadsheetData.watchedRows || [];
+    let watchlistRows = spreadsheetData.watchlistRows || [];
+    let awardsRows = spreadsheetData.awardsRows || [];
+
+    let watchedRaw =
+      spreadsheetData.watchedRaw ||
+      (watchedRows.length ? rowsToDelimited(watchedRows, ",") : "");
     let watchlistRaw =
       spreadsheetData.watchlistRaw ||
-      (spreadsheetData.watchlistRows
-        ? rowsToDelimited(spreadsheetData.watchlistRows, ",")
-        : "");
+      (watchlistRows.length ? rowsToDelimited(watchlistRows, ",") : "");
+    let awardsRaw =
+      spreadsheetData.awardsRaw ||
+      (awardsRows.length ? rowsToDelimited(awardsRows, "\t") : "");
 
     try {
       window.state =
@@ -1579,31 +2131,62 @@
         watchlistItemsUpdated: 0,
       };
 
-      if (spreadsheetData.diaryRows && spreadsheetData.diaryRows.length > 0) {
-        let diarySchemaWarnings = validateDiarySchema(spreadsheetData.diaryRows, {
-          key: "Ranked Diary",
+      function collectDetails(report, source) {
+        combinedReport.ruleWarnings += report.ruleWarnings || 0;
+        [
+          "titleVariants",
+          "ruleViolations",
+          "ruleWarningDetails",
+          "skippedDetails",
+          "missingAllTimeFilms",
+          "newFilmDetails",
+          "rankChanges",
+          "awardChanges",
+          "preservedFieldDetails",
+          "sourceConflicts",
+        ].forEach((key) => {
+          combinedReport[key].push(
+            ...(report[key] || []).map((detail) => ({
+              ...detail,
+              source,
+            })),
+          );
         });
-        if (diarySchemaWarnings && diarySchemaWarnings.length > 0) {
-          combinedReport.warnings.push(...diarySchemaWarnings);
-        }
       }
 
-      if (spreadsheetData.watchlistRows && spreadsheetData.watchlistRows.length > 0) {
-        let watchlistSchemaWarnings = validateWatchlistSchema(
-          spreadsheetData.watchlistRows,
-          { key: "Watchlist" },
+      if (watchedRows && watchedRows.length > 0) {
+        combinedReport.warnings.push(
+          ...validateWatchedSheetSchema(watchedRows),
         );
+      }
+
+      if (watchlistRows && watchlistRows.length > 0) {
+        let watchlistSchemaWarnings = validateWatchlistSchema(watchlistRows, {
+          key: "Watchlist",
+        });
         if (watchlistSchemaWarnings && watchlistSchemaWarnings.length > 0) {
           combinedReport.warnings.push(...watchlistSchemaWarnings);
         }
       }
 
-      if (diaryRaw && diaryRaw.trim()) {
-        let diaryReport = window.importData(diaryRaw, "diary", {
+      if (awardsRows && awardsRows.length > 0) {
+        let awardsSchemaWarnings = validateBracketSchema(awardsRows, {
+          key: "Awards",
+        });
+        if (awardsSchemaWarnings && awardsSchemaWarnings.length > 0) {
+          combinedReport.warnings.push(...awardsSchemaWarnings);
+        }
+      }
+
+      if (watchedRaw && watchedRaw.trim()) {
+        let diaryReport = window.importData(watchedRaw, "ranked", {
+          confirmDerivedRanks: true,
           render: false,
           silentReport: true,
+          checkEligibility: false,
         });
         if (diaryReport) {
+          collectDetails(diaryReport, "Watched");
           combinedReport.filmsParsed += diaryReport.filmsParsed || 0;
           combinedReport.filmsAdded += diaryReport.filmsAdded || 0;
           combinedReport.filmsMerged += diaryReport.filmsMerged || 0;
@@ -1625,8 +2208,10 @@
         let watchlistReport = window.importData(watchlistRaw, "watchlist", {
           render: false,
           silentReport: true,
+          checkEligibility: false,
         });
         if (watchlistReport) {
+          collectDetails(watchlistReport, "Watchlist");
           combinedReport.watchlistItemsParsed +=
             watchlistReport.watchlistItemsParsed ||
             watchlistReport.filmsParsed ||
@@ -1644,6 +2229,77 @@
         }
       }
 
+      if (awardsRaw && awardsRaw.trim()) {
+        // A populated ballot replaces its prior placements, so a reorder or
+        // changed recipient cannot accumulate another version of the award.
+        // Starter blocks with no award cells leave existing ballots alone;
+        // a dash explicitly marks an empty ballot/category for replacement.
+        let header = awardsRows[0] || [];
+        let categories = new Set(
+          AWARDS_SHEET_HEADERS.slice(2)
+            .filter((name) => header.includes(name))
+            .map((name) => awardColumnSpec(name).category),
+        );
+        let scopes = new Set(
+          window
+            .splitBracketSheetBlocks(awardsRows)
+            .filter((block) =>
+              block.rows
+                .slice(1)
+                .some((row) =>
+                  block.rows[0].some(
+                    (name, column) =>
+                      column >= 2 &&
+                      AWARDS_SHEET_HEADERS.includes(name) &&
+                      String(row[column] ?? "").trim(),
+                  ),
+                ),
+            )
+            .map((block) => {
+              let meta = window.bracketPeriodFromMeta(
+                block.rows[1]?.[1],
+                block.rows[2]?.[1],
+              );
+              return `${meta.periodType}::${meta.year}`;
+            }),
+        );
+        let films = new Set([
+          ...allSourceFilms(window.state),
+          ...(window.state.watchedOther || []),
+          ...Object.values(window.state.filmsById || {}),
+        ]);
+        films.forEach((film) => {
+          film.awards = (film.awards || []).filter(
+            (award) =>
+              !categories.has(award.category) ||
+              !scopes.has(`${window.getAwardPeriodType(award)}::${award.year}`),
+          );
+        });
+        let awardsReport = window.importData(awardsRaw, "table", {
+          render: false,
+          silentReport: true,
+          checkEligibility: false,
+        });
+        if (awardsReport) {
+          collectDetails(awardsReport, "Awards");
+          combinedReport.awardsAdded += awardsReport.awardsAdded || 0;
+          combinedReport.awardsRejected += awardsReport.awardsRejected || 0;
+          combinedReport.filmsParsed += awardsReport.filmsParsed || 0;
+          combinedReport.filmsAdded += awardsReport.filmsAdded || 0;
+          combinedReport.filmsMerged += awardsReport.filmsMerged || 0;
+          if (awardsReport.warnings)
+            combinedReport.warnings.push(...awardsReport.warnings);
+          if (awardsReport.periods) {
+            combinedReport.periods = Array.from(
+              new Set([
+                ...combinedReport.periods,
+                ...Array.from(awardsReport.periods),
+              ]),
+            );
+          }
+        }
+      }
+
       return window.createImportProposal({
         sourceKind: "google-sheets",
         mode,
@@ -1651,8 +2307,9 @@
         candidateState: window.state,
         report: combinedReport,
         sourceRevision: window.canonicalDataRevision({
-          diaryRaw,
+          diaryRaw: watchedRaw,
           watchlistRaw,
+          awardsRaw,
         }),
         sourceConfig: {
           spreadsheetId: String(options.spreadsheetId || ""),
@@ -1729,10 +2386,14 @@
   window.batchUpdateGoogleSpreadsheet = batchUpdateSpreadsheet;
   window.rowsToDelimited = rowsToDelimited;
   window.rowsToPlainDelimited = rowsToPlainDelimited;
+  window.buildGoogleSheetsWorkbook = buildGoogleSheetsWorkbook;
   window.createGoogleSheetsDocument = createGoogleSheetsDocument;
   window.fetchGoogleSpreadsheetMetadata = fetchGoogleSpreadsheetMetadata;
+  window.previewGoogleSpreadsheetArchive = previewGoogleSpreadsheetArchive;
   window.writeGoogleSpreadsheetArchive = writeGoogleSpreadsheetArchive;
   window.proposeGoogleSpreadsheetSync = proposeGoogleSpreadsheetSync;
+  window.validateWatchedSheetSchema = validateWatchedSheetSchema;
+  window.validateWatchlistSchema = validateWatchlistSchema;
   window.formatGoogleSheetsError = formatGoogleSheetsError;
 
   function maybeResumeGoogleSheetsRedirect() {
@@ -1750,4 +2411,3 @@
 
   maybeResumeGoogleSheetsRedirect();
 })();
-

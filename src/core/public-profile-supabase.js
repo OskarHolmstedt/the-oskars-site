@@ -222,7 +222,7 @@
    * mirrors the app's own established rule (README's Award Model
    * section, `posters.js`'s bucket-reclassification): a real "Film"
    * belongs in the year archive, anything else (documentary/TV/short/
-   * standalone) belongs in the flat watchedFilms ("Other Watched") list.
+   * standalone) belongs in the flat watchedFilms ("Shorts, docs & TV") list.
    * Pure - no Supabase client or DOM - exposed on window so it's directly
    * testable with plain row fixtures, matching
    * supabase-legacy-hydration.js's own established pattern.

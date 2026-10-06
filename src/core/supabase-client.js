@@ -47,6 +47,56 @@ function loadSupabaseModule() {
   return supabaseModulePromise;
 }
 
+function supabaseResilientFetch(url, options) {
+  let fetchFn =
+    (typeof window !== "undefined" && window.fetch?.bind(window)) ||
+    (typeof globalThis !== "undefined" && globalThis.fetch);
+  if (!fetchFn) return fetch(url, options);
+  if (!window.withRetry) return fetchFn(url, options);
+  return window.withRetry(
+    async () => {
+      let response = await fetchFn(url, options);
+      if (
+        response.status === 429 ||
+        (response.status >= 502 && response.status <= 504)
+      ) {
+        let err = new Error(
+          `Supabase request failed with status ${response.status}`,
+        );
+        err.status = response.status;
+        throw err;
+      }
+      let text = await response.text();
+      // The Response constructor rejects any body, even "", for these.
+      let nullBodyStatus = [204, 205, 304].includes(response.status);
+      return new Response(nullBodyStatus ? null : text, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    },
+    {
+      maxAttempts: 4,
+      baseDelayMs: 300,
+      maxDelayMs: 4000,
+      shouldRetry(error) {
+        let status = Number(error?.status || error?.statusCode);
+        return (
+          error?.name === "AbortError" ||
+          error instanceof TypeError ||
+          /load failed|network connection|network request failed|failed to fetch/i.test(
+            error?.message || "",
+          ) ||
+          error?.code === "ECONNRESET" ||
+          error?.code === "ETIMEDOUT" ||
+          status === 429 ||
+          (status >= 502 && status <= 504)
+        );
+      },
+    },
+  );
+}
+
 /**
  * Returns the shared Supabase client instance, initializing it if
  * needed. Account operations share this instance so session storage and
@@ -60,6 +110,11 @@ window.ensureSupabaseClient = async function () {
     supabaseClientInstance = module.createClient(
       window.OSKARS_SUPABASE_CONFIG.url,
       window.OSKARS_SUPABASE_CONFIG.anonKey,
+      {
+        global: {
+          fetch: supabaseResilientFetch,
+        },
+      },
     );
     // Whatever resolveSupabaseAuthState() last resolved may no longer be
     // current the moment a real auth event fires - reset its cache so a
@@ -88,6 +143,9 @@ window.ensureSupabasePublicClient = async function () {
       window.OSKARS_SUPABASE_CONFIG.url,
       window.OSKARS_SUPABASE_CONFIG.anonKey,
       {
+        global: {
+          fetch: supabaseResilientFetch,
+        },
         auth: {
           storageKey: "oskars-public-profile-auth",
           persistSession: false,

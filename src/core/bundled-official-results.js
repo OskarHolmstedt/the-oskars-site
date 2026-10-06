@@ -50,14 +50,20 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Charles Rosher|Karl Struss",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Sunrise",
+            tmdbId: "631",
             winner: true,
           },
           {
+            additionalFilms: [
+              { position: 2, tmdbId: "171343" },
+              { position: 3, tmdbId: "42538" },
+            ],
             category: "Best Cinematography",
             id: "official:fnv1a32:c00bac52:176",
             recipient: "George Barnes",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Devil Dancer | The Magic Flame | Sadie Thompson",
+            tmdbId: "171341",
             winner: false,
           },
           {
@@ -106,6 +112,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             winner: false,
           },
           {
+            additionalFilms: [{ position: 2, tmdbId: "85499" }],
             category: "Best Lead Actor",
             detail:
               "General Dolgorucki [Grand Duke Sergius Alexander]|August Schilling",
@@ -113,24 +120,32 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emil Jannings",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Last Command | The Way of All Flesh",
+            tmdbId: "52679",
             winner: true,
           },
           {
+            additionalFilms: [{ position: 2, tmdbId: "102541" }],
             category: "Best Lead Actor",
             detail: "Nickie Elkins|The Patent Leather Kid",
             id: "official:fnv1a32:a861481a:206",
             recipient: "Richard Barthelmess",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Noose | The Patent Leather Kid",
+            tmdbId: "113167",
             winner: false,
           },
           {
+            additionalFilms: [
+              { position: 2, tmdbId: "28391" },
+              { position: 3, tmdbId: "631" },
+            ],
             category: "Best Lead Actress",
             detail: "Diane|Angela|The Wife",
             id: "official:fnv1a32:70e75bb9:189",
             recipient: "Janet Gaynor",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "7th Heaven | Street Angel | Sunrise",
+            tmdbId: "82474",
             winner: true,
           },
           {
@@ -177,14 +192,17 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "The Caddo Company",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Racket",
+            tmdbId: "27777",
             winner: false,
           },
           {
+            additionalFilms: [{ position: 2, tmdbId: "79757" }],
             category: "Best Production Design",
             id: "official:fnv1a32:8f45139c:155",
             recipient: "William Cameron Menzies",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Dove | Tempest",
+            tmdbId: "79760",
             winner: true,
           },
           {
@@ -202,6 +220,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rochus Gliese",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Sunrise",
+            tmdbId: "631",
             winner: false,
           },
           {
@@ -230,19 +249,23 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             winner: true,
           },
           {
+            additionalFilms: [{ position: 2, tmdbId: "173573" }],
             category: "Best Writing",
             id: "official:fnv1a32:28d0db46:147",
             recipient: "Bess Meredyth",
             sourceCategory: "WRITING",
             sourceTitle: "A Woman of Affairs | Wonder of Women",
+            tmdbId: "42615",
             winner: false,
           },
           {
+            additionalFilms: [{ position: 2, tmdbId: "113207" }],
             category: "Best Writing",
             id: "official:fnv1a32:5163d23b:135",
             recipient: "Tom Barry",
             sourceCategory: "WRITING",
             sourceTitle: "In Old Arizona | The Valiant",
+            tmdbId: "83989",
             winner: false,
           },
           {
@@ -255,12 +278,18 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             winner: false,
           },
           {
+            additionalFilms: [
+              { position: 2, tmdbId: "173572" },
+              { position: 3, tmdbId: "173568" },
+              { position: 4, tmdbId: "173569" },
+            ],
             category: "Best Writing",
             id: "official:fnv1a32:9777620b:170",
             recipient: "Elliott Clawson",
             sourceCategory: "WRITING",
             sourceTitle:
               "The Cop | The Leatherneck | Sal of Singapore | Skyscraper",
+            tmdbId: "173570",
             winner: false,
           },
           {
@@ -282,11 +311,13 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             winner: true,
           },
           {
+            additionalFilms: [{ position: 2, tmdbId: "28391" }],
             category: "Best Cinematography",
             id: "official:fnv1a32:f325451c:151",
             recipient: "Ernest Palmer",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Four Devils | Street Angel",
+            tmdbId: "171624",
             winner: false,
           },
           {
@@ -326,11 +357,13 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             winner: true,
           },
           {
+            additionalFilms: [{ position: 2, tmdbId: "171446" }],
             category: "Best Director",
             id: "official:fnv1a32:c59abfa2:130",
             recipient: "Frank Lloyd",
             sourceCategory: "DIRECTING",
             sourceTitle: "Drag | Weary River",
+            tmdbId: "116269",
             winner: false,
           },
           {
@@ -426,6 +459,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mary Pickford",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Coquette",
+            tmdbId: "85507",
             winner: true,
           },
           {
@@ -475,6 +509,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jeanne Eagels",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Letter",
+            tmdbId: "147846",
             winner: false,
           },
           {
@@ -532,11 +567,13 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             winner: true,
           },
           {
+            additionalFilms: [{ position: 2, tmdbId: "259361" }],
             category: "Best Production Design",
             id: "official:fnv1a32:446fbeb4:158",
             recipient: "William Cameron Menzies",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Alibi | The Awakening",
+            tmdbId: "13847",
             winner: false,
           },
           {
@@ -579,6 +616,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frances Marion",
             sourceCategory: "WRITING",
             sourceTitle: "The Big House",
+            tmdbId: "47250",
             winner: true,
           },
           {
@@ -596,6 +634,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Julian Josephson",
             sourceCategory: "WRITING",
             sourceTitle: "Disraeli",
+            tmdbId: "84274",
             winner: false,
           },
           {
@@ -640,6 +679,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Daniels",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Anna Christie",
+            tmdbId: "42812",
             winner: false,
           },
           {
@@ -670,11 +710,13 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             winner: true,
           },
           {
+            additionalFilms: [{ position: 2, tmdbId: "77412" }],
             category: "Best Director",
             id: "official:fnv1a32:ff362ae7:138",
             recipient: "Clarence Brown",
             sourceCategory: "DIRECTING",
             sourceTitle: "Anna Christie | Romance",
+            tmdbId: "42812",
             winner: false,
           },
           {
@@ -711,15 +753,18 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "George Arliss",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Disraeli",
+            tmdbId: "84274",
             winner: true,
           },
           {
+            additionalFilms: [{ position: 2, tmdbId: "104208" }],
             category: "Best Lead Actor",
             detail: "Hugh 'Bulldog' Drummond|Michel",
             id: "official:fnv1a32:d58a6346:188",
             recipient: "Ronald Colman",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Bulldog Drummond | Condemned",
+            tmdbId: "81829",
             winner: false,
           },
           {
@@ -729,15 +774,18 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Wallace Beery",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Big House",
+            tmdbId: "47250",
             winner: false,
           },
           {
+            additionalFilms: [{ position: 2, tmdbId: "51759" }],
             category: "Best Lead Actor",
             detail: "Pierre Mirande|Count Alfred Renard",
             id: "official:fnv1a32:18110ac2:198",
             recipient: "Maurice Chevalier",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Big Pond | The Love Parade",
+            tmdbId: "111754",
             winner: false,
           },
           {
@@ -771,12 +819,14 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             winner: true,
           },
           {
+            additionalFilms: [{ position: 2, tmdbId: "77412" }],
             category: "Best Lead Actress",
             detail: "Anna Christie|Madame Rita Cavallini",
             id: "official:fnv1a32:b2e82f58:190",
             recipient: "Greta Garbo",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Anna Christie | Romance",
+            tmdbId: "42812",
             winner: false,
           },
           {
@@ -796,6 +846,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nancy Carroll",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Devil's Holiday",
+            tmdbId: "104215",
             winner: false,
           },
           {
@@ -833,6 +884,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Warner Bros.",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Disraeli",
+            tmdbId: "84274",
             winner: false,
           },
           {
@@ -841,6 +893,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Cosmopolitan",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Big House",
+            tmdbId: "47250",
             winner: false,
           },
           {
@@ -964,6 +1017,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Floyd Crosby",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Tabu",
+            tmdbId: "977",
             winner: true,
           },
           {
@@ -999,6 +1053,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Charles Lang",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Right to Love",
+            tmdbId: "173746",
             winner: false,
           },
           {
@@ -1161,6 +1216,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fox",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "East Lynne",
+            tmdbId: "84277",
             winner: false,
           },
           {
@@ -1232,6 +1288,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Day",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Whoopee!",
+            tmdbId: "108224",
             winner: false,
           },
         ],
@@ -1247,6 +1304,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Edwin Burke",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Bad Girl",
+            tmdbId: "84299",
             winner: true,
           },
           {
@@ -1264,6 +1322,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Percy Heath|Samuel Hoffenstein",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Dr. Jekyll and Mr. Hyde",
+            tmdbId: "3019",
             winner: false,
           },
           {
@@ -1290,6 +1349,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Karl Struss",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Dr. Jekyll and Mr. Hyde",
+            tmdbId: "3019",
             winner: false,
           },
           {
@@ -1298,6 +1358,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frank Borzage",
             sourceCategory: "DIRECTING",
             sourceTitle: "Bad Girl",
+            tmdbId: "84299",
             winner: true,
           },
           {
@@ -1315,6 +1376,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "King Vidor",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Champ",
+            tmdbId: "42816",
             winner: false,
           },
           {
@@ -1324,6 +1386,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fredric March",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Dr. Jekyll and Mr. Hyde",
+            tmdbId: "3019",
             winner: true,
           },
           {
@@ -1333,6 +1396,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Wallace Beery",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Champ",
+            tmdbId: "42816",
             winner: true,
           },
           {
@@ -1399,6 +1463,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fox",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Bad Girl",
+            tmdbId: "84299",
             winner: false,
           },
           {
@@ -1434,6 +1499,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Metro-Goldwyn-Mayer",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Champ",
+            tmdbId: "42816",
             winner: false,
           },
           {
@@ -1539,6 +1605,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frank Lloyd",
             sourceCategory: "DIRECTING",
             sourceTitle: "Cavalcade",
+            tmdbId: "56164",
             winner: true,
           },
           {
@@ -1606,6 +1673,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Diana Wynyard",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Cavalcade",
+            tmdbId: "56164",
             winner: false,
           },
           {
@@ -1624,6 +1692,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fox",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Cavalcade",
+            tmdbId: "56164",
             winner: true,
           },
           {
@@ -1632,6 +1701,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Warner Bros.",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "42nd Street",
+            tmdbId: "3062",
             winner: false,
           },
           {
@@ -1712,6 +1782,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William S. Darling",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Cavalcade",
+            tmdbId: "56164",
             winner: true,
           },
           {
@@ -1941,6 +2012,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "First National",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Flirtation Walk",
+            tmdbId: "84100",
             winner: false,
           },
           {
@@ -2176,6 +2248,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gregg Toland",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Les Miserables",
+            tmdbId: "43893",
             winner: false,
           },
           {
@@ -2247,6 +2320,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Barbara McLean",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Les Miserables",
+            tmdbId: "43893",
             winner: false,
           },
           {
@@ -2333,6 +2407,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bette Davis",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Dangerous",
+            tmdbId: "52863",
             winner: true,
           },
           {
@@ -2445,6 +2520,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "20th Century",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Les Miserables",
+            tmdbId: "43893",
             winner: false,
           },
           {
@@ -2489,6 +2565,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "RKO Radio",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Top Hat",
+            tmdbId: "3080",
             winner: false,
           },
           {
@@ -2515,6 +2592,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Van Nest Polglase|Carroll Clark",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Top Hat",
+            tmdbId: "3080",
             winner: false,
           },
           {
@@ -2581,6 +2659,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Irving Berlin",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Top Hat",
+            tmdbId: "3080",
             winner: false,
           },
         ],
@@ -2641,6 +2720,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gaetano Gaudio",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Anthony Adverse",
+            tmdbId: "37658",
             winner: true,
           },
           {
@@ -2712,6 +2792,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ralph Dawson",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Anthony Adverse",
+            tmdbId: "37658",
             winner: true,
           },
           {
@@ -2883,6 +2964,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Warner Bros.",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Anthony Adverse",
+            tmdbId: "37658",
             winner: false,
           },
           {
@@ -2963,6 +3045,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anton Grot",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Anthony Adverse",
+            tmdbId: "37658",
             winner: false,
           },
           {
@@ -3016,6 +3099,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Warner Bros.|Leo Forbstein|Erich Wolfgang Korngold",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Anthony Adverse",
+            tmdbId: "37658",
             winner: true,
           },
           {
@@ -3171,6 +3255,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gale Sondergaard",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Anthony Adverse",
+            tmdbId: "37658",
             winner: true,
           },
           {
@@ -3782,6 +3867,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Samuel Goldwyn|Alfred Newman",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "The Hurricane",
+            tmdbId: "77250",
             winner: false,
           },
           {
@@ -3828,6 +3914,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frederick Hollander|Leo Robin",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Artists and Models",
+            tmdbId: "180004",
             winner: false,
           },
           {
@@ -3897,6 +3984,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thomas Mitchell",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Hurricane",
+            tmdbId: "77250",
             winner: false,
           },
           {
@@ -3906,6 +3994,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roland Young",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Topper",
+            tmdbId: "23101",
             winner: false,
           },
           {
@@ -3972,6 +4061,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "George Bernard Shaw|W. P. Lipscomb|Cecil Lewis|Ian Dalrymple",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Pygmalion",
+            tmdbId: "25016",
             winner: true,
           },
           {
@@ -3998,6 +4088,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ian Dalrymple|Frank Wead|Elizabeth Hill",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Citadel",
+            tmdbId: "84090",
             winner: false,
           },
           {
@@ -4150,6 +4241,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "King Vidor",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Citadel",
+            tmdbId: "84090",
             winner: false,
           },
           {
@@ -4234,6 +4326,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Leslie Howard",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Pygmalion",
+            tmdbId: "25016",
             winner: false,
           },
           {
@@ -4243,6 +4336,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Donat",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Citadel",
+            tmdbId: "84090",
             winner: false,
           },
           {
@@ -4272,6 +4366,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Wendy Hiller",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Pygmalion",
+            tmdbId: "25016",
             winner: false,
           },
           {
@@ -4354,6 +4449,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Metro-Goldwyn-Mayer",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Pygmalion",
+            tmdbId: "25016",
             winner: false,
           },
           {
@@ -4380,6 +4476,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Metro-Goldwyn-Mayer",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Citadel",
+            tmdbId: "84090",
             winner: false,
           },
           {
@@ -4716,6 +4813,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Harry Warren|Johnny Mercer",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Going Places",
+            tmdbId: "45240",
             winner: false,
           },
           {
@@ -4785,6 +4883,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Walter Brennan",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Kentucky",
+            tmdbId: "118889",
             winner: true,
           },
           {
@@ -4962,6 +5061,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gregg Toland",
             sourceCategory: "CINEMATOGRAPHY (Black-and-White)",
             sourceTitle: "Intermezzo",
+            tmdbId: "31868",
             winner: false,
           },
           {
@@ -5006,6 +5106,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bert Glennon",
             sourceCategory: "CINEMATOGRAPHY (Black-and-White)",
             sourceTitle: "Stagecoach",
+            tmdbId: "995",
             winner: false,
           },
           {
@@ -5118,6 +5219,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Ford",
             sourceCategory: "DIRECTING",
             sourceTitle: "Stagecoach",
+            tmdbId: "995",
             winner: false,
           },
           {
@@ -5162,6 +5264,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Otho Lovering|Dorothy Spencer",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Stagecoach",
+            tmdbId: "995",
             winner: false,
           },
           {
@@ -5342,6 +5445,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Walter Wanger (production company)",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Stagecoach",
+            tmdbId: "995",
             winner: false,
           },
           {
@@ -5382,6 +5486,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hans Dreier|Robert Odell",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Beau Geste",
+            tmdbId: "36851",
             winner: false,
           },
           {
@@ -5435,6 +5540,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alexander Toluboff",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Stagecoach",
+            tmdbId: "995",
             winner: false,
           },
           {
@@ -5597,6 +5703,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Hageman|Frank Harling|John Leipold|Leo Shuken",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Stagecoach",
+            tmdbId: "995",
             winner: true,
           },
           {
@@ -5623,6 +5730,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lou Forbes",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Intermezzo",
+            tmdbId: "31868",
             winner: false,
           },
           {
@@ -5758,6 +5866,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thomas Mitchell",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Stagecoach",
+            tmdbId: "995",
             winner: true,
           },
           {
@@ -5767,6 +5876,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brian Donlevy",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Beau Geste",
+            tmdbId: "36851",
             winner: false,
           },
           {
@@ -6498,6 +6608,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John DuCasse Schulze",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "My Son, My Son!",
+            tmdbId: "218317",
             winner: false,
           },
           {
@@ -7277,6 +7388,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Charles Lang",
             sourceCategory: "CINEMATOGRAPHY (Black-and-White)",
             sourceTitle: "Sundown",
+            tmdbId: "94241",
             winner: false,
           },
           {
@@ -7321,6 +7433,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William V. Skall|Leonard Smith",
             sourceCategory: "CINEMATOGRAPHY (Color)",
             sourceTitle: "Billy the Kid",
+            tmdbId: "111470",
             winner: false,
           },
           {
@@ -7740,6 +7853,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alexander Golitzen|Richard Irvine",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "Sundown",
+            tmdbId: "94241",
             winner: false,
           },
           {
@@ -7946,6 +8060,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Miklos Rozsa",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Sundown",
+            tmdbId: "94241",
             winner: false,
           },
           {
@@ -8036,6 +8151,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Cy Feuer",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Ice-Capades",
+            tmdbId: "218307",
             winner: false,
           },
           {
@@ -8110,6 +8226,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Harold Arlen|Johnny Mercer",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Blues in the Night",
+            tmdbId: "25862",
             winner: false,
           },
           {
@@ -8235,6 +8352,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mary Astor",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Great Lie",
+            tmdbId: "43705",
             winner: true,
           },
           {
@@ -8390,6 +8508,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rodney Ackland|Emeric Pressburger",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Invaders",
+            tmdbId: "21735",
             winner: false,
           },
           {
@@ -8407,6 +8526,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Irwin Shaw|Sidney Buchman",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Talk of the Town",
+            tmdbId: "23159",
             winner: false,
           },
           {
@@ -8469,6 +8589,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Edward Cronjager",
             sourceCategory: "CINEMATOGRAPHY (Black-and-White)",
             sourceTitle: "The Pied Piper",
+            tmdbId: "84085",
             winner: false,
           },
           {
@@ -8486,6 +8607,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ted Tetzlaff",
             sourceCategory: "CINEMATOGRAPHY (Black-and-White)",
             sourceTitle: "The Talk of the Town",
+            tmdbId: "23159",
             winner: false,
           },
           {
@@ -8620,6 +8742,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Otto Meyer",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Talk of the Town",
+            tmdbId: "23159",
             winner: false,
           },
           {
@@ -8677,6 +8800,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Monty Woolley",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Pied Piper",
+            tmdbId: "84085",
             winner: false,
           },
           {
@@ -8817,6 +8941,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ortus",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Invaders",
+            tmdbId: "21735",
             winner: false,
           },
           {
@@ -8834,6 +8959,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "20th Century-Fox",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Pied Piper",
+            tmdbId: "84085",
             winner: false,
           },
           {
@@ -8851,6 +8977,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Columbia",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Talk of the Town",
+            tmdbId: "23159",
             winner: false,
           },
           {
@@ -8960,6 +9087,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lionel Banks|Rudolph Sternad|Fay Babcock",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "The Talk of the Town",
+            tmdbId: "23159",
             winner: false,
           },
           {
@@ -9132,6 +9260,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Max Terr",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Gold Rush",
+            tmdbId: "962",
             winner: false,
           },
           {
@@ -9158,6 +9287,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frederick Hollander|Morris Stoloff",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Talk of the Town",
+            tmdbId: "23159",
             winner: false,
           },
           {
@@ -10379,6 +10509,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Leigh Harline",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "The Sky's the Limit",
+            tmdbId: "43515",
             winner: false,
           },
           {
@@ -10487,6 +10618,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Harold Arlen|Johnny Mercer",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Sky's the Limit",
+            tmdbId: "43515",
             winner: false,
           },
           {
@@ -10674,6 +10806,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Van Druten|Walter Reisch|John L. Balderston",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Gaslight",
+            tmdbId: "13528",
             winner: false,
           },
           {
@@ -10727,6 +10860,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joseph Ruttenberg",
             sourceCategory: "CINEMATOGRAPHY (Black-and-White)",
             sourceTitle: "Gaslight",
+            tmdbId: "13528",
             winner: false,
           },
           {
@@ -10816,6 +10950,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Charles Rosher",
             sourceCategory: "CINEMATOGRAPHY (Color)",
             sourceTitle: "Kismet",
+            tmdbId: "43501",
             winner: false,
           },
           {
@@ -10943,6 +11078,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Charles Boyer",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Gaslight",
+            tmdbId: "13528",
             winner: false,
           },
           {
@@ -10982,6 +11118,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ingrid Bergman",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Gaslight",
+            tmdbId: "13528",
             winner: true,
           },
           {
@@ -11093,6 +11230,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Metro-Goldwyn-Mayer",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Gaslight",
+            tmdbId: "13528",
             winner: false,
           },
           {
@@ -11120,6 +11258,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Cedric Gibbons|William Ferrari|Edwin B. Willis|Paul Huldschinsky",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "Gaslight",
+            tmdbId: "13528",
             winner: true,
           },
           {
@@ -11219,6 +11358,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Cedric Gibbons|Daniel B. Cathcart|Edwin B. Willis|Richard Pefferle",
             sourceCategory: "ART DIRECTION (Color)",
             sourceTitle: "Kismet",
+            tmdbId: "43501",
             winner: false,
           },
           {
@@ -11318,6 +11458,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frederic Efrem Rich",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Jack London",
+            tmdbId: "23018",
             winner: false,
           },
           {
@@ -11326,6 +11467,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Herbert Stothart",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Kismet",
+            tmdbId: "43501",
             winner: false,
           },
           {
@@ -11451,6 +11593,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Walter Scharf",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Brazil",
+            tmdbId: "218090",
             winner: false,
           },
           {
@@ -11578,6 +11721,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ary Barroso|Ned Washington",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Brazil",
+            tmdbId: "218090",
             winner: false,
           },
           {
@@ -11757,6 +11901,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Angela Lansbury",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Gaslight",
+            tmdbId: "13528",
             winner: false,
           },
           {
@@ -11795,6 +11940,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Vernon L. Walker|James G. Stewart|Roy Granville",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Days of Glory",
+            tmdbId: "96366",
             winner: false,
           },
           {
@@ -12190,6 +12336,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Philip Yordan",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Dillinger",
+            tmdbId: "28115",
             winner: false,
           },
           {
@@ -12355,6 +12502,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ted Smith|Jack McConaghy",
             sourceCategory: "ART DIRECTION (Color)",
             sourceTitle: "San Antonio",
+            tmdbId: "17818",
             winner: false,
           },
           {
@@ -12741,6 +12889,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ray Heindorf|M. K. Jerome|Ted Koehler",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "San Antonio",
+            tmdbId: "17818",
             winner: false,
           },
           {
@@ -13134,6 +13283,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Laurence Olivier",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Henry V",
+            tmdbId: "22638",
             winner: false,
           },
           {
@@ -13276,6 +13426,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "J. Arthur Rank|Two Cities Films",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Henry V",
+            tmdbId: "22638",
             winner: false,
           },
           {
@@ -13321,6 +13472,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hans Dreier|Walter Tyler|Sam Comer|Ray Moyer",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "Kitty",
+            tmdbId: "106882",
             winner: false,
           },
           {
@@ -13356,6 +13508,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Sheriff|Carmen Dillon",
             sourceCategory: "ART DIRECTION (Color)",
             sourceTitle: "Henry V",
+            tmdbId: "22638",
             winner: false,
           },
           {
@@ -13382,6 +13535,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Walton",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Henry V",
+            tmdbId: "22638",
             winner: false,
           },
           {
@@ -13435,6 +13589,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ray Heindorf|Max Steiner",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Night and Day",
+            tmdbId: "43485",
             winner: false,
           },
           {
@@ -13781,6 +13936,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Francis Lyon|Robert Parrish",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Body and Soul",
+            tmdbId: "17487",
             winner: true,
           },
           {
@@ -13836,6 +13992,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Garfield",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Body and Soul",
+            tmdbId: "17487",
             winner: false,
           },
           {
@@ -13942,6 +14099,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Abraham Polonsky",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Body and Soul",
+            tmdbId: "17487",
             winner: false,
           },
           {
@@ -13960,7 +14118,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Sergio Amidei|Adolfo Franci|C. G. Viola|Cesare Zavattini",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Shoe-Shine",
-            tmdbId: "423794",
+            tmdbId: "43469",
             winner: false,
           },
           {
@@ -14302,6 +14460,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Farciot Edouart|Devereux Jennings|Gordon Jennings|Wallace Kelley|Paul Lerpae|George Dutton",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Unconquered",
+            tmdbId: "72241",
             winner: false,
           },
         ],
@@ -14542,6 +14701,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Reginald Mills",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Red Shoes",
+            tmdbId: "19542",
             winner: false,
           },
           {
@@ -14668,6 +14828,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "J. Arthur Rank|Archers",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Red Shoes",
+            tmdbId: "19542",
             winner: false,
           },
           {
@@ -14712,6 +14873,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hein Heckroth|Arthur Lawson",
             sourceCategory: "ART DIRECTION (Color)",
             sourceTitle: "The Red Shoes",
+            tmdbId: "19542",
             winner: true,
           },
           {
@@ -14729,6 +14891,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brian Easdale",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Red Shoes",
+            tmdbId: "19542",
             winner: true,
           },
           {
@@ -15012,6 +15175,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Carl Foreman",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Champion",
+            tmdbId: "25918",
             winner: false,
           },
           {
@@ -15047,6 +15211,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frank Planer",
             sourceCategory: "CINEMATOGRAPHY (Black-and-White)",
             sourceTitle: "Champion",
+            tmdbId: "25918",
             winner: false,
           },
           {
@@ -15208,6 +15373,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Harry Gerstad",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Champion",
+            tmdbId: "25918",
             winner: true,
           },
           {
@@ -15263,6 +15429,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kirk Douglas",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Champion",
+            tmdbId: "25918",
             winner: false,
           },
           {
@@ -15370,6 +15537,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Alfred Hayes|Federico Fellini|Sergio Amidei|Marcello Pagliero|Roberto Rossellini",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Paisan",
+            tmdbId: "8429",
             winner: false,
           },
           {
@@ -15516,6 +15684,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dimitri Tiomkin",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Champion",
+            tmdbId: "25918",
             winner: false,
           },
           {
@@ -15632,6 +15801,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Arthur Kennedy",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Champion",
+            tmdbId: "25918",
             winner: false,
           },
           {
@@ -15775,6 +15945,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Krasker",
             sourceCategory: "CINEMATOGRAPHY (Black-and-White)",
             sourceTitle: "The Third Man",
+            tmdbId: "1092",
             winner: true,
           },
           {
@@ -15824,6 +15995,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Surtees",
             sourceCategory: "CINEMATOGRAPHY (Color)",
             sourceTitle: "King Solomon's Mines",
+            tmdbId: "43388",
             winner: true,
           },
           {
@@ -15964,6 +16136,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Carol Reed",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Third Man",
+            tmdbId: "1092",
             winner: false,
           },
           {
@@ -15972,6 +16145,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ralph E. Winters|Conrad A. Nervig",
             sourceCategory: "FILM EDITING",
             sourceTitle: "King Solomon's Mines",
+            tmdbId: "43388",
             winner: true,
           },
           {
@@ -16007,6 +16181,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Oswald Hafenrichter",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Third Man",
+            tmdbId: "1092",
             winner: false,
           },
           {
@@ -16196,6 +16371,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Metro-Goldwyn-Mayer",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "King Solomon's Mines",
+            tmdbId: "43388",
             winner: false,
           },
           {
@@ -16577,6 +16753,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Max Ophüls|Jacques Natanson",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "La Ronde",
+            tmdbId: "50030",
             winner: false,
           },
           {
@@ -17089,6 +17266,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "D'Eaubonne",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "La Ronde",
+            tmdbId: "50030",
             winner: false,
           },
           {
@@ -17261,6 +17439,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lionel Newman|Eliot Daniel",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Golden Girl",
+            tmdbId: "188520",
             winner: false,
           },
           {
@@ -17424,6 +17603,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Wilson",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Five Fingers",
+            tmdbId: "59087",
             winner: false,
           },
           {
@@ -17648,6 +17828,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joseph L. Mankiewicz",
             sourceCategory: "DIRECTING",
             sourceTitle: "Five Fingers",
+            tmdbId: "59087",
             winner: false,
           },
           {
@@ -17954,6 +18135,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Matsuyama|H. Motsumoto",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "Rashomon",
+            tmdbId: "548",
             winner: false,
           },
           {
@@ -18400,6 +18582,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Leon Shamroy",
             sourceCategory: "CINEMATOGRAPHY (Color)",
             sourceTitle: "The Robe",
+            tmdbId: "29912",
             winner: false,
           },
           {
@@ -18453,6 +18636,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Charles LeMaire|Emile Santiago",
             sourceCategory: "COSTUME DESIGN (Color)",
             sourceTitle: "The Robe",
+            tmdbId: "29912",
             winner: true,
           },
           {
@@ -18628,6 +18812,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Burton",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Robe",
+            tmdbId: "29912",
             winner: false,
           },
           {
@@ -18767,6 +18952,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frank Ross",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Robe",
+            tmdbId: "29912",
             winner: false,
           },
           {
@@ -18822,6 +19008,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Lyle Wheeler|George W. Davis|Walter M. Scott|Paul S. Fox",
             sourceCategory: "ART DIRECTION (Color)",
             sourceTitle: "The Robe",
+            tmdbId: "29912",
             winner: true,
           },
           {
@@ -19125,6 +19312,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "George Seaton",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Country Girl",
+            tmdbId: "2438",
             winner: true,
           },
           {
@@ -19138,6 +19326,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Michael Hayes",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Rear Window",
+            tmdbId: "567",
             winner: false,
           },
           {
@@ -19164,6 +19353,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stanley Roberts",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Caine Mutiny",
+            tmdbId: "10178",
             winner: false,
           },
           {
@@ -19172,6 +19362,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Boris Kaufman",
             sourceCategory: "CINEMATOGRAPHY (Black-and-White)",
             sourceTitle: "On the Waterfront",
+            tmdbId: "654",
             winner: true,
           },
           {
@@ -19207,6 +19398,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John F. Warren",
             sourceCategory: "CINEMATOGRAPHY (Black-and-White)",
             sourceTitle: "The Country Girl",
+            tmdbId: "2438",
             winner: false,
           },
           {
@@ -19229,6 +19421,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Burks",
             sourceCategory: "CINEMATOGRAPHY (Color)",
             sourceTitle: "Rear Window",
+            tmdbId: "567",
             winner: false,
           },
           {
@@ -19318,6 +19511,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jean Louis|Mary Ann Nyberg|Irene Sharaff",
             sourceCategory: "COSTUME DESIGN (Color)",
             sourceTitle: "A Star Is Born",
+            tmdbId: "3111",
             winner: false,
           },
           {
@@ -19353,6 +19547,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elia Kazan",
             sourceCategory: "DIRECTING",
             sourceTitle: "On the Waterfront",
+            tmdbId: "654",
             winner: true,
           },
           {
@@ -19366,6 +19561,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alfred Hitchcock",
             sourceCategory: "DIRECTING",
             sourceTitle: "Rear Window",
+            tmdbId: "567",
             winner: false,
           },
           {
@@ -19383,6 +19579,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "George Seaton",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Country Girl",
+            tmdbId: "2438",
             winner: false,
           },
           {
@@ -19400,6 +19597,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gene Milford",
             sourceCategory: "FILM EDITING",
             sourceTitle: "On the Waterfront",
+            tmdbId: "654",
             winner: true,
           },
           {
@@ -19426,6 +19624,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William A. Lyon|Henry Batista",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Caine Mutiny",
+            tmdbId: "10178",
             winner: false,
           },
           {
@@ -19452,6 +19651,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marlon Brando",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "On the Waterfront",
+            tmdbId: "654",
             winner: true,
           },
           {
@@ -19461,6 +19661,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Mason",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "A Star Is Born",
+            tmdbId: "3111",
             winner: false,
           },
           {
@@ -19480,6 +19681,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Humphrey Bogart",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Caine Mutiny",
+            tmdbId: "10178",
             winner: false,
           },
           {
@@ -19489,6 +19691,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bing Crosby",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Country Girl",
+            tmdbId: "2438",
             winner: false,
           },
           {
@@ -19498,6 +19701,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Grace Kelly",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Country Girl",
+            tmdbId: "2438",
             winner: true,
           },
           {
@@ -19507,6 +19711,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Judy Garland",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "A Star Is Born",
+            tmdbId: "3111",
             winner: false,
           },
           {
@@ -19545,6 +19750,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Budd Schulberg",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "On the Waterfront",
+            tmdbId: "654",
             winner: true,
           },
           {
@@ -19589,6 +19795,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sam Spiegel",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "On the Waterfront",
+            tmdbId: "654",
             winner: true,
           },
           {
@@ -19606,6 +19813,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stanley Kramer",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Caine Mutiny",
+            tmdbId: "10178",
             winner: false,
           },
           {
@@ -19614,6 +19822,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Perlberg",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Country Girl",
+            tmdbId: "2438",
             winner: false,
           },
           {
@@ -19631,6 +19840,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Day",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "On the Waterfront",
+            tmdbId: "654",
             winner: true,
           },
           {
@@ -19649,6 +19859,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Max Ophüls",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "Le Plaisir",
+            tmdbId: "43360",
             winner: false,
           },
           {
@@ -19666,6 +19877,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hal Pereira|Roland Anderson|Sam Comer|Grace Gregory",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "The Country Girl",
+            tmdbId: "2438",
             winner: false,
           },
           {
@@ -19684,6 +19896,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Malcolm Bert|Gene Allen|Irene Sharaff|George James Hopkins",
             sourceCategory: "ART DIRECTION (Color)",
             sourceTitle: "A Star Is Born",
+            tmdbId: "3111",
             winner: false,
           },
           {
@@ -19738,6 +19951,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Leonard Bernstein",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "On the Waterfront",
+            tmdbId: "654",
             winner: false,
           },
           {
@@ -19746,6 +19960,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Max Steiner",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Caine Mutiny",
+            tmdbId: "10178",
             winner: false,
           },
           {
@@ -19772,6 +19987,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ray Heindorf",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "A Star Is Born",
+            tmdbId: "3111",
             winner: false,
           },
           {
@@ -19818,6 +20034,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Harold Arlen|Ira Gershwin",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "A Star Is Born",
+            tmdbId: "3111",
             winner: false,
           },
           {
@@ -19867,6 +20084,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Karl Malden",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "On the Waterfront",
+            tmdbId: "654",
             winner: false,
           },
           {
@@ -19876,6 +20094,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lee J. Cobb",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "On the Waterfront",
+            tmdbId: "654",
             winner: false,
           },
           {
@@ -19885,6 +20104,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rod Steiger",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "On the Waterfront",
+            tmdbId: "654",
             winner: false,
           },
           {
@@ -19894,6 +20114,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Tully",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Caine Mutiny",
+            tmdbId: "10178",
             winner: false,
           },
           {
@@ -19903,6 +20124,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eva Marie Saint",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "On the Waterfront",
+            tmdbId: "654",
             winner: true,
           },
           {
@@ -20138,6 +20360,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Beatrice Dawson",
             sourceCategory: "COSTUME DESIGN (Black-and-White)",
             sourceTitle: "The Pickwick Papers",
+            tmdbId: "139204",
             winner: false,
           },
           {
@@ -20155,6 +20378,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tadaoto Kainoscho",
             sourceCategory: "COSTUME DESIGN (Black-and-White)",
             sourceTitle: "Ugetsu",
+            tmdbId: "14696",
             winner: false,
           },
           {
@@ -20424,6 +20648,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jacques Tati|Henri Marquet",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Mr. Hulot's Holiday",
+            tmdbId: "778",
             winner: false,
           },
           {
@@ -20770,6 +20995,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Arthur Kennedy",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Trial",
+            tmdbId: "114083",
             winner: false,
           },
           {
@@ -21015,6 +21241,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kohei Ezaki",
             sourceCategory: "COSTUME DESIGN (Black-and-White)",
             sourceTitle: "The Magnificent Seven",
+            tmdbId: "346",
             winner: false,
           },
           {
@@ -21177,7 +21404,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dino De Laurentiis|Carlo Ponti",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "La Strada",
-            tmdbId: "114428",
+            tmdbId: "405",
             winner: true,
           },
           {
@@ -21195,6 +21422,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Masayuki Takagi",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Harp of Burma",
+            tmdbId: "33319",
             winner: false,
           },
           {
@@ -21272,6 +21500,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ingrid Bergman",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Anastasia",
+            tmdbId: "38171",
             winner: true,
           },
           {
@@ -21338,7 +21567,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Federico Fellini|Tullio Pinelli",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "La Strada",
-            tmdbId: "114428",
+            tmdbId: "405",
             winner: false,
           },
           {
@@ -21430,6 +21659,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Takashi Matsuyama",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "The Magnificent Seven",
+            tmdbId: "346",
             winner: false,
           },
           {
@@ -21514,6 +21744,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alfred Newman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Anastasia",
+            tmdbId: "38171",
             winner: false,
           },
           {
@@ -21558,6 +21789,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Johnny Green|Saul Chaplin",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "High Society",
+            tmdbId: "11424",
             winner: false,
           },
           {
@@ -21614,6 +21846,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Cole Porter",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "High Society",
+            tmdbId: "11424",
             winner: false,
           },
           {
@@ -22022,6 +22255,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Italy",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Nights of Cabiria",
+            tmdbId: "19426",
             winner: true,
           },
           {
@@ -22208,6 +22442,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Federico Fellini|Ennio Flaiano|Tullio Pinelli",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Vitelloni",
+            tmdbId: "12548",
             winner: false,
           },
           {
@@ -22350,6 +22585,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Smith",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Perri",
+            tmdbId: "162139",
             winner: false,
           },
           {
@@ -22817,6 +23053,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "My Uncle",
+            tmdbId: "427",
             winner: true,
           },
           {
@@ -22843,6 +23080,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Yugoslavia",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Road a Year Long",
+            tmdbId: "202756",
             winner: false,
           },
           {
@@ -22987,6 +23225,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paddy Chayefsky",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Goddess",
+            tmdbId: "3081",
             winner: false,
           },
           {
@@ -23115,6 +23354,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jerome Moross",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Big Country",
+            tmdbId: "12501",
             winner: false,
           },
           {
@@ -23237,6 +23477,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Burl Ives",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Big Country",
+            tmdbId: "12501",
             winner: true,
           },
           {
@@ -23335,6 +23576,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Howard",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "tom thumb",
+            tmdbId: "125441",
             winner: true,
           },
           {
@@ -23343,6 +23585,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "A. Arnold Gillespie|Harold Humbrock",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Torpedo Run",
+            tmdbId: "69977",
             winner: false,
           },
         ],
@@ -23376,6 +23619,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Karl Tunberg",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Ben-Hur",
+            tmdbId: "665",
             winner: false,
           },
           {
@@ -23420,6 +23664,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joseph LaShelle",
             sourceCategory: "CINEMATOGRAPHY (Black-and-White)",
             sourceTitle: "Career",
+            tmdbId: "216859",
             winner: false,
           },
           {
@@ -23446,6 +23691,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert L. Surtees",
             sourceCategory: "CINEMATOGRAPHY (Color)",
             sourceTitle: "Ben-Hur",
+            tmdbId: "665",
             winner: true,
           },
           {
@@ -23499,6 +23745,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Edith Head",
             sourceCategory: "COSTUME DESIGN (Black-and-White)",
             sourceTitle: "Career",
+            tmdbId: "216859",
             winner: false,
           },
           {
@@ -23534,6 +23781,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elizabeth Haffenden",
             sourceCategory: "COSTUME DESIGN (Color)",
             sourceTitle: "Ben-Hur",
+            tmdbId: "665",
             winner: true,
           },
           {
@@ -23578,6 +23826,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Wyler",
             sourceCategory: "DIRECTING",
             sourceTitle: "Ben-Hur",
+            tmdbId: "665",
             winner: true,
           },
           {
@@ -23622,6 +23871,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ralph E. Winters|John D. Dunning",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Ben-Hur",
+            tmdbId: "665",
             winner: true,
           },
           {
@@ -23653,6 +23903,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frederic Knudtson",
             sourceCategory: "FILM EDITING",
             sourceTitle: "On the Beach",
+            tmdbId: "35412",
             winner: false,
           },
           {
@@ -23716,6 +23967,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Charlton Heston",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Ben-Hur",
+            tmdbId: "665",
             winner: true,
           },
           {
@@ -23856,6 +24108,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ingmar Bergman",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Wild Strawberries",
+            tmdbId: "614",
             winner: false,
           },
           {
@@ -23864,6 +24117,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sam Zimbalist",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Ben-Hur",
+            tmdbId: "665",
             winner: true,
           },
           {
@@ -23918,6 +24172,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hal Pereira|Walter Tyler|Sam Comer|Arthur Krams",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "Career",
+            tmdbId: "216859",
             winner: false,
           },
           {
@@ -23953,6 +24208,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William A. Horning|Edward Carfagno|Hugh Hunt",
             sourceCategory: "ART DIRECTION (Color)",
             sourceTitle: "Ben-Hur",
+            tmdbId: "665",
             winner: true,
           },
           {
@@ -24004,6 +24260,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Miklos Rozsa",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Ben-Hur",
+            tmdbId: "665",
             winner: true,
           },
           {
@@ -24012,6 +24269,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ernest Gold",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "On the Beach",
+            tmdbId: "35412",
             winner: false,
           },
           {
@@ -24148,6 +24406,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hugh Griffith",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Ben-Hur",
+            tmdbId: "665",
             winner: true,
           },
           {
@@ -24246,6 +24505,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "A. Arnold Gillespie|Robert MacDonald|Milo Lory",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Ben-Hur",
+            tmdbId: "665",
             winner: true,
           },
           {
@@ -24342,6 +24602,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joseph LaShelle",
             sourceCategory: "CINEMATOGRAPHY (Black-and-White)",
             sourceTitle: "The Apartment",
+            tmdbId: "284",
             winner: false,
           },
           {
@@ -24468,6 +24729,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Irene Sharaff",
             sourceCategory: "COSTUME DESIGN (Color)",
             sourceTitle: "Can-Can",
+            tmdbId: "33726",
             winner: false,
           },
           {
@@ -24503,6 +24765,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Billy Wilder",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Apartment",
+            tmdbId: "284",
             winner: true,
           },
           {
@@ -24547,6 +24810,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Daniel Mandell",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Apartment",
+            tmdbId: "284",
             winner: true,
           },
           {
@@ -24614,6 +24878,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "La Vérité",
+            tmdbId: "61711",
             winner: false,
           },
           {
@@ -24671,6 +24936,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jack Lemmon",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Apartment",
+            tmdbId: "284",
             winner: false,
           },
           {
@@ -24720,6 +24986,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Shirley MacLaine",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Apartment",
+            tmdbId: "284",
             winner: false,
           },
           {
@@ -24738,6 +25005,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Billy Wilder|I. A. L. Diamond",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Apartment",
+            tmdbId: "284",
             winner: true,
           },
           {
@@ -24782,6 +25050,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Billy Wilder",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Apartment",
+            tmdbId: "284",
             winner: true,
           },
           {
@@ -24826,6 +25095,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alexander Trauner|Edward G. Boyle",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "The Apartment",
+            tmdbId: "284",
             winner: true,
           },
           {
@@ -24972,6 +25242,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Morris Stoloff|Harry Sukman",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Song without End (The Story of Franz Liszt)",
+            tmdbId: "129553",
             winner: true,
           },
           {
@@ -24989,6 +25260,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nelson Riddle",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Can-Can",
+            tmdbId: "33726",
             winner: false,
           },
           {
@@ -25111,6 +25383,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jack Kruschen",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Apartment",
+            tmdbId: "284",
             winner: false,
           },
           {
@@ -25293,6 +25566,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Harry Stradling Sr.",
             sourceCategory: "CINEMATOGRAPHY (Color)",
             sourceTitle: "A Majority of One",
+            tmdbId: "158800",
             winner: false,
           },
           {
@@ -25328,6 +25602,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Piero Gherardi",
             sourceCategory: "COSTUME DESIGN (Black-and-White)",
             sourceTitle: "La Dolce Vita",
+            tmdbId: "439",
             winner: true,
           },
           {
@@ -25435,6 +25710,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Federico Fellini",
             sourceCategory: "DIRECTING",
             sourceTitle: "La Dolce Vita",
+            tmdbId: "439",
             winner: false,
           },
           {
@@ -25660,6 +25936,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Valentin Yoshov|Grigori Chukhrai",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Ballad of a Soldier",
+            tmdbId: "46592",
             winner: false,
           },
           {
@@ -25668,6 +25945,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sergio Amidei|Diego Fabbri|Indro Montanelli",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "General Della Rovere",
+            tmdbId: "43100",
             winner: false,
           },
           {
@@ -25677,6 +25955,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Federico Fellini|Tullio Pinelli|Ennio Flaiano|Brunello Rondi",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "La Dolce Vita",
+            tmdbId: "439",
             winner: false,
           },
           {
@@ -25757,6 +26036,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Piero Gherardi",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "La Dolce Vita",
+            tmdbId: "439",
             winner: false,
           },
           {
@@ -25801,6 +26081,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Veniero Colasanti|John Moore",
             sourceCategory: "ART DIRECTION (Color)",
             sourceTitle: "El Cid",
+            tmdbId: "16638",
             winner: false,
           },
           {
@@ -25836,6 +26117,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Miklos Rozsa",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "El Cid",
+            tmdbId: "16638",
             winner: false,
           },
           {
@@ -25898,6 +26180,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dimitri Shostakovich",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Khovanshchina",
+            tmdbId: "35070",
             winner: false,
           },
           {
@@ -25936,6 +26219,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Miklos Rozsa|Paul Francis Webster",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "El Cid",
+            tmdbId: "16638",
             winner: false,
           },
           {
@@ -26307,6 +26591,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dorothy Jeakins",
             sourceCategory: "COSTUME DESIGN (Color)",
             sourceTitle: "Meredith Willson's The Music Man",
+            tmdbId: "13671",
             winner: false,
           },
           {
@@ -26378,6 +26663,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Ziegler",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Meredith Willson's The Music Man",
+            tmdbId: "13671",
             winner: false,
           },
           {
@@ -26422,6 +26708,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Greece",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Electra",
+            tmdbId: "47447",
             winner: false,
           },
           {
@@ -26616,6 +26903,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Morton Da Costa",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Meredith Willson's The Music Man",
+            tmdbId: "13671",
             winner: false,
           },
           {
@@ -26706,6 +26994,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Groesse|George James Hopkins",
             sourceCategory: "ART DIRECTION (Color)",
             sourceTitle: "Meredith Willson's The Music Man",
+            tmdbId: "13671",
             winner: false,
           },
           {
@@ -26770,6 +27059,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Franz Waxman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Taras Bulba",
+            tmdbId: "43012",
             winner: false,
           },
           {
@@ -26787,6 +27077,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ray Heindorf",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Meredith Willson's The Music Man",
+            tmdbId: "13671",
             winner: true,
           },
           {
@@ -27246,6 +27537,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elia Kazan",
             sourceCategory: "DIRECTING",
             sourceTitle: "America America",
+            tmdbId: "47249",
             winner: false,
           },
           {
@@ -27480,6 +27772,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elia Kazan",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "America America",
+            tmdbId: "47249",
             winner: false,
           },
           {
@@ -27526,6 +27819,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elia Kazan",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "America America",
+            tmdbId: "47249",
             winner: false,
           },
           {
@@ -27561,6 +27855,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gene Callahan",
             sourceCategory: "ART DIRECTION (Black-and-White)",
             sourceTitle: "America America",
+            tmdbId: "47249",
             winner: true,
           },
           {
@@ -27789,6 +28084,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Riz Ortolani|Nino Oliviero|Norman Newell",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Mondo Cane",
+            tmdbId: "32688",
             winner: false,
           },
           {
@@ -27961,6 +28257,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Jay Lerner",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "My Fair Lady",
+            tmdbId: "11113",
             winner: false,
           },
           {
@@ -28023,6 +28320,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Harry Stradling",
             sourceCategory: "CINEMATOGRAPHY (Color)",
             sourceTitle: "My Fair Lady",
+            tmdbId: "11113",
             winner: true,
           },
           {
@@ -28040,6 +28338,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William H. Clothier",
             sourceCategory: "CINEMATOGRAPHY (Color)",
             sourceTitle: "Cheyenne Autumn",
+            tmdbId: "40630",
             winner: false,
           },
           {
@@ -28111,6 +28410,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Cecil Beaton",
             sourceCategory: "COSTUME DESIGN (Color)",
             sourceTitle: "My Fair Lady",
+            tmdbId: "11113",
             winner: true,
           },
           {
@@ -28155,6 +28455,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "George Cukor",
             sourceCategory: "DIRECTING",
             sourceTitle: "My Fair Lady",
+            tmdbId: "11113",
             winner: true,
           },
           {
@@ -28242,6 +28543,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Ziegler",
             sourceCategory: "FILM EDITING",
             sourceTitle: "My Fair Lady",
+            tmdbId: "11113",
             winner: false,
           },
           {
@@ -28296,6 +28598,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rex Harrison",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "My Fair Lady",
+            tmdbId: "11113",
             winner: true,
           },
           {
@@ -28453,6 +28756,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jack L. Warner",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "My Fair Lady",
+            tmdbId: "11113",
             winner: true,
           },
           {
@@ -28550,6 +28854,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gene Allen|Cecil Beaton|George James Hopkins",
             sourceCategory: "ART DIRECTION (Color)",
             sourceTitle: "My Fair Lady",
+            tmdbId: "11113",
             winner: true,
           },
           {
@@ -28641,6 +28946,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andre Previn",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "My Fair Lady",
+            tmdbId: "11113",
             winner: true,
           },
           {
@@ -28762,6 +29068,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stanley Holloway",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "My Fair Lady",
+            tmdbId: "11113",
             winner: false,
           },
           {
@@ -28811,6 +29118,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gladys Cooper",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "My Fair Lady",
+            tmdbId: "11113",
             winner: false,
           },
           {
@@ -28864,6 +29172,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Bolt",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Doctor Zhivago",
+            tmdbId: "907",
             winner: true,
           },
           {
@@ -28953,6 +29262,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Freddie Young",
             sourceCategory: "CINEMATOGRAPHY (Color)",
             sourceTitle: "Doctor Zhivago",
+            tmdbId: "907",
             winner: true,
           },
           {
@@ -29042,6 +29352,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Phyllis Dalton",
             sourceCategory: "COSTUME DESIGN (Color)",
             sourceTitle: "Doctor Zhivago",
+            tmdbId: "907",
             winner: true,
           },
           {
@@ -29104,6 +29415,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Lean",
             sourceCategory: "DIRECTING",
             sourceTitle: "Doctor Zhivago",
+            tmdbId: "907",
             winner: false,
           },
           {
@@ -29148,6 +29460,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Norman Savage",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Doctor Zhivago",
+            tmdbId: "907",
             winner: false,
           },
           {
@@ -29192,6 +29505,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sweden",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Dear John",
+            tmdbId: "75653",
             winner: false,
           },
           {
@@ -29200,6 +29514,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Japan",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Kwaidan",
+            tmdbId: "30959",
             winner: false,
           },
           {
@@ -29390,6 +29705,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Carlo Ponti",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Doctor Zhivago",
+            tmdbId: "907",
             winner: false,
           },
           {
@@ -29453,6 +29769,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Box|Terry Marsh|Dario Simoni",
             sourceCategory: "ART DIRECTION (Color)",
             sourceTitle: "Doctor Zhivago",
+            tmdbId: "907",
             winner: true,
           },
           {
@@ -29498,6 +29815,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Maurice Jarre",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Doctor Zhivago",
+            tmdbId: "907",
             winner: true,
           },
           {
@@ -29588,6 +29906,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Johnny Mandel|Paul Francis Webster",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Sandpiper",
+            tmdbId: "77915",
             winner: true,
           },
           {
@@ -29647,6 +29966,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Courtenay",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Doctor Zhivago",
+            tmdbId: "907",
             winner: false,
           },
           {
@@ -29735,6 +30055,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Stears",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Thunderball",
+            tmdbId: "660",
             winner: true,
           },
           {
@@ -29782,6 +30103,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Brooks",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Professionals",
+            tmdbId: "22383",
             winner: false,
           },
           {
@@ -29895,6 +30217,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Conrad Hall",
             sourceCategory: "CINEMATOGRAPHY (Color)",
             sourceTitle: "The Professionals",
+            tmdbId: "22383",
             winner: false,
           },
           {
@@ -29944,7 +30267,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jocelyn Rickards",
             sourceCategory: "COSTUME DESIGN (Black-and-White)",
             sourceTitle: "Morgan!",
-            tmdbId: "281152",
+            tmdbId: "42724",
             winner: false,
           },
           {
@@ -29976,6 +30299,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jean Louis",
             sourceCategory: "COSTUME DESIGN (Color)",
             sourceTitle: "Gambit",
+            tmdbId: "28270",
             winner: false,
           },
           {
@@ -30025,6 +30349,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Claude Lelouch",
             sourceCategory: "DIRECTING",
             sourceTitle: "A Man and a Woman",
+            tmdbId: "42726",
             winner: false,
           },
           {
@@ -30042,6 +30367,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Brooks",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Professionals",
+            tmdbId: "22383",
             winner: false,
           },
           {
@@ -30115,6 +30441,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "A Man and a Woman",
+            tmdbId: "42726",
             winner: true,
           },
           {
@@ -30150,6 +30477,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Yugoslavia",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Three",
+            tmdbId: "202768",
             winner: false,
           },
           {
@@ -30234,6 +30562,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anouk Aimee",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "A Man and a Woman",
+            tmdbId: "42726",
             winner: false,
           },
           {
@@ -30253,7 +30582,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Vanessa Redgrave",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Morgan!",
-            tmdbId: "281152",
+            tmdbId: "42724",
             winner: false,
           },
           {
@@ -30272,6 +30601,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Claude Lelouch|Pierre Uytterhoeven",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "A Man and a Woman",
+            tmdbId: "42726",
             winner: true,
           },
           {
@@ -30432,6 +30762,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Alexander Golitzen|George C. Webb|John McCarthy|John Austin",
             sourceCategory: "ART DIRECTION (Color)",
             sourceTitle: "Gambit",
+            tmdbId: "28270",
             winner: false,
           },
           {
@@ -30518,6 +30849,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ken Thorne",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "A Funny Thing Happened on the Way to the Forum",
+            tmdbId: "17768",
             winner: true,
           },
           {
@@ -30526,6 +30858,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elmer Bernstein",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Return of the Seven",
+            tmdbId: "12639",
             winner: false,
           },
           {
@@ -30774,6 +31107,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Brooks",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "In Cold Blood",
+            tmdbId: "18900",
             winner: false,
           },
           {
@@ -30800,6 +31134,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Burnett Guffey",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Bonnie and Clyde",
+            tmdbId: "475",
             winner: true,
           },
           {
@@ -30826,6 +31161,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Conrad Hall",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "In Cold Blood",
+            tmdbId: "18900",
             winner: false,
           },
           {
@@ -30852,6 +31188,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Theadora Van Runkle",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Bonnie and Clyde",
+            tmdbId: "475",
             winner: false,
           },
           {
@@ -30896,6 +31233,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Arthur Penn",
             sourceCategory: "DIRECTING",
             sourceTitle: "Bonnie and Clyde",
+            tmdbId: "475",
             winner: false,
           },
           {
@@ -30913,6 +31251,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Brooks",
             sourceCategory: "DIRECTING",
             sourceTitle: "In Cold Blood",
+            tmdbId: "18900",
             winner: false,
           },
           {
@@ -31031,6 +31370,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Warren Beatty",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Bonnie and Clyde",
+            tmdbId: "475",
             winner: false,
           },
           {
@@ -31080,6 +31420,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Faye Dunaway",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Bonnie and Clyde",
+            tmdbId: "475",
             winner: false,
           },
           {
@@ -31127,6 +31468,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Newman|Robert Benton",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Bonnie and Clyde",
+            tmdbId: "475",
             winner: false,
           },
           {
@@ -31171,6 +31513,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Warren Beatty",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Bonnie and Clyde",
+            tmdbId: "475",
             winner: false,
           },
           {
@@ -31280,6 +31623,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Rodney Bennett",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Far from the Madding Crowd",
+            tmdbId: "3469",
             winner: false,
           },
           {
@@ -31288,6 +31632,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Quincy Jones",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "In Cold Blood",
+            tmdbId: "18900",
             winner: false,
           },
           {
@@ -31332,6 +31677,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Valley of the Dolls",
+            tmdbId: "3055",
             winner: false,
           },
           {
@@ -31411,6 +31757,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gene Hackman",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Bonnie and Clyde",
+            tmdbId: "475",
             winner: false,
           },
           {
@@ -31420,6 +31767,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael J. Pollard",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Bonnie and Clyde",
+            tmdbId: "475",
             winner: false,
           },
           {
@@ -31449,6 +31797,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Estelle Parsons",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Bonnie and Clyde",
+            tmdbId: "475",
             winner: true,
           },
           {
@@ -31572,6 +31921,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pasqualino De Santis",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Romeo and Juliet",
+            tmdbId: "6003",
             winner: true,
           },
           {
@@ -31580,6 +31930,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Harry Stradling",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Funny Girl",
+            tmdbId: "16085",
             winner: false,
           },
           {
@@ -31615,6 +31966,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Danilo Donati",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Romeo and Juliet",
+            tmdbId: "6003",
             winner: true,
           },
           {
@@ -31687,6 +32039,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Franco Zeffirelli",
             sourceCategory: "DIRECTING",
             sourceTitle: "Romeo and Juliet",
+            tmdbId: "6003",
             winner: false,
           },
           {
@@ -31695,6 +32048,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gillo Pontecorvo",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Battle of Algiers",
+            tmdbId: "17295",
             winner: false,
           },
           {
@@ -31721,6 +32075,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Swink|Maury Winetrobe|William Sands",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Funny Girl",
+            tmdbId: "16085",
             winner: false,
           },
           {
@@ -31756,6 +32111,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Union of Soviet Socialist Republics",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "War and Peace",
+            tmdbId: "29266",
             winner: true,
           },
           {
@@ -31851,6 +32207,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Barbra Streisand",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Funny Girl",
+            tmdbId: "16085",
             winner: true,
           },
           {
@@ -31922,6 +32279,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Cassavetes",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Faces",
+            tmdbId: "753",
             winner: false,
           },
           {
@@ -31939,6 +32297,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Franco Solinas|Gillo Pontecorvo",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Battle of Algiers",
+            tmdbId: "17295",
             winner: false,
           },
           {
@@ -31956,6 +32315,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ray Stark",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Funny Girl",
+            tmdbId: "16085",
             winner: false,
           },
           {
@@ -31973,6 +32333,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anthony Havelock-Allan|John Brabourne",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Romeo and Juliet",
+            tmdbId: "6003",
             winner: false,
           },
           {
@@ -32032,6 +32393,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Mikhail Bogdanov|Gennady Myasnikov|G. Koshelev|V. Uvarov",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "War and Peace",
+            tmdbId: "29266",
             winner: false,
           },
           {
@@ -32099,6 +32461,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ray Heindorf",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Finian's Rainbow",
+            tmdbId: "42622",
             winner: false,
           },
           {
@@ -32107,6 +32470,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Walter Scharf",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Funny Girl",
+            tmdbId: "16085",
             winner: false,
           },
           {
@@ -32164,6 +32528,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jule Styne|Bob Merrill",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Funny Girl",
+            tmdbId: "16085",
             winner: false,
           },
           {
@@ -32193,6 +32558,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Seymour Cassel",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Faces",
+            tmdbId: "753",
             winner: false,
           },
           {
@@ -32247,6 +32613,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lynn Carlin",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Faces",
+            tmdbId: "753",
             winner: false,
           },
           {
@@ -32256,6 +32623,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kay Medford",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Funny Girl",
+            tmdbId: "16085",
             winner: false,
           },
           {
@@ -32359,6 +32727,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Conrad Hall",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Butch Cassidy and the Sundance Kid",
+            tmdbId: "642",
             winner: true,
           },
           {
@@ -32430,6 +32799,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Edith Head",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Sweet Charity",
+            tmdbId: "42618",
             winner: false,
           },
           {
@@ -32465,6 +32835,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "George Roy Hill",
             sourceCategory: "DIRECTING",
             sourceTitle: "Butch Cassidy and the Sundance Kid",
+            tmdbId: "642",
             winner: false,
           },
           {
@@ -32681,6 +33052,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Goldman",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Butch Cassidy and the Sundance Kid",
+            tmdbId: "642",
             winner: true,
           },
           {
@@ -32748,6 +33120,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Foreman",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Butch Cassidy and the Sundance Kid",
+            tmdbId: "642",
             winner: false,
           },
           {
@@ -32803,6 +33176,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alexander Golitzen|George C. Webb|Jack D. Moore",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Sweet Charity",
+            tmdbId: "42618",
             winner: false,
           },
           {
@@ -32820,6 +33194,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Burt Bacharach",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Butch Cassidy and the Sundance Kid",
+            tmdbId: "642",
             winner: true,
           },
           {
@@ -32891,6 +33266,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Cy Coleman",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Sweet Charity",
+            tmdbId: "42618",
             winner: false,
           },
           {
@@ -32909,6 +33285,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Burt Bacharach|Hal David",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Butch Cassidy and the Sundance Kid",
+            tmdbId: "642",
             winner: true,
           },
           {
@@ -33132,6 +33509,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Freddie Young",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Ryan's Daughter",
+            tmdbId: "38953",
             winner: true,
           },
           {
@@ -33177,6 +33555,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nino Novarese",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Cromwell",
+            tmdbId: "31675",
             winner: true,
           },
           {
@@ -33302,6 +33681,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thelma Schoonmaker",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Woodstock",
+            tmdbId: "9459",
             winner: false,
           },
           {
@@ -33319,6 +33699,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Switzerland",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "First Love",
+            tmdbId: "382157",
             winner: false,
           },
           {
@@ -33336,6 +33717,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Belgium",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Paix Sur Les Champs",
+            tmdbId: "202777",
             winner: false,
           },
           {
@@ -33434,6 +33816,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sarah Miles",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Ryan's Daughter",
+            tmdbId: "38953",
             winner: false,
           },
           {
@@ -33608,6 +33991,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frank Cordell",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Cromwell",
+            tmdbId: "31675",
             winner: false,
           },
           {
@@ -33634,6 +34018,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "The Beatles",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Let It Be",
+            tmdbId: "20556",
             winner: true,
           },
           {
@@ -33731,6 +34116,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Mills",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Ryan's Daughter",
+            tmdbId: "38953",
             winner: true,
           },
           {
@@ -33873,6 +34259,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stanley Kubrick",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "A Clockwork Orange",
+            tmdbId: "185",
             winner: false,
           },
           {
@@ -34022,6 +34409,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stanley Kubrick",
             sourceCategory: "DIRECTING",
             sourceTitle: "A Clockwork Orange",
+            tmdbId: "185",
             winner: false,
           },
           {
@@ -34076,6 +34464,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bill Butler",
             sourceCategory: "FILM EDITING",
             sourceTitle: "A Clockwork Orange",
+            tmdbId: "185",
             winner: false,
           },
           {
@@ -34152,6 +34541,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Israel",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Policeman",
+            tmdbId: "78233",
             winner: false,
           },
           {
@@ -34216,6 +34606,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jane Fonda",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Klute",
+            tmdbId: "466",
             winner: true,
           },
           {
@@ -34282,6 +34673,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andy Lewis|Dave Lewis",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Klute",
+            tmdbId: "466",
             winner: false,
           },
           {
@@ -34327,6 +34719,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stanley Kubrick",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "A Clockwork Orange",
+            tmdbId: "185",
             winner: false,
           },
           {
@@ -34436,6 +34829,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Isaac Hayes",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Shaft",
+            tmdbId: "482",
             winner: false,
           },
           {
@@ -34509,6 +34903,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Isaac Hayes",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Shaft",
+            tmdbId: "482",
             winner: true,
           },
           {
@@ -34623,6 +35018,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ann-Margret",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Carnal Knowledge",
+            tmdbId: "36492",
             winner: false,
           },
           {
@@ -34692,6 +35088,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mario Puzo|Francis Ford Coppola",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Godfather",
+            tmdbId: "238",
             winner: true,
           },
           {
@@ -34809,6 +35206,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anna Hill Johnstone",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Godfather",
+            tmdbId: "238",
             winner: false,
           },
           {
@@ -34858,6 +35256,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joseph L. Mankiewicz",
             sourceCategory: "DIRECTING",
             sourceTitle: "Sleuth",
+            tmdbId: "993",
             winner: false,
           },
           {
@@ -34885,6 +35284,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Francis Ford Coppola",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Godfather",
+            tmdbId: "238",
             winner: false,
           },
           {
@@ -34921,6 +35321,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Reynolds|Peter Zinner",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Godfather",
+            tmdbId: "238",
             winner: false,
           },
           {
@@ -34988,6 +35389,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sweden",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The New Land",
+            tmdbId: "42488",
             winner: false,
           },
           {
@@ -35002,6 +35404,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marlon Brando",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Godfather",
+            tmdbId: "238",
             winner: true,
           },
           {
@@ -35011,6 +35414,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Laurence Olivier",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Sleuth",
+            tmdbId: "993",
             winner: false,
           },
           {
@@ -35020,6 +35424,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Caine",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Sleuth",
+            tmdbId: "993",
             winner: false,
           },
           {
@@ -35153,6 +35558,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Albert S. Ruddy",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Godfather",
+            tmdbId: "238",
             winner: true,
           },
           {
@@ -35253,6 +35659,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Charles Chaplin|Raymond Rasch|Larry Russell",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Limelight",
+            tmdbId: "28971",
             winner: true,
           },
           {
@@ -35279,6 +35686,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Addison",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Sleuth",
+            tmdbId: "993",
             winner: false,
           },
           {
@@ -35292,6 +35700,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nino Rota",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Godfather",
+            tmdbId: "238",
             winner: false,
           },
           {
@@ -35347,6 +35756,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Walter Scharf|Don Black",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Ben",
+            tmdbId: "42476",
             winner: false,
           },
           {
@@ -35376,6 +35786,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sammy Fain|Paul Francis Webster",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Stepmother",
+            tmdbId: "87886",
             winner: false,
           },
           {
@@ -35400,6 +35811,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Al Pacino",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Godfather",
+            tmdbId: "238",
             winner: false,
           },
           {
@@ -35414,6 +35826,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Caan",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Godfather",
+            tmdbId: "238",
             winner: false,
           },
           {
@@ -35428,6 +35841,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Duvall",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Godfather",
+            tmdbId: "238",
             winner: false,
           },
           {
@@ -35554,6 +35968,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sven Nykvist",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Cries and Whispers",
+            tmdbId: "10238",
             winner: true,
           },
           {
@@ -35622,6 +36037,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marik Vos",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Cries and Whispers",
+            tmdbId: "10238",
             winner: false,
           },
           {
@@ -35630,6 +36046,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Piero Tosi",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Ludwig",
+            tmdbId: "3478",
             winner: false,
           },
           {
@@ -35679,6 +36096,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ingmar Bergman",
             sourceCategory: "DIRECTING",
             sourceTitle: "Cries and Whispers",
+            tmdbId: "10238",
             winner: false,
           },
           {
@@ -35765,6 +36183,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Day for Night",
+            tmdbId: "1675",
             winner: true,
           },
           {
@@ -35773,6 +36192,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Switzerland",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "L'Invitation",
+            tmdbId: "109815",
             winner: false,
           },
           {
@@ -35790,6 +36210,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "West Germany",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Pedestrian",
+            tmdbId: "42460",
             winner: false,
           },
           {
@@ -35949,6 +36370,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ingmar Bergman",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Cries and Whispers",
+            tmdbId: "10238",
             winner: false,
           },
           {
@@ -35998,6 +36420,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ingmar Bergman",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Cries and Whispers",
+            tmdbId: "10238",
             winner: false,
           },
           {
@@ -36139,6 +36562,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andre Previn|Herbert Spencer|Andrew Lloyd Webber",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Jesus Christ Superstar",
+            tmdbId: "12545",
             winner: false,
           },
           {
@@ -36387,6 +36811,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John A. Alonzo",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Chinatown",
+            tmdbId: "829",
             winner: false,
           },
           {
@@ -36431,6 +36856,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anthea Sylbert",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Chinatown",
+            tmdbId: "829",
             winner: false,
           },
           {
@@ -36494,6 +36920,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roman Polanski",
             sourceCategory: "DIRECTING",
             sourceTitle: "Chinatown",
+            tmdbId: "829",
             winner: false,
           },
           {
@@ -36534,6 +36961,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John C. Howard|Danford Greene",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Blazing Saddles",
+            tmdbId: "11072",
             winner: false,
           },
           {
@@ -36542,6 +36970,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sam O'Steen",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Chinatown",
+            tmdbId: "829",
             winner: false,
           },
           {
@@ -36568,6 +36997,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Italy",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Amarcord",
+            tmdbId: "7857",
             winner: true,
           },
           {
@@ -36623,6 +37053,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jack Nicholson",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Chinatown",
+            tmdbId: "829",
             winner: false,
           },
           {
@@ -36687,6 +37118,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Faye Dunaway",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Chinatown",
+            tmdbId: "829",
             winner: false,
           },
           {
@@ -36715,6 +37147,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Towne",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Chinatown",
+            tmdbId: "829",
             winner: true,
           },
           {
@@ -36778,6 +37211,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Evans",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Chinatown",
+            tmdbId: "829",
             winner: false,
           },
           {
@@ -36832,6 +37266,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Sylbert|W. Stewart Campbell|Ruby Levitt",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Chinatown",
+            tmdbId: "829",
             winner: false,
           },
           {
@@ -36882,6 +37317,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jerry Goldsmith",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Chinatown",
+            tmdbId: "829",
             winner: false,
           },
           {
@@ -36971,6 +37407,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Morris|Mel Brooks",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Blazing Saddles",
+            tmdbId: "11072",
             winner: false,
           },
           {
@@ -37090,6 +37527,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Madeline Kahn",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Blazing Saddles",
+            tmdbId: "11072",
             winner: false,
           },
           {
@@ -37199,6 +37637,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Wong Howe",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Funny Lady",
+            tmdbId: "39282",
             winner: false,
           },
           {
@@ -37253,6 +37692,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ray Aghayan|Bob Mackie",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Funny Lady",
+            tmdbId: "39282",
             winner: false,
           },
           {
@@ -37261,6 +37701,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Yvonne Blake|Ron Talsky",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Four Musketeers",
+            tmdbId: "12310",
             winner: false,
           },
           {
@@ -37301,7 +37742,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Federico Fellini",
             sourceCategory: "DIRECTING",
             sourceTitle: "Amarcord",
-            tmdbId: "665765",
+            tmdbId: "7857",
             winner: false,
           },
           {
@@ -37338,6 +37779,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Altman",
             sourceCategory: "DIRECTING",
             sourceTitle: "Nashville",
+            tmdbId: "3121",
             winner: false,
           },
           {
@@ -37347,6 +37789,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Verna Fields",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Jaws",
+            tmdbId: "578",
             winner: true,
           },
           {
@@ -37575,7 +38018,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Federico Fellini|Tonino Guerra",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Amarcord",
-            tmdbId: "665765",
+            tmdbId: "7857",
             winner: false,
           },
           {
@@ -37602,6 +38045,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Towne|Warren Beatty",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Shampoo",
+            tmdbId: "31121",
             winner: false,
           },
           {
@@ -37653,6 +38097,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard D. Zanuck|David Brown",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Jaws",
+            tmdbId: "578",
             winner: false,
           },
           {
@@ -37661,6 +38106,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Altman",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Nashville",
+            tmdbId: "3121",
             winner: false,
           },
           {
@@ -37683,6 +38129,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Sylbert|W. Stewart Campbell|George Gaines",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Shampoo",
+            tmdbId: "31121",
             winner: false,
           },
           {
@@ -37719,6 +38166,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Jaws",
+            tmdbId: "578",
             winner: true,
           },
           {
@@ -37782,6 +38230,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Matz",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Funny Lady",
+            tmdbId: "39282",
             winner: false,
           },
           {
@@ -37800,6 +38249,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Keith Carradine",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Nashville",
+            tmdbId: "3121",
             winner: true,
           },
           {
@@ -37809,6 +38259,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fred Ebb|John Kander",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Funny Lady",
+            tmdbId: "39282",
             winner: false,
           },
           {
@@ -37888,6 +38339,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jack Warden",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Shampoo",
+            tmdbId: "31121",
             winner: false,
           },
           {
@@ -37907,6 +38359,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lee Grant",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Shampoo",
+            tmdbId: "31121",
             winner: true,
           },
           {
@@ -37936,6 +38389,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lily Tomlin",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Nashville",
+            tmdbId: "3121",
             winner: false,
           },
           {
@@ -37945,6 +38399,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ronee Blakley",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Nashville",
+            tmdbId: "3121",
             winner: false,
           },
         ],
@@ -37960,6 +38415,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Goldman",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "All the President's Men",
+            tmdbId: "891",
             winner: true,
           },
           {
@@ -37968,6 +38424,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Getchell",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Bound for Glory",
+            tmdbId: "42232",
             winner: false,
           },
           {
@@ -37976,6 +38433,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Federico Fellini|Bernardino Zapponi",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Fellini's Casanova",
+            tmdbId: "42236",
             winner: false,
           },
           {
@@ -38002,6 +38460,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Haskell Wexler",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Bound for Glory",
+            tmdbId: "42232",
             winner: true,
           },
           {
@@ -38046,6 +38505,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Danilo Donati",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Fellini's Casanova",
+            tmdbId: "42236",
             winner: true,
           },
           {
@@ -38054,6 +38514,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Theiss",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Bound for Glory",
+            tmdbId: "42232",
             winner: false,
           },
           {
@@ -38089,6 +38550,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John G. Avildsen",
             sourceCategory: "DIRECTING",
             sourceTitle: "Rocky",
+            tmdbId: "1366",
             winner: true,
           },
           {
@@ -38097,6 +38559,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan J. Pakula",
             sourceCategory: "DIRECTING",
             sourceTitle: "All the President's Men",
+            tmdbId: "891",
             winner: false,
           },
           {
@@ -38132,6 +38595,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Halsey|Scott Conrad",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Rocky",
+            tmdbId: "1366",
             winner: true,
           },
           {
@@ -38140,6 +38604,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert L. Wolfe",
             sourceCategory: "FILM EDITING",
             sourceTitle: "All the President's Men",
+            tmdbId: "891",
             winner: false,
           },
           {
@@ -38148,6 +38613,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Jones|Pembroke J. Herring",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Bound for Glory",
+            tmdbId: "42232",
             winner: false,
           },
           {
@@ -38192,6 +38658,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "German Democratic Republic",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Jacob, the Liar",
+            tmdbId: "2200",
             winner: false,
           },
           {
@@ -38200,6 +38667,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Poland",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Nights and Days",
+            tmdbId: "110369",
             winner: false,
           },
           {
@@ -38238,6 +38706,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sylvester Stallone",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Rocky",
+            tmdbId: "1366",
             winner: false,
           },
           {
@@ -38262,6 +38731,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert De Niro",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Taxi Driver",
+            tmdbId: "103",
             winner: false,
           },
           {
@@ -38311,6 +38781,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Talia Shire",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Rocky",
+            tmdbId: "1366",
             winner: false,
           },
           {
@@ -38337,6 +38808,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sylvester Stallone",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Rocky",
+            tmdbId: "1366",
             winner: false,
           },
           {
@@ -38363,6 +38835,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Irwin Winkler|Robert Chartoff",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Rocky",
+            tmdbId: "1366",
             winner: true,
           },
           {
@@ -38371,6 +38844,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Walter Coblenz",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "All the President's Men",
+            tmdbId: "891",
             winner: false,
           },
           {
@@ -38379,6 +38853,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert F. Blumofe|Harold Leventhal",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Bound for Glory",
+            tmdbId: "42232",
             winner: false,
           },
           {
@@ -38401,6 +38876,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Phillips|Julia Phillips",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Taxi Driver",
+            tmdbId: "103",
             winner: false,
           },
           {
@@ -38409,6 +38885,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "George Jenkins|George Gaines",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "All the President's Men",
+            tmdbId: "891",
             winner: true,
           },
           {
@@ -38476,6 +38953,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bernard Herrmann",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Taxi Driver",
+            tmdbId: "103",
             winner: false,
           },
           {
@@ -38502,6 +38980,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Leonard Rosenman",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Bound for Glory",
+            tmdbId: "42232",
             winner: true,
           },
           {
@@ -38549,6 +39028,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bill Conti|Carol Connors|Ayn Robbins",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Rocky",
+            tmdbId: "1366",
             winner: false,
           },
           {
@@ -38578,6 +39058,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jason Robards",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "All the President's Men",
+            tmdbId: "891",
             winner: true,
           },
           {
@@ -38607,6 +39088,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Burgess Meredith",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Rocky",
+            tmdbId: "1366",
             winner: false,
           },
           {
@@ -38616,6 +39098,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Burt Young",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Rocky",
+            tmdbId: "1366",
             winner: false,
           },
           {
@@ -38635,6 +39118,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jane Alexander",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "All the President's Men",
+            tmdbId: "891",
             winner: false,
           },
           {
@@ -38659,6 +39143,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jodie Foster",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Taxi Driver",
+            tmdbId: "103",
             winner: false,
           },
           {
@@ -38711,6 +39196,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Larry Gelbart",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Oh, God!",
+            tmdbId: "24032",
             winner: false,
           },
           {
@@ -38764,6 +39250,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Surtees",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Turning Point",
+            tmdbId: "61280",
             winner: false,
           },
           {
@@ -38863,6 +39350,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Herbert Ross",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Turning Point",
+            tmdbId: "61280",
             winner: false,
           },
           {
@@ -38912,6 +39400,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Reynolds",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Turning Point",
+            tmdbId: "61280",
             winner: false,
           },
           {
@@ -38966,6 +39455,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Dreyfuss",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Goodbye Girl",
+            tmdbId: "14741",
             winner: true,
           },
           {
@@ -39035,6 +39525,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marsha Mason",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Goodbye Girl",
+            tmdbId: "14741",
             winner: false,
           },
           {
@@ -39044,6 +39535,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anne Bancroft",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Turning Point",
+            tmdbId: "61280",
             winner: false,
           },
           {
@@ -39053,6 +39545,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Shirley MacLaine",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Turning Point",
+            tmdbId: "61280",
             winner: false,
           },
           {
@@ -39084,6 +39577,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Neil Simon",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Goodbye Girl",
+            tmdbId: "14741",
             winner: false,
           },
           {
@@ -39101,6 +39595,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Arthur Laurents",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Turning Point",
+            tmdbId: "61280",
             winner: false,
           },
           {
@@ -39141,6 +39636,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ray Stark",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Goodbye Girl",
+            tmdbId: "14741",
             winner: false,
           },
           {
@@ -39149,6 +39645,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Herbert Ross|Arthur Laurents",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Turning Point",
+            tmdbId: "61280",
             winner: false,
           },
           {
@@ -39190,6 +39687,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ken Adam|Peter Lamont|Hugh Scaife",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Spy Who Loved Me",
+            tmdbId: "691",
             winner: false,
           },
           {
@@ -39198,6 +39696,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Albert Brenner|Marvin March",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Turning Point",
+            tmdbId: "61280",
             winner: false,
           },
           {
@@ -39238,6 +39737,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Maurice Jarre",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Mohammad - Messenger of God",
+            tmdbId: "26842",
             winner: false,
           },
           {
@@ -39246,6 +39746,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marvin Hamlisch",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Spy Who Loved Me",
+            tmdbId: "691",
             winner: false,
           },
           {
@@ -39328,6 +39829,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marvin Hamlisch|Carole Bayer Sager",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Spy Who Loved Me",
+            tmdbId: "691",
             winner: false,
           },
           {
@@ -39382,6 +39884,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mikhail Baryshnikov",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Turning Point",
+            tmdbId: "61280",
             winner: false,
           },
           {
@@ -39421,6 +39924,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Quinn Cummings",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Goodbye Girl",
+            tmdbId: "14741",
             winner: false,
           },
           {
@@ -39430,6 +39934,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Leslie Browne",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Turning Point",
+            tmdbId: "61280",
             winner: false,
           },
           {
@@ -39488,6 +39993,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Neil Simon",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "California Suite",
+            tmdbId: "26686",
             winner: false,
           },
           {
@@ -39550,6 +40056,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Oswald Morris",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Wiz",
+            tmdbId: "24961",
             winner: false,
           },
           {
@@ -39558,6 +40065,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anthony Powell",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Death on the Nile",
+            tmdbId: "4192",
             winner: true,
           },
           {
@@ -39566,6 +40074,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Renie Conley",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Caravans",
+            tmdbId: "41317",
             winner: false,
           },
           {
@@ -39583,6 +40092,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Zastupnevich",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Swarm",
+            tmdbId: "46878",
             winner: false,
           },
           {
@@ -39591,6 +40101,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tony Walton",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Wiz",
+            tmdbId: "24961",
             winner: false,
           },
           {
@@ -39608,6 +40119,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hal Ashby",
             sourceCategory: "DIRECTING",
             sourceTitle: "Coming Home",
+            tmdbId: "31657",
             winner: false,
           },
           {
@@ -39625,6 +40137,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Woody Allen",
             sourceCategory: "DIRECTING",
             sourceTitle: "Interiors",
+            tmdbId: "15867",
             winner: false,
           },
           {
@@ -39651,6 +40164,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Don Zimmerman",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Coming Home",
+            tmdbId: "31657",
             winner: false,
           },
           {
@@ -39733,6 +40247,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jon Voight",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Coming Home",
+            tmdbId: "31657",
             winner: true,
           },
           {
@@ -39782,6 +40297,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jane Fonda",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Coming Home",
+            tmdbId: "31657",
             winner: true,
           },
           {
@@ -39806,6 +40322,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ingrid Bergman",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Autumn Sonata",
+            tmdbId: "12761",
             winner: false,
           },
           {
@@ -39815,6 +40332,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Geraldine Page",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Interiors",
+            tmdbId: "15867",
             winner: false,
           },
           {
@@ -39833,6 +40351,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nancy Dowd|Waldo Salt|Robert C. Jones",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Coming Home",
+            tmdbId: "31657",
             winner: true,
           },
           {
@@ -39855,6 +40374,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ingmar Bergman",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Autumn Sonata",
+            tmdbId: "12761",
             winner: false,
           },
           {
@@ -39863,6 +40383,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Woody Allen",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Interiors",
+            tmdbId: "15867",
             winner: false,
           },
           {
@@ -39900,6 +40421,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jerome Hellman",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Coming Home",
+            tmdbId: "31657",
             winner: false,
           },
           {
@@ -39935,6 +40457,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Albert Brenner|Marvin March",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "California Suite",
+            tmdbId: "26686",
             winner: false,
           },
           {
@@ -39943,6 +40466,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mel Bourne|Daniel Robert",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Interiors",
+            tmdbId: "15867",
             winner: false,
           },
           {
@@ -39962,6 +40486,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Tony Walton|Philip Rosenberg|Edward Stewart|Robert Drumheller",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Wiz",
+            tmdbId: "24961",
             winner: false,
           },
           {
@@ -40034,6 +40559,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Quincy Jones",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "The Wiz",
+            tmdbId: "24961",
             winner: false,
           },
           {
@@ -40053,6 +40579,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Charles Fox|Norman Gimbel",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Foul Play",
+            tmdbId: "15659",
             winner: false,
           },
           {
@@ -40063,6 +40590,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Farrar",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Grease",
+            tmdbId: "621",
             winner: false,
           },
           {
@@ -40112,6 +40640,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bruce Dern",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Coming Home",
+            tmdbId: "31657",
             winner: false,
           },
           {
@@ -40141,6 +40670,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Maggie Smith",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "California Suite",
+            tmdbId: "26686",
             winner: true,
           },
           {
@@ -40150,6 +40680,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Penelope Milford",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Coming Home",
+            tmdbId: "31657",
             winner: false,
           },
           {
@@ -40169,6 +40700,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Maureen Stapleton",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Interiors",
+            tmdbId: "15867",
             winner: false,
           },
           {
@@ -40227,6 +40759,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Francis Veber|Edouard Molinaro|Marcello Danon|Jean Poiret",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "La Cage aux Folles",
+            tmdbId: "4484",
             winner: false,
           },
           {
@@ -40321,6 +40854,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Piero Tosi|Ambra Danon",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "La Cage aux Folles",
+            tmdbId: "4484",
             winner: false,
           },
           {
@@ -40379,6 +40913,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Edouard Molinaro",
             sourceCategory: "DIRECTING",
             sourceTitle: "La Cage aux Folles",
+            tmdbId: "4484",
             winner: false,
           },
           {
@@ -40456,6 +40991,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Spain",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Mama Turns a Hundred",
+            tmdbId: "107288",
             winner: false,
           },
           {
@@ -40745,6 +41281,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Henry Mancini",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "10",
+            tmdbId: "9051",
             winner: false,
           },
           {
@@ -40823,6 +41360,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Henry Mancini|Robert Wells",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "10",
+            tmdbId: "9051",
             winner: false,
           },
           {
@@ -41006,6 +41544,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Derek Meddings|Paul Wilson|John Evans",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Moonraker",
+            tmdbId: "698",
             winner: false,
           },
           {
@@ -41041,6 +41580,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alvin Sargent",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Ordinary People",
+            tmdbId: "16619",
             winner: true,
           },
           {
@@ -41085,6 +41625,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Geoffrey Unsworth|Ghislain Cloquet",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Tess",
+            tmdbId: "11121",
             winner: true,
           },
           {
@@ -41111,6 +41652,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nestor Almendros",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Blue Lagoon",
+            tmdbId: "5689",
             winner: false,
           },
           {
@@ -41128,6 +41670,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anthony Powell",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Tess",
+            tmdbId: "11121",
             winner: true,
           },
           {
@@ -41172,6 +41715,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Redford",
             sourceCategory: "DIRECTING",
             sourceTitle: "Ordinary People",
+            tmdbId: "16619",
             winner: true,
           },
           {
@@ -41189,6 +41733,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roman Polanski",
             sourceCategory: "DIRECTING",
             sourceTitle: "Tess",
+            tmdbId: "11121",
             winner: false,
           },
           {
@@ -41376,6 +41921,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mary Tyler Moore",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Ordinary People",
+            tmdbId: "16619",
             winner: false,
           },
           {
@@ -41449,6 +41995,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ronald L. Schwary",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Ordinary People",
+            tmdbId: "16619",
             winner: true,
           },
           {
@@ -41475,6 +42022,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Claude Berri|Timothy Burrill",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Tess",
+            tmdbId: "11121",
             winner: false,
           },
           {
@@ -41492,6 +42040,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pierre Guffroy|Jack Stephens",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Tess",
+            tmdbId: "11121",
             winner: true,
           },
           {
@@ -41528,6 +42077,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Norman Reynolds|Leslie Dilley|Harry Lange|Alan Tomkins|Michael Ford",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Empire Strikes Back",
+            tmdbId: "1891",
             winner: false,
           },
           {
@@ -41554,6 +42104,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Philippe Sarde",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Tess",
+            tmdbId: "11121",
             winner: false,
           },
           {
@@ -41571,6 +42122,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Empire Strikes Back",
+            tmdbId: "1891",
             winner: false,
           },
           {
@@ -41630,6 +42182,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Timothy Hutton",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Ordinary People",
+            tmdbId: "16619",
             winner: true,
           },
           {
@@ -41649,6 +42202,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Judd Hirsch",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Ordinary People",
+            tmdbId: "16619",
             winner: false,
           },
           {
@@ -41788,6 +42342,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alex Thomson",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Excalibur",
+            tmdbId: "11527",
             winner: false,
           },
           {
@@ -41819,6 +42374,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Douglas Slocombe",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Raiders of the Lost Ark",
+            tmdbId: "85",
             winner: false,
           },
           {
@@ -41913,6 +42469,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg",
             sourceCategory: "DIRECTING",
             sourceTitle: "Raiders of the Lost Ark",
+            tmdbId: "85",
             winner: false,
           },
           {
@@ -41926,6 +42483,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Kahn",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Raiders of the Lost Ark",
+            tmdbId: "85",
             winner: true,
           },
           {
@@ -42036,6 +42594,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dudley Moore",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Arthur",
+            tmdbId: "13665",
             winner: false,
           },
           {
@@ -42132,6 +42691,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steve Gordon",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Arthur",
+            tmdbId: "13665",
             winner: false,
           },
           {
@@ -42190,6 +42750,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frank Marshall",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Raiders of the Lost Ark",
+            tmdbId: "85",
             winner: false,
           },
           {
@@ -42212,6 +42773,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Norman Reynolds|Leslie Dilley|Michael Ford",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Raiders of the Lost Ark",
+            tmdbId: "85",
             winner: true,
           },
           {
@@ -42298,6 +42860,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Raiders of the Lost Ark",
+            tmdbId: "85",
             winner: false,
           },
           {
@@ -42308,6 +42871,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Burt Bacharach|Carole Bayer Sager|Christopher Cross|Peter Allen",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Arthur",
+            tmdbId: "13665",
             winner: true,
           },
           {
@@ -42327,6 +42891,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bill Conti|Mick Leeson",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "For Your Eyes Only",
+            tmdbId: "699",
             winner: false,
           },
           {
@@ -42356,6 +42921,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Gielgud",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Arthur",
+            tmdbId: "13665",
             winner: true,
           },
           {
@@ -42459,6 +43025,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Edlund|Kit West|Bruce Nicholson|Joe Johnston",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Raiders of the Lost Ark",
+            tmdbId: "85",
             winner: true,
           },
           {
@@ -42492,6 +43059,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Wolfgang Petersen",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Das Boot",
+            tmdbId: "387",
             winner: false,
           },
           {
@@ -42528,6 +43096,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Billy Williams|Ronnie Taylor",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Gandhi",
+            tmdbId: "783",
             winner: true,
           },
           {
@@ -42536,6 +43105,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jost Vacano",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Das Boot",
+            tmdbId: "387",
             winner: false,
           },
           {
@@ -42549,6 +43119,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Allen Daviau",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "E.T. The Extra-Terrestrial",
+            tmdbId: "601",
             winner: false,
           },
           {
@@ -42567,6 +43138,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Owen Roizman",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Tootsie",
+            tmdbId: "9576",
             winner: false,
           },
           {
@@ -42576,6 +43148,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Mollo|Bhanu Athaiya",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Gandhi",
+            tmdbId: "783",
             winner: true,
           },
           {
@@ -42621,6 +43194,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Attenborough",
             sourceCategory: "DIRECTING",
             sourceTitle: "Gandhi",
+            tmdbId: "783",
             winner: true,
           },
           {
@@ -42629,6 +43203,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Wolfgang Petersen",
             sourceCategory: "DIRECTING",
             sourceTitle: "Das Boot",
+            tmdbId: "387",
             winner: false,
           },
           {
@@ -42642,6 +43217,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg",
             sourceCategory: "DIRECTING",
             sourceTitle: "E.T. The Extra-Terrestrial",
+            tmdbId: "601",
             winner: false,
           },
           {
@@ -42660,6 +43236,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sydney Pollack",
             sourceCategory: "DIRECTING",
             sourceTitle: "Tootsie",
+            tmdbId: "9576",
             winner: false,
           },
           {
@@ -42669,6 +43246,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Bloom",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Gandhi",
+            tmdbId: "783",
             winner: true,
           },
           {
@@ -42686,6 +43264,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hannes Nikel",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Das Boot",
+            tmdbId: "387",
             winner: false,
           },
           {
@@ -42699,6 +43278,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Carol Littleton",
             sourceCategory: "FILM EDITING",
             sourceTitle: "E.T. The Extra-Terrestrial",
+            tmdbId: "601",
             winner: false,
           },
           {
@@ -42708,6 +43288,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fredric Steinkamp|William Steinkamp",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Tootsie",
+            tmdbId: "9576",
             winner: false,
           },
           {
@@ -42716,6 +43297,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Spain",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Volver a Empezar ('To Begin Again')",
+            tmdbId: "81346",
             winner: true,
           },
           {
@@ -42762,6 +43344,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ben Kingsley",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Gandhi",
+            tmdbId: "783",
             winner: true,
           },
           {
@@ -42802,6 +43385,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dustin Hoffman",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Tootsie",
+            tmdbId: "9576",
             winner: false,
           },
           {
@@ -42861,6 +43445,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Briley",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Gandhi",
+            tmdbId: "783",
             winner: true,
           },
           {
@@ -42878,6 +43463,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Barry Levinson",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Diner",
+            tmdbId: "13776",
             winner: false,
           },
           {
@@ -42891,6 +43477,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Melissa Mathison",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "E.T. The Extra-Terrestrial",
+            tmdbId: "601",
             winner: false,
           },
           {
@@ -42900,6 +43487,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Larry Gelbart|Murray Schisgal|Don McGuire",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Tootsie",
+            tmdbId: "9576",
             winner: false,
           },
           {
@@ -42909,6 +43497,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Attenborough",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Gandhi",
+            tmdbId: "783",
             winner: true,
           },
           {
@@ -42922,6 +43511,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg|Kathleen Kennedy",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "E.T. The Extra-Terrestrial",
+            tmdbId: "601",
             winner: false,
           },
           {
@@ -42949,6 +43539,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sydney Pollack|Dick Richards",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Tootsie",
+            tmdbId: "9576",
             winner: false,
           },
           {
@@ -42958,6 +43549,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stuart Craig|Bob Laing|Michael Seirton",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Gandhi",
+            tmdbId: "783",
             winner: true,
           },
           {
@@ -43013,6 +43605,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "E.T. The Extra-Terrestrial",
+            tmdbId: "601",
             winner: true,
           },
           {
@@ -43031,6 +43624,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ravi Shankar|George Fenton",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Gandhi",
+            tmdbId: "783",
             winner: false,
           },
           {
@@ -43044,6 +43638,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jerry Goldsmith",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Poltergeist",
+            tmdbId: "609",
             winner: false,
           },
           {
@@ -43079,6 +43674,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Waits",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "One from the Heart",
+            tmdbId: "41291",
             winner: false,
           },
           {
@@ -43119,6 +43715,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dave Grusin|Alan Bergman|Marilyn Bergman",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Tootsie",
+            tmdbId: "9576",
             winner: false,
           },
           {
@@ -43189,6 +43786,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jessica Lange",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Tootsie",
+            tmdbId: "9576",
             winner: true,
           },
           {
@@ -43219,6 +43817,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Teri Garr",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Tootsie",
+            tmdbId: "9576",
             winner: false,
           },
           {
@@ -43242,6 +43841,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Carlo Rambaldi|Dennis Muren|Kenneth F. Smith",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "E.T. The Extra-Terrestrial",
+            tmdbId: "601",
             winner: true,
           },
           {
@@ -43269,6 +43869,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Edlund|Michael Wood|Bruce Nicholson",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Poltergeist",
+            tmdbId: "609",
             winner: false,
           },
         ],
@@ -43329,6 +43930,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sven Nykvist",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Fanny & Alexander",
+            tmdbId: "5961",
             winner: true,
           },
           {
@@ -43337,6 +43939,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Don Peterman",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Flashdance",
+            tmdbId: "535",
             winner: false,
           },
           {
@@ -43372,6 +43975,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marik Vos",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Fanny & Alexander",
+            tmdbId: "5961",
             winner: true,
           },
           {
@@ -43425,6 +44029,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ingmar Bergman",
             sourceCategory: "DIRECTING",
             sourceTitle: "Fanny & Alexander",
+            tmdbId: "5961",
             winner: false,
           },
           {
@@ -43470,6 +44075,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frank Morriss|Edward Abroms",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Blue Thunder",
+            tmdbId: "6341",
             winner: false,
           },
           {
@@ -43478,6 +44084,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bud Smith|Walt Mulconery",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Flashdance",
+            tmdbId: "535",
             winner: false,
           },
           {
@@ -43504,6 +44111,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sweden",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Fanny & Alexander",
+            tmdbId: "5961",
             winner: true,
           },
           {
@@ -43512,6 +44120,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Spain",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Carmen",
+            tmdbId: "42106",
             winner: false,
           },
           {
@@ -43656,6 +44265,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ingmar Bergman",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Fanny & Alexander",
+            tmdbId: "5961",
             winner: false,
           },
           {
@@ -43736,6 +44346,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anna Asp",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Fanny & Alexander",
+            tmdbId: "5961",
             winner: true,
           },
           {
@@ -43744,6 +44355,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Norman Reynolds|Fred Hole|James Schoppe|Michael Ford",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Return of the Jedi",
+            tmdbId: "1892",
             winner: false,
           },
           {
@@ -43799,6 +44411,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Return of the Jedi",
+            tmdbId: "1892",
             winner: false,
           },
           {
@@ -43853,6 +44466,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Giorgio Moroder|Keith Forsey|Irene Cara",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Flashdance",
+            tmdbId: "535",
             winner: true,
           },
           {
@@ -43862,6 +44476,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Sembello|Dennis Matkosky",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Flashdance",
+            tmdbId: "535",
             winner: false,
           },
           {
@@ -44095,6 +44710,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Vilmos Zsigmond",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The River",
+            tmdbId: "38557",
             winner: false,
           },
           {
@@ -44228,6 +44844,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Donn Cambern|Frank Morriss",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Romancing the Stone",
+            tmdbId: "9326",
             winner: false,
           },
           {
@@ -44254,6 +44871,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Israel",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Beyond the Walls",
+            tmdbId: "136663",
             winner: false,
           },
           {
@@ -44332,6 +44950,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Albert Finney",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Under the Volcano",
+            tmdbId: "41089",
             winner: false,
           },
           {
@@ -44361,6 +44980,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jessica Lange",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Country",
+            tmdbId: "42087",
             winner: false,
           },
           {
@@ -44380,6 +45000,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sissy Spacek",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The River",
+            tmdbId: "38557",
             winner: false,
           },
           {
@@ -44420,6 +45041,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gregory Nava|Anna Thomas",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "El Norte",
+            tmdbId: "17435",
             winner: false,
           },
           {
@@ -44550,6 +45172,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Indiana Jones and the Temple of Doom",
+            tmdbId: "87",
             winner: false,
           },
           {
@@ -44567,6 +45190,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The River",
+            tmdbId: "38557",
             winner: false,
           },
           {
@@ -44575,6 +45199,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alex North",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Under the Volcano",
+            tmdbId: "41089",
             winner: false,
           },
           {
@@ -44583,6 +45208,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Prince",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Purple Rain",
+            tmdbId: "13763",
             winner: true,
           },
           {
@@ -44655,6 +45281,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ray Parker Jr.",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Ghostbusters",
+            tmdbId: "620",
             winner: false,
           },
           {
@@ -44769,6 +45396,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Dennis Muren|Michael McAlister|Lorne Peterson|George Gibbs",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Indiana Jones and the Temple of Doom",
+            tmdbId: "87",
             winner: true,
           },
           {
@@ -44796,6 +45424,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Edlund|John Bruno|Mark Vargo|Chuck Gaspar",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Ghostbusters",
+            tmdbId: "620",
             winner: false,
           },
         ],
@@ -44879,6 +45508,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Takao Saito|Masaharu Ueda|Asakazu Nakai",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Ran",
+            tmdbId: "11645",
             winner: false,
           },
           {
@@ -44911,6 +45541,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emi Wada",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Ran",
+            tmdbId: "11645",
             winner: true,
           },
           {
@@ -44987,6 +45618,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Akira Kurosawa",
             sourceCategory: "DIRECTING",
             sourceTitle: "Ran",
+            tmdbId: "11645",
             winner: false,
           },
           {
@@ -45052,6 +45684,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Argentina",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Official Story",
+            tmdbId: "29263",
             winner: true,
           },
           {
@@ -45217,6 +45850,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Zemeckis|Bob Gale",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Back to the Future",
+            tmdbId: "105",
             winner: false,
           },
           {
@@ -45226,6 +45860,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Terry Gilliam|Tom Stoppard|Charles McKeown",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Brazil",
+            tmdbId: "68",
             winner: false,
           },
           {
@@ -45234,6 +45869,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Luis Puenzo|Aida Bortnik",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Official Story",
+            tmdbId: "29263",
             winner: false,
           },
           {
@@ -45313,6 +45949,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Norman Garwood|Maggie Gray",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Brazil",
+            tmdbId: "68",
             winner: false,
           },
           {
@@ -45321,6 +45958,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Yoshiro Muraki|Shinobu Muraki",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Ran",
+            tmdbId: "11645",
             winner: false,
           },
           {
@@ -45431,6 +46069,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Hayes|Johnny Colla|Huey Lewis",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Back to the Future",
+            tmdbId: "105",
             winner: false,
           },
           {
@@ -45663,6 +46302,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Menges",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Mission",
+            tmdbId: "11416",
             winner: true,
           },
           {
@@ -45695,6 +46335,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Richardson",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Platoon",
+            tmdbId: "792",
             winner: false,
           },
           {
@@ -45744,6 +46385,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anthony Powell",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Pirates",
+            tmdbId: "11483",
             winner: false,
           },
           {
@@ -45752,6 +46394,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Enrico Sabbatini",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Mission",
+            tmdbId: "11416",
             winner: false,
           },
           {
@@ -45761,6 +46404,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Oliver Stone",
             sourceCategory: "DIRECTING",
             sourceTitle: "Platoon",
+            tmdbId: "792",
             winner: true,
           },
           {
@@ -45801,6 +46445,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roland Joffé",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Mission",
+            tmdbId: "11416",
             winner: false,
           },
           {
@@ -45810,6 +46455,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Claire Simpson",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Platoon",
+            tmdbId: "792",
             winner: true,
           },
           {
@@ -45837,6 +46483,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jim Clark",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Mission",
+            tmdbId: "11416",
             winner: false,
           },
           {
@@ -45846,6 +46493,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Billy Weber|Chris Lebenzon",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Top Gun",
+            tmdbId: "744",
             winner: false,
           },
           {
@@ -45854,6 +46502,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "The Netherlands",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Assault",
+            tmdbId: "2753",
             winner: true,
           },
           {
@@ -45862,6 +46511,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Austria",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "'38'",
+            tmdbId: "42016",
             winner: false,
           },
           {
@@ -45938,6 +46588,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Woods",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Salvador",
+            tmdbId: "6106",
             winner: false,
           },
           {
@@ -46025,6 +46676,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Oliver Stone",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Platoon",
+            tmdbId: "792",
             winner: false,
           },
           {
@@ -46033,6 +46685,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Oliver Stone|Richard Boyle",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Salvador",
+            tmdbId: "6106",
             winner: false,
           },
           {
@@ -46042,6 +46695,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Arnold Kopelson",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Platoon",
+            tmdbId: "792",
             winner: true,
           },
           {
@@ -46082,6 +46736,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fernando Ghia|David Puttnam",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Mission",
+            tmdbId: "11416",
             winner: false,
           },
           {
@@ -46133,6 +46788,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stuart Craig|Jack Stephens",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Mission",
+            tmdbId: "11416",
             winner: false,
           },
           {
@@ -46178,6 +46834,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ennio Morricone",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Mission",
+            tmdbId: "11416",
             winner: false,
           },
           {
@@ -46188,6 +46845,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Giorgio Moroder|Tom Whitlock",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Top Gun",
+            tmdbId: "744",
             winner: true,
           },
           {
@@ -46212,6 +46870,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Menken|Howard Ashman",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Little Shop of Horrors",
+            tmdbId: "10776",
             winner: false,
           },
           {
@@ -46221,6 +46880,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Henry Mancini|Leslie Bricusse",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "That's Life",
+            tmdbId: "1161288",
             winner: false,
           },
           {
@@ -46276,6 +46936,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Berenger",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Platoon",
+            tmdbId: "792",
             winner: false,
           },
           {
@@ -46286,6 +46947,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Willem Dafoe",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Platoon",
+            tmdbId: "792",
             winner: false,
           },
           {
@@ -46360,6 +47022,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lyle Conway|Bran Ferren|Martin Gutteridge",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Little Shop of Horrors",
+            tmdbId: "10776",
             winner: false,
           },
           {
@@ -46384,6 +47047,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mark Peploe|Bernardo Bertolucci",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Last Emperor",
+            tmdbId: "746",
             winner: true,
           },
           {
@@ -46416,6 +47080,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Lasse Hallström|Reidar Jönsson|Brasse Brännström|Per Berglund",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "My Life as a Dog",
+            tmdbId: "8816",
             winner: false,
           },
           {
@@ -46424,6 +47089,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tony Huston",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Dead",
+            tmdbId: "39507",
             winner: false,
           },
           {
@@ -46432,6 +47098,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Vittorio Storaro",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Last Emperor",
+            tmdbId: "746",
             winner: true,
           },
           {
@@ -46449,6 +47116,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Allen Daviau",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Empire of the Sun",
+            tmdbId: "10110",
             winner: false,
           },
           {
@@ -46475,6 +47143,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Acheson",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Last Emperor",
+            tmdbId: "746",
             winner: true,
           },
           {
@@ -46483,6 +47152,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bob Ringwood",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Empire of the Sun",
+            tmdbId: "10110",
             winner: false,
           },
           {
@@ -46500,6 +47170,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dorothy Jeakins",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Dead",
+            tmdbId: "39507",
             winner: false,
           },
           {
@@ -46513,6 +47184,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marilyn Vance-Straker",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Untouchables",
+            tmdbId: "117",
             winner: false,
           },
           {
@@ -46521,6 +47193,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bernardo Bertolucci",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Last Emperor",
+            tmdbId: "746",
             winner: true,
           },
           {
@@ -46556,6 +47229,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lasse Hallström",
             sourceCategory: "DIRECTING",
             sourceTitle: "My Life as a Dog",
+            tmdbId: "8816",
             winner: false,
           },
           {
@@ -46564,6 +47238,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gabriella Cristiani",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Last Emperor",
+            tmdbId: "746",
             winner: true,
           },
           {
@@ -46581,6 +47256,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Kahn",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Empire of the Sun",
+            tmdbId: "10110",
             winner: false,
           },
           {
@@ -46635,6 +47311,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Norway",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Pathfinder",
+            tmdbId: "2172",
             winner: false,
           },
           {
@@ -46643,6 +47320,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Italy",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Family",
+            tmdbId: "42008",
             winner: false,
           },
           {
@@ -46672,6 +47350,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marcello Mastroianni",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Dark Eyes",
+            tmdbId: "44658",
             winner: false,
           },
           {
@@ -46800,6 +47479,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jeremy Thomas",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Last Emperor",
+            tmdbId: "746",
             winner: true,
           },
           {
@@ -46844,6 +47524,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ferdinando Scarfiotti|Bruno Cesari|Osvaldo Desideri",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Last Emperor",
+            tmdbId: "746",
             winner: true,
           },
           {
@@ -46852,6 +47533,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Norman Reynolds|Harry Cordwell",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Empire of the Sun",
+            tmdbId: "10110",
             winner: false,
           },
           {
@@ -46885,6 +47567,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Patrizia Von Brandenstein|William A. Elliott|Hal Gausman",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Untouchables",
+            tmdbId: "117",
             winner: false,
           },
           {
@@ -46893,6 +47576,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ryuichi Sakamoto|David Byrne|Cong Su",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Last Emperor",
+            tmdbId: "746",
             winner: true,
           },
           {
@@ -46910,6 +47594,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Empire of the Sun",
+            tmdbId: "10110",
             winner: false,
           },
           {
@@ -46923,6 +47608,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ennio Morricone",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Untouchables",
+            tmdbId: "117",
             winner: false,
           },
           {
@@ -46941,6 +47627,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Franke Previte|John DeNicola|Donald Markowitz",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Dirty Dancing",
+            tmdbId: "88",
             winner: true,
           },
           {
@@ -47000,6 +47687,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sean Connery",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Untouchables",
+            tmdbId: "117",
             winner: true,
           },
           {
@@ -47110,6 +47798,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Joel Hynek|Robert M. Greenberg|Richard Greenberg|Stan Winston",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Predator",
+            tmdbId: "106",
             winner: false,
           },
         ],
@@ -47319,6 +48008,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Martin Scorsese",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Last Temptation of Christ",
+            tmdbId: "11051",
             winner: false,
           },
           {
@@ -47327,6 +48017,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mike Nichols",
             sourceCategory: "DIRECTING",
             sourceTitle: "Working Girl",
+            tmdbId: "3525",
             winner: false,
           },
           {
@@ -47535,6 +48226,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Melanie Griffith",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Working Girl",
+            tmdbId: "3525",
             winner: false,
           },
           {
@@ -47637,6 +48329,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Douglas Wick",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Working Girl",
+            tmdbId: "3525",
             winner: false,
           },
           {
@@ -47743,6 +48436,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Carly Simon",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Working Girl",
+            tmdbId: "3525",
             winner: true,
           },
           {
@@ -47762,6 +48456,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lamont Dozier|Phil Collins",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Buster",
+            tmdbId: "24782",
             winner: false,
           },
           {
@@ -47861,6 +48556,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joan Cusack",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Working Girl",
+            tmdbId: "3525",
             winner: false,
           },
           {
@@ -47870,6 +48566,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sigourney Weaver",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Working Girl",
+            tmdbId: "3525",
             winner: false,
           },
           {
@@ -47965,6 +48662,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Freddie Francis",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Glory",
+            tmdbId: "9665",
             winner: true,
           },
           {
@@ -47996,6 +48694,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mikael Salomon",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Abyss",
+            tmdbId: "2756",
             winner: false,
           },
           {
@@ -48126,6 +48825,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Rosenblum",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Glory",
+            tmdbId: "9665",
             winner: false,
           },
           {
@@ -48273,6 +48973,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jessica Lange",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Music Box",
+            tmdbId: "2263",
             winner: false,
           },
           {
@@ -48324,6 +49025,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Spike Lee",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Do the Right Thing",
+            tmdbId: "925",
             winner: false,
           },
           {
@@ -48424,6 +49126,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Norman Garwood|Garrett Lewis",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Glory",
+            tmdbId: "9665",
             winner: false,
           },
           {
@@ -48437,6 +49140,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Leslie Dilley|Anne Kuljian",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Abyss",
+            tmdbId: "2756",
             winner: false,
           },
           {
@@ -48491,6 +49195,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Indiana Jones and the Last Crusade",
+            tmdbId: "89",
             winner: false,
           },
           {
@@ -48569,6 +49274,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Denzel Washington",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Glory",
+            tmdbId: "9665",
             winner: true,
           },
           {
@@ -48598,6 +49304,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Danny Aiello",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Do the Right Thing",
+            tmdbId: "925",
             winner: false,
           },
           {
@@ -48671,6 +49378,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Bruno|Dennis Muren|Hoyt Yeatman|Dennis Skotak",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Abyss",
+            tmdbId: "2756",
             winner: true,
           },
           {
@@ -48684,6 +49392,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ken Ralston|Michael Lantieri|John Bell|Steve Gawley",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Back to the Future Part II",
+            tmdbId: "165",
             winner: false,
           },
           {
@@ -48713,6 +49422,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Blake",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Dances With Wolves",
+            tmdbId: "581",
             winner: true,
           },
           {
@@ -48767,6 +49477,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dean Semler",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Dances With Wolves",
+            tmdbId: "581",
             winner: true,
           },
           {
@@ -48775,6 +49486,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Allen Daviau",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Avalon",
+            tmdbId: "2302",
             winner: false,
           },
           {
@@ -48783,6 +49495,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Vittorio Storaro",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Dick Tracy",
+            tmdbId: "8592",
             winner: false,
           },
           {
@@ -48814,6 +49527,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Franca Squarciapino",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Cyrano de Bergerac",
+            tmdbId: "11673",
             winner: true,
           },
           {
@@ -48822,6 +49536,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gloria Gresham",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Avalon",
+            tmdbId: "2302",
             winner: false,
           },
           {
@@ -48835,6 +49550,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elsa Zamparelli",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Dances With Wolves",
+            tmdbId: "581",
             winner: false,
           },
           {
@@ -48843,6 +49559,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Milena Canonero",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Dick Tracy",
+            tmdbId: "8592",
             winner: false,
           },
           {
@@ -48865,6 +49582,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kevin Costner",
             sourceCategory: "DIRECTING",
             sourceTitle: "Dances With Wolves",
+            tmdbId: "581",
             winner: true,
           },
           {
@@ -48924,6 +49642,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Neil Travis",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Dances With Wolves",
+            tmdbId: "581",
             winner: true,
           },
           {
@@ -48987,6 +49706,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Cyrano de Bergerac",
+            tmdbId: "11673",
             winner: false,
           },
           {
@@ -49043,6 +49763,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gerard Depardieu",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Cyrano de Bergerac",
+            tmdbId: "11673",
             winner: false,
           },
           {
@@ -49057,6 +49778,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kevin Costner",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Dances With Wolves",
+            tmdbId: "581",
             winner: false,
           },
           {
@@ -49117,6 +49839,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Julia Roberts",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Pretty Woman",
+            tmdbId: "114",
             winner: false,
           },
           {
@@ -49153,6 +49876,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Barry Levinson",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Avalon",
+            tmdbId: "2302",
             winner: false,
           },
           {
@@ -49175,6 +49899,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Whit Stillman",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Metropolitan",
+            tmdbId: "15389",
             winner: false,
           },
           {
@@ -49188,6 +49913,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jim Wilson|Kevin Costner",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Dances With Wolves",
+            tmdbId: "581",
             winner: true,
           },
           {
@@ -49242,6 +49968,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Sylbert|Rick Simpson",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Dick Tracy",
+            tmdbId: "8592",
             winner: true,
           },
           {
@@ -49250,6 +49977,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ezio Frigerio|Jacques Rouxel",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Cyrano de Bergerac",
+            tmdbId: "11673",
             winner: false,
           },
           {
@@ -49263,6 +49991,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jeffrey Beecroft|Lisa Dean",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Dances With Wolves",
+            tmdbId: "581",
             winner: false,
           },
           {
@@ -49299,6 +50028,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Barry",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Dances With Wolves",
+            tmdbId: "581",
             winner: true,
           },
           {
@@ -49307,6 +50037,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Randy Newman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Avalon",
+            tmdbId: "2302",
             winner: false,
           },
           {
@@ -49324,6 +50055,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Grusin",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Havana",
+            tmdbId: "22189",
             winner: false,
           },
           {
@@ -49347,6 +50079,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Sondheim",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Dick Tracy",
+            tmdbId: "8592",
             winner: true,
           },
           {
@@ -49431,6 +50164,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Graham Greene",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Dances With Wolves",
+            tmdbId: "581",
             winner: false,
           },
           {
@@ -49440,6 +50174,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Al Pacino",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Dick Tracy",
+            tmdbId: "8592",
             winner: false,
           },
           {
@@ -49489,6 +50224,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mary McDonnell",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Dances With Wolves",
+            tmdbId: "581",
             winner: false,
           },
           {
@@ -49523,6 +50259,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Diane Ladd",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Wild at Heart",
+            tmdbId: "483",
             winner: false,
           },
         ],
@@ -49543,6 +50280,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ted Tally",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Silence of the Lambs",
+            tmdbId: "274",
             winner: true,
           },
           {
@@ -49551,6 +50289,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Agnieszka Holland",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Europa Europa",
+            tmdbId: "8996",
             winner: false,
           },
           {
@@ -49573,6 +50312,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Oliver Stone|Zachary Sklar",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "JFK",
+            tmdbId: "820",
             winner: false,
           },
           {
@@ -49590,6 +50330,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Richardson",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "JFK",
+            tmdbId: "820",
             winner: true,
           },
           {
@@ -49612,6 +50353,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Adam Greenberg",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Terminator 2: Judgment Day",
+            tmdbId: "280",
             winner: false,
           },
           {
@@ -49674,6 +50416,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ruth Myers",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Addams Family",
+            tmdbId: "2907",
             winner: false,
           },
           {
@@ -49687,6 +50430,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jonathan Demme",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Silence of the Lambs",
+            tmdbId: "274",
             winner: true,
           },
           {
@@ -49695,6 +50439,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Singleton",
             sourceCategory: "DIRECTING",
             sourceTitle: "Boyz N the Hood",
+            tmdbId: "650",
             winner: false,
           },
           {
@@ -49712,6 +50457,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Oliver Stone",
             sourceCategory: "DIRECTING",
             sourceTitle: "JFK",
+            tmdbId: "820",
             winner: false,
           },
           {
@@ -49729,6 +50475,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joe Hutshing|Pietro Scalia",
             sourceCategory: "FILM EDITING",
             sourceTitle: "JFK",
+            tmdbId: "820",
             winner: true,
           },
           {
@@ -49742,6 +50489,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Conrad Buff|Mark Goldblatt|Richard A. Harris",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Terminator 2: Judgment Day",
+            tmdbId: "280",
             winner: false,
           },
           {
@@ -49764,6 +50512,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Craig McKay",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Silence of the Lambs",
+            tmdbId: "274",
             winner: false,
           },
           {
@@ -49808,6 +50557,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Czechoslovakia",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Elementary School",
+            tmdbId: "18141",
             winner: false,
           },
           {
@@ -49831,6 +50581,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anthony Hopkins",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Silence of the Lambs",
+            tmdbId: "274",
             winner: true,
           },
           {
@@ -49885,6 +50636,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jodie Foster",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Silence of the Lambs",
+            tmdbId: "274",
             winner: true,
           },
           {
@@ -49942,6 +50694,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Singleton",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Boyz N the Hood",
+            tmdbId: "650",
             winner: false,
           },
           {
@@ -49982,6 +50735,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Edward Saxon|Kenneth Utt|Ron Bozman",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Silence of the Lambs",
+            tmdbId: "274",
             winner: true,
           },
           {
@@ -49995,6 +50749,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Don Hahn",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Beauty and the Beast",
+            tmdbId: "10020",
             winner: false,
           },
           {
@@ -50012,6 +50767,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "A. Kitman Ho|Oliver Stone",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "JFK",
+            tmdbId: "820",
             winner: false,
           },
           {
@@ -50079,6 +50835,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Menken",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Beauty and the Beast",
+            tmdbId: "10020",
             winner: true,
           },
           {
@@ -50096,6 +50853,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "JFK",
+            tmdbId: "820",
             winner: false,
           },
           {
@@ -50128,6 +50886,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Menken|Howard Ashman",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Beauty and the Beast",
+            tmdbId: "10020",
             winner: true,
           },
           {
@@ -50142,6 +50901,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Menken|Howard Ashman",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Beauty and the Beast",
+            tmdbId: "10020",
             winner: false,
           },
           {
@@ -50156,6 +50916,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Menken|Howard Ashman",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Beauty and the Beast",
+            tmdbId: "10020",
             winner: false,
           },
           {
@@ -50230,6 +50991,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tommy Lee Jones",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "JFK",
+            tmdbId: "820",
             winner: false,
           },
           {
@@ -50299,6 +51061,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Dennis Muren|Stan Winston|Gene Warren Jr.|Robert Skotak",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Terminator 2: Judgment Day",
+            tmdbId: "280",
             winner: true,
           },
           {
@@ -50475,6 +51238,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ruth Carter",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Malcolm X",
+            tmdbId: "1883",
             winner: false,
           },
           {
@@ -50483,6 +51247,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Albert Wolsky",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Toys",
+            tmdbId: "11597",
             winner: false,
           },
           {
@@ -50528,6 +51293,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Neil Jordan",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Crying Game",
+            tmdbId: "11386",
             winner: false,
           },
           {
@@ -50582,6 +51348,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kant Pan",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Crying Game",
+            tmdbId: "11386",
             winner: false,
           },
           {
@@ -50622,6 +51389,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Russia",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Close to Eden",
+            tmdbId: "36346",
             winner: false,
           },
           {
@@ -50659,6 +51427,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Downey Jr.",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Chaplin",
+            tmdbId: "10435",
             winner: false,
           },
           {
@@ -50668,6 +51437,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Denzel Washington",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Malcolm X",
+            tmdbId: "1883",
             winner: false,
           },
           {
@@ -50677,6 +51447,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Rea",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Crying Game",
+            tmdbId: "11386",
             winner: false,
           },
           {
@@ -50755,6 +51526,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Neil Jordan",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Crying Game",
+            tmdbId: "11386",
             winner: true,
           },
           {
@@ -50850,6 +51622,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Woolley",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Crying Game",
+            tmdbId: "11386",
             winner: false,
           },
           {
@@ -50881,6 +51654,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stuart Craig|Chris A. Butler",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Chaplin",
+            tmdbId: "10435",
             winner: false,
           },
           {
@@ -50889,6 +51663,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ferdinando Scarfiotti|Linda DeScenna",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Toys",
+            tmdbId: "11597",
             winner: false,
           },
           {
@@ -50912,6 +51687,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Menken",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Aladdin",
+            tmdbId: "812",
             winner: true,
           },
           {
@@ -50938,6 +51714,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Barry",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Chaplin",
+            tmdbId: "10435",
             winner: false,
           },
           {
@@ -50962,6 +51739,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Menken|Tim Rice",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Aladdin",
+            tmdbId: "812",
             winner: true,
           },
           {
@@ -50972,6 +51750,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Menken|Howard Ashman",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Aladdin",
+            tmdbId: "812",
             winner: false,
           },
           {
@@ -51046,6 +51825,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Paymer",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Mr. Saturday Night",
+            tmdbId: "54087",
             winner: false,
           },
           {
@@ -51055,6 +51835,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jaye Davidson",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Crying Game",
+            tmdbId: "11386",
             winner: false,
           },
           {
@@ -51074,6 +51855,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Miranda Richardson",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Damage",
+            tmdbId: "11012",
             winner: false,
           },
           {
@@ -51147,6 +51929,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Fink|Craig Barron|John Bruno|Dennis Skotak",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Batman Returns",
+            tmdbId: "364",
             winner: false,
           },
         ],
@@ -51194,6 +51977,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jay Cocks|Martin Scorsese",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Age of Innocence",
+            tmdbId: "10436",
             winner: false,
           },
           {
@@ -51267,6 +52051,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stuart Dryburgh",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Piano",
+            tmdbId: "713",
             winner: false,
           },
           {
@@ -51275,6 +52060,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gabriella Pescucci",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Age of Innocence",
+            tmdbId: "10436",
             winner: true,
           },
           {
@@ -51311,6 +52097,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Janet Patterson",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Piano",
+            tmdbId: "713",
             winner: false,
           },
           {
@@ -51370,6 +52157,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jane Campion",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Piano",
+            tmdbId: "713",
             winner: false,
           },
           {
@@ -51449,6 +52237,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Veronika Jenet",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Piano",
+            tmdbId: "713",
             winner: false,
           },
           {
@@ -51457,6 +52246,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Spain",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Belle Epoque",
+            tmdbId: "2470",
             winner: true,
           },
           {
@@ -51502,6 +52292,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Hanks",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Philadelphia",
+            tmdbId: "9800",
             winner: true,
           },
           {
@@ -51566,6 +52357,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Holly Hunter",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Piano",
+            tmdbId: "713",
             winner: true,
           },
           {
@@ -51624,6 +52416,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jane Campion",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Piano",
+            tmdbId: "713",
             winner: true,
           },
           {
@@ -51655,6 +52448,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ron Nyswaner",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Philadelphia",
+            tmdbId: "9800",
             winner: false,
           },
           {
@@ -51719,6 +52513,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jan Chapman",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Piano",
+            tmdbId: "713",
             winner: false,
           },
           {
@@ -51773,6 +52568,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dante Ferretti|Robert J. Franco",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Age of Innocence",
+            tmdbId: "10436",
             winner: false,
           },
           {
@@ -51809,6 +52605,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elmer Bernstein",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Age of Innocence",
+            tmdbId: "10436",
             winner: false,
           },
           {
@@ -51855,6 +52652,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bruce Springsteen",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Philadelphia",
+            tmdbId: "9800",
             winner: true,
           },
           {
@@ -51874,6 +52672,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Neil Young",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Philadelphia",
+            tmdbId: "9800",
             winner: false,
           },
           {
@@ -51983,6 +52782,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anna Paquin",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Piano",
+            tmdbId: "713",
             winner: true,
           },
           {
@@ -51993,6 +52793,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rosie Perez",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Fearless",
+            tmdbId: "10443",
             winner: false,
           },
           {
@@ -52012,6 +52813,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Winona Ryder",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Age of Innocence",
+            tmdbId: "10436",
             winner: false,
           },
           {
@@ -52036,6 +52838,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Dennis Muren|Stan Winston|Phil Tippett|Michael Lantieri",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Jurassic Park",
+            tmdbId: "329",
             winner: true,
           },
           {
@@ -52044,6 +52847,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Neil Krepela|John Richardson|John Bruno|Pamela Easley",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Cliffhanger",
+            tmdbId: "9350",
             winner: false,
           },
           {
@@ -52058,6 +52862,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Pete Kozachik|Eric Leighton|Ariel Velasco Shaw|Gordon Baker",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Nightmare before Christmas",
+            tmdbId: "9479",
             winner: false,
           },
         ],
@@ -52078,6 +52883,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eric Roth",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Forrest Gump",
+            tmdbId: "13",
             winner: true,
           },
           {
@@ -52095,6 +52901,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Attanasio",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Quiz Show",
+            tmdbId: "11450",
             winner: false,
           },
           {
@@ -52140,6 +52947,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Don Burgess",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Forrest Gump",
+            tmdbId: "13",
             winner: false,
           },
           {
@@ -52148,6 +52956,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Piotr Sobocinski",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Red",
+            tmdbId: "110",
             winner: false,
           },
           {
@@ -52170,6 +52979,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Owen Roizman",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Wyatt Earp",
+            tmdbId: "12160",
             winner: false,
           },
           {
@@ -52196,6 +53006,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Colleen Atwood",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Little Women",
+            tmdbId: "9587",
             winner: false,
           },
           {
@@ -52204,6 +53015,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "April Ferry",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Maverick",
+            tmdbId: "9359",
             winner: false,
           },
           {
@@ -52226,6 +53038,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Zemeckis",
             sourceCategory: "DIRECTING",
             sourceTitle: "Forrest Gump",
+            tmdbId: "13",
             winner: true,
           },
           {
@@ -52257,6 +53070,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Redford",
             sourceCategory: "DIRECTING",
             sourceTitle: "Quiz Show",
+            tmdbId: "11450",
             winner: false,
           },
           {
@@ -52265,6 +53079,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Krzysztof Kieslowski",
             sourceCategory: "DIRECTING",
             sourceTitle: "Red",
+            tmdbId: "110",
             winner: false,
           },
           {
@@ -52278,6 +53093,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Arthur Schmidt",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Forrest Gump",
+            tmdbId: "13",
             winner: true,
           },
           {
@@ -52384,6 +53200,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Hanks",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Forrest Gump",
+            tmdbId: "13",
             winner: true,
           },
           {
@@ -52453,6 +53270,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Winona Ryder",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Little Women",
+            tmdbId: "9587",
             winner: false,
           },
           {
@@ -52537,6 +53355,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Krzysztof Piesiewicz|Krzysztof Kieslowski",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Red",
+            tmdbId: "110",
             winner: false,
           },
           {
@@ -52550,6 +53369,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Wendy Finerman|Steve Tisch|Steve Starkey",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Forrest Gump",
+            tmdbId: "13",
             winner: true,
           },
           {
@@ -52587,6 +53407,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Robert Redford|Michael Jacobs|Julian Krainin|Michael Nozik",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Quiz Show",
+            tmdbId: "11450",
             winner: false,
           },
           {
@@ -52632,6 +53453,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rick Carter|Nancy Haigh",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Forrest Gump",
+            tmdbId: "13",
             winner: false,
           },
           {
@@ -52663,6 +53485,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hans Zimmer",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Lion King",
+            tmdbId: "8587",
             winner: true,
           },
           {
@@ -52676,6 +53499,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Silvestri",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Forrest Gump",
+            tmdbId: "13",
             winner: false,
           },
           {
@@ -52693,6 +53517,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thomas Newman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Little Women",
+            tmdbId: "9587",
             winner: false,
           },
           {
@@ -52721,6 +53546,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elton John|Tim Rice",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Lion King",
+            tmdbId: "8587",
             winner: true,
           },
           {
@@ -52746,6 +53572,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elton John|Tim Rice",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Lion King",
+            tmdbId: "8587",
             winner: false,
           },
           {
@@ -52760,6 +53587,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elton John|Tim Rice",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Lion King",
+            tmdbId: "8587",
             winner: false,
           },
           {
@@ -52779,6 +53607,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Martin Landau",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Ed Wood",
+            tmdbId: "522",
             winner: true,
           },
           {
@@ -52803,6 +53632,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gary Sinise",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Forrest Gump",
+            tmdbId: "13",
             winner: false,
           },
           {
@@ -52827,6 +53657,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Scofield",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Quiz Show",
+            tmdbId: "11450",
             winner: false,
           },
           {
@@ -52895,6 +53726,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ken Ralston|George Murphy|Stephen Rosenbaum|Allen Hall",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Forrest Gump",
+            tmdbId: "13",
             winner: true,
           },
           {
@@ -52904,6 +53736,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Scott Squires|Steve Williams|Tom Bertino|Jon Farhat",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Mask",
+            tmdbId: "854",
             winner: false,
           },
           {
@@ -52918,6 +53751,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "John Bruno|Thomas L. Fisher|Jacques Stroweis|Patrick McClung",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "True Lies",
+            tmdbId: "36955",
             winner: false,
           },
         ],
@@ -52947,6 +53781,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Broyles Jr.|Al Reinert",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Apollo 13",
+            tmdbId: "568",
             winner: false,
           },
           {
@@ -52956,6 +53791,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "George Miller|Chris Noonan",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Babe",
+            tmdbId: "9598",
             winner: false,
           },
           {
@@ -52997,6 +53833,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emmanuel Lubezki",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "A Little Princess",
+            tmdbId: "19101",
             winner: false,
           },
           {
@@ -53010,6 +53847,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Goldblatt",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Batman Forever",
+            tmdbId: "414",
             winner: false,
           },
           {
@@ -53073,6 +53911,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Shuna Harwood",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Richard III",
+            tmdbId: "31174",
             winner: false,
           },
           {
@@ -53105,6 +53944,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Noonan",
             sourceCategory: "DIRECTING",
             sourceTitle: "Babe",
+            tmdbId: "9598",
             winner: false,
           },
           {
@@ -53150,6 +53990,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mike Hill|Dan Hanley",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Apollo 13",
+            tmdbId: "568",
             winner: true,
           },
           {
@@ -53159,6 +54000,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marcus D'Arcy|Jay Friedkin",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Babe",
+            tmdbId: "9598",
             winner: false,
           },
           {
@@ -53181,6 +54023,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Lebenzon",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Crimson Tide",
+            tmdbId: "8963",
             winner: false,
           },
           {
@@ -53189,7 +54032,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Francis-Bruce",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Seven",
-            tmdbId: "47537",
+            tmdbId: "807",
             winner: false,
           },
           {
@@ -53279,6 +54122,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anthony Hopkins",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Nixon",
+            tmdbId: "10858",
             winner: false,
           },
           {
@@ -53389,6 +54233,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen J. Rivele|Christopher Wilkinson|Oliver Stone",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Nixon",
+            tmdbId: "10858",
             winner: false,
           },
           {
@@ -53403,6 +54248,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Joss Whedon|Andrew Stanton|Joel Cohen|Alec Sokolow|John Lasseter|Peter Docter|Joe Ranft",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Toy Story",
+            tmdbId: "862",
             winner: false,
           },
           {
@@ -53430,6 +54276,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brian Grazer",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Apollo 13",
+            tmdbId: "568",
             winner: false,
           },
           {
@@ -53439,6 +54286,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "George Miller|Doug Mitchell|Bill Miller",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Babe",
+            tmdbId: "9598",
             winner: false,
           },
           {
@@ -53474,6 +54322,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bo Welch|Cheryl Carasik",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "A Little Princess",
+            tmdbId: "19101",
             winner: false,
           },
           {
@@ -53487,6 +54336,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Corenblith|Merideth Boswell",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Apollo 13",
+            tmdbId: "568",
             winner: false,
           },
           {
@@ -53496,6 +54346,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roger Ford|Kerrie Brown",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Babe",
+            tmdbId: "9598",
             winner: false,
           },
           {
@@ -53504,6 +54355,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tony Burrough",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Richard III",
+            tmdbId: "31174",
             winner: false,
           },
           {
@@ -53526,6 +54378,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Horner",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Apollo 13",
+            tmdbId: "568",
             winner: false,
           },
           {
@@ -53548,6 +54401,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Nixon",
+            tmdbId: "10858",
             winner: false,
           },
           {
@@ -53570,6 +54424,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Menken|Stephen Schwartz",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Pocahontas",
+            tmdbId: "10530",
             winner: true,
           },
           {
@@ -53578,6 +54433,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Sabrina",
+            tmdbId: "11860",
             winner: false,
           },
           {
@@ -53600,6 +54456,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Randy Newman",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Toy Story",
+            tmdbId: "862",
             winner: false,
           },
           {
@@ -53623,6 +54480,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Menken|Stephen Schwartz",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Pocahontas",
+            tmdbId: "10530",
             winner: true,
           },
           {
@@ -53657,6 +54515,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams|Alan Bergman|Marilyn Bergman",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Sabrina",
+            tmdbId: "11860",
             winner: false,
           },
           {
@@ -53671,6 +54530,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Randy Newman",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Toy Story",
+            tmdbId: "862",
             winner: false,
           },
           {
@@ -53715,6 +54575,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ed Harris",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Apollo 13",
+            tmdbId: "568",
             winner: false,
           },
           {
@@ -53725,6 +54586,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Cromwell",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Babe",
+            tmdbId: "9598",
             winner: false,
           },
           {
@@ -53734,6 +54596,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tim Roth",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Rob Roy",
+            tmdbId: "11780",
             winner: false,
           },
           {
@@ -53758,6 +54621,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kathleen Quinlan",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Apollo 13",
+            tmdbId: "568",
             winner: false,
           },
           {
@@ -53767,6 +54631,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mare Winningham",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Georgia",
+            tmdbId: "97406",
             winner: false,
           },
           {
@@ -53776,6 +54641,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joan Allen",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Nixon",
+            tmdbId: "10858",
             winner: false,
           },
           {
@@ -53795,6 +54661,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Scott E. Anderson|Charles Gibson|Neal Scanlan|John Cox",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Babe",
+            tmdbId: "9598",
             winner: true,
           },
           {
@@ -53808,6 +54675,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Legato|Michael Kanfer|Leslie Ekker|Matt Sweeney",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Apollo 13",
+            tmdbId: "568",
             winner: false,
           },
         ],
@@ -53864,6 +54732,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Hodge",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Trainspotting",
+            tmdbId: "627",
             winner: false,
           },
           {
@@ -53881,6 +54750,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Darius Khondji",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Evita",
+            tmdbId: "8818",
             winner: false,
           },
           {
@@ -53890,6 +54760,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roger Deakins",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Fargo",
+            tmdbId: "275",
             winner: false,
           },
           {
@@ -53934,6 +54805,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ruth Myers",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Emma",
+            tmdbId: "3573",
             winner: false,
           },
           {
@@ -53951,6 +54823,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Janet Patterson",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Portrait of a Lady",
+            tmdbId: "36758",
             winner: false,
           },
           {
@@ -53969,6 +54842,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joel Coen",
             sourceCategory: "DIRECTING",
             sourceTitle: "Fargo",
+            tmdbId: "275",
             winner: false,
           },
           {
@@ -54014,6 +54888,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gerry Hambling",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Evita",
+            tmdbId: "8818",
             winner: false,
           },
           {
@@ -54023,6 +54898,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roderick Jaynes",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Fargo",
+            tmdbId: "275",
             winner: false,
           },
           {
@@ -54077,6 +54953,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Ridicule",
+            tmdbId: "12709",
             winner: false,
           },
           {
@@ -54147,6 +55024,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frances McDormand",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Fargo",
+            tmdbId: "275",
             winner: true,
           },
           {
@@ -54196,6 +55074,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ethan Coen|Joel Coen",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Fargo",
+            tmdbId: "275",
             winner: true,
           },
           {
@@ -54251,6 +55130,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ethan Coen",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Fargo",
+            tmdbId: "275",
             winner: false,
           },
           {
@@ -54297,6 +55177,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brian Morris|Philippe Turlure",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Evita",
+            tmdbId: "8818",
             winner: false,
           },
           {
@@ -54374,6 +55255,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Sleepers",
+            tmdbId: "819",
             winner: false,
           },
           {
@@ -54382,6 +55264,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rachel Portman",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Emma",
+            tmdbId: "3573",
             winner: true,
           },
           {
@@ -54413,6 +55296,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Menken|Stephen Schwartz",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "The Hunchback of Notre Dame",
+            tmdbId: "10545",
             winner: false,
           },
           {
@@ -54431,6 +55315,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andrew Lloyd Webber|Tim Rice",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Evita",
+            tmdbId: "8818",
             winner: true,
           },
           {
@@ -54471,6 +55356,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Diane Warren",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Up Close and Personal",
+            tmdbId: "9302",
             winner: false,
           },
           {
@@ -54491,6 +55377,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William H. Macy",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Fargo",
+            tmdbId: "275",
             winner: false,
           },
           {
@@ -54576,6 +55463,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Barbara Hershey",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Portrait of a Lady",
+            tmdbId: "36758",
             winner: false,
           },
           {
@@ -54589,6 +55477,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Volker Engel|Douglas Smith|Clay Pinney|Joseph Viskocil",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Independence Day",
+            tmdbId: "602",
             winner: true,
           },
           {
@@ -54597,6 +55486,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Scott Squires|Phil Tippett|James Straus|Kit West",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Dragonheart",
+            tmdbId: "8840",
             winner: false,
           },
           {
@@ -54679,6 +55569,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Russell Carpenter",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Titanic",
+            tmdbId: "597",
             winner: true,
           },
           {
@@ -54696,6 +55587,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roger Deakins",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Kundun",
+            tmdbId: "9746",
             winner: false,
           },
           {
@@ -54728,6 +55620,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Deborah L. Scott",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Titanic",
+            tmdbId: "597",
             winner: true,
           },
           {
@@ -54745,6 +55638,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dante Ferretti",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Kundun",
+            tmdbId: "9746",
             winner: false,
           },
           {
@@ -54772,6 +55666,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Cameron",
             sourceCategory: "DIRECTING",
             sourceTitle: "Titanic",
+            tmdbId: "597",
             winner: true,
           },
           {
@@ -54827,6 +55722,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Conrad Buff|James Cameron|Richard A. Harris",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Titanic",
+            tmdbId: "597",
             winner: true,
           },
           {
@@ -54849,6 +55745,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Marks",
             sourceCategory: "FILM EDITING",
             sourceTitle: "As Good as It Gets",
+            tmdbId: "2898",
             winner: false,
           },
           {
@@ -54931,6 +55828,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jack Nicholson",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "As Good as It Gets",
+            tmdbId: "2898",
             winner: true,
           },
           {
@@ -54985,6 +55883,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Helen Hunt",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "As Good as It Gets",
+            tmdbId: "2898",
             winner: true,
           },
           {
@@ -55025,6 +55924,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kate Winslet",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Titanic",
+            tmdbId: "597",
             winner: false,
           },
           {
@@ -55047,6 +55947,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mark Andrus|James L. Brooks",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "As Good as It Gets",
+            tmdbId: "2898",
             winner: false,
           },
           {
@@ -55088,6 +55989,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Cameron|Jon Landau",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Titanic",
+            tmdbId: "597",
             winner: true,
           },
           {
@@ -55096,6 +55998,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James L. Brooks|Bridget Johnson|Kristi Zea",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "As Good as It Gets",
+            tmdbId: "2898",
             winner: false,
           },
           {
@@ -55142,6 +56045,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Lamont|Michael Ford",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Titanic",
+            tmdbId: "597",
             winner: true,
           },
           {
@@ -55159,6 +56063,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dante Ferretti|Francesca Lo Schiavo",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Kundun",
+            tmdbId: "9746",
             winner: false,
           },
           {
@@ -55186,6 +56091,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bo Welch|Cheryl Carasik",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Men in Black",
+            tmdbId: "607",
             winner: false,
           },
           {
@@ -55195,6 +56101,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Horner",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Titanic",
+            tmdbId: "597",
             winner: true,
           },
           {
@@ -55226,6 +56133,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Philip Glass",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Kundun",
+            tmdbId: "9746",
             winner: false,
           },
           {
@@ -55262,6 +56170,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Flaherty|Lynn Ahrens|David Newman",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Anastasia",
+            tmdbId: "9444",
             winner: false,
           },
           {
@@ -55270,6 +56179,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hans Zimmer",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "As Good as It Gets",
+            tmdbId: "2898",
             winner: false,
           },
           {
@@ -55283,6 +56193,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Danny Elfman",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Men in Black",
+            tmdbId: "607",
             winner: false,
           },
           {
@@ -55307,6 +56218,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Horner|Will Jennings",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Titanic",
+            tmdbId: "597",
             winner: true,
           },
           {
@@ -55321,6 +56233,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Flaherty|Lynn Ahrens",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Anastasia",
+            tmdbId: "9444",
             winner: false,
           },
           {
@@ -55356,6 +56269,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Menken|David Zippel",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Hercules",
+            tmdbId: "11970",
             winner: false,
           },
           {
@@ -55390,6 +56304,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Greg Kinnear",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "As Good as It Gets",
+            tmdbId: "2898",
             winner: false,
           },
           {
@@ -55485,6 +56400,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gloria Stuart",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Titanic",
+            tmdbId: "597",
             winner: false,
           },
           {
@@ -55495,6 +56411,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Robert Legato|Mark Lasoff|Thomas L. Fisher|Michael Kanfer",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Titanic",
+            tmdbId: "597",
             winner: true,
           },
           {
@@ -55540,6 +56457,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bill Condon",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Gods and Monsters",
+            tmdbId: "3033",
             winner: true,
           },
           {
@@ -55557,6 +56475,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Scott Frank",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Out of Sight",
+            tmdbId: "1389",
             winner: false,
           },
           {
@@ -55593,6 +56512,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Janusz Kaminski",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Saving Private Ryan",
+            tmdbId: "857",
             winner: true,
           },
           {
@@ -55679,6 +56599,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Judianna Makovsky",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Pleasantville",
+            tmdbId: "2657",
             winner: false,
           },
           {
@@ -55701,6 +56622,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg",
             sourceCategory: "DIRECTING",
             sourceTitle: "Saving Private Ryan",
+            tmdbId: "857",
             winner: true,
           },
           {
@@ -55751,6 +56673,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Weir",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Truman Show",
+            tmdbId: "37165",
             winner: false,
           },
           {
@@ -55764,6 +56687,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Kahn",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Saving Private Ryan",
+            tmdbId: "857",
             winner: true,
           },
           {
@@ -55781,6 +56705,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anne V. Coates",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Out of Sight",
+            tmdbId: "1389",
             winner: false,
           },
           {
@@ -55826,6 +56751,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brazil",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Central Station",
+            tmdbId: "666",
             winner: false,
           },
           {
@@ -55897,6 +56823,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ian McKellen",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Gods and Monsters",
+            tmdbId: "3033",
             winner: false,
           },
           {
@@ -55911,6 +56838,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Hanks",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Saving Private Ryan",
+            tmdbId: "857",
             winner: false,
           },
           {
@@ -55935,6 +56863,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fernanda Montenegro",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Central Station",
+            tmdbId: "666",
             winner: false,
           },
           {
@@ -56010,6 +56939,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Rodat",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Saving Private Ryan",
+            tmdbId: "857",
             winner: false,
           },
           {
@@ -56023,6 +56953,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andrew Niccol",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Truman Show",
+            tmdbId: "37165",
             winner: false,
           },
           {
@@ -56069,6 +57000,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg|Ian Bryce|Mark Gordon|Gary Levinsohn",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Saving Private Ryan",
+            tmdbId: "857",
             winner: false,
           },
           {
@@ -56114,6 +57046,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jeannine Oppewall|Jay Hart",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Pleasantville",
+            tmdbId: "2657",
             winner: false,
           },
           {
@@ -56127,6 +57060,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Sanders|Lisa Dean Kavanaugh",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Saving Private Ryan",
+            tmdbId: "857",
             winner: false,
           },
           {
@@ -56162,6 +57096,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Randy Newman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Pleasantville",
+            tmdbId: "2657",
             winner: false,
           },
           {
@@ -56175,6 +57110,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Saving Private Ryan",
+            tmdbId: "857",
             winner: false,
           },
           {
@@ -56226,6 +57162,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Matthew Wilder|David Zippel|Jerry Goldsmith",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Mulan",
+            tmdbId: "10674",
             winner: false,
           },
           {
@@ -56234,6 +57171,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marc Shaiman",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "Patch Adams",
+            tmdbId: "10312",
             winner: false,
           },
           {
@@ -56247,6 +57185,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Schwartz|Hans Zimmer",
             sourceCategory: "MUSIC (Original Song Score or Adaptation Score)",
             sourceTitle: "The Prince of Egypt",
+            tmdbId: "9837",
             winner: false,
           },
           {
@@ -56261,6 +57200,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Schwartz",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Prince of Egypt",
+            tmdbId: "9837",
             winner: true,
           },
           {
@@ -56275,6 +57215,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Diane Warren",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Armageddon",
+            tmdbId: "95",
             winner: false,
           },
           {
@@ -56365,6 +57306,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ed Harris",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Truman Show",
+            tmdbId: "37165",
             winner: false,
           },
           {
@@ -56389,6 +57331,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lynn Redgrave",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Gods and Monsters",
+            tmdbId: "3033",
             winner: false,
           },
           {
@@ -56441,6 +57384,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard R. Hoover|Pat McClung|John Frazier",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Armageddon",
+            tmdbId: "95",
             winner: false,
           },
           {
@@ -56474,6 +57418,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alexander Payne|Jim Taylor",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Election",
+            tmdbId: "9451",
             winner: false,
           },
           {
@@ -56487,6 +57432,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frank Darabont",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Green Mile",
+            tmdbId: "497",
             winner: false,
           },
           {
@@ -56514,6 +57460,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anthony Minghella",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Talented Mr. Ripley",
+            tmdbId: "1213",
             winner: false,
           },
           {
@@ -56527,6 +57474,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Conrad L. Hall",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "American Beauty",
+            tmdbId: "14",
             winner: true,
           },
           {
@@ -56540,6 +57488,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emmanuel Lubezki",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Sleepy Hollow",
+            tmdbId: "2668",
             winner: false,
           },
           {
@@ -56557,6 +57506,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roger Pratt",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The End of the Affair",
+            tmdbId: "20024",
             winner: false,
           },
           {
@@ -56579,6 +57529,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lindy Hemming",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Topsy-Turvy",
+            tmdbId: "46435",
             winner: true,
           },
           {
@@ -56587,6 +57538,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jenny Beavan",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Anna and the King",
+            tmdbId: "1439",
             winner: false,
           },
           {
@@ -56600,6 +57552,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Colleen Atwood",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Sleepy Hollow",
+            tmdbId: "2668",
             winner: false,
           },
           {
@@ -56613,6 +57566,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ann Roth|Gary Jones",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Talented Mr. Ripley",
+            tmdbId: "1213",
             winner: false,
           },
           {
@@ -56621,6 +57575,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Milena Canonero",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Titus",
+            tmdbId: "12524",
             winner: false,
           },
           {
@@ -56634,6 +57589,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sam Mendes",
             sourceCategory: "DIRECTING",
             sourceTitle: "American Beauty",
+            tmdbId: "14",
             winner: true,
           },
           {
@@ -56684,6 +57640,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "M. Night Shyamalan",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Sixth Sense",
+            tmdbId: "745",
             winner: false,
           },
           {
@@ -56697,6 +57654,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Zach Staenberg",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Matrix",
+            tmdbId: "603",
             winner: true,
           },
           {
@@ -56710,6 +57668,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tariq Anwar|Christopher Greenbury",
             sourceCategory: "FILM EDITING",
             sourceTitle: "American Beauty",
+            tmdbId: "14",
             winner: false,
           },
           {
@@ -56746,6 +57705,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andrew Mondshein",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Sixth Sense",
+            tmdbId: "745",
             winner: false,
           },
           {
@@ -56768,6 +57728,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nepal",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Caravan",
+            tmdbId: "26813",
             winner: false,
           },
           {
@@ -56809,6 +57770,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kevin Spacey",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "American Beauty",
+            tmdbId: "14",
             winner: true,
           },
           {
@@ -56863,6 +57825,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hilary Swank",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Boys Don't Cry",
+            tmdbId: "226",
             winner: true,
           },
           {
@@ -56877,6 +57840,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Annette Bening",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "American Beauty",
+            tmdbId: "14",
             winner: false,
           },
           {
@@ -56896,6 +57860,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Julianne Moore",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The End of the Affair",
+            tmdbId: "20024",
             winner: false,
           },
           {
@@ -56919,6 +57884,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Ball",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "American Beauty",
+            tmdbId: "14",
             winner: true,
           },
           {
@@ -56941,6 +57907,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Thomas Anderson",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Magnolia",
+            tmdbId: "334",
             winner: false,
           },
           {
@@ -56954,6 +57921,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "M. Night Shyamalan",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Sixth Sense",
+            tmdbId: "745",
             winner: false,
           },
           {
@@ -56962,6 +57930,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mike Leigh",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Topsy-Turvy",
+            tmdbId: "46435",
             winner: false,
           },
           {
@@ -56975,6 +57944,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bruce Cohen|Dan Jinks",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "American Beauty",
+            tmdbId: "14",
             winner: true,
           },
           {
@@ -56997,6 +57967,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Valdes|Frank Darabont",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Green Mile",
+            tmdbId: "497",
             winner: false,
           },
           {
@@ -57024,6 +57995,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frank Marshall|Kathleen Kennedy|Barry Mendel",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Sixth Sense",
+            tmdbId: "745",
             winner: false,
           },
           {
@@ -57037,6 +58009,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rick Heinrichs|Peter Young",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Sleepy Hollow",
+            tmdbId: "2668",
             winner: true,
           },
           {
@@ -57045,6 +58018,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Luciana Arrighi|Ian Whittaker",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Anna and the King",
+            tmdbId: "1439",
             winner: false,
           },
           {
@@ -57067,6 +58041,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roy Walker|Bruno Cesari",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Talented Mr. Ripley",
+            tmdbId: "1213",
             winner: false,
           },
           {
@@ -57075,6 +58050,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eve Stewart|John Bush",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Topsy-Turvy",
+            tmdbId: "46435",
             winner: false,
           },
           {
@@ -57097,6 +58073,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thomas Newman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "American Beauty",
+            tmdbId: "14",
             winner: false,
           },
           {
@@ -57128,6 +58105,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gabriel Yared",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Talented Mr. Ripley",
+            tmdbId: "1213",
             winner: false,
           },
           {
@@ -57138,6 +58116,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Phil Collins",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Tarzan",
+            tmdbId: "37135",
             winner: true,
           },
           {
@@ -57147,6 +58126,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Aimee Mann",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Magnolia",
+            tmdbId: "334",
             winner: false,
           },
           {
@@ -57206,6 +58186,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Cruise",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Magnolia",
+            tmdbId: "334",
             winner: false,
           },
           {
@@ -57220,6 +58201,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Clarke Duncan",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Green Mile",
+            tmdbId: "497",
             winner: false,
           },
           {
@@ -57234,6 +58216,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Haley Joel Osment",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Sixth Sense",
+            tmdbId: "745",
             winner: false,
           },
           {
@@ -57248,6 +58231,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jude Law",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Talented Mr. Ripley",
+            tmdbId: "1213",
             winner: false,
           },
           {
@@ -57282,6 +58266,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chloë Sevigny",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Boys Don't Cry",
+            tmdbId: "226",
             winner: false,
           },
           {
@@ -57306,6 +58291,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Toni Collette",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Sixth Sense",
+            tmdbId: "745",
             winner: false,
           },
           {
@@ -57319,6 +58305,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Gaeta|Janek Sirrs|Steve Courtley|Jon Thum",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Matrix",
+            tmdbId: "603",
             winner: true,
           },
           {
@@ -57347,6 +58334,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "John Dykstra|Jerome Chen|Henry F. Anderson III|Eric Allard",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Stuart Little",
+            tmdbId: "10137",
             winner: false,
           },
         ],
@@ -57363,6 +58351,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Gaghan",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Traffic",
+            tmdbId: "1900",
             winner: true,
           },
           {
@@ -57371,6 +58360,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Nelson Jacobs",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Chocolat",
+            tmdbId: "392",
             winner: false,
           },
           {
@@ -57384,6 +58374,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Wang Hui Ling|James Schamus|Tsai Kuo Jung",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Crouching Tiger, Hidden Dragon",
+            tmdbId: "146",
             winner: false,
           },
           {
@@ -57401,6 +58392,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steve Kloves",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Wonder Boys",
+            tmdbId: "11004",
             winner: false,
           },
           {
@@ -57414,6 +58406,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Pau",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Crouching Tiger, Hidden Dragon",
+            tmdbId: "146",
             winner: true,
           },
           {
@@ -57454,6 +58447,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Caleb Deschanel",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Patriot",
+            tmdbId: "2024",
             winner: false,
           },
           {
@@ -57490,6 +58484,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tim Yip",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Crouching Tiger, Hidden Dragon",
+            tmdbId: "146",
             winner: false,
           },
           {
@@ -57522,6 +58517,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Soderbergh",
             sourceCategory: "DIRECTING",
             sourceTitle: "Traffic",
+            tmdbId: "1900",
             winner: true,
           },
           {
@@ -57530,6 +58526,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Daldry",
             sourceCategory: "DIRECTING",
             sourceTitle: "Billy Elliot",
+            tmdbId: "71",
             winner: false,
           },
           {
@@ -57543,6 +58540,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ang Lee",
             sourceCategory: "DIRECTING",
             sourceTitle: "Crouching Tiger, Hidden Dragon",
+            tmdbId: "146",
             winner: false,
           },
           {
@@ -57556,6 +58554,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Soderbergh",
             sourceCategory: "DIRECTING",
             sourceTitle: "Erin Brockovich",
+            tmdbId: "462",
             winner: false,
           },
           {
@@ -57579,6 +58578,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Mirrione",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Traffic",
+            tmdbId: "1900",
             winner: true,
           },
           {
@@ -57606,6 +58606,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tim Squyres",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Crouching Tiger, Hidden Dragon",
+            tmdbId: "146",
             winner: false,
           },
           {
@@ -57628,6 +58629,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dede Allen",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Wonder Boys",
+            tmdbId: "11004",
             winner: false,
           },
           {
@@ -57641,6 +58643,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Taiwan",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Crouching Tiger, Hidden Dragon",
+            tmdbId: "146",
             winner: true,
           },
           {
@@ -57721,6 +58724,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Hanks",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Cast Away",
+            tmdbId: "8358",
             winner: false,
           },
           {
@@ -57730,6 +58734,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ed Harris",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Pollock",
+            tmdbId: "12509",
             winner: false,
           },
           {
@@ -57754,6 +58759,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Julia Roberts",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Erin Brockovich",
+            tmdbId: "462",
             winner: true,
           },
           {
@@ -57763,6 +58769,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Juliette Binoche",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Chocolat",
+            tmdbId: "392",
             winner: false,
           },
           {
@@ -57777,6 +58784,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ellen Burstyn",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Requiem for a Dream",
+            tmdbId: "641",
             winner: false,
           },
           {
@@ -57786,6 +58794,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joan Allen",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Contender",
+            tmdbId: "6521",
             winner: false,
           },
           {
@@ -57818,6 +58827,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lee Hall",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Billy Elliot",
+            tmdbId: "71",
             winner: false,
           },
           {
@@ -57831,6 +58841,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Susannah Grant",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Erin Brockovich",
+            tmdbId: "462",
             winner: false,
           },
           {
@@ -57876,6 +58887,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Brown|Kit Golden|Leslie Holleran",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Chocolat",
+            tmdbId: "392",
             winner: false,
           },
           {
@@ -57889,6 +58901,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bill Kong|Hsu Li Kong|Ang Lee",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Crouching Tiger, Hidden Dragon",
+            tmdbId: "146",
             winner: false,
           },
           {
@@ -57902,6 +58915,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Danny DeVito|Michael Shamberg|Stacey Sher",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Erin Brockovich",
+            tmdbId: "462",
             winner: false,
           },
           {
@@ -57911,6 +58925,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Edward Zwick|Marshall Herskovitz|Laura Bickford",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Traffic",
+            tmdbId: "1900",
             winner: false,
           },
           {
@@ -57924,6 +58939,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tim Yip",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Crouching Tiger, Hidden Dragon",
+            tmdbId: "146",
             winner: true,
           },
           {
@@ -57983,6 +58999,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tan Dun",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Crouching Tiger, Hidden Dragon",
+            tmdbId: "146",
             winner: true,
           },
           {
@@ -57991,6 +59008,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rachel Portman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Chocolat",
+            tmdbId: "392",
             winner: false,
           },
           {
@@ -58022,6 +59040,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Patriot",
+            tmdbId: "2024",
             winner: false,
           },
           {
@@ -58031,6 +59050,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bob Dylan",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Wonder Boys",
+            tmdbId: "11004",
             winner: true,
           },
           {
@@ -58045,6 +59065,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jorge Calandrelli|Tan Dun|James Schamus",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Crouching Tiger, Hidden Dragon",
+            tmdbId: "146",
             winner: false,
           },
           {
@@ -58095,6 +59116,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Benicio Del Toro",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Traffic",
+            tmdbId: "1900",
             winner: true,
           },
           {
@@ -58109,6 +59131,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Albert Finney",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Erin Brockovich",
+            tmdbId: "462",
             winner: false,
           },
           {
@@ -58133,6 +59156,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Willem Dafoe",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Shadow of the Vampire",
+            tmdbId: "10873",
             winner: false,
           },
           {
@@ -58142,6 +59166,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jeff Bridges",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Contender",
+            tmdbId: "6521",
             winner: false,
           },
           {
@@ -58151,6 +59176,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marcia Gay Harden",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Pollock",
+            tmdbId: "12509",
             winner: true,
           },
           {
@@ -58190,6 +59216,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Julie Walters",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Billy Elliot",
+            tmdbId: "71",
             winner: false,
           },
           {
@@ -58199,6 +59226,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Judi Dench",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Chocolat",
+            tmdbId: "392",
             winner: false,
           },
           {
@@ -58231,6 +59259,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Stefen Fangmeier|Habib Zargarpour|John Frazier|Walt Conti",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Perfect Storm",
+            tmdbId: "2133",
             winner: false,
           },
         ],
@@ -58251,6 +59280,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Akiva Goldsman",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "A Beautiful Mind",
+            tmdbId: "453",
             winner: true,
           },
           {
@@ -58259,6 +59289,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Daniel Clowes|Terry Zwigoff",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Ghost World",
+            tmdbId: "1548",
             winner: false,
           },
           {
@@ -58278,6 +59309,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Ted Elliott|Terry Rossio|Joe Stillman|Roger S.H. Schulman",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Shrek",
+            tmdbId: "808",
             winner: false,
           },
           {
@@ -58291,6 +59323,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fran Walsh|Philippa Boyens|Peter Jackson",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Lord of the Rings: The Fellowship of the Ring",
+            tmdbId: "120",
             winner: false,
           },
           {
@@ -58300,6 +59333,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Aron Warner",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Shrek",
+            tmdbId: "808",
             winner: true,
           },
           {
@@ -58336,6 +59370,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andrew Lesnie",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Lord of the Rings: The Fellowship of the Ring",
+            tmdbId: "120",
             winner: true,
           },
           {
@@ -58345,6 +59380,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bruno Delbonnel",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Amélie",
+            tmdbId: "194",
             winner: false,
           },
           {
@@ -58353,6 +59389,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Slawomir Idziak",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Black Hawk Down",
+            tmdbId: "855",
             winner: false,
           },
           {
@@ -58375,6 +59412,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roger Deakins",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Man Who Wasn't There",
+            tmdbId: "10778",
             winner: false,
           },
           {
@@ -58397,6 +59435,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jenny Beavan",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Gosford Park",
+            tmdbId: "5279",
             winner: false,
           },
           {
@@ -58433,6 +59472,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ngila Dickson|Richard Taylor",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Lord of the Rings: The Fellowship of the Ring",
+            tmdbId: "120",
             winner: false,
           },
           {
@@ -58446,6 +59486,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ron Howard",
             sourceCategory: "DIRECTING",
             sourceTitle: "A Beautiful Mind",
+            tmdbId: "453",
             winner: true,
           },
           {
@@ -58454,6 +59495,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ridley Scott",
             sourceCategory: "DIRECTING",
             sourceTitle: "Black Hawk Down",
+            tmdbId: "855",
             winner: false,
           },
           {
@@ -58462,6 +59504,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Altman",
             sourceCategory: "DIRECTING",
             sourceTitle: "Gosford Park",
+            tmdbId: "5279",
             winner: false,
           },
           {
@@ -58489,6 +59532,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Jackson",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Lord of the Rings: The Fellowship of the Ring",
+            tmdbId: "120",
             winner: false,
           },
           {
@@ -58497,6 +59541,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pietro Scalia",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Black Hawk Down",
+            tmdbId: "855",
             winner: true,
           },
           {
@@ -58510,6 +59555,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mike Hill|Dan Hanley",
             sourceCategory: "FILM EDITING",
             sourceTitle: "A Beautiful Mind",
+            tmdbId: "453",
             winner: false,
           },
           {
@@ -58518,6 +59564,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dody Dorn",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Memento",
+            tmdbId: "77",
             winner: false,
           },
           {
@@ -58545,6 +59592,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Gilbert",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Lord of the Rings: The Fellowship of the Ring",
+            tmdbId: "120",
             winner: false,
           },
           {
@@ -58563,6 +59611,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Amélie",
+            tmdbId: "194",
             winner: false,
           },
           {
@@ -58571,6 +59620,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Norway",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Elling",
+            tmdbId: "6007",
             winner: false,
           },
           {
@@ -58613,6 +59663,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Russell Crowe",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "A Beautiful Mind",
+            tmdbId: "453",
             winner: false,
           },
           {
@@ -58622,6 +59673,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Will Smith",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Ali",
+            tmdbId: "8489",
             winner: false,
           },
           {
@@ -58687,6 +59739,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Judi Dench",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Iris",
+            tmdbId: "11889",
             winner: false,
           },
           {
@@ -58710,6 +59763,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Julian Fellowes",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Gosford Park",
+            tmdbId: "5279",
             winner: true,
           },
           {
@@ -58719,6 +59773,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Guillaume Laurant|Jean-Pierre Jeunet",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Amélie",
+            tmdbId: "194",
             winner: false,
           },
           {
@@ -58727,6 +59782,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christopher Nolan|Jonathan Nolan",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Memento",
+            tmdbId: "77",
             winner: false,
           },
           {
@@ -58749,6 +59805,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Wes Anderson|Owen Wilson",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Royal Tenenbaums",
+            tmdbId: "9428",
             winner: false,
           },
           {
@@ -58762,6 +59819,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brian Grazer|Ron Howard",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "A Beautiful Mind",
+            tmdbId: "453",
             winner: true,
           },
           {
@@ -58770,6 +59828,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Altman|Bob Balaban|David Levy",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Gosford Park",
+            tmdbId: "5279",
             winner: false,
           },
           {
@@ -58806,6 +59865,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Jackson|Fran Walsh|Barrie M. Osborne",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Lord of the Rings: The Fellowship of the Ring",
+            tmdbId: "120",
             winner: false,
           },
           {
@@ -58829,6 +59889,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Aline Bonetto|Marie-Laure Valla",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Amélie",
+            tmdbId: "194",
             winner: false,
           },
           {
@@ -58837,6 +59898,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Altman|Anna Pinnock",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Gosford Park",
+            tmdbId: "5279",
             winner: false,
           },
           {
@@ -58864,6 +59926,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Grant Major|Dan Hennah",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Lord of the Rings: The Fellowship of the Ring",
+            tmdbId: "120",
             winner: false,
           },
           {
@@ -58877,6 +59940,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Howard Shore",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Lord of the Rings: The Fellowship of the Ring",
+            tmdbId: "120",
             winner: true,
           },
           {
@@ -58890,6 +59954,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Horner",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "A Beautiful Mind",
+            tmdbId: "453",
             winner: false,
           },
           {
@@ -58961,6 +60026,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Diane Warren",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Pearl Harbor",
+            tmdbId: "676",
             winner: false,
           },
           {
@@ -58975,6 +60041,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Enya|Nicky Ryan|Roma Ryan",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Lord of the Rings: The Fellowship of the Ring",
+            tmdbId: "120",
             winner: false,
           },
           {
@@ -58984,6 +60051,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul McCartney",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Vanilla Sky",
+            tmdbId: "1903",
             winner: false,
           },
           {
@@ -58993,6 +60061,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jim Broadbent",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Iris",
+            tmdbId: "11889",
             winner: true,
           },
           {
@@ -59002,6 +60071,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jon Voight",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Ali",
+            tmdbId: "8489",
             winner: false,
           },
           {
@@ -59011,6 +60081,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ben Kingsley",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Sexy Beast",
+            tmdbId: "11826",
             winner: false,
           },
           {
@@ -59025,6 +60096,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ian McKellen",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Lord of the Rings: The Fellowship of the Ring",
+            tmdbId: "120",
             winner: false,
           },
           {
@@ -59049,6 +60121,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jennifer Connelly",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "A Beautiful Mind",
+            tmdbId: "453",
             winner: true,
           },
           {
@@ -59058,6 +60131,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Helen Mirren",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Gosford Park",
+            tmdbId: "5279",
             winner: false,
           },
           {
@@ -59067,6 +60141,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Maggie Smith",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Gosford Park",
+            tmdbId: "5279",
             winner: false,
           },
           {
@@ -59086,6 +60161,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kate Winslet",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Iris",
+            tmdbId: "11889",
             winner: false,
           },
           {
@@ -59100,6 +60176,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Jim Rygiel|Randall William Cook|Richard Taylor|Mark Stetson",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Lord of the Rings: The Fellowship of the Ring",
+            tmdbId: "120",
             winner: true,
           },
           {
@@ -59118,6 +60195,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eric Brevig|John Frazier|Ed Hirsh|Ben Snow",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Pearl Harbor",
+            tmdbId: "676",
             winner: false,
           },
         ],
@@ -59152,6 +60230,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Hedges|Chris Weitz|Paul Weitz",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "About a Boy",
+            tmdbId: "245",
             winner: false,
           },
           {
@@ -59198,6 +60277,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hayao Miyazaki",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Spirited Away",
+            tmdbId: "129",
             winner: true,
           },
           {
@@ -59207,6 +60287,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Wedge",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Ice Age",
+            tmdbId: "425",
             winner: false,
           },
           {
@@ -59220,6 +60301,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Sanders",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Lilo & Stitch",
+            tmdbId: "11544",
             winner: false,
           },
           {
@@ -59247,6 +60329,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ron Clements",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Treasure Planet",
+            tmdbId: "9016",
             winner: false,
           },
           {
@@ -59293,6 +60376,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Ballhaus",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Gangs of New York",
+            tmdbId: "3131",
             winner: false,
           },
           {
@@ -59339,6 +60423,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sandy Powell",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Gangs of New York",
+            tmdbId: "3131",
             winner: false,
           },
           {
@@ -59404,6 +60489,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Martin Scorsese",
             sourceCategory: "DIRECTING",
             sourceTitle: "Gangs of New York",
+            tmdbId: "3131",
             winner: false,
           },
           {
@@ -59417,6 +60503,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pedro Almodóvar",
             sourceCategory: "DIRECTING",
             sourceTitle: "Talk to Her",
+            tmdbId: "64",
             winner: false,
           },
           {
@@ -59454,6 +60541,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thelma Schoonmaker",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Gangs of New York",
+            tmdbId: "3131",
             winner: false,
           },
           {
@@ -59605,6 +60693,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Daniel Day-Lewis",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Gangs of New York",
+            tmdbId: "3131",
             winner: false,
           },
           {
@@ -59684,6 +60773,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pedro Almodóvar",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Talk to Her",
+            tmdbId: "64",
             winner: true,
           },
           {
@@ -59706,6 +60796,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jay Cocks|Steve Zaillian|Kenneth Lonergan",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Gangs of New York",
+            tmdbId: "3131",
             winner: false,
           },
           {
@@ -59728,6 +60819,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Carlos Cuarón|Alfonso Cuarón",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Y Tu Mamá También",
+            tmdbId: "1391",
             winner: false,
           },
           {
@@ -59751,6 +60843,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alberto Grimaldi|Harvey Weinstein",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Gangs of New York",
+            tmdbId: "3131",
             winner: false,
           },
           {
@@ -59825,6 +60918,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dante Ferretti|Francesca Lo Schiavo",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Gangs of New York",
+            tmdbId: "3131",
             winner: false,
           },
           {
@@ -59875,6 +60969,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Catch Me If You Can",
+            tmdbId: "640",
             winner: false,
           },
           {
@@ -59921,6 +61016,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eminem|Jeff Bass|Luis Resto",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "8 Mile",
+            tmdbId: "65",
             winner: true,
           },
           {
@@ -59956,6 +61052,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bono|The Edge|Adam Clayton|Larry Mullen",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Gangs of New York",
+            tmdbId: "3131",
             winner: false,
           },
           {
@@ -59995,6 +61092,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christopher Walken",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Catch Me If You Can",
+            tmdbId: "640",
             winner: false,
           },
           {
@@ -60131,6 +61229,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "John Dykstra|Scott Stokdyk|Anthony LaMolinara|John Frazier",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Spider-Man",
+            tmdbId: "557",
             winner: false,
           },
           {
@@ -60139,6 +61238,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rob Coleman|Pablo Helman|John Knoll|Ben Snow",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Star Wars Episode II Attack of the Clones",
+            tmdbId: "1894",
             winner: false,
           },
         ],
@@ -60159,6 +61259,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fran Walsh|Philippa Boyens|Peter Jackson",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Lord of the Rings: The Return of the King",
+            tmdbId: "122",
             winner: true,
           },
           {
@@ -60195,6 +61296,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brian Helgeland",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Mystic River",
+            tmdbId: "322",
             winner: false,
           },
           {
@@ -60203,6 +61305,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gary Ross",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Seabiscuit",
+            tmdbId: "4464",
             winner: false,
           },
           {
@@ -60230,6 +61333,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Aaron Blaise|Robert Walker",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Brother Bear",
+            tmdbId: "10009",
             winner: false,
           },
           {
@@ -60247,6 +61351,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Russell Boyd",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Master and Commander: The Far Side of the World",
+            tmdbId: "8619",
             winner: true,
           },
           {
@@ -60287,6 +61392,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Schwartzman",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Seabiscuit",
+            tmdbId: "4464",
             winner: false,
           },
           {
@@ -60300,6 +61406,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ngila Dickson|Richard Taylor",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Lord of the Rings: The Return of the King",
+            tmdbId: "122",
             winner: true,
           },
           {
@@ -60317,6 +61424,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Wendy Stites",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Master and Commander: The Far Side of the World",
+            tmdbId: "8619",
             winner: false,
           },
           {
@@ -60325,6 +61433,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Judianna Makovsky",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Seabiscuit",
+            tmdbId: "4464",
             winner: false,
           },
           {
@@ -60333,6 +61442,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ngila Dickson",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Last Samurai",
+            tmdbId: "616",
             winner: false,
           },
           {
@@ -60346,6 +61456,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Jackson",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Lord of the Rings: The Return of the King",
+            tmdbId: "122",
             winner: true,
           },
           {
@@ -60373,6 +61484,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sofia Coppola",
             sourceCategory: "DIRECTING",
             sourceTitle: "Lost in Translation",
+            tmdbId: "153",
             winner: false,
           },
           {
@@ -60381,6 +61493,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Weir",
             sourceCategory: "DIRECTING",
             sourceTitle: "Master and Commander: The Far Side of the World",
+            tmdbId: "8619",
             winner: false,
           },
           {
@@ -60394,6 +61507,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Clint Eastwood",
             sourceCategory: "DIRECTING",
             sourceTitle: "Mystic River",
+            tmdbId: "322",
             winner: false,
           },
           {
@@ -60407,6 +61521,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jamie Selkirk",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Lord of the Rings: The Return of the King",
+            tmdbId: "122",
             winner: true,
           },
           {
@@ -60438,6 +61553,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lee Smith",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Master and Commander: The Far Side of the World",
+            tmdbId: "8619",
             winner: false,
           },
           {
@@ -60446,6 +61562,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Goldenberg",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Seabiscuit",
+            tmdbId: "4464",
             winner: false,
           },
           {
@@ -60464,6 +61581,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sweden",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Evil",
+            tmdbId: "11197",
             winner: false,
           },
           {
@@ -60505,6 +61623,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sean Penn",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Mystic River",
+            tmdbId: "322",
             winner: true,
           },
           {
@@ -60539,6 +61658,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bill Murray",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Lost in Translation",
+            tmdbId: "153",
             winner: false,
           },
           {
@@ -60554,6 +61674,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle:
               "Pirates of the Caribbean: The Curse of the Black Pearl",
+            tmdbId: "22",
             winner: false,
           },
           {
@@ -60574,6 +61695,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Naomi Watts",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "21 Grams",
+            tmdbId: "470",
             winner: false,
           },
           {
@@ -60617,6 +61739,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sofia Coppola",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Lost in Translation",
+            tmdbId: "153",
             winner: true,
           },
           {
@@ -60671,6 +61794,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Barrie M. Osborne|Peter Jackson|Fran Walsh",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Lord of the Rings: The Return of the King",
+            tmdbId: "122",
             winner: true,
           },
           {
@@ -60684,6 +61808,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ross Katz|Sofia Coppola",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Lost in Translation",
+            tmdbId: "153",
             winner: false,
           },
           {
@@ -60692,6 +61817,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Samuel Goldwyn Jr.|Peter Weir|Duncan Henderson",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Master and Commander: The Far Side of the World",
+            tmdbId: "8619",
             winner: false,
           },
           {
@@ -60705,6 +61831,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Lorenz|Judie G. Hoyt|Clint Eastwood",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Mystic River",
+            tmdbId: "322",
             winner: false,
           },
           {
@@ -60713,6 +61840,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kathleen Kennedy|Frank Marshall|Gary Ross",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Seabiscuit",
+            tmdbId: "4464",
             winner: false,
           },
           {
@@ -60726,6 +61854,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Grant Major|Dan Hennah|Alan Lee",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Lord of the Rings: The Return of the King",
+            tmdbId: "122",
             winner: true,
           },
           {
@@ -60743,6 +61872,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Sandell|Robert Gould",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Master and Commander: The Far Side of the World",
+            tmdbId: "8619",
             winner: false,
           },
           {
@@ -60751,6 +61881,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jeannine Oppewall|Leslie Pope",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Seabiscuit",
+            tmdbId: "4464",
             winner: false,
           },
           {
@@ -60759,6 +61890,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lilly Kilvert|Gretchen Rau",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Last Samurai",
+            tmdbId: "616",
             winner: false,
           },
           {
@@ -60772,6 +61904,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Howard Shore",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Lord of the Rings: The Return of the King",
+            tmdbId: "122",
             winner: true,
           },
           {
@@ -60828,6 +61961,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fran Walsh|Howard Shore|Annie Lennox",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Lord of the Rings: The Return of the King",
+            tmdbId: "122",
             winner: true,
           },
           {
@@ -60882,6 +62016,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tim Robbins",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Mystic River",
+            tmdbId: "322",
             winner: true,
           },
           {
@@ -60892,6 +62027,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Benicio Del Toro",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "21 Grams",
+            tmdbId: "470",
             winner: false,
           },
           {
@@ -60921,6 +62057,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ken Watanabe",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Last Samurai",
+            tmdbId: "616",
             winner: false,
           },
           {
@@ -60955,6 +62092,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marcia Gay Harden",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Mystic River",
+            tmdbId: "322",
             winner: false,
           },
           {
@@ -60974,6 +62112,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Holly Hunter",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Thirteen",
+            tmdbId: "11023",
             winner: false,
           },
           {
@@ -60987,6 +62126,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jim Rygiel|Joe Letteri|Randall William Cook|Alex Funke",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Lord of the Rings: The Return of the King",
+            tmdbId: "122",
             winner: true,
           },
           {
@@ -60996,6 +62136,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Dan Sudick|Stefen Fangmeier|Nathan McGuinness|Robert Stromberg",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Master and Commander: The Far Side of the World",
+            tmdbId: "8619",
             winner: false,
           },
           {
@@ -61010,6 +62151,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle:
               "Pirates of the Caribbean: The Curse of the Black Pearl",
+            tmdbId: "22",
             winner: false,
           },
         ],
@@ -61040,6 +62182,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Linklater|Julie Delpy|Ethan Hawke|Kim Krizan",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Before Sunset",
+            tmdbId: "80",
             winner: false,
           },
           {
@@ -61090,6 +62233,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brad Bird",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "The Incredibles",
+            tmdbId: "9806",
             winner: true,
           },
           {
@@ -61127,6 +62271,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Richardson",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Aviator",
+            tmdbId: "2567",
             winner: true,
           },
           {
@@ -61135,6 +62280,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bruno Delbonnel",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "A Very Long Engagement",
+            tmdbId: "2841",
             winner: false,
           },
           {
@@ -61148,6 +62294,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Zhao Xiaoding",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "House of Flying Daggers",
+            tmdbId: "9550",
             winner: false,
           },
           {
@@ -61161,6 +62308,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Caleb Deschanel",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Passion of the Christ",
+            tmdbId: "615",
             winner: false,
           },
           {
@@ -61174,6 +62322,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Mathieson",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Phantom of the Opera",
+            tmdbId: "9833",
             winner: false,
           },
           {
@@ -61187,6 +62336,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sandy Powell",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Aviator",
+            tmdbId: "2567",
             winner: true,
           },
           {
@@ -61223,6 +62373,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sharen Davis",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Ray",
+            tmdbId: "1677",
             winner: false,
           },
           {
@@ -61231,6 +62382,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bob Ringwood",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Troy",
+            tmdbId: "652",
             winner: false,
           },
           {
@@ -61253,6 +62405,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Taylor Hackford",
             sourceCategory: "DIRECTING",
             sourceTitle: "Ray",
+            tmdbId: "1677",
             winner: false,
           },
           {
@@ -61276,6 +62429,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Martin Scorsese",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Aviator",
+            tmdbId: "2567",
             winner: false,
           },
           {
@@ -61298,6 +62452,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thelma Schoonmaker",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Aviator",
+            tmdbId: "2567",
             winner: true,
           },
           {
@@ -61311,6 +62466,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jim Miller|Paul Rubell",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Collateral",
+            tmdbId: "1538",
             winner: false,
           },
           {
@@ -61347,6 +62503,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Hirsch",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Ray",
+            tmdbId: "1677",
             winner: false,
           },
           {
@@ -61401,6 +62558,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jamie Foxx",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Ray",
+            tmdbId: "1677",
             winner: true,
           },
           {
@@ -61430,6 +62588,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Don Cheadle",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Hotel Rwanda",
+            tmdbId: "205",
             winner: false,
           },
           {
@@ -61459,6 +62618,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Leonardo DiCaprio",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Aviator",
+            tmdbId: "2567",
             winner: false,
           },
           {
@@ -61498,6 +62658,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kate Winslet",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Eternal Sunshine of the Spotless Mind",
+            tmdbId: "38",
             winner: false,
           },
           {
@@ -61531,6 +62692,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Charlie Kaufman|Michel Gondry|Pierre Bismuth",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Eternal Sunshine of the Spotless Mind",
+            tmdbId: "38",
             winner: true,
           },
           {
@@ -61544,6 +62706,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Keir Pearson|Terry George",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Hotel Rwanda",
+            tmdbId: "205",
             winner: false,
           },
           {
@@ -61557,6 +62720,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Logan",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Aviator",
+            tmdbId: "2567",
             winner: false,
           },
           {
@@ -61570,6 +62734,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brad Bird",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Incredibles",
+            tmdbId: "9806",
             winner: false,
           },
           {
@@ -61615,6 +62780,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Taylor Hackford|Stuart Benjamin|Howard Baldwin",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Ray",
+            tmdbId: "1677",
             winner: false,
           },
           {
@@ -61638,6 +62804,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Mann|Graham King",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Aviator",
+            tmdbId: "2567",
             winner: false,
           },
           {
@@ -61651,6 +62818,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dante Ferretti|Francesca Lo Schiavo",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Aviator",
+            tmdbId: "2567",
             winner: true,
           },
           {
@@ -61659,6 +62827,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Aline Bonetto",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "A Very Long Engagement",
+            tmdbId: "2841",
             winner: false,
           },
           {
@@ -61700,6 +62869,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anthony Pratt|Celia Bobak",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Phantom of the Opera",
+            tmdbId: "9833",
             winner: false,
           },
           {
@@ -61755,6 +62925,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Debney",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Passion of the Christ",
+            tmdbId: "615",
             winner: false,
           },
           {
@@ -61768,6 +62939,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Newton Howard",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Village",
+            tmdbId: "6947",
             winner: false,
           },
           {
@@ -61814,6 +62986,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andrew Lloyd Webber|Charles Hart",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Phantom of the Opera",
+            tmdbId: "9833",
             winner: false,
           },
           {
@@ -61864,6 +63037,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jamie Foxx",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Collateral",
+            tmdbId: "1538",
             winner: false,
           },
           {
@@ -61889,6 +63063,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Alda",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Aviator",
+            tmdbId: "2567",
             winner: false,
           },
           {
@@ -61903,6 +63078,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Cate Blanchett",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Aviator",
+            tmdbId: "2567",
             winner: true,
           },
           {
@@ -61928,6 +63104,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sophie Okonedo",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Hotel Rwanda",
+            tmdbId: "205",
             winner: false,
           },
           {
@@ -61938,6 +63115,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Laura Linney",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Kinsey",
+            tmdbId: "11184",
             winner: false,
           },
           {
@@ -61963,6 +63141,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "John Dykstra|Scott Stokdyk|Anthony LaMolinara|John Frazier",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Spider-Man 2",
+            tmdbId: "558",
             winner: true,
           },
           {
@@ -62007,6 +63186,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Larry McMurtry|Diana Ossana",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Brokeback Mountain",
+            tmdbId: "142",
             winner: true,
           },
           {
@@ -62029,6 +63209,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dan Futterman",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Capote",
+            tmdbId: "398",
             winner: false,
           },
           {
@@ -62037,6 +63218,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tony Kushner|Eric Roth",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Munich",
+            tmdbId: "612",
             winner: false,
           },
           {
@@ -62045,6 +63227,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jeffrey Caine",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Constant Gardener",
+            tmdbId: "1985",
             winner: false,
           },
           {
@@ -62123,6 +63306,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rodrigo Prieto",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Brokeback Mountain",
+            tmdbId: "142",
             winner: false,
           },
           {
@@ -62140,6 +63324,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emmanuel Lubezki",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The New World",
+            tmdbId: "11400",
             winner: false,
           },
           {
@@ -62162,6 +63347,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gabriella Pescucci",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Charlie and the Chocolate Factory",
+            tmdbId: "118",
             winner: false,
           },
           {
@@ -62193,6 +63379,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Arianne Phillips",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Walk the Line",
+            tmdbId: "69",
             winner: false,
           },
           {
@@ -62206,6 +63393,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ang Lee",
             sourceCategory: "DIRECTING",
             sourceTitle: "Brokeback Mountain",
+            tmdbId: "142",
             winner: true,
           },
           {
@@ -62214,6 +63402,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bennett Miller",
             sourceCategory: "DIRECTING",
             sourceTitle: "Capote",
+            tmdbId: "398",
             winner: false,
           },
           {
@@ -62222,6 +63411,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Haggis",
             sourceCategory: "DIRECTING",
             sourceTitle: "Crash",
+            tmdbId: "1640",
             winner: false,
           },
           {
@@ -62239,6 +63429,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg",
             sourceCategory: "DIRECTING",
             sourceTitle: "Munich",
+            tmdbId: "612",
             winner: false,
           },
           {
@@ -62247,6 +63438,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hughes Winborne",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Crash",
+            tmdbId: "1640",
             winner: true,
           },
           {
@@ -62255,6 +63447,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mike Hill|Dan Hanley",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Cinderella Man",
+            tmdbId: "921",
             winner: false,
           },
           {
@@ -62263,6 +63456,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Kahn",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Munich",
+            tmdbId: "612",
             winner: false,
           },
           {
@@ -62271,6 +63465,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Claire Simpson",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Constant Gardener",
+            tmdbId: "1985",
             winner: false,
           },
           {
@@ -62279,6 +63474,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael McCusker",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Walk the Line",
+            tmdbId: "69",
             winner: false,
           },
           {
@@ -62296,6 +63492,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Italy",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Don't Tell",
+            tmdbId: "1084642",
             winner: false,
           },
           {
@@ -62304,6 +63501,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Joyeux Noël",
+            tmdbId: "11661",
             winner: false,
           },
           {
@@ -62331,6 +63529,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Philip Seymour Hoffman",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Capote",
+            tmdbId: "398",
             winner: true,
           },
           {
@@ -62345,6 +63544,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Heath Ledger",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Brokeback Mountain",
+            tmdbId: "142",
             winner: false,
           },
           {
@@ -62364,6 +63564,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Terrence Howard",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Hustle & Flow",
+            tmdbId: "10476",
             winner: false,
           },
           {
@@ -62373,6 +63574,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joaquin Phoenix",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Walk the Line",
+            tmdbId: "69",
             winner: false,
           },
           {
@@ -62382,6 +63584,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Reese Witherspoon",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Walk the Line",
+            tmdbId: "69",
             winner: true,
           },
           {
@@ -62426,6 +63629,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Felicity Huffman",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Transamerica",
+            tmdbId: "546",
             winner: false,
           },
           {
@@ -62434,6 +63638,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Haggis|Bobby Moresco",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Crash",
+            tmdbId: "1640",
             winner: true,
           },
           {
@@ -62451,6 +63656,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Woody Allen",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Match Point",
+            tmdbId: "116",
             winner: false,
           },
           {
@@ -62482,6 +63688,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Haggis|Cathy Schulman",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Crash",
+            tmdbId: "1640",
             winner: true,
           },
           {
@@ -62495,6 +63702,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Diana Ossana|James Schamus",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Brokeback Mountain",
+            tmdbId: "142",
             winner: false,
           },
           {
@@ -62503,6 +63711,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Caroline Baron|William Vince|Michael Ohoven",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Capote",
+            tmdbId: "398",
             winner: false,
           },
           {
@@ -62520,6 +63729,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kathleen Kennedy|Steven Spielberg|Barry Mendel",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Munich",
+            tmdbId: "612",
             winner: false,
           },
           {
@@ -62593,6 +63803,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gustavo Santaolalla",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Brokeback Mountain",
+            tmdbId: "142",
             winner: true,
           },
           {
@@ -62610,6 +63821,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Munich",
+            tmdbId: "612",
             winner: false,
           },
           {
@@ -62632,6 +63844,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alberto Iglesias",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Constant Gardener",
+            tmdbId: "1985",
             winner: false,
           },
           {
@@ -62641,6 +63854,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jordan Houston|Cedric Coleman|Paul Beauregard",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Hustle & Flow",
+            tmdbId: "10476",
             winner: true,
           },
           {
@@ -62650,6 +63864,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: 'Kathleen \\"Bird\\" York|Michael Becker',
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Crash",
+            tmdbId: "1640",
             winner: false,
           },
           {
@@ -62659,6 +63874,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dolly Parton",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Transamerica",
+            tmdbId: "546",
             winner: false,
           },
           {
@@ -62698,6 +63914,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jake Gyllenhaal",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Brokeback Mountain",
+            tmdbId: "142",
             winner: false,
           },
           {
@@ -62707,6 +63924,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Giamatti",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Cinderella Man",
+            tmdbId: "921",
             winner: false,
           },
           {
@@ -62716,6 +63934,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Matt Dillon",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Crash",
+            tmdbId: "1640",
             winner: false,
           },
           {
@@ -62725,6 +63944,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rachel Weisz",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Constant Gardener",
+            tmdbId: "1985",
             winner: true,
           },
           {
@@ -62739,6 +63959,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michelle Williams",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Brokeback Mountain",
+            tmdbId: "142",
             winner: false,
           },
           {
@@ -62748,6 +63969,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Catherine Keener",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Capote",
+            tmdbId: "398",
             winner: false,
           },
           {
@@ -62813,6 +64035,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Dennis Muren|Pablo Helman|Randal M. Dutra|Daniel Sudick",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "War of the Worlds",
+            tmdbId: "74",
             winner: false,
           },
         ],
@@ -62833,6 +64056,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Monahan",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Departed",
+            tmdbId: "1422",
             winner: true,
           },
           {
@@ -62873,6 +64097,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Todd Field|Tom Perrotta",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Little Children",
+            tmdbId: "1440",
             winner: false,
           },
           {
@@ -62946,6 +64171,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Vilmos Zsigmond",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Black Dahlia",
+            tmdbId: "9676",
             winner: false,
           },
           {
@@ -62973,6 +64199,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Wally Pfister",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Prestige",
+            tmdbId: "1124",
             winner: false,
           },
           {
@@ -62981,6 +64208,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Milena Canonero",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Marie Antoinette",
+            tmdbId: "1887",
             winner: true,
           },
           {
@@ -62989,6 +64217,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Yee Chung Man",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Curse of the Golden Flower",
+            tmdbId: "1494",
             winner: false,
           },
           {
@@ -63011,6 +64240,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Patricia Field",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Devil Wears Prada",
+            tmdbId: "350",
             winner: false,
           },
           {
@@ -63033,6 +64263,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Martin Scorsese",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Departed",
+            tmdbId: "1422",
             winner: true,
           },
           {
@@ -63051,6 +64282,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Clint Eastwood",
             sourceCategory: "DIRECTING",
             sourceTitle: "Letters from Iwo Jima",
+            tmdbId: "1251",
             winner: false,
           },
           {
@@ -63073,6 +64305,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Greengrass",
             sourceCategory: "DIRECTING",
             sourceTitle: "United 93",
+            tmdbId: "9829",
             winner: false,
           },
           {
@@ -63086,6 +64319,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thelma Schoonmaker",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Departed",
+            tmdbId: "1422",
             winner: true,
           },
           {
@@ -63109,6 +64343,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Rosenblum",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Blood Diamond",
+            tmdbId: "1372",
             winner: false,
           },
           {
@@ -63136,6 +64371,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Clare Douglas|Christopher Rouse|Richard Pearson",
             sourceCategory: "FILM EDITING",
             sourceTitle: "United 93",
+            tmdbId: "9829",
             winner: false,
           },
           {
@@ -63185,6 +64421,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Canada",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Water",
+            tmdbId: "127090",
             winner: false,
           },
           {
@@ -63209,6 +64446,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Leonardo DiCaprio",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Blood Diamond",
+            tmdbId: "1372",
             winner: false,
           },
           {
@@ -63268,6 +64506,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kate Winslet",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Little Children",
+            tmdbId: "1440",
             winner: false,
           },
           {
@@ -63292,6 +64531,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Meryl Streep",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Devil Wears Prada",
+            tmdbId: "350",
             winner: false,
           },
           {
@@ -63301,6 +64541,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Penélope Cruz",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Volver",
+            tmdbId: "219",
             winner: false,
           },
           {
@@ -63333,6 +64574,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Iris Yamashita|Paul Haggis",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Letters from Iwo Jima",
+            tmdbId: "1251",
             winner: false,
           },
           {
@@ -63369,6 +64611,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Graham King",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Departed",
+            tmdbId: "1422",
             winner: true,
           },
           {
@@ -63387,6 +64630,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Clint Eastwood|Steven Spielberg|Robert Lorenz",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Letters from Iwo Jima",
+            tmdbId: "1251",
             winner: false,
           },
           {
@@ -63441,6 +64685,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rick Heinrichs|Cheryl Carasik",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Pirates of the Caribbean: Dead Man's Chest",
+            tmdbId: "58",
             winner: false,
           },
           {
@@ -63463,6 +64708,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nathan Crowley|Julie Ochipinti",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Prestige",
+            tmdbId: "1124",
             winner: false,
           },
           {
@@ -63523,6 +64769,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Melissa Etheridge",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "An Inconvenient Truth",
+            tmdbId: "1781",
             winner: true,
           },
           {
@@ -63593,6 +64840,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Djimon Hounsou",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Blood Diamond",
+            tmdbId: "1372",
             winner: false,
           },
           {
@@ -63617,6 +64865,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jackie Earle Haley",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Little Children",
+            tmdbId: "1440",
             winner: false,
           },
           {
@@ -63631,6 +64880,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mark Wahlberg",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Departed",
+            tmdbId: "1422",
             winner: false,
           },
           {
@@ -63696,6 +64946,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Knoll|Hal Hickel|Charles Gibson|Allen Hall",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Pirates of the Caribbean: Dead Man's Chest",
+            tmdbId: "58",
             winner: true,
           },
           {
@@ -63704,6 +64955,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Boyd Shermis|Kim Libreri|Chas Jarrett|John Frazier",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Poseidon",
+            tmdbId: "503",
             winner: false,
           },
           {
@@ -63717,6 +64969,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mark Stetson|Neil Corbould|Richard R. Hoover|Jon Thum",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Superman Returns",
+            tmdbId: "1452",
             winner: false,
           },
         ],
@@ -63737,6 +64990,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joel Coen|Ethan Coen",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "No Country for Old Men",
+            tmdbId: "6977",
             winner: true,
           },
           {
@@ -63754,6 +65008,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sarah Polley",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Away from Her",
+            tmdbId: "1919",
             winner: false,
           },
           {
@@ -63799,6 +65054,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marjane Satrapi|Vincent Paronnaud",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Persepolis",
+            tmdbId: "2011",
             winner: false,
           },
           {
@@ -63807,6 +65063,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ash Brannon|Chris Buck",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Surf's Up",
+            tmdbId: "9408",
             winner: false,
           },
           {
@@ -63843,6 +65100,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roger Deakins",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "No Country for Old Men",
+            tmdbId: "6977",
             winner: false,
           },
           {
@@ -63912,6 +65170,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Colleen Atwood",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Sweeney Todd The Demon Barber of Fleet Street",
+            tmdbId: "13885",
             winner: false,
           },
           {
@@ -63925,6 +65184,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joel Coen|Ethan Coen",
             sourceCategory: "DIRECTING",
             sourceTitle: "No Country for Old Men",
+            tmdbId: "6977",
             winner: true,
           },
           {
@@ -63934,6 +65194,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jason Reitman",
             sourceCategory: "DIRECTING",
             sourceTitle: "Juno",
+            tmdbId: "7326",
             winner: false,
           },
           {
@@ -64012,6 +65273,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roderick Jaynes",
             sourceCategory: "FILM EDITING",
             sourceTitle: "No Country for Old Men",
+            tmdbId: "6977",
             winner: false,
           },
           {
@@ -64052,6 +65314,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Russia",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "12",
+            tmdbId: "20714",
             winner: false,
           },
           {
@@ -64060,6 +65323,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Israel",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Beaufort",
+            tmdbId: "15048",
             winner: false,
           },
           {
@@ -64068,6 +65332,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Poland",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Katyn",
+            tmdbId: "13614",
             winner: false,
           },
           {
@@ -64136,6 +65401,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Johnny Depp",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Sweeney Todd The Demon Barber of Fleet Street",
+            tmdbId: "13885",
             winner: false,
           },
           {
@@ -64155,6 +65421,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Julie Christie",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Away from Her",
+            tmdbId: "1919",
             winner: false,
           },
           {
@@ -64175,6 +65442,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elliot Page",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Juno",
+            tmdbId: "7326",
             winner: false,
           },
           {
@@ -64194,6 +65462,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Diablo Cody",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Juno",
+            tmdbId: "7326",
             winner: true,
           },
           {
@@ -64253,6 +65522,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Scott Rudin|Ethan Coen|Joel Coen",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "No Country for Old Men",
+            tmdbId: "6977",
             winner: true,
           },
           {
@@ -64271,6 +65541,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lianne Halfon|Mason Novick|Russell Smith",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Juno",
+            tmdbId: "7326",
             winner: false,
           },
           {
@@ -64307,6 +65578,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dante Ferretti|Francesca Lo Schiavo",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Sweeney Todd The Demon Barber of Fleet Street",
+            tmdbId: "13885",
             winner: true,
           },
           {
@@ -64320,6 +65592,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Arthur Max|Beth A. Rubino",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "American Gangster",
+            tmdbId: "4982",
             winner: false,
           },
           {
@@ -64337,6 +65610,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dennis Gassner|Anna Pinnock",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Golden Compass",
+            tmdbId: "2268",
             winner: false,
           },
           {
@@ -64490,6 +65764,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Javier Bardem",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "No Country for Old Men",
+            tmdbId: "6977",
             winner: true,
           },
           {
@@ -64576,6 +65851,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ruby Dee",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "American Gangster",
+            tmdbId: "4982",
             winner: false,
           },
           {
@@ -64624,6 +65900,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Fink|Bill Westenhofer|Ben Morris|Trevor Wood",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Golden Compass",
+            tmdbId: "2268",
             winner: true,
           },
           {
@@ -64651,6 +65928,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Scott Farrar|Scott Benza|Russell Earl|John Frazier",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Transformers",
+            tmdbId: "1858",
             winner: false,
           },
         ],
@@ -64681,6 +65959,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Patrick Shanley",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Doubt",
+            tmdbId: "14359",
             winner: false,
           },
           {
@@ -64717,6 +65996,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Hare",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Reader",
+            tmdbId: "8055",
             winner: false,
           },
           {
@@ -64725,6 +66005,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andrew Stanton",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "WALL-E",
+            tmdbId: "10681",
             winner: true,
           },
           {
@@ -64748,6 +66029,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Stevenson|Mark Osborne",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Kung Fu Panda",
+            tmdbId: "9502",
             winner: false,
           },
           {
@@ -64803,6 +66085,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Wally Pfister",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Dark Knight",
+            tmdbId: "155",
             winner: false,
           },
           {
@@ -64816,6 +66099,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Menges|Roger Deakins",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Reader",
+            tmdbId: "8055",
             winner: false,
           },
           {
@@ -64833,6 +66117,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Catherine Martin",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Australia",
+            tmdbId: "6972",
             winner: false,
           },
           {
@@ -64841,6 +66126,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Danny Glicker",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Milk",
+            tmdbId: "10139",
             winner: false,
           },
           {
@@ -64900,6 +66186,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gus Van Sant",
             sourceCategory: "DIRECTING",
             sourceTitle: "Milk",
+            tmdbId: "10139",
             winner: false,
           },
           {
@@ -64927,6 +66214,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Daldry",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Reader",
+            tmdbId: "8055",
             winner: false,
           },
           {
@@ -64958,6 +66246,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elliot Graham",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Milk",
+            tmdbId: "10139",
             winner: false,
           },
           {
@@ -64985,6 +66274,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lee Smith",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Dark Knight",
+            tmdbId: "155",
             winner: false,
           },
           {
@@ -64993,6 +66283,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Japan",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Departures",
+            tmdbId: "16804",
             winner: true,
           },
           {
@@ -65019,6 +66310,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Class",
+            tmdbId: "8841",
             winner: false,
           },
           {
@@ -65037,6 +66329,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sean Penn",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Milk",
+            tmdbId: "10139",
             winner: true,
           },
           {
@@ -65071,6 +66364,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Richard Jenkins",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Visitor",
+            tmdbId: "12473",
             winner: false,
           },
           {
@@ -65100,6 +66394,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kate Winslet",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Reader",
+            tmdbId: "8055",
             winner: true,
           },
           {
@@ -65125,6 +66420,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Meryl Streep",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Doubt",
+            tmdbId: "14359",
             winner: false,
           },
           {
@@ -65153,6 +66449,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dustin Lance Black",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Milk",
+            tmdbId: "10139",
             winner: true,
           },
           {
@@ -65193,6 +66490,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andrew Stanton|Jim Reardon|Pete Docter",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "WALL-E",
+            tmdbId: "10681",
             winner: false,
           },
           {
@@ -65224,6 +66522,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dan Jinks|Bruce Cohen",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Milk",
+            tmdbId: "10139",
             winner: false,
           },
           {
@@ -65252,6 +66551,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Anthony Minghella|Sydney Pollack|Donna Gigliotti|Redmond Morris",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Reader",
+            tmdbId: "8055",
             winner: false,
           },
           {
@@ -65307,6 +66607,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nathan Crowley|Peter Lando",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Dark Knight",
+            tmdbId: "155",
             winner: false,
           },
           {
@@ -65347,6 +66648,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Danny Elfman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Milk",
+            tmdbId: "10139",
             winner: false,
           },
           {
@@ -65369,6 +66671,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thomas Newman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "WALL-E",
+            tmdbId: "10681",
             winner: false,
           },
           {
@@ -65408,6 +66711,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Gabriel|Thomas Newman",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "WALL-E",
+            tmdbId: "10681",
             winner: false,
           },
           {
@@ -65422,6 +66726,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Heath Ledger",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Dark Knight",
+            tmdbId: "155",
             winner: true,
           },
           {
@@ -65432,6 +66737,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Philip Seymour Hoffman",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Doubt",
+            tmdbId: "14359",
             winner: false,
           },
           {
@@ -65441,6 +66747,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Josh Brolin",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Milk",
+            tmdbId: "10139",
             winner: false,
           },
           {
@@ -65470,6 +66777,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Downey Jr.",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Tropic Thunder",
+            tmdbId: "7446",
             winner: false,
           },
           {
@@ -65490,6 +66798,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Amy Adams",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Doubt",
+            tmdbId: "14359",
             winner: false,
           },
           {
@@ -65500,6 +66809,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Viola Davis",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Doubt",
+            tmdbId: "14359",
             winner: false,
           },
           {
@@ -65553,6 +66863,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Nelson|Ben Snow|Dan Sudick|Shane Mahan",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Iron Man",
+            tmdbId: "1726",
             winner: false,
           },
           {
@@ -65566,6 +66877,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nick Davis|Chris Corbould|Tim Webber|Paul Franklin",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Dark Knight",
+            tmdbId: "155",
             winner: false,
           },
         ],
@@ -65590,6 +66902,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nick Hornby",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "An Education",
+            tmdbId: "24684",
             winner: false,
           },
           {
@@ -65618,6 +66931,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Jesse Armstrong|Simon Blackwell|Armando Iannucci|Tony Roche",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "In the Loop",
+            tmdbId: "19833",
             winner: false,
           },
           {
@@ -65636,6 +66950,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pete Docter",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Up",
+            tmdbId: "14160",
             winner: true,
           },
           {
@@ -65645,6 +66960,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Henry Selick",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Coraline",
+            tmdbId: "14836",
             winner: false,
           },
           {
@@ -65672,6 +66988,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Musker|Ron Clements",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "The Princess and the Frog",
+            tmdbId: "10198",
             winner: false,
           },
           {
@@ -65690,6 +67007,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mauro Fiore",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Avatar",
+            tmdbId: "19995",
             winner: true,
           },
           {
@@ -65776,6 +67094,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Colleen Atwood",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Nine",
+            tmdbId: "10197",
             winner: false,
           },
           {
@@ -65808,6 +67127,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Cameron",
             sourceCategory: "DIRECTING",
             sourceTitle: "Avatar",
+            tmdbId: "19995",
             winner: false,
           },
           {
@@ -65863,6 +67183,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Rivkin|John Refoua|James Cameron",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Avatar",
+            tmdbId: "19995",
             winner: false,
           },
           {
@@ -65917,6 +67238,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "A Prophet",
+            tmdbId: "21575",
             winner: false,
           },
           {
@@ -66023,6 +67345,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Carey Mulligan",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "An Education",
+            tmdbId: "24684",
             winner: false,
           },
           {
@@ -66032,6 +67355,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Meryl Streep",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Julie & Julia",
+            tmdbId: "24803",
             winner: false,
           },
           {
@@ -66051,6 +67375,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Helen Mirren",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Last Station",
+            tmdbId: "36811",
             winner: false,
           },
           {
@@ -66096,6 +67421,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alessandro Camon|Oren Moverman",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Messenger",
+            tmdbId: "28089",
             winner: false,
           },
           {
@@ -66105,6 +67431,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bob Peterson|Pete Docter|Tom McCarthy",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Up",
+            tmdbId: "14160",
             winner: false,
           },
           {
@@ -66137,6 +67464,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Finola Dwyer|Amanda Posey",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "An Education",
+            tmdbId: "24684",
             winner: false,
           },
           {
@@ -66146,6 +67474,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Cameron|Jon Landau",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Avatar",
+            tmdbId: "19995",
             winner: false,
           },
           {
@@ -66201,6 +67530,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jonas Rivera",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Up",
+            tmdbId: "14160",
             winner: false,
           },
           {
@@ -66219,6 +67549,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rick Carter|Robert Stromberg|Kim Sinclair",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Avatar",
+            tmdbId: "19995",
             winner: true,
           },
           {
@@ -66227,6 +67558,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Myhre|Gordon Sim",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Nine",
+            tmdbId: "10197",
             winner: false,
           },
           {
@@ -66240,6 +67572,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sarah Greenwood|Katie Spencer",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Sherlock Holmes",
+            tmdbId: "10528",
             winner: false,
           },
           {
@@ -66267,6 +67600,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Giacchino",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Up",
+            tmdbId: "14160",
             winner: true,
           },
           {
@@ -66276,6 +67610,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Horner",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Avatar",
+            tmdbId: "19995",
             winner: false,
           },
           {
@@ -66303,6 +67638,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hans Zimmer",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Sherlock Holmes",
+            tmdbId: "10528",
             winner: false,
           },
           {
@@ -66336,6 +67672,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Maury Yeston",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Nine",
+            tmdbId: "10197",
             winner: false,
           },
           {
@@ -66345,6 +67682,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Reinhardt Wagner|Frank Thomas",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Paris 36",
+            tmdbId: "15457",
             winner: false,
           },
           {
@@ -66359,6 +67697,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Randy Newman",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Princess and the Frog",
+            tmdbId: "10198",
             winner: false,
           },
           {
@@ -66373,6 +67712,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Randy Newman",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Princess and the Frog",
+            tmdbId: "10198",
             winner: false,
           },
           {
@@ -66407,6 +67747,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christopher Plummer",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Last Station",
+            tmdbId: "36811",
             winner: false,
           },
           {
@@ -66426,6 +67767,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Woody Harrelson",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Messenger",
+            tmdbId: "28089",
             winner: false,
           },
           {
@@ -66455,6 +67797,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Penélope Cruz",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Nine",
+            tmdbId: "10197",
             winner: false,
           },
           {
@@ -66485,6 +67828,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Joe Letteri|Stephen Rosenbaum|Richard Baneham|Andrew R. Jones",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Avatar",
+            tmdbId: "19995",
             winner: true,
           },
           {
@@ -66512,6 +67856,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roger Guyett|Russell Earl|Paul Kavanagh|Burt Dalton",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Star Trek",
+            tmdbId: "13475",
             winner: false,
           },
         ],
@@ -66541,6 +67886,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Danny Boyle|Simon Beaufoy",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "127 Hours",
+            tmdbId: "44115",
             winner: false,
           },
           {
@@ -66577,6 +67923,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Debra Granik|Anne Rosellini",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Winter's Bone",
+            tmdbId: "39013",
             winner: false,
           },
           {
@@ -66604,6 +67951,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Sanders|Dean DeBlois",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "How to Train Your Dragon",
+            tmdbId: "10191",
             winner: false,
           },
           {
@@ -66612,6 +67960,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sylvain Chomet",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "The Illusionist",
+            tmdbId: "41201",
             winner: false,
           },
           {
@@ -66625,6 +67974,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Wally Pfister",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Inception",
+            tmdbId: "27205",
             winner: true,
           },
           {
@@ -66638,6 +67988,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Matthew Libatique",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Black Swan",
+            tmdbId: "44214",
             winner: false,
           },
           {
@@ -66646,6 +67997,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Danny Cohen",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The King's Speech",
+            tmdbId: "45269",
             winner: false,
           },
           {
@@ -66682,6 +68034,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Colleen Atwood",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Alice in Wonderland",
+            tmdbId: "12155",
             winner: true,
           },
           {
@@ -66690,6 +68043,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Antonella Cannarozzi",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "I Am Love",
+            tmdbId: "41110",
             winner: false,
           },
           {
@@ -66698,6 +68052,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jenny Beavan",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The King's Speech",
+            tmdbId: "45269",
             winner: false,
           },
           {
@@ -66706,6 +68061,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sandy Powell",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Tempest",
+            tmdbId: "44638",
             winner: false,
           },
           {
@@ -66728,6 +68084,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Hooper",
             sourceCategory: "DIRECTING",
             sourceTitle: "The King's Speech",
+            tmdbId: "45269",
             winner: true,
           },
           {
@@ -66741,6 +68098,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Darren Aronofsky",
             sourceCategory: "DIRECTING",
             sourceTitle: "Black Swan",
+            tmdbId: "44214",
             winner: false,
           },
           {
@@ -66749,6 +68107,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David O. Russell",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Fighter",
+            tmdbId: "45317",
             winner: false,
           },
           {
@@ -66794,6 +68153,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jon Harris",
             sourceCategory: "FILM EDITING",
             sourceTitle: "127 Hours",
+            tmdbId: "44115",
             winner: false,
           },
           {
@@ -66807,6 +68167,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andrew Weisblum",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Black Swan",
+            tmdbId: "44214",
             winner: false,
           },
           {
@@ -66815,6 +68176,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pamela Martin",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Fighter",
+            tmdbId: "45317",
             winner: false,
           },
           {
@@ -66823,6 +68185,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tariq Anwar",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The King's Speech",
+            tmdbId: "45269",
             winner: false,
           },
           {
@@ -66845,6 +68208,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mexico",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Biutiful",
+            tmdbId: "45958",
             winner: false,
           },
           {
@@ -66867,6 +68231,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Canada",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Incendies",
+            tmdbId: "46738",
             winner: false,
           },
           {
@@ -66885,6 +68250,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Colin Firth",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The King's Speech",
+            tmdbId: "45269",
             winner: true,
           },
           {
@@ -66899,6 +68265,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Franco",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "127 Hours",
+            tmdbId: "44115",
             winner: false,
           },
           {
@@ -66908,6 +68275,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Javier Bardem",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Biutiful",
+            tmdbId: "45958",
             winner: false,
           },
           {
@@ -66947,6 +68315,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Natalie Portman",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Black Swan",
+            tmdbId: "44214",
             winner: true,
           },
           {
@@ -66966,6 +68335,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nicole Kidman",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Rabbit Hole",
+            tmdbId: "27585",
             winner: false,
           },
           {
@@ -66990,6 +68360,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jennifer Lawrence",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Winter's Bone",
+            tmdbId: "39013",
             winner: false,
           },
           {
@@ -66998,6 +68369,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Seidler",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The King's Speech",
+            tmdbId: "45269",
             winner: true,
           },
           {
@@ -67020,6 +68392,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christopher Nolan",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Inception",
+            tmdbId: "27205",
             winner: false,
           },
           {
@@ -67028,6 +68401,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Scott Silver|Paul Tamasy|Eric Johnson|Keith Dorrington",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Fighter",
+            tmdbId: "45317",
             winner: false,
           },
           {
@@ -67050,6 +68424,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Iain Canning|Emile Sherman|Gareth Unwin",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The King's Speech",
+            tmdbId: "45269",
             winner: true,
           },
           {
@@ -67063,6 +68438,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christian Colson|Danny Boyle|John Smithson",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "127 Hours",
+            tmdbId: "44115",
             winner: false,
           },
           {
@@ -67076,6 +68452,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mike Medavoy|Brian Oliver|Scott Franklin",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Black Swan",
+            tmdbId: "44214",
             winner: false,
           },
           {
@@ -67089,6 +68466,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emma Thomas|Christopher Nolan",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Inception",
+            tmdbId: "27205",
             winner: false,
           },
           {
@@ -67097,6 +68475,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Hoberman|Todd Lieberman|Mark Wahlberg",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Fighter",
+            tmdbId: "45317",
             winner: false,
           },
           {
@@ -67156,6 +68535,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anne Rosellini|Alix Madigan-Yorkin",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Winter's Bone",
+            tmdbId: "39013",
             winner: false,
           },
           {
@@ -67169,6 +68549,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Stromberg|Karen O'Hara",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Alice in Wonderland",
+            tmdbId: "12155",
             winner: true,
           },
           {
@@ -67177,6 +68558,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stuart Craig|Stephenie McMillan",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Harry Potter and the Deathly Hallows Part 1",
+            tmdbId: "12444",
             winner: false,
           },
           {
@@ -67190,6 +68572,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Guy Hendrix Dyas|Larry Dias|Doug Mowat",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Inception",
+            tmdbId: "27205",
             winner: false,
           },
           {
@@ -67198,6 +68581,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eve Stewart|Judy Farr",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The King's Speech",
+            tmdbId: "45269",
             winner: false,
           },
           {
@@ -67234,6 +68618,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "A.R. Rahman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "127 Hours",
+            tmdbId: "44115",
             winner: false,
           },
           {
@@ -67247,6 +68632,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Powell",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "How to Train Your Dragon",
+            tmdbId: "10191",
             winner: false,
           },
           {
@@ -67260,6 +68646,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hans Zimmer",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Inception",
+            tmdbId: "27205",
             winner: false,
           },
           {
@@ -67268,6 +68655,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alexandre Desplat",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The King's Speech",
+            tmdbId: "45269",
             winner: false,
           },
           {
@@ -67297,6 +68685,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "A.R. Rahman|Dido|Rollo Armstrong",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "127 Hours",
+            tmdbId: "44115",
             winner: false,
           },
           {
@@ -67327,6 +68716,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christian Bale",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Fighter",
+            tmdbId: "45317",
             winner: true,
           },
           {
@@ -67351,6 +68741,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Geoffrey Rush",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The King's Speech",
+            tmdbId: "45269",
             winner: false,
           },
           {
@@ -67361,6 +68752,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jeremy Renner",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Town",
+            tmdbId: "23168",
             winner: false,
           },
           {
@@ -67370,6 +68762,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Hawkes",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Winter's Bone",
+            tmdbId: "39013",
             winner: false,
           },
           {
@@ -67379,6 +68772,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Melissa Leo",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Fighter",
+            tmdbId: "45317",
             winner: true,
           },
           {
@@ -67388,6 +68782,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jacki Weaver",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Animal Kingdom",
+            tmdbId: "44629",
             winner: false,
           },
           {
@@ -67397,6 +68792,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Amy Adams",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Fighter",
+            tmdbId: "45317",
             winner: false,
           },
           {
@@ -67406,6 +68802,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Helena Bonham Carter",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The King's Speech",
+            tmdbId: "45269",
             winner: false,
           },
           {
@@ -67434,6 +68831,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Franklin|Chris Corbould|Andrew Lockley|Peter Bebb",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Inception",
+            tmdbId: "27205",
             winner: true,
           },
           {
@@ -67447,6 +68845,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ken Ralston|David Schaub|Carey Villegas|Sean Phillips",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Alice in Wonderland",
+            tmdbId: "12155",
             winner: false,
           },
           {
@@ -67456,6 +68855,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Tim Burke|John Richardson|Christian Manz|Nicolas Aithadi",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Harry Potter and the Deathly Hallows Part 1",
+            tmdbId: "12444",
             winner: false,
           },
           {
@@ -67465,6 +68865,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Michael Owens|Bryan Grill|Stephan Trojansky|Joe Farrell",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Hereafter",
+            tmdbId: "44603",
             winner: false,
           },
           {
@@ -67503,6 +68904,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Logan",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Hugo",
+            tmdbId: "44826",
             winner: false,
           },
           {
@@ -67544,6 +68946,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gore Verbinski",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Rango",
+            tmdbId: "44896",
             winner: true,
           },
           {
@@ -67570,6 +68973,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jennifer Yuh Nelson",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Kung Fu Panda 2",
+            tmdbId: "49444",
             winner: false,
           },
           {
@@ -67578,6 +68982,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Miller",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Puss in Boots",
+            tmdbId: "417859",
             winner: false,
           },
           {
@@ -67586,6 +68991,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Richardson",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Hugo",
+            tmdbId: "44826",
             winner: true,
           },
           {
@@ -67594,6 +69000,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Guillaume Schiffman",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Artist",
+            tmdbId: "74643",
             winner: false,
           },
           {
@@ -67602,6 +69009,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jeff Cronenweth",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Girl with the Dragon Tattoo",
+            tmdbId: "65754",
             winner: false,
           },
           {
@@ -67610,6 +69018,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emmanuel Lubezki",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Tree of Life",
+            tmdbId: "8967",
             winner: false,
           },
           {
@@ -67618,6 +69027,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Janusz Kaminski",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "War Horse",
+            tmdbId: "57212",
             winner: false,
           },
           {
@@ -67626,6 +69036,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mark Bridges",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Artist",
+            tmdbId: "74643",
             winner: true,
           },
           {
@@ -67634,6 +69045,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lisy Christl",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Anonymous",
+            tmdbId: "61891",
             winner: false,
           },
           {
@@ -67642,6 +69054,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sandy Powell",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Hugo",
+            tmdbId: "44826",
             winner: false,
           },
           {
@@ -67664,6 +69077,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Arianne Phillips",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "W.E.",
+            tmdbId: "80591",
             winner: false,
           },
           {
@@ -67672,6 +69086,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michel Hazanavicius",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Artist",
+            tmdbId: "74643",
             winner: true,
           },
           {
@@ -67680,6 +69095,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Martin Scorsese",
             sourceCategory: "DIRECTING",
             sourceTitle: "Hugo",
+            tmdbId: "44826",
             winner: false,
           },
           {
@@ -67711,6 +69127,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Terrence Malick",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Tree of Life",
+            tmdbId: "8967",
             winner: false,
           },
           {
@@ -67719,6 +69136,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kirk Baxter|Angus Wall",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Girl with the Dragon Tattoo",
+            tmdbId: "65754",
             winner: true,
           },
           {
@@ -67727,6 +69145,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thelma Schoonmaker",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Hugo",
+            tmdbId: "44826",
             winner: false,
           },
           {
@@ -67744,6 +69163,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anne-Sophie Bion|Michel Hazanavicius",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Artist",
+            tmdbId: "74643",
             winner: false,
           },
           {
@@ -67761,6 +69181,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Iran",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "A Separation",
+            tmdbId: "60243",
             winner: true,
           },
           {
@@ -67787,6 +69208,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Poland",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "In Darkness",
+            tmdbId: "73686",
             winner: false,
           },
           {
@@ -67805,6 +69227,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jean Dujardin",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Artist",
+            tmdbId: "74643",
             winner: true,
           },
           {
@@ -67814,6 +69237,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Demián Bichir",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "A Better Life",
+            tmdbId: "55720",
             winner: false,
           },
           {
@@ -67858,6 +69282,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Meryl Streep",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Iron Lady",
+            tmdbId: "71688",
             winner: true,
           },
           {
@@ -67887,6 +69312,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rooney Mara",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Girl with the Dragon Tattoo",
+            tmdbId: "65754",
             winner: false,
           },
           {
@@ -67897,6 +69323,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Viola Davis",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Help",
+            tmdbId: "50014",
             winner: false,
           },
           {
@@ -67919,6 +69346,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Asghar Farhadi",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "A Separation",
+            tmdbId: "60243",
             winner: false,
           },
           {
@@ -67932,6 +69360,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Annie Mumolo|Kristen Wiig",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Bridesmaids",
+            tmdbId: "55721",
             winner: false,
           },
           {
@@ -67949,6 +69378,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michel Hazanavicius",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Artist",
+            tmdbId: "74643",
             winner: false,
           },
           {
@@ -67957,6 +69387,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thomas Langmann",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Artist",
+            tmdbId: "74643",
             winner: true,
           },
           {
@@ -67974,6 +69405,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Graham King|Martin Scorsese",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Hugo",
+            tmdbId: "44826",
             winner: false,
           },
           {
@@ -68015,6 +69447,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brunson Green|Chris Columbus|Michael Barnathan",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Help",
+            tmdbId: "50014",
             winner: false,
           },
           {
@@ -68023,6 +69456,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sarah Green|Bill Pohlad|Dede Gardner|Grant Hill",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Tree of Life",
+            tmdbId: "8967",
             winner: false,
           },
           {
@@ -68031,6 +69465,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg|Kathleen Kennedy",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "War Horse",
+            tmdbId: "57212",
             winner: false,
           },
           {
@@ -68039,6 +69474,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dante Ferretti|Francesca Lo Schiavo",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Hugo",
+            tmdbId: "44826",
             winner: true,
           },
           {
@@ -68047,6 +69483,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stuart Craig|Stephenie McMillan",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Harry Potter and the Deathly Hallows Part 2",
+            tmdbId: "12445",
             winner: false,
           },
           {
@@ -68069,6 +69506,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Laurence Bennett|Robert Gould",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Artist",
+            tmdbId: "74643",
             winner: false,
           },
           {
@@ -68077,6 +69515,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rick Carter|Lee Sandales",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "War Horse",
+            tmdbId: "57212",
             winner: false,
           },
           {
@@ -68085,6 +69524,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ludovic Bource",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Artist",
+            tmdbId: "74643",
             winner: true,
           },
           {
@@ -68093,6 +69533,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Howard Shore",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Hugo",
+            tmdbId: "44826",
             winner: false,
           },
           {
@@ -68124,6 +69565,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "War Horse",
+            tmdbId: "57212",
             winner: false,
           },
           {
@@ -68143,6 +69585,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sergio Mendes|Carlinhos Brown|Siedah Garrett",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Rio",
+            tmdbId: "46195",
             winner: false,
           },
           {
@@ -68152,6 +69595,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christopher Plummer",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Beginners",
+            tmdbId: "55347",
             winner: true,
           },
           {
@@ -68202,6 +69646,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Octavia Spencer",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Help",
+            tmdbId: "50014",
             winner: true,
           },
           {
@@ -68226,6 +69671,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Melissa McCarthy",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Bridesmaids",
+            tmdbId: "55721",
             winner: false,
           },
           {
@@ -68235,6 +69681,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bérénice Bejo",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Artist",
+            tmdbId: "74643",
             winner: false,
           },
           {
@@ -68245,6 +69692,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jessica Chastain",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Help",
+            tmdbId: "50014",
             winner: false,
           },
           {
@@ -68253,6 +69701,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rob Legato|Joss Williams|Ben Grossmann|Alex Henning",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Hugo",
+            tmdbId: "44826",
             winner: true,
           },
           {
@@ -68261,6 +69710,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tim Burke|David Vickery|Greg Butler|John Richardson",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Harry Potter and the Deathly Hallows Part 2",
+            tmdbId: "12445",
             winner: false,
           },
           {
@@ -68309,6 +69759,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Terrio",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Argo",
+            tmdbId: "68734",
             winner: true,
           },
           {
@@ -68331,6 +69782,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Magee",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Life of Pi",
+            tmdbId: "87827",
             winner: false,
           },
           {
@@ -68339,6 +69791,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tony Kushner",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Lincoln",
+            tmdbId: "72976",
             winner: false,
           },
           {
@@ -68371,6 +69824,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tim Burton",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Frankenweenie",
+            tmdbId: "62214",
             winner: false,
           },
           {
@@ -68402,6 +69856,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rich Moore",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Wreck-It Ralph",
+            tmdbId: "82690",
             winner: false,
           },
           {
@@ -68415,6 +69870,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Claudio Miranda",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Life of Pi",
+            tmdbId: "87827",
             winner: true,
           },
           {
@@ -68437,6 +69893,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Richardson",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Django Unchained",
+            tmdbId: "68718",
             winner: false,
           },
           {
@@ -68445,6 +69902,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Janusz Kaminski",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Lincoln",
+            tmdbId: "72976",
             winner: false,
           },
           {
@@ -68454,6 +69912,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roger Deakins",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Skyfall",
+            tmdbId: "37724",
             winner: false,
           },
           {
@@ -68485,6 +69944,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joanna Johnston",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Lincoln",
+            tmdbId: "72976",
             winner: false,
           },
           {
@@ -68493,6 +69953,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eiko Ishioka",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Mirror Mirror",
+            tmdbId: "62764",
             winner: false,
           },
           {
@@ -68515,6 +69976,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ang Lee",
             sourceCategory: "DIRECTING",
             sourceTitle: "Life of Pi",
+            tmdbId: "87827",
             winner: true,
           },
           {
@@ -68523,6 +69985,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Haneke",
             sourceCategory: "DIRECTING",
             sourceTitle: "Amour",
+            tmdbId: "86837",
             winner: false,
           },
           {
@@ -68540,6 +70003,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg",
             sourceCategory: "DIRECTING",
             sourceTitle: "Lincoln",
+            tmdbId: "72976",
             winner: false,
           },
           {
@@ -68562,6 +70026,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Goldenberg",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Argo",
+            tmdbId: "68734",
             winner: true,
           },
           {
@@ -68575,6 +70040,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tim Squyres",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Life of Pi",
+            tmdbId: "87827",
             winner: false,
           },
           {
@@ -68583,6 +70049,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Kahn",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Lincoln",
+            tmdbId: "72976",
             winner: false,
           },
           {
@@ -68614,6 +70081,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Austria",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Amour",
+            tmdbId: "86837",
             winner: true,
           },
           {
@@ -68622,6 +70090,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Denmark",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "A Royal Affair",
+            tmdbId: "88273",
             winner: false,
           },
           {
@@ -68653,6 +70122,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Canada",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "War Witch",
+            tmdbId: "98205",
             winner: false,
           },
           {
@@ -68662,6 +70132,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Daniel Day-Lewis",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Lincoln",
+            tmdbId: "72976",
             winner: true,
           },
           {
@@ -68711,6 +70182,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joaquin Phoenix",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Master",
+            tmdbId: "68722",
             winner: false,
           },
           {
@@ -68735,6 +70207,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emmanuelle Riva",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Amour",
+            tmdbId: "86837",
             winner: false,
           },
           {
@@ -68778,6 +70251,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Quentin Tarantino",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Django Unchained",
+            tmdbId: "68718",
             winner: true,
           },
           {
@@ -68786,6 +70260,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Haneke",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Amour",
+            tmdbId: "86837",
             winner: false,
           },
           {
@@ -68808,6 +70283,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Wes Anderson|Roman Coppola",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Moonrise Kingdom",
+            tmdbId: "83666",
             winner: false,
           },
           {
@@ -68825,6 +70301,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Grant Heslov|Ben Affleck|George Clooney",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Argo",
+            tmdbId: "68734",
             winner: true,
           },
           {
@@ -68834,6 +70311,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Margaret Menegoz|Stefan Arndt|Veit Heiduschka|Michael Katz",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Amour",
+            tmdbId: "86837",
             winner: false,
           },
           {
@@ -68856,6 +70334,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stacey Sher|Reginald Hudlin|Pilar Savone",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Django Unchained",
+            tmdbId: "68718",
             winner: false,
           },
           {
@@ -68884,6 +70363,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gil Netter|Ang Lee|David Womark",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Life of Pi",
+            tmdbId: "87827",
             winner: false,
           },
           {
@@ -68892,6 +70372,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg|Kathleen Kennedy",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Lincoln",
+            tmdbId: "72976",
             winner: false,
           },
           {
@@ -68923,6 +70404,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rick Carter|Jim Erickson",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Lincoln",
+            tmdbId: "72976",
             winner: true,
           },
           {
@@ -68959,6 +70441,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Gropman|Anna Pinnock",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Life of Pi",
+            tmdbId: "87827",
             winner: false,
           },
           {
@@ -68986,6 +70469,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mychael Danna",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Life of Pi",
+            tmdbId: "87827",
             winner: true,
           },
           {
@@ -69003,6 +70487,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alexandre Desplat",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Argo",
+            tmdbId: "68734",
             winner: false,
           },
           {
@@ -69011,6 +70496,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Lincoln",
+            tmdbId: "72976",
             winner: false,
           },
           {
@@ -69020,6 +70506,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thomas Newman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Skyfall",
+            tmdbId: "37724",
             winner: false,
           },
           {
@@ -69030,6 +70517,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Adele Adkins|Paul Epworth",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Skyfall",
+            tmdbId: "37724",
             winner: true,
           },
           {
@@ -69069,6 +70557,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mychael Danna|Bombay Jayashri",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Life of Pi",
+            tmdbId: "87827",
             winner: false,
           },
           {
@@ -69093,6 +70582,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christoph Waltz",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Django Unchained",
+            tmdbId: "68718",
             winner: true,
           },
           {
@@ -69102,6 +70592,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Arkin",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Argo",
+            tmdbId: "68734",
             winner: false,
           },
           {
@@ -69111,6 +70602,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tommy Lee Jones",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Lincoln",
+            tmdbId: "72976",
             winner: false,
           },
           {
@@ -69135,6 +70627,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Philip Seymour Hoffman",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Master",
+            tmdbId: "68722",
             winner: false,
           },
           {
@@ -69159,6 +70652,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sally Field",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Lincoln",
+            tmdbId: "72976",
             winner: false,
           },
           {
@@ -69183,6 +70677,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Amy Adams",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Master",
+            tmdbId: "68722",
             winner: false,
           },
           {
@@ -69192,6 +70687,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Helen Hunt",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Sessions",
+            tmdbId: "113947",
             winner: false,
           },
           {
@@ -69206,6 +70702,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Bill Westenhofer|Guillaume Rocheron|Erik-Jan De Boer|Donald R. Elliott",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Life of Pi",
+            tmdbId: "87827",
             winner: true,
           },
           {
@@ -69234,6 +70731,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Richard Stammers|Trevor Wood|Charley Henley|Martin Hill",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Prometheus",
+            tmdbId: "70981",
             winner: false,
           },
           {
@@ -69302,6 +70800,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Billy Ray",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Captain Phillips",
+            tmdbId: "109424",
             winner: false,
           },
           {
@@ -69339,6 +70838,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Buck|Jennifer Lee|Peter Del Vecho",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Frozen",
+            tmdbId: "109445",
             winner: true,
           },
           {
@@ -69347,6 +70847,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Renaud|Pierre Coffin|Chris Meledandri",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Despicable Me 2",
+            tmdbId: "93456",
             winner: false,
           },
           {
@@ -69364,6 +70865,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Sanders|Kirk DeMicco|Kristine Belson",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "The Croods",
+            tmdbId: "49519",
             winner: false,
           },
           {
@@ -69372,6 +70874,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hayao Miyazaki|Toshio Suzuki",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "The Wind Rises",
+            tmdbId: "149870",
             winner: false,
           },
           {
@@ -69381,6 +70884,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emmanuel Lubezki",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Gravity",
+            tmdbId: "49047",
             winner: true,
           },
           {
@@ -69389,6 +70893,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bruno Delbonnel",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Inside Llewyn Davis",
+            tmdbId: "86829",
             winner: false,
           },
           {
@@ -69397,6 +70902,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Phedon Papamichael",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Nebraska",
+            tmdbId: "129670",
             winner: false,
           },
           {
@@ -69410,6 +70916,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roger A. Deakins",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Prisoners",
+            tmdbId: "146233",
             winner: false,
           },
           {
@@ -69418,6 +70925,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Philippe Le Sourd",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Grandmaster",
+            tmdbId: "44865",
             winner: false,
           },
           {
@@ -69444,6 +70952,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Wilkinson",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "American Hustle",
+            tmdbId: "168672",
             winner: false,
           },
           {
@@ -69452,6 +70961,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Chang Suk Ping",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Grandmaster",
+            tmdbId: "44865",
             winner: false,
           },
           {
@@ -69470,6 +70980,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alfonso Cuarón",
             sourceCategory: "DIRECTING",
             sourceTitle: "Gravity",
+            tmdbId: "49047",
             winner: true,
           },
           {
@@ -69487,6 +70998,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David O. Russell",
             sourceCategory: "DIRECTING",
             sourceTitle: "American Hustle",
+            tmdbId: "168672",
             winner: false,
           },
           {
@@ -69495,6 +71007,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alexander Payne",
             sourceCategory: "DIRECTING",
             sourceTitle: "Nebraska",
+            tmdbId: "129670",
             winner: false,
           },
           {
@@ -69518,6 +71031,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alfonso Cuarón|Mark Sanger",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Gravity",
+            tmdbId: "49047",
             winner: true,
           },
           {
@@ -69535,6 +71049,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jay Cassidy|Crispin Struthers|Alan Baumgarten",
             sourceCategory: "FILM EDITING",
             sourceTitle: "American Hustle",
+            tmdbId: "168672",
             winner: false,
           },
           {
@@ -69548,6 +71063,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christopher Rouse",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Captain Phillips",
+            tmdbId: "109424",
             winner: false,
           },
           {
@@ -69574,6 +71090,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Palestine",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Omar",
+            tmdbId: "187028",
             winner: false,
           },
           {
@@ -69591,6 +71108,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Denmark",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Hunt",
+            tmdbId: "103663",
             winner: false,
           },
           {
@@ -69629,6 +71147,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christian Bale",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "American Hustle",
+            tmdbId: "168672",
             winner: false,
           },
           {
@@ -69638,6 +71157,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bruce Dern",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Nebraska",
+            tmdbId: "129670",
             winner: false,
           },
           {
@@ -69672,6 +71192,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Amy Adams",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "American Hustle",
+            tmdbId: "168672",
             winner: false,
           },
           {
@@ -69692,6 +71213,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sandra Bullock",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Gravity",
+            tmdbId: "49047",
             winner: false,
           },
           {
@@ -69715,6 +71237,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Spike Jonze",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Her",
+            tmdbId: "152601",
             winner: true,
           },
           {
@@ -69723,6 +71246,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eric Warren Singer|David O. Russell",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "American Hustle",
+            tmdbId: "168672",
             winner: false,
           },
           {
@@ -69749,6 +71273,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bob Nelson",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Nebraska",
+            tmdbId: "129670",
             winner: false,
           },
           {
@@ -69768,6 +71293,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Charles Roven|Richard Suckle|Megan Ellison|Jonathan Gordon",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "American Hustle",
+            tmdbId: "168672",
             winner: false,
           },
           {
@@ -69781,6 +71307,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Scott Rudin|Dana Brunetti|Michael De Luca",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Captain Phillips",
+            tmdbId: "109424",
             winner: false,
           },
           {
@@ -69799,6 +71326,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alfonso Cuarón|David Heyman",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Gravity",
+            tmdbId: "49047",
             winner: false,
           },
           {
@@ -69807,6 +71335,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Megan Ellison|Spike Jonze|Vincent Landay",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Her",
+            tmdbId: "152601",
             winner: false,
           },
           {
@@ -69815,6 +71344,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Albert Berger|Ron Yerxa",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Nebraska",
+            tmdbId: "129670",
             winner: false,
           },
           {
@@ -69870,6 +71400,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Judy Becker|Heather Loeffler",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "American Hustle",
+            tmdbId: "168672",
             winner: false,
           },
           {
@@ -69879,6 +71410,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andy Nicholson|Rosie Goodwin|Joanne Woollard",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Gravity",
+            tmdbId: "49047",
             winner: false,
           },
           {
@@ -69887,6 +71419,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "K.K. Barrett|Gene Serdena",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Her",
+            tmdbId: "152601",
             winner: false,
           },
           {
@@ -69896,6 +71429,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Price",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Gravity",
+            tmdbId: "49047",
             winner: true,
           },
           {
@@ -69904,6 +71438,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "William Butler|Owen Pallett",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Her",
+            tmdbId: "152601",
             winner: false,
           },
           {
@@ -69946,6 +71481,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kristen Anderson-Lopez|Robert Lopez",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Frozen",
+            tmdbId: "109445",
             winner: true,
           },
           {
@@ -69965,6 +71501,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pharrell Williams",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Despicable Me 2",
+            tmdbId: "93456",
             winner: false,
           },
           {
@@ -69974,6 +71511,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Karen O|Spike Jonze",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Her",
+            tmdbId: "152601",
             winner: false,
           },
           {
@@ -70013,6 +71551,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bradley Cooper",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "American Hustle",
+            tmdbId: "168672",
             winner: false,
           },
           {
@@ -70027,6 +71566,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Barkhad Abdi",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Captain Phillips",
+            tmdbId: "109424",
             winner: false,
           },
           {
@@ -70061,6 +71601,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jennifer Lawrence",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "American Hustle",
+            tmdbId: "168672",
             winner: false,
           },
           {
@@ -70090,6 +71631,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "June Squibb",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Nebraska",
+            tmdbId: "129670",
             winner: false,
           },
           {
@@ -70099,6 +71641,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tim Webber|Chris Lawrence|David Shirk|Neil Corbould",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Gravity",
+            tmdbId: "49047",
             winner: true,
           },
           {
@@ -70112,6 +71655,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christopher Townsend|Guy Williams|Erik Nash|Dan Sudick",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Iron Man 3",
+            tmdbId: "68721",
             winner: false,
           },
           {
@@ -70139,6 +71683,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Tim Alexander|Gary Brozenich|Edson Williams|John Frazier",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Lone Ranger",
+            tmdbId: "57201",
             winner: false,
           },
         ],
@@ -70163,6 +71708,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jason Hall",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "American Sniper",
+            tmdbId: "190859",
             winner: false,
           },
           {
@@ -70180,6 +71726,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anthony McCarten",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Theory of Everything",
+            tmdbId: "266856",
             winner: false,
           },
           {
@@ -70189,6 +71736,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Damien Chazelle",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Whiplash",
+            tmdbId: "244786",
             winner: false,
           },
           {
@@ -70206,6 +71754,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dean DeBlois|Bonnie Arnold",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "How to Train Your Dragon 2",
+            tmdbId: "82702",
             winner: false,
           },
           {
@@ -70214,6 +71763,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tomm Moore|Paul Young",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Song of the Sea",
+            tmdbId: "110416",
             winner: false,
           },
           {
@@ -70231,6 +71781,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Isao Takahata|Yoshiaki Nishimura",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "The Tale of the Princess Kaguya",
+            tmdbId: "149871",
             winner: false,
           },
           {
@@ -70248,6 +71799,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lukasz Zal|Ryszard Lenczewski",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Ida",
+            tmdbId: "209274",
             winner: false,
           },
           {
@@ -70311,6 +71863,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Colleen Atwood",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Into the Woods",
+            tmdbId: "224141",
             winner: false,
           },
           {
@@ -70388,6 +71941,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Cross",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Whiplash",
+            tmdbId: "244786",
             winner: true,
           },
           {
@@ -70396,6 +71950,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joel Cox|Gary D. Roach",
             sourceCategory: "FILM EDITING",
             sourceTitle: "American Sniper",
+            tmdbId: "190859",
             winner: false,
           },
           {
@@ -70436,6 +71991,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Poland",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Ida",
+            tmdbId: "209274",
             winner: true,
           },
           {
@@ -70444,6 +72000,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Russia",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Leviathan",
+            tmdbId: "265180",
             winner: false,
           },
           {
@@ -70452,6 +72009,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Estonia",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Tangerines",
+            tmdbId: "238628",
             winner: false,
           },
           {
@@ -70460,6 +72018,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mauritania",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Timbuktu",
+            tmdbId: "265228",
             winner: false,
           },
           {
@@ -70478,6 +72037,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eddie Redmayne",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Theory of Everything",
+            tmdbId: "266856",
             winner: true,
           },
           {
@@ -70487,6 +72047,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bradley Cooper",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "American Sniper",
+            tmdbId: "190859",
             winner: false,
           },
           {
@@ -70551,6 +72112,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Felicity Jones",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Theory of Everything",
+            tmdbId: "266856",
             winner: false,
           },
           {
@@ -70560,6 +72122,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marion Cotillard",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Two Days, One Night",
+            tmdbId: "221902",
             winner: false,
           },
           {
@@ -70569,6 +72132,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Reese Witherspoon",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Wild",
+            tmdbId: "228970",
             winner: false,
           },
           {
@@ -70605,6 +72169,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dan Gilroy",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Nightcrawler",
+            tmdbId: "242582",
             winner: false,
           },
           {
@@ -70638,6 +72203,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Clint Eastwood|Robert Lorenz|Andrew Lazar|Bradley Cooper|Peter Morgan",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "American Sniper",
+            tmdbId: "190859",
             winner: false,
           },
           {
@@ -70656,6 +72222,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Christian Colson|Oprah Winfrey|Dede Gardner|Jeremy Kleiner",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Selma",
+            tmdbId: "273895",
             winner: false,
           },
           {
@@ -70687,6 +72254,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tim Bevan|Eric Fellner|Lisa Bruce|Anthony McCarten",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Theory of Everything",
+            tmdbId: "266856",
             winner: false,
           },
           {
@@ -70696,6 +72264,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jason Blum|Helen Estabrook|David Lancaster",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Whiplash",
+            tmdbId: "244786",
             winner: false,
           },
           {
@@ -70723,6 +72292,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nathan Crowley|Gary Fettis",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Interstellar",
+            tmdbId: "157336",
             winner: false,
           },
           {
@@ -70731,6 +72301,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dennis Gassner|Anna Pinnock",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Into the Woods",
+            tmdbId: "224141",
             winner: false,
           },
           {
@@ -70776,6 +72347,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hans Zimmer",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Interstellar",
+            tmdbId: "157336",
             winner: false,
           },
           {
@@ -70802,6 +72374,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jóhann Jóhannsson",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Theory of Everything",
+            tmdbId: "266856",
             winner: false,
           },
           {
@@ -70811,6 +72384,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Stephens|Lonnie Lynn",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Selma",
+            tmdbId: "273895",
             winner: true,
           },
           {
@@ -70820,6 +72394,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gregg Alexander|Danielle Brisebois",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Begin Again",
+            tmdbId: "198277",
             winner: false,
           },
           {
@@ -70854,6 +72429,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Shawn Patterson",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Lego Movie",
+            tmdbId: "137106",
             winner: false,
           },
           {
@@ -70864,6 +72440,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "J.K. Simmons",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Whiplash",
+            tmdbId: "244786",
             winner: true,
           },
           {
@@ -70933,6 +72510,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Meryl Streep",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Into the Woods",
+            tmdbId: "224141",
             winner: false,
           },
           {
@@ -70952,6 +72530,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Laura Dern",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Wild",
+            tmdbId: "228970",
             winner: false,
           },
           {
@@ -70965,6 +72544,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Franklin|Andrew Lockley|Ian Hunter|Scott Fisher",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Interstellar",
+            tmdbId: "157336",
             winner: true,
           },
           {
@@ -71022,6 +72602,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Richard Stammers|Lou Pecora|Tim Crosbie|Cameron Waldbauer",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "X-Men: Days of Future Past",
+            tmdbId: "127585",
             winner: false,
           },
         ],
@@ -71046,6 +72627,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nick Hornby",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Brooklyn",
+            tmdbId: "167073",
             winner: false,
           },
           {
@@ -71064,6 +72646,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emma Donoghue",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Room",
+            tmdbId: "264644",
             winner: false,
           },
           {
@@ -71077,6 +72660,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Drew Goddard",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Martian",
+            tmdbId: "286217",
             winner: false,
           },
           {
@@ -71099,6 +72683,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Charlie Kaufman|Duke Johnson|Rosa Tran",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Anomalisa",
+            tmdbId: "291270",
             winner: false,
           },
           {
@@ -71134,6 +72719,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emmanuel Lubezki",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Revenant",
+            tmdbId: "281957",
             winner: true,
           },
           {
@@ -71166,6 +72752,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roger Deakins",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Sicario",
+            tmdbId: "273481",
             winner: false,
           },
           {
@@ -71211,6 +72798,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sandy Powell",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Cinderella",
+            tmdbId: "150689",
             winner: false,
           },
           {
@@ -71228,6 +72816,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jacqueline West",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Revenant",
+            tmdbId: "281957",
             winner: false,
           },
           {
@@ -71236,6 +72825,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alejandro G. Iñárritu",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Revenant",
+            tmdbId: "281957",
             winner: true,
           },
           {
@@ -71259,6 +72849,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lenny Abrahamson",
             sourceCategory: "DIRECTING",
             sourceTitle: "Room",
+            tmdbId: "264644",
             winner: false,
           },
           {
@@ -71272,6 +72863,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom McCarthy",
             sourceCategory: "DIRECTING",
             sourceTitle: "Spotlight",
+            tmdbId: "314365",
             winner: false,
           },
           {
@@ -71308,6 +72900,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom McArdle",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Spotlight",
+            tmdbId: "314365",
             winner: false,
           },
           {
@@ -71339,6 +72932,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephen Mirrione",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Revenant",
+            tmdbId: "281957",
             winner: false,
           },
           {
@@ -71374,6 +72968,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Mustang",
+            tmdbId: "336804",
             winner: false,
           },
           {
@@ -71392,6 +72987,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Leonardo DiCaprio",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Revenant",
+            tmdbId: "281957",
             winner: true,
           },
           {
@@ -71401,6 +72997,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Fassbender",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Steve Jobs",
+            tmdbId: "321697",
             winner: false,
           },
           {
@@ -71425,6 +73022,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Matt Damon",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Martian",
+            tmdbId: "286217",
             winner: false,
           },
           {
@@ -71445,6 +73043,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brie Larson",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Room",
+            tmdbId: "264644",
             winner: true,
           },
           {
@@ -71464,6 +73063,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Saoirse Ronan",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Brooklyn",
+            tmdbId: "167073",
             winner: false,
           },
           {
@@ -71484,6 +73084,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jennifer Lawrence",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Joy",
+            tmdbId: "274479",
             winner: false,
           },
           {
@@ -71497,6 +73098,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Josh Singer|Tom McCarthy",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Spotlight",
+            tmdbId: "314365",
             winner: true,
           },
           {
@@ -71505,6 +73107,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Matt Charman|Ethan Coen|Joel Coen",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Bridge of Spies",
+            tmdbId: "296098",
             winner: false,
           },
           {
@@ -71513,6 +73116,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alex Garland",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Ex Machina",
+            tmdbId: "264660",
             winner: false,
           },
           {
@@ -71551,6 +73155,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Michael Sugar|Steve Golin|Nicole Rocklin|Blye Pagon Faust",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Spotlight",
+            tmdbId: "314365",
             winner: true,
           },
           {
@@ -71559,6 +73164,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg|Marc Platt|Kristie Macosko Krieger",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Bridge of Spies",
+            tmdbId: "296098",
             winner: false,
           },
           {
@@ -71567,6 +73173,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Finola Dwyer|Amanda Posey",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Brooklyn",
+            tmdbId: "167073",
             winner: false,
           },
           {
@@ -71590,6 +73197,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ed Guiney",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Room",
+            tmdbId: "264644",
             winner: false,
           },
           {
@@ -71613,6 +73221,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Simon Kinberg|Ridley Scott|Michael Schaefer|Mark Huffam",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Martian",
+            tmdbId: "286217",
             winner: false,
           },
           {
@@ -71622,6 +73231,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Arnon Milchan|Steve Golin|Alejandro G. Iñárritu|Mary Parent|Keith Redmon",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Revenant",
+            tmdbId: "281957",
             winner: false,
           },
           {
@@ -71644,6 +73254,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Adam Stockhausen|Rena DeAngelo|Bernhard Henrich",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Bridge of Spies",
+            tmdbId: "296098",
             winner: false,
           },
           {
@@ -71666,6 +73277,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Arthur Max|Celia Bobak",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Martian",
+            tmdbId: "286217",
             winner: false,
           },
           {
@@ -71674,6 +73286,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jack Fisk|Hamish Purdy",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Revenant",
+            tmdbId: "281957",
             winner: false,
           },
           {
@@ -71696,6 +73309,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thomas Newman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Bridge of Spies",
+            tmdbId: "296098",
             winner: false,
           },
           {
@@ -71714,6 +73328,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jóhann Jóhannsson",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Sicario",
+            tmdbId: "273481",
             winner: false,
           },
           {
@@ -71749,6 +73364,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "The Weeknd|Ahmad Balshe|Jason Quenneville|Stephan Moccio",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Fifty Shades of Grey",
+            tmdbId: "216015",
             winner: false,
           },
           {
@@ -71768,6 +73384,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Diane Warren|Lady Gaga",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Hunting Ground",
+            tmdbId: "319091",
             winner: false,
           },
           {
@@ -71777,6 +73394,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Lang",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Youth",
+            tmdbId: "310593",
             winner: false,
           },
           {
@@ -71786,6 +73404,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mark Rylance",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Bridge of Spies",
+            tmdbId: "296098",
             winner: true,
           },
           {
@@ -71795,6 +73414,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sylvester Stallone",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Creed",
+            tmdbId: "312221",
             winner: false,
           },
           {
@@ -71809,6 +73429,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mark Ruffalo",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Spotlight",
+            tmdbId: "314365",
             winner: false,
           },
           {
@@ -71828,6 +73449,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Hardy",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Revenant",
+            tmdbId: "281957",
             winner: false,
           },
           {
@@ -71862,6 +73484,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rachel McAdams",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Spotlight",
+            tmdbId: "314365",
             winner: false,
           },
           {
@@ -71871,6 +73494,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kate Winslet",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Steve Jobs",
+            tmdbId: "321697",
             winner: false,
           },
           {
@@ -71895,6 +73519,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Andrew Whitehurst|Paul Norris|Mark Ardington|Sara Bennett",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Ex Machina",
+            tmdbId: "264660",
             winner: true,
           },
           {
@@ -71938,6 +73563,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Richard Stammers|Anders Langlands|Chris Lawrence|Steven Warner",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Martian",
+            tmdbId: "286217",
             winner: false,
           },
           {
@@ -71947,6 +73573,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Rich McBride|Matthew Shumway|Jason Smith|Cameron Waldbauer",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Revenant",
+            tmdbId: "281957",
             winner: false,
           },
         ],
@@ -71967,6 +73594,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Barry Jenkins|Tarell Alvin McCraney",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Moonlight",
+            tmdbId: "376867",
             winner: true,
           },
           {
@@ -71976,6 +73604,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eric Heisserer",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Arrival",
+            tmdbId: "329865",
             winner: false,
           },
           {
@@ -71984,6 +73613,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "August Wilson",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Fences",
+            tmdbId: "393457",
             winner: false,
           },
           {
@@ -71997,6 +73627,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Allison Schroeder|Theodore Melfi",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Hidden Figures",
+            tmdbId: "381284",
             winner: false,
           },
           {
@@ -72005,6 +73636,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Luke Davies",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Lion",
+            tmdbId: "334543",
             winner: false,
           },
           {
@@ -72014,6 +73646,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Byron Howard|Rich Moore|Clark Spencer",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Zootopia",
+            tmdbId: "269149",
             winner: true,
           },
           {
@@ -72032,6 +73665,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Musker|Ron Clements|Osnat Shurer",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Moana",
+            tmdbId: "277834",
             winner: false,
           },
           {
@@ -72063,6 +73697,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Linus Sandgren",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "La La Land",
+            tmdbId: "313369",
             winner: true,
           },
           {
@@ -72072,6 +73707,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bradford Young",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Arrival",
+            tmdbId: "329865",
             winner: false,
           },
           {
@@ -72080,6 +73716,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Greig Fraser",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Lion",
+            tmdbId: "334543",
             winner: false,
           },
           {
@@ -72093,6 +73730,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Laxton",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Moonlight",
+            tmdbId: "376867",
             winner: false,
           },
           {
@@ -72128,6 +73766,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Consolata Boyle",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Florence Foster Jenkins",
+            tmdbId: "315664",
             winner: false,
           },
           {
@@ -72136,6 +73775,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Madeline Fontaine",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Jackie",
+            tmdbId: "376866",
             winner: false,
           },
           {
@@ -72149,6 +73789,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mary Zophres",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "La La Land",
+            tmdbId: "313369",
             winner: false,
           },
           {
@@ -72162,6 +73803,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Damien Chazelle",
             sourceCategory: "DIRECTING",
             sourceTitle: "La La Land",
+            tmdbId: "313369",
             winner: true,
           },
           {
@@ -72171,6 +73813,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Denis Villeneuve",
             sourceCategory: "DIRECTING",
             sourceTitle: "Arrival",
+            tmdbId: "329865",
             winner: false,
           },
           {
@@ -72179,6 +73822,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mel Gibson",
             sourceCategory: "DIRECTING",
             sourceTitle: "Hacksaw Ridge",
+            tmdbId: "324786",
             winner: false,
           },
           {
@@ -72201,6 +73845,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Barry Jenkins",
             sourceCategory: "DIRECTING",
             sourceTitle: "Moonlight",
+            tmdbId: "376867",
             winner: false,
           },
           {
@@ -72209,6 +73854,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Gilbert",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Hacksaw Ridge",
+            tmdbId: "324786",
             winner: true,
           },
           {
@@ -72218,6 +73864,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joe Walker",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Arrival",
+            tmdbId: "329865",
             winner: false,
           },
           {
@@ -72226,6 +73873,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jake Roberts",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Hell or High Water",
+            tmdbId: "338766",
             winner: false,
           },
           {
@@ -72239,6 +73887,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom Cross",
             sourceCategory: "FILM EDITING",
             sourceTitle: "La La Land",
+            tmdbId: "313369",
             winner: false,
           },
           {
@@ -72252,6 +73901,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nat Sanders|Joi McMillon",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Moonlight",
+            tmdbId: "376867",
             winner: false,
           },
           {
@@ -72260,6 +73910,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Iran",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Salesman",
+            tmdbId: "375315",
             winner: true,
           },
           {
@@ -72277,6 +73928,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Denmark",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Land of Mine",
+            tmdbId: "335578",
             winner: false,
           },
           {
@@ -72285,6 +73937,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Australia",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Tanna",
+            tmdbId: "359151",
             winner: false,
           },
           {
@@ -72323,6 +73976,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Denzel Washington",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Fences",
+            tmdbId: "393457",
             winner: false,
           },
           {
@@ -72332,6 +73986,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andrew Garfield",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Hacksaw Ridge",
+            tmdbId: "324786",
             winner: false,
           },
           {
@@ -72346,6 +74001,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ryan Gosling",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "La La Land",
+            tmdbId: "313369",
             winner: false,
           },
           {
@@ -72360,6 +74016,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emma Stone",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "La La Land",
+            tmdbId: "313369",
             winner: true,
           },
           {
@@ -72369,6 +74026,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Isabelle Huppert",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Elle",
+            tmdbId: "337674",
             winner: false,
           },
           {
@@ -72378,6 +74036,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Meryl Streep",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Florence Foster Jenkins",
+            tmdbId: "315664",
             winner: false,
           },
           {
@@ -72387,6 +74046,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Natalie Portman",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Jackie",
+            tmdbId: "376866",
             winner: false,
           },
           {
@@ -72396,6 +74056,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ruth Negga",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Loving",
+            tmdbId: "339419",
             winner: false,
           },
           {
@@ -72422,6 +74083,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Taylor Sheridan",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Hell or High Water",
+            tmdbId: "338766",
             winner: false,
           },
           {
@@ -72435,6 +74097,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Damien Chazelle",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "La La Land",
+            tmdbId: "313369",
             winner: false,
           },
           {
@@ -72443,6 +74106,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Yorgos Lanthimos|Efthimis Filippou",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Lobster",
+            tmdbId: "254320",
             winner: false,
           },
           {
@@ -72456,6 +74120,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Adele Romanski|Dede Gardner|Jeremy Kleiner",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Moonlight",
+            tmdbId: "376867",
             winner: true,
           },
           {
@@ -72465,6 +74130,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Shawn Levy|Dan Levine|Aaron Ryder|David Linde",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Arrival",
+            tmdbId: "329865",
             winner: false,
           },
           {
@@ -72473,6 +74139,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Scott Rudin|Denzel Washington|Todd Black",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Fences",
+            tmdbId: "393457",
             winner: false,
           },
           {
@@ -72481,6 +74148,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bill Mechanic|David Permut",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Hacksaw Ridge",
+            tmdbId: "324786",
             winner: false,
           },
           {
@@ -72489,6 +74157,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Carla Hacken|Julie Yorn",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Hell or High Water",
+            tmdbId: "338766",
             winner: false,
           },
           {
@@ -72503,6 +74172,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Donna Gigliotti|Peter Chernin|Jenno Topping|Pharrell Williams|Theodore Melfi",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Hidden Figures",
+            tmdbId: "381284",
             winner: false,
           },
           {
@@ -72516,6 +74186,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fred Berger|Jordan Horowitz|Marc Platt",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "La La Land",
+            tmdbId: "313369",
             winner: false,
           },
           {
@@ -72524,6 +74195,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emile Sherman|Iain Canning|Angie Fielder",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Lion",
+            tmdbId: "334543",
             winner: false,
           },
           {
@@ -72547,6 +74219,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Wasco|Sandy Reynolds-Wasco",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "La La Land",
+            tmdbId: "313369",
             winner: true,
           },
           {
@@ -72556,6 +74229,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Patrice Vermette|Paul Hotte",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Arrival",
+            tmdbId: "329865",
             winner: false,
           },
           {
@@ -72587,6 +74261,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Guy Hendrix Dyas|Gene Serdena",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Passengers",
+            tmdbId: "274870",
             winner: false,
           },
           {
@@ -72600,6 +74275,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Justin Hurwitz",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "La La Land",
+            tmdbId: "313369",
             winner: true,
           },
           {
@@ -72608,6 +74284,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mica Levi",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Jackie",
+            tmdbId: "376866",
             winner: false,
           },
           {
@@ -72616,6 +74293,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dustin O'Halloran|Hauschka",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Lion",
+            tmdbId: "334543",
             winner: false,
           },
           {
@@ -72629,6 +74307,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nicholas Britell",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Moonlight",
+            tmdbId: "376867",
             winner: false,
           },
           {
@@ -72637,6 +74316,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thomas Newman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Passengers",
+            tmdbId: "274870",
             winner: false,
           },
           {
@@ -72651,6 +74331,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Justin Hurwitz|Benj Pasek|Justin Paul",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "La La Land",
+            tmdbId: "313369",
             winner: true,
           },
           {
@@ -72675,6 +74356,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Justin Hurwitz|Benj Pasek|Justin Paul",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "La La Land",
+            tmdbId: "313369",
             winner: false,
           },
           {
@@ -72685,6 +74367,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lin-Manuel Miranda",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Moana",
+            tmdbId: "277834",
             winner: false,
           },
           {
@@ -72694,6 +74377,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Justin Timberlake|Max Martin|Karl Johan Schuster",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Trolls",
+            tmdbId: "136799",
             winner: false,
           },
           {
@@ -72708,6 +74392,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mahershala Ali",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Moonlight",
+            tmdbId: "376867",
             winner: true,
           },
           {
@@ -72717,6 +74402,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jeff Bridges",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Hell or High Water",
+            tmdbId: "338766",
             winner: false,
           },
           {
@@ -72726,6 +74412,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dev Patel",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Lion",
+            tmdbId: "334543",
             winner: false,
           },
           {
@@ -72755,6 +74442,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Viola Davis",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Fences",
+            tmdbId: "393457",
             winner: true,
           },
           {
@@ -72769,6 +74457,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Octavia Spencer",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Hidden Figures",
+            tmdbId: "381284",
             winner: false,
           },
           {
@@ -72778,6 +74467,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nicole Kidman",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Lion",
+            tmdbId: "334543",
             winner: false,
           },
           {
@@ -72802,6 +74492,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Naomie Harris",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Moonlight",
+            tmdbId: "376867",
             winner: false,
           },
           {
@@ -72810,6 +74501,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Legato|Adam Valdez|Andrew R. Jones|Dan Lemmon",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Jungle Book",
+            tmdbId: "278927",
             winner: true,
           },
           {
@@ -72833,6 +74525,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Stephane Ceretti|Richard Bluff|Vincent Cirelli|Paul Corbould",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Doctor Strange",
+            tmdbId: "284052",
             winner: false,
           },
           {
@@ -72855,6 +74548,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Knoll|Mohen Leo|Hal Hickel|Neil Corbould",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Rogue One: A Star Wars Story",
+            tmdbId: "330459",
             winner: false,
           },
         ],
@@ -72884,6 +74578,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Scott Frank|James Mangold|Michael Green",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Logan",
+            tmdbId: "263115",
             winner: false,
           },
           {
@@ -72920,6 +74615,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lee Unkrich|Darla K. Anderson",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Coco",
+            tmdbId: "354912",
             winner: true,
           },
           {
@@ -72928,6 +74624,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Carlos Saldanha|Lori Forte",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Ferdinand",
+            tmdbId: "364689",
             winner: false,
           },
           {
@@ -72945,6 +74642,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tom McGrath|Ramsey Naito",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "The Boss Baby",
+            tmdbId: "295693",
             winner: false,
           },
           {
@@ -72967,6 +74665,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roger A. Deakins",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Blade Runner 2049",
+            tmdbId: "335984",
             winner: true,
           },
           {
@@ -72975,6 +74674,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bruno Delbonnel",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Darkest Hour",
+            tmdbId: "399404",
             winner: false,
           },
           {
@@ -72984,6 +74684,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hoyte van Hoytema",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Dunkirk",
+            tmdbId: "374720",
             winner: false,
           },
           {
@@ -73038,6 +74739,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jacqueline Durran",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Darkest Hour",
+            tmdbId: "399404",
             winner: false,
           },
           {
@@ -73084,6 +74786,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christopher Nolan",
             sourceCategory: "DIRECTING",
             sourceTitle: "Dunkirk",
+            tmdbId: "374720",
             winner: false,
           },
           {
@@ -73092,6 +74795,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jordan Peele",
             sourceCategory: "DIRECTING",
             sourceTitle: "Get Out",
+            tmdbId: "419430",
             winner: false,
           },
           {
@@ -73124,6 +74828,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lee Smith",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Dunkirk",
+            tmdbId: "374720",
             winner: true,
           },
           {
@@ -73170,6 +74875,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jon Gregory",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Three Billboards outside Ebbing, Missouri",
+            tmdbId: "359940",
             winner: false,
           },
           {
@@ -73187,6 +74893,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Russia",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Loveless",
+            tmdbId: "429174",
             winner: false,
           },
           {
@@ -73204,6 +74911,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lebanon",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Insult",
+            tmdbId: "468284",
             winner: false,
           },
           {
@@ -73222,6 +74930,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gary Oldman",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Darkest Hour",
+            tmdbId: "399404",
             winner: true,
           },
           {
@@ -73246,6 +74955,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Daniel Kaluuya",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Get Out",
+            tmdbId: "419430",
             winner: false,
           },
           {
@@ -73285,6 +74995,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frances McDormand",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Three Billboards outside Ebbing, Missouri",
+            tmdbId: "359940",
             winner: true,
           },
           {
@@ -73315,6 +75026,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Meryl Streep",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Post",
+            tmdbId: "446354",
             winner: false,
           },
           {
@@ -73338,6 +75050,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jordan Peele",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Get Out",
+            tmdbId: "419430",
             winner: true,
           },
           {
@@ -73383,6 +75096,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Martin McDonagh",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Three Billboards outside Ebbing, Missouri",
+            tmdbId: "359940",
             winner: false,
           },
           {
@@ -73421,6 +75135,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Tim Bevan|Eric Fellner|Lisa Bruce|Anthony McCarten|Douglas Urbanski",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Darkest Hour",
+            tmdbId: "399404",
             winner: false,
           },
           {
@@ -73430,6 +75145,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emma Thomas|Christopher Nolan",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Dunkirk",
+            tmdbId: "374720",
             winner: false,
           },
           {
@@ -73439,6 +75155,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Sean McKittrick|Jason Blum|Edward H. Hamm Jr.|Jordan Peele",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Get Out",
+            tmdbId: "419430",
             winner: false,
           },
           {
@@ -73471,6 +75188,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Amy Pascal|Steven Spielberg|Kristie Macosko Krieger",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Post",
+            tmdbId: "446354",
             winner: false,
           },
           {
@@ -73484,6 +75202,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Graham Broadbent|Pete Czernin|Martin McDonagh",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Three Billboards outside Ebbing, Missouri",
+            tmdbId: "359940",
             winner: false,
           },
           {
@@ -73520,6 +75239,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dennis Gassner|Alessandra Querzola",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Blade Runner 2049",
+            tmdbId: "335984",
             winner: false,
           },
           {
@@ -73528,6 +75248,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sarah Greenwood|Katie Spencer",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Darkest Hour",
+            tmdbId: "399404",
             winner: false,
           },
           {
@@ -73537,6 +75258,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nathan Crowley|Gary Fettis",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Dunkirk",
+            tmdbId: "374720",
             winner: false,
           },
           {
@@ -73560,6 +75282,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hans Zimmer",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Dunkirk",
+            tmdbId: "374720",
             winner: false,
           },
           {
@@ -73601,6 +75324,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Carter Burwell",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Three Billboards outside Ebbing, Missouri",
+            tmdbId: "359940",
             winner: false,
           },
           {
@@ -73611,6 +75335,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kristen Anderson-Lopez|Robert Lopez",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Coco",
+            tmdbId: "354912",
             winner: true,
           },
           {
@@ -73675,6 +75400,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sam Rockwell",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Three Billboards outside Ebbing, Missouri",
+            tmdbId: "359940",
             winner: true,
           },
           {
@@ -73699,6 +75425,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Willem Dafoe",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Florida Project",
+            tmdbId: "394117",
             winner: false,
           },
           {
@@ -73728,6 +75455,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Woody Harrelson",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Three Billboards outside Ebbing, Missouri",
+            tmdbId: "359940",
             winner: false,
           },
           {
@@ -73802,6 +75530,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Nelson|Gerd Nefzer|Paul Lambert|Richard R. Hoover",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Blade Runner 2049",
+            tmdbId: "335984",
             winner: true,
           },
           {
@@ -73826,6 +75555,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Stephen Rosenbaum|Jeff White|Scott Benza|Mike Meinardus",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Kong: Skull Island",
+            tmdbId: "293167",
             winner: false,
           },
           {
@@ -73874,6 +75604,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eric Roth|Bradley Cooper|Will Fetters",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "A Star Is Born",
+            tmdbId: "332562",
             winner: false,
           },
           {
@@ -73957,6 +75688,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mamoru Hosoda|Yuichiro Saito",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Mirai",
+            tmdbId: "475215",
             winner: false,
           },
           {
@@ -73988,6 +75720,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Matthew Libatique",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "A Star Is Born",
+            tmdbId: "332562",
             winner: false,
           },
           {
@@ -73996,6 +75729,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lukasz Zal",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Cold War",
+            tmdbId: "440298",
             winner: false,
           },
           {
@@ -74018,6 +75752,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robbie Ryan",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Favourite",
+            tmdbId: "375262",
             winner: false,
           },
           {
@@ -74040,6 +75775,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sandy Powell",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Mary Poppins Returns",
+            tmdbId: "400650",
             winner: false,
           },
           {
@@ -74076,6 +75812,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sandy Powell",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Favourite",
+            tmdbId: "375262",
             winner: false,
           },
           {
@@ -74102,6 +75839,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pawel Pawlikowski",
             sourceCategory: "DIRECTING",
             sourceTitle: "Cold War",
+            tmdbId: "440298",
             winner: false,
           },
           {
@@ -74115,6 +75853,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Yorgos Lanthimos",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Favourite",
+            tmdbId: "375262",
             winner: false,
           },
           {
@@ -74123,6 +75862,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Adam McKay",
             sourceCategory: "DIRECTING",
             sourceTitle: "Vice",
+            tmdbId: "429197",
             winner: false,
           },
           {
@@ -74131,6 +75871,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Ottman",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Bohemian Rhapsody",
+            tmdbId: "424694",
             winner: true,
           },
           {
@@ -74148,6 +75889,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Patrick J. Don Vito",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Green Book",
+            tmdbId: "490132",
             winner: false,
           },
           {
@@ -74161,6 +75903,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Yorgos Mavropsaridis",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Favourite",
+            tmdbId: "375262",
             winner: false,
           },
           {
@@ -74169,6 +75912,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hank Corwin",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Vice",
+            tmdbId: "429197",
             winner: false,
           },
           {
@@ -74195,6 +75939,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Poland",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Cold War",
+            tmdbId: "440298",
             winner: false,
           },
           {
@@ -74212,6 +75957,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Japan",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Shoplifters",
+            tmdbId: "505192",
             winner: false,
           },
           {
@@ -74221,6 +75967,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rami Malek",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Bohemian Rhapsody",
+            tmdbId: "424694",
             winner: true,
           },
           {
@@ -74230,6 +75977,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bradley Cooper",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "A Star Is Born",
+            tmdbId: "332562",
             winner: false,
           },
           {
@@ -74249,6 +75997,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Viggo Mortensen",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Green Book",
+            tmdbId: "490132",
             winner: false,
           },
           {
@@ -74258,6 +76007,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christian Bale",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Vice",
+            tmdbId: "429197",
             winner: false,
           },
           {
@@ -74272,6 +76022,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Olivia Colman",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Favourite",
+            tmdbId: "375262",
             winner: true,
           },
           {
@@ -74281,6 +76032,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lady Gaga",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "A Star Is Born",
+            tmdbId: "332562",
             winner: false,
           },
           {
@@ -74310,6 +76062,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Glenn Close",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Wife",
+            tmdbId: "340613",
             winner: false,
           },
           {
@@ -74318,6 +76071,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nick Vallelonga|Brian Currie|Peter Farrelly",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Green Book",
+            tmdbId: "490132",
             winner: true,
           },
           {
@@ -74354,6 +76108,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Deborah Davis|Tony McNamara",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Favourite",
+            tmdbId: "375262",
             winner: false,
           },
           {
@@ -74362,6 +76117,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Adam McKay",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Vice",
+            tmdbId: "429197",
             winner: false,
           },
           {
@@ -74371,6 +76127,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Jim Burke|Charles B. Wessler|Brian Currie|Peter Farrelly|Nick Vallelonga",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Green Book",
+            tmdbId: "490132",
             winner: true,
           },
           {
@@ -74379,6 +76136,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bill Gerber|Bradley Cooper|Lynette Howell Taylor",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "A Star Is Born",
+            tmdbId: "332562",
             winner: false,
           },
           {
@@ -74411,6 +76169,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Graham King",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Bohemian Rhapsody",
+            tmdbId: "424694",
             winner: false,
           },
           {
@@ -74433,6 +76192,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ceci Dempsey|Ed Guiney|Lee Magiday|Yorgos Lanthimos",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Favourite",
+            tmdbId: "375262",
             winner: false,
           },
           {
@@ -74441,6 +76201,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dede Gardner|Jeremy Kleiner|Adam McKay|Kevin Messick",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Vice",
+            tmdbId: "429197",
             winner: false,
           },
           {
@@ -74463,6 +76224,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nathan Crowley|Kathy Lucas",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "First Man",
+            tmdbId: "369972",
             winner: false,
           },
           {
@@ -74471,6 +76233,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Myhre|Gordon Sim",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Mary Poppins Returns",
+            tmdbId: "400650",
             winner: false,
           },
           {
@@ -74493,6 +76256,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fiona Crombie|Alice Felton",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Favourite",
+            tmdbId: "375262",
             winner: false,
           },
           {
@@ -74547,6 +76311,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marc Shaiman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Mary Poppins Returns",
+            tmdbId: "400650",
             winner: false,
           },
           {
@@ -74556,6 +76321,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lady Gaga|Mark Ronson|Anthony Rossomando|Andrew Wyatt",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "A Star Is Born",
+            tmdbId: "332562",
             winner: true,
           },
           {
@@ -74581,6 +76347,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marc Shaiman|Scott Wittman",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Mary Poppins Returns",
+            tmdbId: "400650",
             winner: false,
           },
           {
@@ -74615,6 +76382,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mahershala Ali",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Green Book",
+            tmdbId: "490132",
             winner: true,
           },
           {
@@ -74624,6 +76392,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sam Elliott",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "A Star Is Born",
+            tmdbId: "332562",
             winner: false,
           },
           {
@@ -74653,6 +76422,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sam Rockwell",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Vice",
+            tmdbId: "429197",
             winner: false,
           },
           {
@@ -74687,6 +76457,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emma Stone",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Favourite",
+            tmdbId: "375262",
             winner: false,
           },
           {
@@ -74701,6 +76472,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rachel Weisz",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Favourite",
+            tmdbId: "375262",
             winner: false,
           },
           {
@@ -74710,6 +76482,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Amy Adams",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Vice",
+            tmdbId: "429197",
             winner: false,
           },
           {
@@ -74718,6 +76491,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Lambert|Ian Hunter|Tristan Myles|J.D. Schwalm",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "First Man",
+            tmdbId: "369972",
             winner: true,
           },
           {
@@ -74731,6 +76505,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dan DeLeeuw|Kelly Port|Russell Earl|Dan Sudick",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Avengers: Infinity War",
+            tmdbId: "299536",
             winner: false,
           },
           {
@@ -74740,6 +76515,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Christopher Lawrence|Michael Eames|Theo Jones|Chris Corbould",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Christopher Robin",
+            tmdbId: "420814",
             winner: false,
           },
           {
@@ -74788,6 +76564,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Todd Phillips|Scott Silver",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Joker",
+            tmdbId: "475557",
             winner: false,
           },
           {
@@ -74801,6 +76578,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Greta Gerwig",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Little Women",
+            tmdbId: "331482",
             winner: false,
           },
           {
@@ -74809,6 +76587,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Zaillian",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Irishman",
+            tmdbId: "398978",
             winner: false,
           },
           {
@@ -74831,6 +76610,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Josh Cooley|Mark Nielsen|Jonas Rivera",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Toy Story 4",
+            tmdbId: "301528",
             winner: true,
           },
           {
@@ -74857,6 +76637,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sergio Pablos|Jinko Gotoh|Marisa Román",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Klaus",
+            tmdbId: "508965",
             winner: false,
           },
           {
@@ -74865,6 +76646,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chris Butler|Arianne Sutner|Travis Knight",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Missing Link",
+            tmdbId: "458253",
             winner: false,
           },
           {
@@ -74873,6 +76655,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roger Deakins",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "1917",
+            tmdbId: "530915",
             winner: true,
           },
           {
@@ -74882,6 +76665,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lawrence Sher",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Joker",
+            tmdbId: "475557",
             winner: false,
           },
           {
@@ -74904,6 +76688,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rodrigo Prieto",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Irishman",
+            tmdbId: "398978",
             winner: false,
           },
           {
@@ -74931,6 +76716,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jacqueline Durran",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Little Women",
+            tmdbId: "331482",
             winner: true,
           },
           {
@@ -74954,6 +76740,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mark Bridges",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Joker",
+            tmdbId: "475557",
             winner: false,
           },
           {
@@ -74976,6 +76763,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sandy Powell|Christopher Peterson",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "The Irishman",
+            tmdbId: "398978",
             winner: false,
           },
           {
@@ -74985,6 +76773,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bong Joon Ho",
             sourceCategory: "DIRECTING",
             sourceTitle: "Parasite",
+            tmdbId: "496243",
             winner: true,
           },
           {
@@ -74993,6 +76782,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sam Mendes",
             sourceCategory: "DIRECTING",
             sourceTitle: "1917",
+            tmdbId: "530915",
             winner: false,
           },
           {
@@ -75002,6 +76792,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Todd Phillips",
             sourceCategory: "DIRECTING",
             sourceTitle: "Joker",
+            tmdbId: "475557",
             winner: false,
           },
           {
@@ -75024,6 +76815,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Martin Scorsese",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Irishman",
+            tmdbId: "398978",
             winner: false,
           },
           {
@@ -75032,6 +76824,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael McCusker|Andrew Buckland",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Ford v Ferrari",
+            tmdbId: "359724",
             winner: true,
           },
           {
@@ -75055,6 +76848,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jeff Groth",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Joker",
+            tmdbId: "475557",
             winner: false,
           },
           {
@@ -75064,6 +76858,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Yang Jinmo",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Parasite",
+            tmdbId: "496243",
             winner: false,
           },
           {
@@ -75072,6 +76867,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thelma Schoonmaker",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Irishman",
+            tmdbId: "398978",
             winner: false,
           },
           {
@@ -75081,6 +76877,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "South Korea",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Parasite",
+            tmdbId: "496243",
             winner: true,
           },
           {
@@ -75107,6 +76904,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Les Misérables",
+            tmdbId: "601553",
             winner: false,
           },
           {
@@ -75115,6 +76913,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Spain",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Pain and Glory",
+            tmdbId: "519010",
             winner: false,
           },
           {
@@ -75125,6 +76924,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joaquin Phoenix",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Joker",
+            tmdbId: "475557",
             winner: true,
           },
           {
@@ -75134,6 +76934,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Adam Driver",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Marriage Story",
+            tmdbId: "492188",
             winner: false,
           },
           {
@@ -75158,6 +76959,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Antonio Banderas",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Pain and Glory",
+            tmdbId: "519010",
             winner: false,
           },
           {
@@ -75177,6 +76979,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Renée Zellweger",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Judy",
+            tmdbId: "491283",
             winner: true,
           },
           {
@@ -75186,6 +76989,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Charlize Theron",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Bombshell",
+            tmdbId: "525661",
             winner: false,
           },
           {
@@ -75195,6 +76999,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Cynthia Erivo",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Harriet",
+            tmdbId: "506528",
             winner: false,
           },
           {
@@ -75209,6 +77014,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Saoirse Ronan",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Little Women",
+            tmdbId: "331482",
             winner: false,
           },
           {
@@ -75218,6 +77024,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Scarlett Johansson",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Marriage Story",
+            tmdbId: "492188",
             winner: false,
           },
           {
@@ -75227,6 +77034,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bong Joon Ho|Han Jin Won",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Parasite",
+            tmdbId: "496243",
             winner: true,
           },
           {
@@ -75235,6 +77043,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sam Mendes|Krysty Wilson-Cairns",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "1917",
+            tmdbId: "530915",
             winner: false,
           },
           {
@@ -75257,6 +77066,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Noah Baumbach",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Marriage Story",
+            tmdbId: "492188",
             winner: false,
           },
           {
@@ -75280,6 +77090,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kwak Sin Ae|Bong Joon Ho",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Parasite",
+            tmdbId: "496243",
             winner: true,
           },
           {
@@ -75289,6 +77100,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Sam Mendes|Pippa Harris|Jayne-Ann Tenggren|Callum McDougall",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "1917",
+            tmdbId: "530915",
             winner: false,
           },
           {
@@ -75297,6 +77109,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Chernin|Jenno Topping|James Mangold",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Ford v Ferrari",
+            tmdbId: "359724",
             winner: false,
           },
           {
@@ -75320,6 +77133,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Todd Phillips|Bradley Cooper|Emma Tillinger Koskoff",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Joker",
+            tmdbId: "475557",
             winner: false,
           },
           {
@@ -75333,6 +77147,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Amy Pascal",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Little Women",
+            tmdbId: "331482",
             winner: false,
           },
           {
@@ -75341,6 +77156,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Noah Baumbach|David Heyman",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Marriage Story",
+            tmdbId: "492188",
             winner: false,
           },
           {
@@ -75364,6 +77180,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Martin Scorsese|Robert De Niro|Jane Rosenthal|Emma Tillinger Koskoff",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Irishman",
+            tmdbId: "398978",
             winner: false,
           },
           {
@@ -75386,6 +77203,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dennis Gassner|Lee Sandales",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "1917",
+            tmdbId: "530915",
             winner: false,
           },
           {
@@ -75409,6 +77227,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lee Ha Jun|Cho Won Woo",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Parasite",
+            tmdbId: "496243",
             winner: false,
           },
           {
@@ -75417,6 +77236,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bob Shaw|Regina Graves",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Irishman",
+            tmdbId: "398978",
             winner: false,
           },
           {
@@ -75426,6 +77246,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hildur Guðnadóttir",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Joker",
+            tmdbId: "475557",
             winner: true,
           },
           {
@@ -75434,6 +77255,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thomas Newman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "1917",
+            tmdbId: "530915",
             winner: false,
           },
           {
@@ -75447,6 +77269,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alexandre Desplat",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Little Women",
+            tmdbId: "331482",
             winner: false,
           },
           {
@@ -75455,6 +77278,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Randy Newman",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Marriage Story",
+            tmdbId: "492188",
             winner: false,
           },
           {
@@ -75478,6 +77302,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elton John|Bernie Taupin",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Rocketman",
+            tmdbId: "504608",
             winner: true,
           },
           {
@@ -75487,6 +77312,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Diane Warren",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Breakthrough",
+            tmdbId: "514439",
             winner: false,
           },
           {
@@ -75501,6 +77327,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kristen Anderson-Lopez|Robert Lopez",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Frozen II",
+            tmdbId: "330457",
             winner: false,
           },
           {
@@ -75510,6 +77337,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joshuah Brian Campbell|Cynthia Erivo",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Harriet",
+            tmdbId: "506528",
             winner: false,
           },
           {
@@ -75524,6 +77352,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Randy Newman",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Toy Story 4",
+            tmdbId: "301528",
             winner: false,
           },
           {
@@ -75558,6 +77387,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Al Pacino",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Irishman",
+            tmdbId: "398978",
             winner: false,
           },
           {
@@ -75567,6 +77397,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joe Pesci",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Irishman",
+            tmdbId: "398978",
             winner: false,
           },
           {
@@ -75586,6 +77417,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Laura Dern",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Marriage Story",
+            tmdbId: "492188",
             winner: true,
           },
           {
@@ -75595,6 +77427,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Margot Robbie",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Bombshell",
+            tmdbId: "525661",
             winner: false,
           },
           {
@@ -75624,6 +77457,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Florence Pugh",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Little Women",
+            tmdbId: "331482",
             winner: false,
           },
           {
@@ -75642,6 +77476,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Guillaume Rocheron|Greg Butler|Dominic Tuohy",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "1917",
+            tmdbId: "530915",
             winner: true,
           },
           {
@@ -75679,6 +77514,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Pablo Helman|Leandro Estebecorena|Nelson Sepulveda-Fauser|Stephane Grabli",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Irishman",
+            tmdbId: "398978",
             winner: false,
           },
           {
@@ -75688,6 +77524,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Robert Legato|Adam Valdez|Andrew R. Jones|Elliot Newman",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Lion King",
+            tmdbId: "420818",
             winner: false,
           },
         ],
@@ -75708,6 +77545,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christopher Hampton|Florian Zeller",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Father",
+            tmdbId: "600354",
             winner: true,
           },
           {
@@ -75745,6 +77583,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ramin Bahrani",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The White Tiger",
+            tmdbId: "628534",
             winner: false,
           },
           {
@@ -75754,6 +77593,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pete Docter|Dana Murray",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Soul",
+            tmdbId: "508442",
             winner: true,
           },
           {
@@ -75771,6 +77611,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dan Scanlon|Kori Rae",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Onward",
+            tmdbId: "508439",
             winner: false,
           },
           {
@@ -75779,6 +77620,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Glen Keane|Gennie Rim|Peilin Chou",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Over the Moon",
+            tmdbId: "560050",
             winner: false,
           },
           {
@@ -75796,6 +77638,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Erik Messerschmidt",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Mank",
+            tmdbId: "614560",
             winner: true,
           },
           {
@@ -75813,6 +77656,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dariusz Wolski",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "News of the World",
+            tmdbId: "581032",
             winner: false,
           },
           {
@@ -75830,6 +77674,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Phedon Papamichael",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Trial of the Chicago 7",
+            tmdbId: "556984",
             winner: false,
           },
           {
@@ -75843,6 +77688,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ann Roth",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Ma Rainey's Black Bottom",
+            tmdbId: "615667",
             winner: true,
           },
           {
@@ -75851,6 +77697,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alexandra Byrne",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Emma",
+            tmdbId: "556678",
             winner: false,
           },
           {
@@ -75859,6 +77706,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Trish Summerville",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Mank",
+            tmdbId: "614560",
             winner: false,
           },
           {
@@ -75867,6 +77715,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bina Daigeler",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Mulan",
+            tmdbId: "337401",
             winner: false,
           },
           {
@@ -75893,6 +77742,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Thomas Vinterberg",
             sourceCategory: "DIRECTING",
             sourceTitle: "Another Round",
+            tmdbId: "580175",
             winner: false,
           },
           {
@@ -75901,6 +77751,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Fincher",
             sourceCategory: "DIRECTING",
             sourceTitle: "Mank",
+            tmdbId: "614560",
             winner: false,
           },
           {
@@ -75959,6 +77810,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Yorgos Lamprinos",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Father",
+            tmdbId: "600354",
             winner: false,
           },
           {
@@ -75967,6 +77819,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alan Baumgarten",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Trial of the Chicago 7",
+            tmdbId: "556984",
             winner: false,
           },
           {
@@ -75975,6 +77828,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Denmark",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Another Round",
+            tmdbId: "580175",
             winner: true,
           },
           {
@@ -75983,6 +77837,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hong Kong",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Better Days",
+            tmdbId: "575813",
             winner: false,
           },
           {
@@ -75991,6 +77846,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Romania",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Collective",
+            tmdbId: "618363",
             winner: false,
           },
           {
@@ -76023,6 +77879,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anthony Hopkins",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Father",
+            tmdbId: "600354",
             winner: true,
           },
           {
@@ -76037,6 +77894,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chadwick Boseman",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Ma Rainey's Black Bottom",
+            tmdbId: "615667",
             winner: false,
           },
           {
@@ -76046,6 +77904,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gary Oldman",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Mank",
+            tmdbId: "614560",
             winner: false,
           },
           {
@@ -76090,6 +77949,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Viola Davis",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Ma Rainey's Black Bottom",
+            tmdbId: "615667",
             winner: false,
           },
           {
@@ -76119,6 +77979,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andra Day",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The United States vs. Billie Holiday",
+            tmdbId: "566076",
             winner: false,
           },
           {
@@ -76163,6 +78024,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Aaron Sorkin",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Trial of the Chicago 7",
+            tmdbId: "556984",
             winner: false,
           },
           {
@@ -76190,6 +78052,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ceán Chaffin|Eric Roth|Douglas Urbanski",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Mank",
+            tmdbId: "614560",
             winner: false,
           },
           {
@@ -76230,6 +78093,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Parfitt|Jean-Louis Livi|Philippe Carcassonne",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Father",
+            tmdbId: "600354",
             winner: false,
           },
           {
@@ -76238,6 +78102,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marc Platt|Stuart Besser",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Trial of the Chicago 7",
+            tmdbId: "556984",
             winner: false,
           },
           {
@@ -76246,6 +78111,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Donald Graham Burt|Jan Pascale",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Mank",
+            tmdbId: "614560",
             winner: true,
           },
           {
@@ -76259,6 +78125,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mark Ricker|Karen O'Hara|Diana Stoughton",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Ma Rainey's Black Bottom",
+            tmdbId: "615667",
             winner: false,
           },
           {
@@ -76267,6 +78134,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Crank|Elizabeth Keenan",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "News of the World",
+            tmdbId: "581032",
             winner: false,
           },
           {
@@ -76276,6 +78144,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nathan Crowley|Kathy Lucas",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Tenet",
+            tmdbId: "577922",
             winner: false,
           },
           {
@@ -76289,6 +78158,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Francis|Cathy Featherstone",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Father",
+            tmdbId: "600354",
             winner: false,
           },
           {
@@ -76298,6 +78168,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Trent Reznor|Atticus Ross|Jon Batiste",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Soul",
+            tmdbId: "508442",
             winner: true,
           },
           {
@@ -76315,6 +78186,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Trent Reznor|Atticus Ross",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Mank",
+            tmdbId: "614560",
             winner: false,
           },
           {
@@ -76332,6 +78204,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Newton Howard",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "News of the World",
+            tmdbId: "581032",
             winner: false,
           },
           {
@@ -76381,6 +78254,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Daniel Pemberton|Celeste Waite",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "The Trial of the Chicago 7",
+            tmdbId: "556984",
             winner: false,
           },
           {
@@ -76430,6 +78304,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sacha Baron Cohen",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Trial of the Chicago 7",
+            tmdbId: "556984",
             winner: false,
           },
           {
@@ -76470,6 +78345,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Amanda Seyfried",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Mank",
+            tmdbId: "614560",
             winner: false,
           },
           {
@@ -76484,6 +78360,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Olivia Colman",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Father",
+            tmdbId: "600354",
             winner: false,
           },
           {
@@ -76493,6 +78370,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andrew Jackson|David Lee|Andrew Lockley|Scott Fisher",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Tenet",
+            tmdbId: "577922",
             winner: true,
           },
           {
@@ -76501,6 +78379,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Matt Sloan|Genevieve Camilleri|Matt Everitt|Brian Cox",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Love and Monsters",
+            tmdbId: "590223",
             winner: false,
           },
           {
@@ -76509,6 +78388,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sean Faden|Anders Langlands|Seth Maury|Steve Ingram",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Mulan",
+            tmdbId: "337401",
             winner: false,
           },
           {
@@ -76544,6 +78424,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Siân Heder",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "CODA",
+            tmdbId: "776503",
             winner: true,
           },
           {
@@ -76557,6 +78438,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ryusuke Hamaguchi|Takamasa Oe",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Drive My Car",
+            tmdbId: "758866",
             winner: false,
           },
           {
@@ -76566,6 +78448,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jon Spaihts|Denis Villeneuve|Eric Roth",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Dune",
+            tmdbId: "438631",
             winner: false,
           },
           {
@@ -76574,6 +78457,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Maggie Gyllenhaal",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Lost Daughter",
+            tmdbId: "554230",
             winner: false,
           },
           {
@@ -76582,6 +78466,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jane Campion",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "The Power of the Dog",
+            tmdbId: "600583",
             winner: false,
           },
           {
@@ -76591,6 +78476,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jared Bush|Byron Howard|Yvett Merino|Clark Spencer",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Encanto",
+            tmdbId: "568124",
             winner: true,
           },
           {
@@ -76600,6 +78486,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Jonas Poher Rasmussen|Monica Hellström|Signe Byrge Sørensen|Charlotte De La Gournerie",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Flee",
+            tmdbId: "680813",
             winner: false,
           },
           {
@@ -76609,6 +78496,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Enrico Casarosa|Andrea Warren",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Luca",
+            tmdbId: "508943",
             winner: false,
           },
           {
@@ -76637,6 +78525,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Greig Fraser",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Dune",
+            tmdbId: "438631",
             winner: true,
           },
           {
@@ -76654,6 +78543,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ari Wegner",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Power of the Dog",
+            tmdbId: "600583",
             winner: false,
           },
           {
@@ -76662,6 +78552,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bruno Delbonnel",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Tragedy of Macbeth",
+            tmdbId: "591538",
             winner: false,
           },
           {
@@ -76670,6 +78561,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Janusz Kaminski",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "West Side Story",
+            tmdbId: "511809",
             winner: false,
           },
           {
@@ -76697,6 +78589,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jacqueline West|Robert Morgan",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Dune",
+            tmdbId: "438631",
             winner: false,
           },
           {
@@ -76714,6 +78607,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Tazewell",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "West Side Story",
+            tmdbId: "511809",
             winner: false,
           },
           {
@@ -76722,6 +78616,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jane Campion",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Power of the Dog",
+            tmdbId: "600583",
             winner: true,
           },
           {
@@ -76745,6 +78640,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ryusuke Hamaguchi",
             sourceCategory: "DIRECTING",
             sourceTitle: "Drive My Car",
+            tmdbId: "758866",
             winner: false,
           },
           {
@@ -76762,6 +78658,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg",
             sourceCategory: "DIRECTING",
             sourceTitle: "West Side Story",
+            tmdbId: "511809",
             winner: false,
           },
           {
@@ -76771,6 +78668,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joe Walker",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Dune",
+            tmdbId: "438631",
             winner: true,
           },
           {
@@ -76779,6 +78677,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hank Corwin",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Don't Look Up",
+            tmdbId: "646380",
             winner: false,
           },
           {
@@ -76787,6 +78686,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pamela Martin",
             sourceCategory: "FILM EDITING",
             sourceTitle: "King Richard",
+            tmdbId: "614917",
             winner: false,
           },
           {
@@ -76795,6 +78695,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Sciberras",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Power of the Dog",
+            tmdbId: "600583",
             winner: false,
           },
           {
@@ -76803,6 +78704,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Myron Kerstein|Andrew Weisblum",
             sourceCategory: "FILM EDITING",
             sourceTitle: "tick, tick...BOOM!",
+            tmdbId: "537116",
             winner: false,
           },
           {
@@ -76816,6 +78718,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Japan",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Drive My Car",
+            tmdbId: "758866",
             winner: true,
           },
           {
@@ -76824,6 +78727,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Denmark",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Flee",
+            tmdbId: "680813",
             winner: false,
           },
           {
@@ -76832,6 +78736,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bhutan",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Lunana: A Yak in the Classroom",
+            tmdbId: "627087",
             winner: false,
           },
           {
@@ -76840,6 +78745,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Italy",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Hand of God",
+            tmdbId: "722778",
             winner: false,
           },
           {
@@ -76848,6 +78754,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Norway",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "The Worst Person in the World",
+            tmdbId: "660120",
             winner: false,
           },
           {
@@ -76857,6 +78764,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Will Smith",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "King Richard",
+            tmdbId: "614917",
             winner: true,
           },
           {
@@ -76876,6 +78784,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Benedict Cumberbatch",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Power of the Dog",
+            tmdbId: "600583",
             winner: false,
           },
           {
@@ -76885,6 +78794,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Denzel Washington",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Tragedy of Macbeth",
+            tmdbId: "591538",
             winner: false,
           },
           {
@@ -76894,6 +78804,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andrew Garfield",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "tick, tick...BOOM!",
+            tmdbId: "537116",
             winner: false,
           },
           {
@@ -76923,6 +78834,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Penélope Cruz",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Parallel Mothers",
+            tmdbId: "766798",
             winner: false,
           },
           {
@@ -76932,6 +78844,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kristen Stewart",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Spencer",
+            tmdbId: "716612",
             winner: false,
           },
           {
@@ -76941,6 +78854,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Olivia Colman",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Lost Daughter",
+            tmdbId: "554230",
             winner: false,
           },
           {
@@ -76959,6 +78873,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Adam McKay|David Sirota",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Don't Look Up",
+            tmdbId: "646380",
             winner: false,
           },
           {
@@ -76967,6 +78882,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Zach Baylin",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "King Richard",
+            tmdbId: "614917",
             winner: false,
           },
           {
@@ -76984,6 +78900,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eskil Vogt|Joachim Trier",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Worst Person in the World",
+            tmdbId: "660120",
             winner: false,
           },
           {
@@ -76993,6 +78910,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Philippe Rousselet|Fabrice Gianfermi|Patrick Wachsberger",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "CODA",
+            tmdbId: "776503",
             winner: true,
           },
           {
@@ -77012,6 +78930,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Adam McKay|Kevin Messick",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Don't Look Up",
+            tmdbId: "646380",
             winner: false,
           },
           {
@@ -77025,6 +78944,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Teruhisa Yamamoto",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Drive My Car",
+            tmdbId: "758866",
             winner: false,
           },
           {
@@ -77034,6 +78954,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mary Parent|Denis Villeneuve|Cale Boyter",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Dune",
+            tmdbId: "438631",
             winner: false,
           },
           {
@@ -77042,6 +78963,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tim White|Trevor White|Will Smith",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "King Richard",
+            tmdbId: "614917",
             winner: false,
           },
           {
@@ -77069,6 +78991,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Jane Campion|Tanya Seghatchian|Emile Sherman|Iain Canning|Roger Frappier",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Power of the Dog",
+            tmdbId: "600583",
             winner: false,
           },
           {
@@ -77077,6 +79000,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg|Kristie Macosko Krieger",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "West Side Story",
+            tmdbId: "511809",
             winner: false,
           },
           {
@@ -77086,6 +79010,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Patrice Vermette|Zsuzsanna Sipos",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Dune",
+            tmdbId: "438631",
             winner: true,
           },
           {
@@ -77103,6 +79028,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Grant Major|Amber Richards",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Power of the Dog",
+            tmdbId: "600583",
             winner: false,
           },
           {
@@ -77111,6 +79037,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stefan Dechant|Nancy Haigh",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Tragedy of Macbeth",
+            tmdbId: "591538",
             winner: false,
           },
           {
@@ -77119,6 +79046,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Adam Stockhausen|Rena DeAngelo",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "West Side Story",
+            tmdbId: "511809",
             winner: false,
           },
           {
@@ -77128,6 +79056,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hans Zimmer",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Dune",
+            tmdbId: "438631",
             winner: true,
           },
           {
@@ -77136,6 +79065,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nicholas Britell",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Don't Look Up",
+            tmdbId: "646380",
             winner: false,
           },
           {
@@ -77145,6 +79075,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Germaine Franco",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Encanto",
+            tmdbId: "568124",
             winner: false,
           },
           {
@@ -77153,6 +79084,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alberto Iglesias",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Parallel Mothers",
+            tmdbId: "766798",
             winner: false,
           },
           {
@@ -77161,6 +79093,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jonny Greenwood",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Power of the Dog",
+            tmdbId: "600583",
             winner: false,
           },
           {
@@ -77175,6 +79108,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Billie Eilish|Finneas O'Connell",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "No Time to Die",
+            tmdbId: "370172",
             winner: true,
           },
           {
@@ -77196,6 +79130,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lin-Manuel Miranda",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Encanto",
+            tmdbId: "568124",
             winner: false,
           },
           {
@@ -77215,6 +79150,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "DIXSON|Beyoncé Knowles-Carter",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "King Richard",
+            tmdbId: "614917",
             winner: false,
           },
           {
@@ -77224,6 +79160,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Troy Kotsur",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "CODA",
+            tmdbId: "776503",
             winner: true,
           },
           {
@@ -77254,6 +79191,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jesse Plemons",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Power of the Dog",
+            tmdbId: "600583",
             winner: false,
           },
           {
@@ -77263,6 +79201,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kodi Smit-McPhee",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Power of the Dog",
+            tmdbId: "600583",
             winner: false,
           },
           {
@@ -77272,6 +79211,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ariana DeBose",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "West Side Story",
+            tmdbId: "511809",
             winner: true,
           },
           {
@@ -77292,6 +79232,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Aunjanue Ellis",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "King Richard",
+            tmdbId: "614917",
             winner: false,
           },
           {
@@ -77301,6 +79242,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jessie Buckley",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Lost Daughter",
+            tmdbId: "554230",
             winner: false,
           },
           {
@@ -77310,6 +79252,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kirsten Dunst",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Power of the Dog",
+            tmdbId: "600583",
             winner: false,
           },
           {
@@ -77319,6 +79262,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Lambert|Tristan Myles|Brian Connor|Gerd Nefzer",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Dune",
+            tmdbId: "438631",
             winner: true,
           },
           {
@@ -77342,6 +79286,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Charlie Noble|Joel Green|Jonathan Fawkner|Chris Corbould",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "No Time to Die",
+            tmdbId: "370172",
             winner: false,
           },
           {
@@ -77365,6 +79310,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kelly Port|Chris Waegner|Scott Edelstein|Dan Sudick",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Spider-Man: No Way Home",
+            tmdbId: "634649",
             winner: false,
           },
         ],
@@ -77389,6 +79335,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Screenplay - Edward Berger|Lesley Paterson|Ian Stokell",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "All Quiet on the Western Front",
+            tmdbId: "49046",
             winner: false,
           },
           {
@@ -77426,6 +79373,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Ehren Kruger|Eric Warren Singer|Christopher McQuarrie|Peter Craig|Justin Marks",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Top Gun: Maverick",
+            tmdbId: "361743",
             winner: false,
           },
           {
@@ -77435,6 +79383,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Guillermo del Toro|Mark Gustafson|Gary Ungar|Alex Bulkley",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Guillermo del Toro's Pinocchio",
+            tmdbId: "555604",
             winner: true,
           },
           {
@@ -77453,6 +79402,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joel Crawford|Mark Swift",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Puss in Boots: The Last Wish",
+            tmdbId: "315162",
             winner: false,
           },
           {
@@ -77470,6 +79420,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Domee Shi|Lindsey Collins",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Turning Red",
+            tmdbId: "508947",
             winner: false,
           },
           {
@@ -77478,6 +79429,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Friend",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "All Quiet on the Western Front",
+            tmdbId: "49046",
             winner: true,
           },
           {
@@ -77528,6 +79480,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ruth Carter",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Black Panther: Wakanda Forever",
+            tmdbId: "505642",
             winner: true,
           },
           {
@@ -77536,6 +79489,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mary Zophres",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Babylon",
+            tmdbId: "615777",
             winner: false,
           },
           {
@@ -77558,6 +79512,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Shirley Kurata",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Everything Everywhere All at Once",
+            tmdbId: "545611",
             winner: false,
           },
           {
@@ -77580,6 +79535,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Daniel Kwan|Daniel Scheinert",
             sourceCategory: "DIRECTING",
             sourceTitle: "Everything Everywhere All at Once",
+            tmdbId: "545611",
             winner: true,
           },
           {
@@ -77603,6 +79559,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Martin McDonagh",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Banshees of Inisherin",
+            tmdbId: "674324",
             winner: false,
           },
           {
@@ -77611,6 +79568,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Fabelmans",
+            tmdbId: "804095",
             winner: false,
           },
           {
@@ -77638,6 +79596,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Rogers",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Everything Everywhere All at Once",
+            tmdbId: "545611",
             winner: true,
           },
           {
@@ -77670,6 +79629,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mikkel E.G. Nielsen",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Banshees of Inisherin",
+            tmdbId: "674324",
             winner: false,
           },
           {
@@ -77683,6 +79643,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eddie Hamilton",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Top Gun: Maverick",
+            tmdbId: "361743",
             winner: false,
           },
           {
@@ -77691,6 +79652,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Germany",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "All Quiet on the Western Front",
+            tmdbId: "49046",
             winner: true,
           },
           {
@@ -77699,6 +79661,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Argentina",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Argentina, 1985",
+            tmdbId: "714888",
             winner: false,
           },
           {
@@ -77708,6 +79671,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Belgium",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Close",
+            tmdbId: "901563",
             winner: false,
           },
           {
@@ -77717,6 +79681,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Poland",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "EO",
+            tmdbId: "785398",
             winner: false,
           },
           {
@@ -77751,6 +79716,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Mescal",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Aftersun",
+            tmdbId: "965150",
             winner: false,
           },
           {
@@ -77785,6 +79751,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Colin Farrell",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Banshees of Inisherin",
+            tmdbId: "674324",
             winner: false,
           },
           {
@@ -77799,6 +79766,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michelle Yeoh",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Everything Everywhere All at Once",
+            tmdbId: "545611",
             winner: true,
           },
           {
@@ -77829,6 +79797,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michelle Williams",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "The Fabelmans",
+            tmdbId: "804095",
             winner: false,
           },
           {
@@ -77838,6 +79807,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andrea Riseborough",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "To Leslie",
+            tmdbId: "823147",
             winner: false,
           },
           {
@@ -77851,6 +79821,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Daniel Kwan|Daniel Scheinert",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Everything Everywhere All at Once",
+            tmdbId: "545611",
             winner: true,
           },
           {
@@ -77874,6 +79845,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Martin McDonagh",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Banshees of Inisherin",
+            tmdbId: "674324",
             winner: false,
           },
           {
@@ -77882,6 +79854,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Steven Spielberg|Tony Kushner",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Fabelmans",
+            tmdbId: "804095",
             winner: false,
           },
           {
@@ -77909,6 +79882,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Daniel Kwan|Daniel Scheinert|Jonathan Wang",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Everything Everywhere All at Once",
+            tmdbId: "545611",
             winner: true,
           },
           {
@@ -77917,6 +79891,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Malte Grunert",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "All Quiet on the Western Front",
+            tmdbId: "49046",
             winner: false,
           },
           {
@@ -77964,6 +79939,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Graham Broadbent|Pete Czernin|Martin McDonagh",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Banshees of Inisherin",
+            tmdbId: "674324",
             winner: false,
           },
           {
@@ -77972,6 +79948,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kristie Macosko Krieger|Steven Spielberg|Tony Kushner",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Fabelmans",
+            tmdbId: "804095",
             winner: false,
           },
           {
@@ -77986,6 +79963,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Tom Cruise|Christopher McQuarrie|David Ellison|Jerry Bruckheimer",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Top Gun: Maverick",
+            tmdbId: "361743",
             winner: false,
           },
           {
@@ -78017,6 +79995,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christian M. Goldbeck|Ernestine Hipper",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "All Quiet on the Western Front",
+            tmdbId: "49046",
             winner: true,
           },
           {
@@ -78039,6 +80018,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Florencia Martin|Anthony Carlino",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Babylon",
+            tmdbId: "615777",
             winner: false,
           },
           {
@@ -78056,6 +80036,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rick Carter|Karen O'Hara",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Fabelmans",
+            tmdbId: "804095",
             winner: false,
           },
           {
@@ -78064,6 +80045,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Volker Bertelmann",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "All Quiet on the Western Front",
+            tmdbId: "49046",
             winner: true,
           },
           {
@@ -78072,6 +80054,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Justin Hurwitz",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Babylon",
+            tmdbId: "615777",
             winner: false,
           },
           {
@@ -78085,6 +80068,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Son Lux",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Everything Everywhere All at Once",
+            tmdbId: "545611",
             winner: false,
           },
           {
@@ -78098,6 +80082,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Carter Burwell",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Banshees of Inisherin",
+            tmdbId: "674324",
             winner: false,
           },
           {
@@ -78106,6 +80091,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Fabelmans",
+            tmdbId: "804095",
             winner: false,
           },
           {
@@ -78115,6 +80101,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "M.M. Keeravaani|Chandrabose",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "RRR",
+            tmdbId: "579974",
             winner: true,
           },
           {
@@ -78129,6 +80116,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tems|Rihanna|Ryan Coogler|Ludwig Göransson",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Black Panther: Wakanda Forever",
+            tmdbId: "505642",
             winner: false,
           },
           {
@@ -78143,6 +80131,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ryan Lott|David Byrne|Mitski",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Everything Everywhere All at Once",
+            tmdbId: "545611",
             winner: false,
           },
           {
@@ -78167,6 +80156,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lady Gaga|BloodPop",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Top Gun: Maverick",
+            tmdbId: "361743",
             winner: false,
           },
           {
@@ -78181,6 +80171,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ke Huy Quan",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Everything Everywhere All at Once",
+            tmdbId: "545611",
             winner: true,
           },
           {
@@ -78190,6 +80181,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brian Tyree Henry",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Causeway",
+            tmdbId: "595586",
             winner: false,
           },
           {
@@ -78204,6 +80196,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Barry Keoghan",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Banshees of Inisherin",
+            tmdbId: "674324",
             winner: false,
           },
           {
@@ -78218,6 +80211,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brendan Gleeson",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Banshees of Inisherin",
+            tmdbId: "674324",
             winner: false,
           },
           {
@@ -78227,6 +80221,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Judd Hirsch",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Fabelmans",
+            tmdbId: "804095",
             winner: false,
           },
           {
@@ -78241,6 +80236,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jamie Lee Curtis",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Everything Everywhere All at Once",
+            tmdbId: "545611",
             winner: true,
           },
           {
@@ -78255,6 +80251,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Angela Bassett",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Black Panther: Wakanda Forever",
+            tmdbId: "505642",
             winner: false,
           },
           {
@@ -78269,6 +80266,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stephanie Hsu",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Everything Everywhere All at Once",
+            tmdbId: "545611",
             winner: false,
           },
           {
@@ -78283,6 +80281,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kerry Condon",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Banshees of Inisherin",
+            tmdbId: "674324",
             winner: false,
           },
           {
@@ -78321,6 +80320,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Frank Petzold|Viktor Müller|Markus Frank|Kamil Jafar",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "All Quiet on the Western Front",
+            tmdbId: "49046",
             winner: false,
           },
           {
@@ -78335,6 +80335,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Geoffrey Baumann|Craig Hammack|R. Christopher White|Dan Sudick",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Black Panther: Wakanda Forever",
+            tmdbId: "505642",
             winner: false,
           },
           {
@@ -78348,6 +80349,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dan Lemmon|Russell Earl|Anders Langlands|Dominic Tuohy",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Batman",
+            tmdbId: "414906",
             winner: false,
           },
           {
@@ -78361,6 +80363,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ryan Tudhope|Seth Hill|Bryan Litson|Scott R. Fisher",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Top Gun: Maverick",
+            tmdbId: "361743",
             winner: false,
           },
         ],
@@ -78386,6 +80389,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Greta Gerwig|Noah Baumbach",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Barbie",
+            tmdbId: "346698",
             winner: false,
           },
           {
@@ -78399,6 +80403,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christopher Nolan",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Oppenheimer",
+            tmdbId: "872585",
             winner: false,
           },
           {
@@ -78449,6 +80454,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Sohn|Denise Ream",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Elemental",
+            tmdbId: "976573",
             winner: false,
           },
           {
@@ -78488,6 +80494,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Kemp Powers|Justin K. Thompson|Phil Lord|Christopher Miller|Amy Pascal",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Spider-Man: Across the Spider-Verse",
+            tmdbId: "569094",
             winner: false,
           },
           {
@@ -78501,6 +80508,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hoyte van Hoytema",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Oppenheimer",
+            tmdbId: "872585",
             winner: true,
           },
           {
@@ -78509,6 +80517,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Edward Lachman",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "El Conde",
+            tmdbId: "991708",
             winner: false,
           },
           {
@@ -78531,6 +80540,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Matthew Libatique",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Maestro",
+            tmdbId: "523607",
             winner: false,
           },
           {
@@ -78568,6 +80578,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jacqueline Durran",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Barbie",
+            tmdbId: "346698",
             winner: false,
           },
           {
@@ -78590,6 +80601,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Janty Yates|Dave Crossman",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Napoleon",
+            tmdbId: "753342",
             winner: false,
           },
           {
@@ -78603,6 +80615,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ellen Mirojnick",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Oppenheimer",
+            tmdbId: "872585",
             winner: false,
           },
           {
@@ -78616,6 +80629,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Christopher Nolan",
             sourceCategory: "DIRECTING",
             sourceTitle: "Oppenheimer",
+            tmdbId: "872585",
             winner: true,
           },
           {
@@ -78685,6 +80699,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jennifer Lame",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Oppenheimer",
+            tmdbId: "872585",
             winner: true,
           },
           {
@@ -78772,6 +80787,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Japan",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Perfect Days",
+            tmdbId: "976893",
             winner: false,
           },
           {
@@ -78780,6 +80796,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Spain",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Society of the Snow",
+            tmdbId: "906126",
             winner: false,
           },
           {
@@ -78803,6 +80820,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Cillian Murphy",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Oppenheimer",
+            tmdbId: "872585",
             winner: true,
           },
           {
@@ -78822,6 +80840,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bradley Cooper",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Maestro",
+            tmdbId: "523607",
             winner: false,
           },
           {
@@ -78901,6 +80920,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Carey Mulligan",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Maestro",
+            tmdbId: "523607",
             winner: false,
           },
           {
@@ -78933,6 +80953,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bradley Cooper|Josh Singer",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Maestro",
+            tmdbId: "523607",
             winner: false,
           },
           {
@@ -78946,6 +80967,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Samy Burch|Alex Mechanik",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "May December",
+            tmdbId: "839369",
             winner: false,
           },
           {
@@ -78959,6 +80981,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Celine Song",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Past Lives",
+            tmdbId: "666277",
             winner: false,
           },
           {
@@ -78986,6 +81009,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emma Thomas|Charles Roven|Christopher Nolan",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Oppenheimer",
+            tmdbId: "872585",
             winner: true,
           },
           {
@@ -79019,6 +81043,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Heyman|Margot Robbie|Tom Ackerley|Robbie Brenner",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Barbie",
+            tmdbId: "346698",
             winner: false,
           },
           {
@@ -79043,6 +81068,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Bradley Cooper|Steven Spielberg|Fred Berner|Amy Durning|Kristie Macosko Krieger",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Maestro",
+            tmdbId: "523607",
             winner: false,
           },
           {
@@ -79056,6 +81082,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Hinojosa|Christine Vachon|Pamela Koffler",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Past Lives",
+            tmdbId: "666277",
             winner: false,
           },
           {
@@ -79121,6 +81148,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sarah Greenwood|Katie Spencer",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Barbie",
+            tmdbId: "346698",
             winner: false,
           },
           {
@@ -79143,6 +81171,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Arthur Max|Elli Griff",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Napoleon",
+            tmdbId: "753342",
             winner: false,
           },
           {
@@ -79156,6 +81185,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ruth De Jong|Claire Kaufman",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Oppenheimer",
+            tmdbId: "872585",
             winner: false,
           },
           {
@@ -79169,6 +81199,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ludwig Göransson",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Oppenheimer",
+            tmdbId: "872585",
             winner: true,
           },
           {
@@ -79191,6 +81222,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Williams",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Indiana Jones and the Dial of Destiny",
+            tmdbId: "335977",
             winner: false,
           },
           {
@@ -79229,6 +81261,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Billie Eilish|Finneas O'Connell",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Barbie",
+            tmdbId: "346698",
             winner: true,
           },
           {
@@ -79249,6 +81282,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mark Ronson|Andrew Wyatt",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Barbie",
+            tmdbId: "346698",
             winner: false,
           },
           {
@@ -79258,6 +81292,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Diane Warren",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Flamin' Hot",
+            tmdbId: "626332",
             winner: false,
           },
           {
@@ -79287,6 +81322,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Robert Downey Jr.",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Oppenheimer",
+            tmdbId: "872585",
             winner: true,
           },
           {
@@ -79307,6 +81343,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ryan Gosling",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Barbie",
+            tmdbId: "346698",
             winner: false,
           },
           {
@@ -79362,6 +81399,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "America Ferrera",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Barbie",
+            tmdbId: "346698",
             winner: false,
           },
           {
@@ -79386,6 +81424,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emily Blunt",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Oppenheimer",
+            tmdbId: "872585",
             winner: false,
           },
           {
@@ -79395,6 +81434,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Danielle Brooks",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Color Purple",
+            tmdbId: "558915",
             winner: false,
           },
           {
@@ -79424,6 +81464,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Stephane Ceretti|Alexis Wajsbrot|Guy Williams|Theo Bialek",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Guardians of the Galaxy Vol. 3",
+            tmdbId: "447365",
             winner: false,
           },
           {
@@ -79447,6 +81488,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Charley Henley|Luc-Ewen Martin-Fenouillet|Simone Coco|Neil Corbould",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Napoleon",
+            tmdbId: "753342",
             winner: false,
           },
           {
@@ -79460,6 +81502,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jay Cooper|Ian Comley|Andrew Roberts|Neil Corbould",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Creator",
+            tmdbId: "670292",
             winner: false,
           },
         ],
@@ -79476,6 +81519,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Straughan",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Conclave",
+            tmdbId: "974576",
             winner: true,
           },
           {
@@ -79484,6 +81528,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Mangold|Jay Cocks",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "A Complete Unknown",
+            tmdbId: "661539",
             winner: false,
           },
           {
@@ -79498,6 +81543,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Jacques Audiard|In collaboration with Thomas Bidegain|Léa Mysius|Nicolas Livecchi",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Emilia Pérez",
+            tmdbId: "974950",
             winner: false,
           },
           {
@@ -79516,6 +81562,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               'Clint Bentley|Greg Kwedar|Clarence Maclin|John \\"Divine G\\" Whitfield',
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Sing Sing",
+            tmdbId: "1155828",
             winner: false,
           },
           {
@@ -79524,6 +81571,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gints Zilbalodis|Matiss Kaža|Ron Dyens|Gregory Zalcman",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Flow",
+            tmdbId: "823219",
             winner: true,
           },
           {
@@ -79532,6 +81580,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kelsey Mann|Mark Nielsen",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Inside Out 2",
+            tmdbId: "1022789",
             winner: false,
           },
           {
@@ -79577,6 +81626,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lol Crawley",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "The Brutalist",
+            tmdbId: "549509",
             winner: true,
           },
           {
@@ -79604,6 +81654,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Guilhaume",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Emilia Pérez",
+            tmdbId: "974950",
             winner: false,
           },
           {
@@ -79612,6 +81663,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ed Lachman",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Maria",
+            tmdbId: "1038263",
             winner: false,
           },
           {
@@ -79625,6 +81677,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jarin Blaschke",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Nosferatu",
+            tmdbId: "426063",
             winner: false,
           },
           {
@@ -79634,6 +81687,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Tazewell",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Wicked",
+            tmdbId: "402431",
             winner: true,
           },
           {
@@ -79642,6 +81696,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Arianne Phillips",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "A Complete Unknown",
+            tmdbId: "661539",
             winner: false,
           },
           {
@@ -79651,6 +81706,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lisy Christl",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Conclave",
+            tmdbId: "974576",
             winner: false,
           },
           {
@@ -79659,6 +81715,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Janty Yates|Dave Crossman",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Gladiator II",
+            tmdbId: "558449",
             winner: false,
           },
           {
@@ -79672,6 +81729,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Linda Muir",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Nosferatu",
+            tmdbId: "426063",
             winner: false,
           },
           {
@@ -79690,6 +81748,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "James Mangold",
             sourceCategory: "DIRECTING",
             sourceTitle: "A Complete Unknown",
+            tmdbId: "661539",
             winner: false,
           },
           {
@@ -79703,6 +81762,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jacques Audiard",
             sourceCategory: "DIRECTING",
             sourceTitle: "Emilia Pérez",
+            tmdbId: "974950",
             winner: false,
           },
           {
@@ -79711,6 +81771,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brady Corbet",
             sourceCategory: "DIRECTING",
             sourceTitle: "The Brutalist",
+            tmdbId: "549509",
             winner: false,
           },
           {
@@ -79744,6 +81805,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nick Emerson",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Conclave",
+            tmdbId: "974576",
             winner: false,
           },
           {
@@ -79757,6 +81819,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Juliette Welfling",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Emilia Pérez",
+            tmdbId: "974950",
             winner: false,
           },
           {
@@ -79765,6 +81828,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Jancso",
             sourceCategory: "FILM EDITING",
             sourceTitle: "The Brutalist",
+            tmdbId: "549509",
             winner: false,
           },
           {
@@ -79774,6 +81838,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Myron Kerstein",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Wicked",
+            tmdbId: "402431",
             winner: false,
           },
           {
@@ -79782,6 +81847,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brazil",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "I'm Still Here",
+            tmdbId: "1000837",
             winner: true,
           },
           {
@@ -79795,6 +81861,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Emilia Pérez",
+            tmdbId: "974950",
             winner: false,
           },
           {
@@ -79803,6 +81870,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Latvia",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Flow",
+            tmdbId: "823219",
             winner: false,
           },
           {
@@ -79835,6 +81903,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Adrien Brody",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Brutalist",
+            tmdbId: "549509",
             winner: true,
           },
           {
@@ -79844,6 +81913,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Timothée Chalamet",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "A Complete Unknown",
+            tmdbId: "661539",
             winner: false,
           },
           {
@@ -79854,6 +81924,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ralph Fiennes",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Conclave",
+            tmdbId: "974576",
             winner: false,
           },
           {
@@ -79863,6 +81934,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Colman Domingo",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "Sing Sing",
+            tmdbId: "1155828",
             winner: false,
           },
           {
@@ -79872,6 +81944,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sebastian Stan",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "The Apprentice",
+            tmdbId: "1182047",
             winner: false,
           },
           {
@@ -79897,6 +81970,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Karla Sofía Gascón",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Emilia Pérez",
+            tmdbId: "974950",
             winner: false,
           },
           {
@@ -79906,6 +81980,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fernanda Torres",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "I'm Still Here",
+            tmdbId: "1000837",
             winner: false,
           },
           {
@@ -79931,6 +82006,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Cynthia Erivo",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Wicked",
+            tmdbId: "402431",
             winner: false,
           },
           {
@@ -79967,6 +82043,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brady Corbet|Mona Fastvold",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "The Brutalist",
+            tmdbId: "549509",
             winner: false,
           },
           {
@@ -79999,6 +82076,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fred Berger|James Mangold|Alex Heineman",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "A Complete Unknown",
+            tmdbId: "661539",
             winner: false,
           },
           {
@@ -80008,6 +82086,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tessa Ross|Juliette Howell|Michael A. Jackman",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Conclave",
+            tmdbId: "974576",
             winner: false,
           },
           {
@@ -80036,6 +82115,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pascal Caucheteux|Jacques Audiard",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Emilia Pérez",
+            tmdbId: "974950",
             winner: false,
           },
           {
@@ -80044,6 +82124,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Maria Carlota Bruno|Rodrigo Teixeira",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "I'm Still Here",
+            tmdbId: "1000837",
             winner: false,
           },
           {
@@ -80062,6 +82143,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Nick Gordon|Brian Young|Andrew Morrison|D.J. Gugenheim|Brady Corbet",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "The Brutalist",
+            tmdbId: "549509",
             winner: false,
           },
           {
@@ -80085,6 +82167,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marc Platt",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Wicked",
+            tmdbId: "402431",
             winner: false,
           },
           {
@@ -80094,6 +82177,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nathan Crowley|Lee Sandales",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Wicked",
+            tmdbId: "402431",
             winner: true,
           },
           {
@@ -80103,6 +82187,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Suzie Davies|Cynthia Sleiter",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Conclave",
+            tmdbId: "974576",
             winner: false,
           },
           {
@@ -80130,6 +82215,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Craig Lathrop|Beatrice Brentnerová",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Nosferatu",
+            tmdbId: "426063",
             winner: false,
           },
           {
@@ -80138,6 +82224,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Judy Becker|Patricia Cuccia",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "The Brutalist",
+            tmdbId: "549509",
             winner: false,
           },
           {
@@ -80146,6 +82233,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Daniel Blumberg",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "The Brutalist",
+            tmdbId: "549509",
             winner: true,
           },
           {
@@ -80155,6 +82243,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Volker Bertelmann",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Conclave",
+            tmdbId: "974576",
             winner: false,
           },
           {
@@ -80168,6 +82257,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Clément Ducol|Camille",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Emilia Pérez",
+            tmdbId: "974950",
             winner: false,
           },
           {
@@ -80191,6 +82281,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Powell|Stephen Schwartz",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Wicked",
+            tmdbId: "402431",
             winner: false,
           },
           {
@@ -80205,6 +82296,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Clément Ducol|Camille|Jacques Audiard",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Emilia Pérez",
+            tmdbId: "974950",
             winner: true,
           },
           {
@@ -80229,6 +82321,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Camille|Clément Ducol",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Emilia Pérez",
+            tmdbId: "974950",
             winner: false,
           },
           {
@@ -80238,6 +82331,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Abraham Alexander|Adrian Quesada",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "Sing Sing",
+            tmdbId: "1155828",
             winner: false,
           },
           {
@@ -80267,6 +82361,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Edward Norton",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "A Complete Unknown",
+            tmdbId: "661539",
             winner: false,
           },
           {
@@ -80287,6 +82382,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jeremy Strong",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Apprentice",
+            tmdbId: "1182047",
             winner: false,
           },
           {
@@ -80296,6 +82392,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Guy Pearce",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "The Brutalist",
+            tmdbId: "549509",
             winner: false,
           },
           {
@@ -80310,6 +82407,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Zoe Saldaña",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Emilia Pérez",
+            tmdbId: "974950",
             winner: true,
           },
           {
@@ -80319,6 +82417,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Monica Barbaro",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "A Complete Unknown",
+            tmdbId: "661539",
             winner: false,
           },
           {
@@ -80329,6 +82428,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Isabella Rossellini",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Conclave",
+            tmdbId: "974576",
             winner: false,
           },
           {
@@ -80338,6 +82438,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Felicity Jones",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "The Brutalist",
+            tmdbId: "549509",
             winner: false,
           },
           {
@@ -80348,6 +82449,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ariana Grande",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Wicked",
+            tmdbId: "402431",
             winner: false,
           },
           {
@@ -80385,6 +82487,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Luke Millar|David Clayton|Keith Herft|Peter Stubbs",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Better Man",
+            tmdbId: "799766",
             winner: false,
           },
           {
@@ -80410,6 +82513,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Pablo Helman|Jonathan Fawkner|David Shirk|Paul Corbould",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Wicked",
+            tmdbId: "402431",
             winner: false,
           },
         ],
@@ -80430,6 +82534,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Thomas Anderson",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "One Battle after Another",
+            tmdbId: "1054867",
             winner: true,
           },
           {
@@ -80439,6 +82544,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Will Tracy",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Bugonia",
+            tmdbId: "701387",
             winner: false,
           },
           {
@@ -80447,6 +82553,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Guillermo del Toro",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Frankenstein",
+            tmdbId: "1062722",
             winner: false,
           },
           {
@@ -80456,6 +82563,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chloé Zhao|Maggie O'Farrell",
             sourceCategory: "WRITING (Adapted Screenplay)",
             sourceTitle: "Hamnet",
+            tmdbId: "858024",
             winner: false,
           },
           {
@@ -80473,6 +82581,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Maggie Kang|Chris Appelhans|Michelle L.M. Wong",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "KPop Demon Hunters",
+            tmdbId: "803796",
             winner: true,
           },
           {
@@ -80481,6 +82590,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ugo Bienvenu|Félix de Givry|Sophie Mas|Natalie Portman",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Arco",
+            tmdbId: "804370",
             winner: false,
           },
           {
@@ -80490,6 +82600,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Madeline Sharafian|Domee Shi|Adrian Molina|Mary Alice Drumm",
             sourceCategory: "ANIMATED FEATURE FILM",
             sourceTitle: "Elio",
+            tmdbId: "1022787",
             winner: false,
           },
           {
@@ -80527,6 +82638,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Cassandra Kulukundis",
             sourceCategory: "CASTING",
             sourceTitle: "One Battle after Another",
+            tmdbId: "1054867",
             winner: true,
           },
           {
@@ -80536,6 +82648,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nina Gold",
             sourceCategory: "CASTING",
             sourceTitle: "Hamnet",
+            tmdbId: "858024",
             winner: false,
           },
           {
@@ -80582,6 +82695,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dan Laustsen",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "Frankenstein",
+            tmdbId: "1062722",
             winner: false,
           },
           {
@@ -80604,6 +82718,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Bauman",
             sourceCategory: "CINEMATOGRAPHY",
             sourceTitle: "One Battle after Another",
+            tmdbId: "1054867",
             winner: false,
           },
           {
@@ -80621,6 +82736,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kate Hawley",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Frankenstein",
+            tmdbId: "1062722",
             winner: true,
           },
           {
@@ -80644,6 +82760,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Malgosia Turzanska",
             sourceCategory: "COSTUME DESIGN",
             sourceTitle: "Hamnet",
+            tmdbId: "858024",
             winner: false,
           },
           {
@@ -80676,6 +82793,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paul Thomas Anderson",
             sourceCategory: "DIRECTING",
             sourceTitle: "One Battle after Another",
+            tmdbId: "1054867",
             winner: true,
           },
           {
@@ -80685,6 +82803,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chloé Zhao",
             sourceCategory: "DIRECTING",
             sourceTitle: "Hamnet",
+            tmdbId: "858024",
             winner: false,
           },
           {
@@ -80707,6 +82826,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joachim Trier",
             sourceCategory: "DIRECTING",
             sourceTitle: "Sentimental Value",
+            tmdbId: "1124566",
             winner: false,
           },
           {
@@ -80730,6 +82850,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andy Jurgensen",
             sourceCategory: "FILM EDITING",
             sourceTitle: "One Battle after Another",
+            tmdbId: "1054867",
             winner: true,
           },
           {
@@ -80761,6 +82882,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Olivier Bugge Coutté",
             sourceCategory: "FILM EDITING",
             sourceTitle: "Sentimental Value",
+            tmdbId: "1124566",
             winner: false,
           },
           {
@@ -80784,6 +82906,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Norway",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "Sentimental Value",
+            tmdbId: "1124566",
             winner: true,
           },
           {
@@ -80792,6 +82915,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "France",
             sourceCategory: "INTERNATIONAL FEATURE FILM",
             sourceTitle: "It Was Just an Accident",
+            tmdbId: "1456349",
             winner: false,
           },
           {
@@ -80869,6 +82993,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Leonardo DiCaprio",
             sourceCategory: "ACTOR IN A LEADING ROLE",
             sourceTitle: "One Battle after Another",
+            tmdbId: "1054867",
             winner: false,
           },
           {
@@ -80889,6 +83014,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jessie Buckley",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Hamnet",
+            tmdbId: "858024",
             winner: true,
           },
           {
@@ -80899,6 +83025,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emma Stone",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Bugonia",
+            tmdbId: "701387",
             winner: false,
           },
           {
@@ -80923,6 +83050,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Renate Reinsve",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Sentimental Value",
+            tmdbId: "1124566",
             winner: false,
           },
           {
@@ -80932,6 +83060,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kate Hudson",
             sourceCategory: "ACTRESS IN A LEADING ROLE",
             sourceTitle: "Song Sung Blue",
+            tmdbId: "1371185",
             winner: false,
           },
           {
@@ -80960,6 +83089,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Jafar Panahi|Nader Saïvar|Shadmehr Rastin|Mehdi Mahmoudian",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "It Was Just an Accident",
+            tmdbId: "1456349",
             winner: false,
           },
           {
@@ -80982,6 +83112,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eskil Vogt|Joachim Trier",
             sourceCategory: "WRITING (Original Screenplay)",
             sourceTitle: "Sentimental Value",
+            tmdbId: "1124566",
             winner: false,
           },
           {
@@ -80995,6 +83126,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Adam Somner|Sara Murphy|Paul Thomas Anderson",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "One Battle after Another",
+            tmdbId: "1054867",
             winner: true,
           },
           {
@@ -81005,6 +83137,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Ed Guiney|Andrew Lowe|Yorgos Lanthimos|Emma Stone|Lars Knudsen",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Bugonia",
+            tmdbId: "701387",
             winner: false,
           },
           {
@@ -81023,6 +83156,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Guillermo del Toro|J. Miles Dale|Scott Stuber",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Frankenstein",
+            tmdbId: "1062722",
             winner: false,
           },
           {
@@ -81033,6 +83167,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Liza Marshall|Pippa Harris|Nicolas Gonda|Steven Spielberg|Sam Mendes",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Hamnet",
+            tmdbId: "858024",
             winner: false,
           },
           {
@@ -81056,6 +83191,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Maria Ekerhovd|Andrea Berentsen Ottmar",
             sourceCategory: "BEST PICTURE",
             sourceTitle: "Sentimental Value",
+            tmdbId: "1124566",
             winner: false,
           },
           {
@@ -81093,6 +83229,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tamara Deverell|Shane Vieau",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Frankenstein",
+            tmdbId: "1062722",
             winner: true,
           },
           {
@@ -81102,6 +83239,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fiona Crombie|Alice Felton",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "Hamnet",
+            tmdbId: "858024",
             winner: false,
           },
           {
@@ -81124,6 +83262,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Florencia Martin|Anthony Carlino",
             sourceCategory: "ART DIRECTION",
             sourceTitle: "One Battle after Another",
+            tmdbId: "1054867",
             winner: false,
           },
           {
@@ -81153,6 +83292,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jerskin Fendrix",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Bugonia",
+            tmdbId: "701387",
             winner: false,
           },
           {
@@ -81161,6 +83301,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alexandre Desplat",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Frankenstein",
+            tmdbId: "1062722",
             winner: false,
           },
           {
@@ -81170,6 +83311,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Max Richter",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "Hamnet",
+            tmdbId: "858024",
             winner: false,
           },
           {
@@ -81183,6 +83325,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jonny Greenwood",
             sourceCategory: "MUSIC (Original Score)",
             sourceTitle: "One Battle after Another",
+            tmdbId: "1054867",
             winner: false,
           },
           {
@@ -81193,6 +83336,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "EJAE|Mark Sonnenblick|Joong Gyu Kwak|Yu Han Lee|Hee Dong Nam|Jeong Hoon Seo|Teddy Park",
             sourceCategory: "MUSIC (Original Song)",
             sourceTitle: "KPop Demon Hunters",
+            tmdbId: "803796",
             winner: true,
           },
           {
@@ -81248,6 +83392,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sean Penn",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "One Battle after Another",
+            tmdbId: "1054867",
             winner: true,
           },
           {
@@ -81257,6 +83402,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jacob Elordi",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Frankenstein",
+            tmdbId: "1062722",
             winner: false,
           },
           {
@@ -81271,6 +83417,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Benicio Del Toro",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "One Battle after Another",
+            tmdbId: "1054867",
             winner: false,
           },
           {
@@ -81285,6 +83432,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stellan Skarsgård",
             sourceCategory: "ACTOR IN A SUPPORTING ROLE",
             sourceTitle: "Sentimental Value",
+            tmdbId: "1124566",
             winner: false,
           },
           {
@@ -81306,6 +83454,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Amy Madigan",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Weapons",
+            tmdbId: "1078605",
             winner: true,
           },
           {
@@ -81320,6 +83469,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Teyana Taylor",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "One Battle after Another",
+            tmdbId: "1054867",
             winner: false,
           },
           {
@@ -81334,6 +83484,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Elle Fanning",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Sentimental Value",
+            tmdbId: "1124566",
             winner: false,
           },
           {
@@ -81348,6 +83499,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Inga Ibsdotter Lilleaas",
             sourceCategory: "ACTRESS IN A SUPPORTING ROLE",
             sourceTitle: "Sentimental Value",
+            tmdbId: "1124566",
             winner: false,
           },
           {
@@ -81393,6 +83545,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "David Vickery|Stephen Aplin|Charmaine Chan|Neil Corbould",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "Jurassic World Rebirth",
+            tmdbId: "1234821",
             winner: false,
           },
           {
@@ -81412,6 +83565,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Charlie Noble|David Zaretti|Russell Bowen|Brandon K. McLaughlin",
             sourceCategory: "VISUAL EFFECTS",
             sourceTitle: "The Lost Bus",
+            tmdbId: "1236470",
             winner: false,
           },
         ],
@@ -81472,6 +83626,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Chetan Anand",
             sourceCategory: "Grand Prix du Festival International du Film",
             sourceTitle: "Neecha Nagar (Lowly City)",
+            tmdbId: "154879",
             winner: true,
           },
           {
@@ -81493,6 +83648,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emilio Fernández",
             sourceCategory: "Grand Prix du Festival International du Film",
             sourceTitle: "Portrait of Maria",
+            tmdbId: "60225",
             winner: true,
           },
           {
@@ -81546,6 +83702,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fridrikh Ermler",
             sourceCategory: "Grand Prix du Festival International du Film",
             sourceTitle: "The Turning Point",
+            tmdbId: "154620",
             winner: true,
           },
           {
@@ -81556,6 +83713,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alf Sjöberg",
             sourceCategory: "Grand Prix du Festival International du Film",
             sourceTitle: "Torment",
+            tmdbId: "51144",
             winner: true,
           },
         ],
@@ -81660,6 +83818,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Teinosuke Kinugasa",
             sourceCategory: "Grand Prix du Festival International du Film",
             sourceTitle: "Gate of Hell",
+            tmdbId: "43349",
             winner: true,
           },
         ],
@@ -81759,6 +83918,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Federico Fellini",
             sourceCategory: "Palme d'Or",
             sourceTitle: "The Sweet Life",
+            tmdbId: "439",
             winner: true,
           },
         ],
@@ -81988,6 +84148,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jerry Schatzberg",
             sourceCategory: "Palme d'Or",
             sourceTitle: "Scarecrow",
+            tmdbId: "31587",
             winner: true,
           },
           {
@@ -82056,6 +84217,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Martin Scorsese",
             sourceCategory: "Palme d'Or",
             sourceTitle: "Taxi Driver",
+            tmdbId: "103",
             winner: true,
           },
         ],
@@ -82186,6 +84348,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Yılmaz Güney and Şerif Gören",
             sourceCategory: "Palme d'Or",
             sourceTitle: "The Way",
+            tmdbId: "52556",
             winner: true,
           },
         ],
@@ -82240,6 +84403,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emir Kusturica",
             sourceCategory: "Palme d'Or",
             sourceTitle: "When Father Was Away on Business",
+            tmdbId: "21042",
             winner: true,
           },
         ],
@@ -82255,6 +84419,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Roland Joffé",
             sourceCategory: "Palme d'Or",
             sourceTitle: "The Mission",
+            tmdbId: "11416",
             winner: true,
           },
         ],
@@ -82320,6 +84485,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Lynch",
             sourceCategory: "Palme d'Or",
             sourceTitle: "Wild at Heart",
+            tmdbId: "483",
             winner: true,
           },
         ],
@@ -82384,6 +84550,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jane Campion",
             sourceCategory: "Palme d'Or",
             sourceTitle: "The Piano",
+            tmdbId: "713",
             winner: true,
           },
         ],
@@ -82484,6 +84651,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Theodoros Angelopoulos",
             sourceCategory: "Palme d'Or",
             sourceTitle: "Eternity and a Day",
+            tmdbId: "24858",
             winner: true,
           },
         ],
@@ -82499,6 +84667,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jean-Pierre Dardenne and Luc Dardenne",
             sourceCategory: "Palme d'Or",
             sourceTitle: "Rosetta",
+            tmdbId: "11489",
             winner: true,
           },
         ],
@@ -82601,6 +84770,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jean-Pierre Dardenne and Luc Dardenne",
             sourceCategory: "Palme d'Or",
             sourceTitle: "The Child",
+            tmdbId: "11490",
             winner: true,
           },
         ],
@@ -82651,6 +84821,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Laurent Cantet",
             sourceCategory: "Palme d'Or",
             sourceTitle: "The Class",
+            tmdbId: "8841",
             winner: true,
           },
         ],
@@ -82684,6 +84855,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Apichatpong Weerasethakul",
             sourceCategory: "Palme d'Or",
             sourceTitle: "Uncle Boonmee Who Can Recall His Past Lives",
+            tmdbId: "38368",
             winner: true,
           },
         ],
@@ -82699,6 +84871,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Terrence Malick",
             sourceCategory: "Palme d'Or",
             sourceTitle: "The Tree of Life",
+            tmdbId: "8967",
             winner: true,
           },
         ],
@@ -82714,6 +84887,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Haneke",
             sourceCategory: "Palme d'Or",
             sourceTitle: "Amour",
+            tmdbId: "86837",
             winner: true,
           },
         ],
@@ -82753,6 +84927,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nuri Bilge Ceylan",
             sourceCategory: "Palme d'Or",
             sourceTitle: "Winter Sleep",
+            tmdbId: "265169",
             winner: true,
           },
         ],
@@ -82899,6 +85074,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Justine Triet",
             sourceCategory: "Palme d'Or",
             sourceTitle: "Anatomy of a Fall",
+            tmdbId: "915935",
             winner: true,
           },
         ],
@@ -83002,6 +85178,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alf Sjöberg",
             sourceCategory: "Best Director",
             sourceTitle: "Ön",
+            tmdbId: "198804",
             winner: true,
           },
           {
@@ -83164,6 +85341,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ingmar Bergman",
             sourceCategory: "Best Picture",
             sourceTitle: "Viskningar och rop",
+            tmdbId: "10238",
             winner: true,
           },
         ],
@@ -83390,6 +85568,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ingmar Bergman",
             sourceCategory: "Best Director",
             sourceTitle: "Fanny och Alexander",
+            tmdbId: "5961",
             winner: true,
           },
           {
@@ -83398,6 +85577,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jörn Donner",
             sourceCategory: "Best Picture",
             sourceTitle: "Fanny och Alexander",
+            tmdbId: "5961",
             winner: true,
           },
         ],
@@ -83421,6 +85601,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sveriges Television|Svenska Filminstitutet|JOA-Film",
             sourceCategory: "Best Picture",
             sourceTitle: "Smärtgränsen",
+            tmdbId: "283975",
             winner: true,
           },
         ],
@@ -83534,6 +85715,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Mokrosinski",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Friends",
+            tmdbId: "229185",
             winner: true,
           },
           {
@@ -83737,6 +85919,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jens Fischer",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Änglagård",
+            tmdbId: "34683",
             winner: false,
           },
           {
@@ -83763,6 +85946,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Colin Nutley",
             sourceCategory: "Best Director",
             sourceTitle: "Änglagård",
+            tmdbId: "34683",
             winner: true,
           },
           {
@@ -83789,6 +85973,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lars Jönsson|Lars Dahlquist",
             sourceCategory: "Best Picture",
             sourceTitle: "Änglagård",
+            tmdbId: "34683",
             winner: true,
           },
           {
@@ -83926,6 +86111,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jörgen Persson",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Zorn",
+            tmdbId: "TV:138623",
             winner: false,
           },
           {
@@ -83934,6 +86120,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ulf Hultberg|Åsa Faringer",
             sourceCategory: "Best Director",
             sourceTitle: "Pumans dotter",
+            tmdbId: "530342",
             winner: true,
           },
           {
@@ -83969,6 +86156,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anders Birkeland",
             sourceCategory: "Best Picture",
             sourceTitle: "Kalle och änglarna",
+            tmdbId: "691084",
             winner: false,
           },
           {
@@ -83977,6 +86165,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Ringgaard",
             sourceCategory: "Best Picture",
             sourceTitle: "Pumans dotter",
+            tmdbId: "530342",
             winner: false,
           },
         ],
@@ -84240,6 +86429,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Max von Sydow",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Hamsun",
+            tmdbId: "79118",
             winner: true,
           },
           {
@@ -84266,6 +86456,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ghita Nørby",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "Hamsun",
+            tmdbId: "79118",
             winner: true,
           },
           {
@@ -84292,6 +86483,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Erik Crone",
             sourceCategory: "Best Picture",
             sourceTitle: "Hamsun",
+            tmdbId: "79118",
             winner: true,
           },
           {
@@ -84378,6 +86570,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jens Fischer",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Under ytan",
+            tmdbId: "50824",
             winner: true,
           },
           {
@@ -84404,6 +86597,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Daniel Alfredson",
             sourceCategory: "Best Director",
             sourceTitle: "Tic Tac",
+            tmdbId: "76864",
             winner: true,
           },
           {
@@ -84412,6 +86606,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hannes Holm|Måns Herngren",
             sourceCategory: "Best Director",
             sourceTitle: "Adam & Eva",
+            tmdbId: "54044",
             winner: false,
           },
           {
@@ -84438,6 +86633,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Björn Kjellman",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Adam & Eva",
+            tmdbId: "54044",
             winner: false,
           },
           {
@@ -84455,6 +86651,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Johanna Sällström",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "Under ytan",
+            tmdbId: "50824",
             winner: true,
           },
           {
@@ -84481,6 +86678,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Katinka Faragó",
             sourceCategory: "Best Picture",
             sourceTitle: "Tic Tac",
+            tmdbId: "76864",
             winner: true,
           },
           {
@@ -84489,6 +86687,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Waldemar Bergendahl",
             sourceCategory: "Best Picture",
             sourceTitle: "Adam & Eva",
+            tmdbId: "54044",
             winner: false,
           },
           {
@@ -84506,6 +86705,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emil Forselius",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Tic Tac",
+            tmdbId: "76864",
             winner: true,
           },
           {
@@ -84514,6 +86714,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jacob Ericksson",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Adam & Eva",
+            tmdbId: "54044",
             winner: false,
           },
           {
@@ -84531,6 +86732,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tintin Anderzon",
             sourceCategory: "Best Supporting Actress",
             sourceTitle: "Adam & Eva",
+            tmdbId: "54044",
             winner: true,
           },
           {
@@ -84814,6 +87016,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Björn Kjellman",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Vägen ut",
+            tmdbId: "49940",
             winner: true,
           },
           {
@@ -84849,6 +87052,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Harriet Andersson",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "Happy End",
+            tmdbId: "27154",
             winner: false,
           },
           {
@@ -84894,6 +87098,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Shanti Roney",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Vägen ut",
+            tmdbId: "49940",
             winner: true,
           },
           {
@@ -84971,6 +87176,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "John Olsson",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Knockout",
+            tmdbId: "121940",
             winner: false,
           },
           {
@@ -84997,6 +87203,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lukas Moodysson",
             sourceCategory: "Best Director",
             sourceTitle: "Tillsammans",
+            tmdbId: "742",
             winner: false,
           },
           {
@@ -85095,6 +87302,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Brasse Brännström",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Gossip",
+            tmdbId: "18041",
             winner: false,
           },
           {
@@ -85103,6 +87311,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Nyqvist",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Tillsammans",
+            tmdbId: "742",
             winner: false,
           },
           {
@@ -85216,6 +87425,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Örjan Ramberg",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Puder",
+            tmdbId: "217510",
             winner: false,
           },
           {
@@ -86123,7 +88333,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Linus Sandgren",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Storm",
-            tmdbId: "14459",
+            tmdbId: "46222",
             winner: true,
           },
           {
@@ -86186,6 +88396,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jonas Karlsson",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Offside",
+            tmdbId: "13209",
             winner: false,
           },
           {
@@ -86248,7 +88459,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Karl Fredrik Ulfung",
             sourceCategory: "Best Picture",
             sourceTitle: "Storm",
-            tmdbId: "14459",
+            tmdbId: "46222",
             winner: false,
           },
           {
@@ -86318,6 +88529,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Geir Hartly Andreassen",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Darling",
+            tmdbId: "59346",
             winner: true,
           },
           {
@@ -86353,6 +88565,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Johan Kling",
             sourceCategory: "Best Director",
             sourceTitle: "Darling",
+            tmdbId: "59346",
             winner: false,
           },
           {
@@ -86361,6 +88574,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Josef Fares",
             sourceCategory: "Best Director",
             sourceTitle: "Leo",
+            tmdbId: "96355",
             winner: false,
           },
           {
@@ -86369,6 +88583,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michael Segerström",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Darling",
+            tmdbId: "59346",
             winner: true,
           },
           {
@@ -86386,6 +88601,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Leonard Terfelt",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Leo",
+            tmdbId: "96355",
             winner: false,
           },
           {
@@ -86403,6 +88619,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Michelle Meadows",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "Darling",
+            tmdbId: "59346",
             winner: false,
           },
           {
@@ -86429,6 +88646,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fredrik Heinig",
             sourceCategory: "Best Picture",
             sourceTitle: "Darling",
+            tmdbId: "59346",
             winner: false,
           },
           {
@@ -86437,6 +88655,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anna Anthony",
             sourceCategory: "Best Picture",
             sourceTitle: "Leo",
+            tmdbId: "96355",
             winner: false,
           },
           {
@@ -86613,6 +88832,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Stormare",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Varg",
+            tmdbId: "14074",
             winner: false,
           },
           {
@@ -86776,6 +88996,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hoyte van Hoytema",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Flickan",
+            tmdbId: "33091",
             winner: true,
           },
           {
@@ -86821,6 +89042,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fredrik Edfeldt",
             sourceCategory: "Best Director",
             sourceTitle: "Flickan",
+            tmdbId: "33091",
             winner: false,
           },
           {
@@ -86829,6 +89051,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Teresa Fabik",
             sourceCategory: "Best Director",
             sourceTitle: "Prinsessa",
+            tmdbId: "60678",
             winner: false,
           },
           {
@@ -86919,6 +89142,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sandra Harms",
             sourceCategory: "Best Picture",
             sourceTitle: "Prinsessa",
+            tmdbId: "60678",
             winner: false,
           },
           {
@@ -86968,6 +89192,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tova Magnusson-Norling",
             sourceCategory: "Best Supporting Actress",
             sourceTitle: "Flickan",
+            tmdbId: "33091",
             winner: false,
           },
           {
@@ -86991,6 +89216,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Aril Wretblad",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Snabba Cash",
+            tmdbId: "29920",
             winner: true,
           },
           {
@@ -87044,6 +89270,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joel Kinnaman",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Snabba Cash",
+            tmdbId: "29920",
             winner: true,
           },
           {
@@ -87079,6 +89306,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pernilla August",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "Miss Kicki",
+            tmdbId: "78128",
             winner: false,
           },
           {
@@ -87183,7 +89411,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marius Dybwad Brandrud",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Play",
-            tmdbId: "38753",
+            tmdbId: "85743",
             winner: true,
           },
           {
@@ -87219,7 +89447,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pia Aleborg",
             sourceCategory: "Best Costume Design",
             sourceTitle: "Play",
-            tmdbId: "38753",
+            tmdbId: "85743",
             winner: false,
           },
           {
@@ -87237,7 +89465,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ruben Östlund",
             sourceCategory: "Best Director",
             sourceTitle: "Play",
-            tmdbId: "38753",
+            tmdbId: "85743",
             winner: true,
           },
           {
@@ -87264,7 +89492,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jacob Schulsinger",
             sourceCategory: "Best Editing",
             sourceTitle: "Play",
-            tmdbId: "38753",
+            tmdbId: "85743",
             winner: true,
           },
           {
@@ -87300,7 +89528,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kevin Vaz",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Play",
-            tmdbId: "38753",
+            tmdbId: "85743",
             winner: false,
           },
           {
@@ -87354,7 +89582,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Erik Hemmendorff",
             sourceCategory: "Best Picture",
             sourceTitle: "Play",
-            tmdbId: "38753",
+            tmdbId: "85743",
             winner: false,
           },
           {
@@ -87462,6 +89690,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Liv Mjönes",
             sourceCategory: "Best Supporting Actress",
             sourceTitle: "Kyss mig",
+            tmdbId: "71325",
             winner: false,
           },
           {
@@ -87512,6 +89741,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hoyte van Hoytema",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Call Girl",
+            tmdbId: "127872",
             winner: true,
           },
           {
@@ -87520,6 +89750,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Måns Månsson",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Avalon",
+            tmdbId: "1392054",
             winner: false,
           },
           {
@@ -87537,6 +89768,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Cilla Rörby",
             sourceCategory: "Best Costume Design",
             sourceTitle: "Call Girl",
+            tmdbId: "127872",
             winner: true,
           },
           {
@@ -87572,6 +89804,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mikael Marcimain",
             sourceCategory: "Best Director",
             sourceTitle: "Call Girl",
+            tmdbId: "127872",
             winner: false,
           },
           {
@@ -87598,6 +89831,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kristofer Nordin",
             sourceCategory: "Best Editing",
             sourceTitle: "Call Girl",
+            tmdbId: "127872",
             winner: false,
           },
           {
@@ -87615,6 +89849,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Johannes Brost",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Avalon",
+            tmdbId: "1392054",
             winner: true,
           },
           {
@@ -87632,6 +89867,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Matias Varela",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Snabba Cash II",
+            tmdbId: "92647",
             winner: false,
           },
           {
@@ -87658,6 +89894,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pernilla August",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "Call Girl",
+            tmdbId: "127872",
             winner: false,
           },
           {
@@ -87675,6 +89912,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mimmi Spång",
             sourceCategory: "Best Picture",
             sourceTitle: "Call Girl",
+            tmdbId: "127872",
             winner: false,
           },
           {
@@ -87692,6 +89930,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lina Nordqvist",
             sourceCategory: "Best Production Design",
             sourceTitle: "Call Girl",
+            tmdbId: "127872",
             winner: true,
           },
           {
@@ -87745,6 +89984,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Peter Carlberg",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Avalon",
+            tmdbId: "1392054",
             winner: true,
           },
           {
@@ -87762,6 +90002,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fares Fares",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Snabba Cash II",
+            tmdbId: "92647",
             winner: false,
           },
           {
@@ -87779,6 +90020,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Leonore Ekstrand",
             sourceCategory: "Best Supporting Actress",
             sourceTitle: "Avalon",
+            tmdbId: "1392054",
             winner: false,
           },
           {
@@ -87805,6 +90047,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tim Morris",
             sourceCategory: "Best Visual Effects",
             sourceTitle: "Call Girl",
+            tmdbId: "127872",
             winner: false,
           },
           {
@@ -87873,6 +90116,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Moa Li Lemhagen Schalin",
             sourceCategory: "Best Costume Design",
             sourceTitle: "Vi är bäst!",
+            tmdbId: "191294",
             winner: false,
           },
           {
@@ -87991,6 +90235,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Gunilla Röör",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "En gång om året",
+            tmdbId: "174075",
             winner: false,
           },
           {
@@ -88031,6 +90276,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paola Holmér|Linda Janson",
             sourceCategory: "Best Production Design",
             sourceTitle: "Vi är bäst!",
+            tmdbId: "191294",
             winner: true,
           },
           {
@@ -88057,6 +90303,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Matti Bye",
             sourceCategory: "Best Score",
             sourceTitle: "Faro",
+            tmdbId: "158900",
             winner: true,
           },
           {
@@ -88093,6 +90340,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Dencik",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Hotell",
+            tmdbId: "193523",
             winner: false,
           },
           {
@@ -88110,6 +90358,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anna Bjelkerud",
             sourceCategory: "Best Supporting Actress",
             sourceTitle: "Hotell",
+            tmdbId: "193523",
             winner: true,
           },
           {
@@ -88118,6 +90367,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mira Eklund",
             sourceCategory: "Best Supporting Actress",
             sourceTitle: "Hotell",
+            tmdbId: "193523",
             winner: false,
           },
           {
@@ -88413,6 +90663,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anita Wall",
             sourceCategory: "Best Supporting Actress",
             sourceTitle: "Hemma",
+            tmdbId: "278296",
             winner: true,
           },
           {
@@ -88490,6 +90741,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stella J Hox",
             sourceCategory: "Best Costume Design",
             sourceTitle: "Kim",
+            tmdbId: "831990",
             winner: false,
           },
           {
@@ -88498,6 +90750,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Magnus von Horn",
             sourceCategory: "Best Director",
             sourceTitle: "Efterskalv",
+            tmdbId: "336806",
             winner: true,
           },
           {
@@ -88560,6 +90813,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ulrik Munther",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Efterskalv",
+            tmdbId: "336806",
             winner: false,
           },
           {
@@ -88604,6 +90858,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Madeleine Ekman|Mariusz Włodarski",
             sourceCategory: "Best Picture",
             sourceTitle: "Efterskalv",
+            tmdbId: "336806",
             winner: true,
           },
           {
@@ -88684,6 +90939,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mats Blomgren",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Efterskalv",
+            tmdbId: "336806",
             winner: true,
           },
           {
@@ -88771,6 +91027,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ita Zbroniec-Zajt",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Yarden",
+            tmdbId: "381277",
             winner: true,
           },
           {
@@ -88788,6 +91045,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anders Bohman",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Sophelikoptern",
+            tmdbId: "370479",
             winner: false,
           },
           {
@@ -88832,6 +91090,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hanna Sköld",
             sourceCategory: "Best Director",
             sourceTitle: "Granny´s Dancing on the Table",
+            tmdbId: "358907",
             winner: false,
           },
           {
@@ -88849,6 +91108,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alexandra-Therese Keining",
             sourceCategory: "Best Director",
             sourceTitle: "Pojkarna",
+            tmdbId: "356218",
             winner: false,
           },
           {
@@ -88875,6 +91135,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Johannes Nyholm|Morten Højbjerg",
             sourceCategory: "Best Editing",
             sourceTitle: "Jätten",
+            tmdbId: "407204",
             winner: false,
           },
           {
@@ -88883,6 +91144,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anders Mossling",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Yarden",
+            tmdbId: "381277",
             winner: true,
           },
           {
@@ -88900,6 +91162,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lennart Jähkel",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Granny´s Dancing on the Table",
+            tmdbId: "358907",
             winner: false,
           },
           {
@@ -88935,6 +91198,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Tuva Jagell",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "Pojkarna",
+            tmdbId: "356218",
             winner: false,
           },
           {
@@ -88943,6 +91207,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jessica Szoppe",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "Sophelikoptern",
+            tmdbId: "370479",
             winner: false,
           },
           {
@@ -88951,6 +91216,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Maria Dahlin|Morten Kjems Hytten Juhl",
             sourceCategory: "Best Picture",
             sourceTitle: "Jätten",
+            tmdbId: "407204",
             winner: true,
           },
           {
@@ -88986,6 +91252,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andreas Emanuelsson",
             sourceCategory: "Best Picture",
             sourceTitle: "Sophelikoptern",
+            tmdbId: "370479",
             winner: false,
           },
           {
@@ -89021,6 +91288,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jan Sandström",
             sourceCategory: "Best Score",
             sourceTitle: "Sophelikoptern",
+            tmdbId: "370479",
             winner: true,
           },
           {
@@ -89029,6 +91297,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Björn Olsson",
             sourceCategory: "Best Score",
             sourceTitle: "Jätten",
+            tmdbId: "407204",
             winner: false,
           },
           {
@@ -89037,6 +91306,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sophia Ersson",
             sourceCategory: "Best Score",
             sourceTitle: "Pojkarna",
+            tmdbId: "356218",
             winner: false,
           },
           {
@@ -89072,6 +91342,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Johan Kylén",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Jätten",
+            tmdbId: "407204",
             winner: false,
           },
           {
@@ -89186,6 +91457,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kicki Ilander",
             sourceCategory: "Best Costume Design",
             sourceTitle: "Borg",
+            tmdbId: "397538",
             winner: false,
           },
           {
@@ -89212,6 +91484,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Janus Metz Pedersen",
             sourceCategory: "Best Director",
             sourceTitle: "Borg",
+            tmdbId: "397538",
             winner: false,
           },
           {
@@ -89247,6 +91520,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Per Sandholt|Per K. Kirkegaard",
             sourceCategory: "Best Editing",
             sourceTitle: "Borg",
+            tmdbId: "397538",
             winner: false,
           },
           {
@@ -89273,6 +91547,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sverrir Gudnason",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Borg",
+            tmdbId: "397538",
             winner: false,
           },
           {
@@ -89308,6 +91583,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jennie Silfverhjelm",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "All Inclusive",
+            tmdbId: "475429",
             winner: false,
           },
           {
@@ -89343,6 +91619,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jon Nohrstedt|Fredrik Wikström Nicastro",
             sourceCategory: "Best Picture",
             sourceTitle: "Borg",
+            tmdbId: "397538",
             winner: false,
           },
           {
@@ -89387,6 +91664,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lina Nordqvist",
             sourceCategory: "Best Production Design",
             sourceTitle: "Borg",
+            tmdbId: "397538",
             winner: false,
           },
           {
@@ -89414,6 +91692,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
               "Jonas Struck|Vladislav Delay|Jon Ekstrand|Carl-Johan Sevedag",
             sourceCategory: "Best Score",
             sourceTitle: "Borg",
+            tmdbId: "397538",
             winner: false,
           },
           {
@@ -89431,6 +91710,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Stellan Skarsgård",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Borg",
+            tmdbId: "397538",
             winner: true,
           },
           {
@@ -89439,6 +91719,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Shia LaBeouf",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Borg",
+            tmdbId: "397538",
             winner: false,
           },
           {
@@ -89501,6 +91782,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Torbjörn Olsson|Alex Hansson",
             sourceCategory: "Best Visual Effects",
             sourceTitle: "Borg",
+            tmdbId: "397538",
             winner: true,
           },
           {
@@ -89534,6 +91816,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Kristoffer Jönsson",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Trädgårdsgatan",
+            tmdbId: "498178",
             winner: true,
           },
           {
@@ -89551,6 +91834,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Måns Månsson",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Jimmie",
+            tmdbId: "496070",
             winner: false,
           },
           {
@@ -89559,6 +91843,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ingrid Sjögren",
             sourceCategory: "Best Costume Design",
             sourceTitle: "Tårtgeneralen",
+            tmdbId: "471706",
             winner: true,
           },
           {
@@ -89567,6 +91852,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Denise Östholm",
             sourceCategory: "Best Costume Design",
             sourceTitle: "Euphoria",
+            tmdbId: "407440",
             winner: false,
           },
           {
@@ -89621,6 +91907,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Dino Jonsäter",
             sourceCategory: "Best Editing",
             sourceTitle: "Goliat",
+            tmdbId: "547747",
             winner: true,
           },
           {
@@ -89648,6 +91935,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Joakim Sällquist",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Goliat",
+            tmdbId: "547747",
             winner: true,
           },
           {
@@ -89665,6 +91953,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sebastian Ljungblad",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Goliat",
+            tmdbId: "547747",
             winner: false,
           },
           {
@@ -89673,6 +91962,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mikael Persbrandt",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Tårtgeneralen",
+            tmdbId: "471706",
             winner: false,
           },
           {
@@ -89728,6 +92018,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Crazy Pictures",
             sourceCategory: "Best Picture",
             sourceTitle: "Den blomstertid nu kommer",
+            tmdbId: "518502",
             winner: false,
           },
           {
@@ -89736,6 +92027,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mattias Nohrborg|Frida Bargo",
             sourceCategory: "Best Picture",
             sourceTitle: "Goliat",
+            tmdbId: "547747",
             winner: false,
           },
           {
@@ -89771,6 +92063,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emma Sofia Wahlberg",
             sourceCategory: "Best Production Design",
             sourceTitle: "Balkan Noir",
+            tmdbId: "469820",
             winner: false,
           },
           {
@@ -89788,6 +92081,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Johan Testad",
             sourceCategory: "Best Score",
             sourceTitle: "Goliat",
+            tmdbId: "547747",
             winner: true,
           },
           {
@@ -89842,6 +92136,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jens Albinus",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "X & Y",
+            tmdbId: "489847",
             winner: false,
           },
           {
@@ -89877,6 +92172,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Trine Dyrholm",
             sourceCategory: "Best Supporting Actress",
             sourceTitle: "X & Y",
+            tmdbId: "489847",
             winner: false,
           },
           {
@@ -89895,6 +92191,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Crazy Pictures|Jacob Danell",
             sourceCategory: "Best Visual Effects",
             sourceTitle: "Den blomstertid nu kommer",
+            tmdbId: "518502",
             winner: false,
           },
           {
@@ -89937,6 +92234,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ragna Jorming",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Quick",
+            tmdbId: "606146",
             winner: false,
           },
           {
@@ -89972,6 +92270,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Hugo Lilja|Pella Kågerman",
             sourceCategory: "Best Director",
             sourceTitle: "Aniara",
+            tmdbId: "496743",
             winner: true,
           },
           {
@@ -90016,6 +92315,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Rickard Krantz",
             sourceCategory: "Best Editing",
             sourceTitle: "Quick",
+            tmdbId: "606146",
             winner: false,
           },
           {
@@ -90060,6 +92360,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jonas Karlsson",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Quick",
+            tmdbId: "606146",
             winner: false,
           },
           {
@@ -90068,6 +92369,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Emelie Garbers",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "Aniara",
+            tmdbId: "496743",
             winner: true,
           },
           {
@@ -90203,6 +92505,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "David Dencik",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Quick",
+            tmdbId: "606146",
             winner: true,
           },
           {
@@ -90238,6 +92541,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Bianca Cruzeiro",
             sourceCategory: "Best Supporting Actress",
             sourceTitle: "Aniara",
+            tmdbId: "496743",
             winner: true,
           },
           {
@@ -90246,6 +92550,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Alba August",
             sourceCategory: "Best Supporting Actress",
             sourceTitle: "Quick",
+            tmdbId: "606146",
             winner: false,
           },
           {
@@ -90272,6 +92577,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andreas Wicklund|Per Jonsson|Arild Andersson",
             sourceCategory: "Best Visual Effects",
             sourceTitle: "Aniara",
+            tmdbId: "496743",
             winner: true,
           },
           {
@@ -90305,6 +92611,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sophia Olsson",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Charter",
+            tmdbId: "653580",
             winner: true,
           },
           {
@@ -90363,6 +92670,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Amanda Kernell",
             sourceCategory: "Best Director",
             sourceTitle: "Charter",
+            tmdbId: "653580",
             winner: true,
           },
           {
@@ -90371,6 +92679,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nathan Grossman",
             sourceCategory: "Best Director",
             sourceTitle: "Greta",
+            tmdbId: "816654",
             winner: false,
           },
           {
@@ -90411,6 +92720,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sarah Patient Nicastro",
             sourceCategory: "Best Editing",
             sourceTitle: "Orca",
+            tmdbId: "948139",
             winner: false,
           },
           {
@@ -90470,6 +92780,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Johan Rheborg",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Orca",
+            tmdbId: "948139",
             winner: false,
           },
           {
@@ -90478,6 +92789,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ane Dahl Torp",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "Charter",
+            tmdbId: "653580",
             winner: true,
           },
           {
@@ -90486,6 +92798,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Irma von Platen",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "Inland",
+            tmdbId: "698152",
             winner: false,
           },
           {
@@ -90526,6 +92839,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lars G, Lindström|Eva Åkergren",
             sourceCategory: "Best Picture",
             sourceTitle: "Charter",
+            tmdbId: "653580",
             winner: false,
           },
           {
@@ -90534,6 +92848,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Cecilia Nessen|Fredrik Heinig",
             sourceCategory: "Best Picture",
             sourceTitle: "Greta",
+            tmdbId: "816654",
             winner: false,
           },
           {
@@ -90542,6 +92857,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sofie Palage",
             sourceCategory: "Best Picture",
             sourceTitle: "Orca",
+            tmdbId: "948139",
             winner: false,
           },
           {
@@ -90550,6 +92866,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Mario Adamson|Ruth Reid",
             sourceCategory: "Best Picture",
             sourceTitle: "Scheme Birds",
+            tmdbId: "597616",
             winner: false,
           },
           {
@@ -90567,6 +92884,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sabine Hviid",
             sourceCategory: "Best Production Design",
             sourceTitle: "Charter",
+            tmdbId: "653580",
             winner: false,
           },
           {
@@ -90620,6 +92938,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sverrir Gudnason",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Charter",
+            tmdbId: "653580",
             winner: false,
           },
           {
@@ -90637,6 +92956,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Erik Johansson",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Orca",
+            tmdbId: "948139",
             winner: false,
           },
           {
@@ -90659,6 +92979,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Eva Melander",
             sourceCategory: "Best Supporting Actress",
             sourceTitle: "Inland",
+            tmdbId: "698152",
             winner: false,
           },
           {
@@ -90738,6 +93059,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Marek Septimus Wieser",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Tigrar",
+            tmdbId: "743232",
             winner: false,
           },
           {
@@ -90746,6 +93068,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Amanda Wing Yee Lee",
             sourceCategory: "Best Costume Design",
             sourceTitle: "Pleasure",
+            tmdbId: "592695",
             winner: true,
           },
           {
@@ -90790,6 +93113,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ninja Thyberg",
             sourceCategory: "Best Director",
             sourceTitle: "Pleasure",
+            tmdbId: "592695",
             winner: false,
           },
           {
@@ -90798,6 +93122,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ronnie Sandahl",
             sourceCategory: "Best Director",
             sourceTitle: "Tigrar",
+            tmdbId: "743232",
             winner: false,
           },
           {
@@ -90824,6 +93149,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Amalie Westerlin Tjellesen|Olivia Neergaard-Holm",
             sourceCategory: "Best Editing",
             sourceTitle: "Pleasure",
+            tmdbId: "592695",
             winner: false,
           },
           {
@@ -90841,6 +93167,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Erik Enge",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Tigrar",
+            tmdbId: "743232",
             winner: false,
           },
           {
@@ -90867,6 +93194,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sofia Kappel",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "Pleasure",
+            tmdbId: "592695",
             winner: true,
           },
           {
@@ -90911,6 +93239,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Erik Hemmendorff|Eliza Jones|Markus Waltå",
             sourceCategory: "Best Picture",
             sourceTitle: "Pleasure",
+            tmdbId: "592695",
             winner: false,
           },
           {
@@ -90919,6 +93248,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Piodor Gustafsson",
             sourceCategory: "Best Picture",
             sourceTitle: "Tigrar",
+            tmdbId: "743232",
             winner: false,
           },
           {
@@ -90963,6 +93293,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Paula Loos",
             sourceCategory: "Best Production Design",
             sourceTitle: "Pleasure",
+            tmdbId: "592695",
             winner: false,
           },
           {
@@ -91052,6 +93383,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Liv Mjönes",
             sourceCategory: "Best Supporting Actress",
             sourceTitle: "Tigrar",
+            tmdbId: "743232",
             winner: false,
           },
           {
@@ -91126,6 +93458,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Simon Pramsten",
             sourceCategory: "Best Cinematography",
             sourceTitle: "Comedy Queen",
+            tmdbId: "916421",
             winner: false,
           },
           {
@@ -91189,6 +93522,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sanna Lenken",
             sourceCategory: "Best Director",
             sourceTitle: "Comedy Queen",
+            tmdbId: "916421",
             winner: false,
           },
           {
@@ -91197,6 +93531,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jens Sjögren",
             sourceCategory: "Best Director",
             sourceTitle: "Jag är Zlatan",
+            tmdbId: "763109",
             winner: false,
           },
           {
@@ -91205,6 +93540,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Åsa Mossberg|Line Schou",
             sourceCategory: "Best Editing",
             sourceTitle: "Döttrar",
+            tmdbId: "949606",
             winner: true,
           },
           {
@@ -91231,6 +93567,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Granit Rushiti",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Jag är Zlatan",
+            tmdbId: "763109",
             winner: true,
           },
           {
@@ -91248,6 +93585,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Oscar Töringe",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Comedy Queen",
+            tmdbId: "916421",
             winner: false,
           },
           {
@@ -91256,6 +93594,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sven Wollter",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Dag för dag",
+            tmdbId: "925856",
             winner: false,
           },
           {
@@ -91264,6 +93603,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Sigrid Johnson",
             sourceCategory: "Best Lead Actress",
             sourceTitle: "Comedy Queen",
+            tmdbId: "916421",
             winner: true,
           },
           {
@@ -91322,6 +93662,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Anna Anthony|Rebecka Lafrenz",
             sourceCategory: "Best Picture",
             sourceTitle: "Comedy Queen",
+            tmdbId: "916421",
             winner: false,
           },
           {
@@ -91339,6 +93680,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Fredrik Heinig|Frida Bargo|Mattias Nohrborg",
             sourceCategory: "Best Picture",
             sourceTitle: "Jag är Zlatan",
+            tmdbId: "763109",
             winner: false,
           },
           {
@@ -91393,6 +93735,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Irya Gmeyner|Martin Hederos",
             sourceCategory: "Best Score",
             sourceTitle: "Comedy Queen",
+            tmdbId: "916421",
             winner: false,
           },
           {
@@ -91442,6 +93785,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Håkan Bengtsson",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Jag är Zlatan",
+            tmdbId: "763109",
             winner: false,
           },
           {
@@ -91820,6 +94164,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Lisa Montan",
             sourceCategory: "Best Score",
             sourceTitle: "Exodus",
+            tmdbId: "1263339",
             winner: false,
           },
           {
@@ -91909,6 +94254,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Nora Berecoechea|Stefan Rycken",
             sourceCategory: "Best Visual Effects",
             sourceTitle: "Avgrunden",
+            tmdbId: "1053544",
             winner: true,
           },
           {
@@ -92082,6 +94428,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Pål Sverre Hagen",
             sourceCategory: "Best Lead Actor",
             sourceTitle: "Släpp taget",
+            tmdbId: "1214484",
             winner: false,
           },
           {
@@ -92221,6 +94568,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Ola Fløttum",
             sourceCategory: "Best Score",
             sourceTitle: "Jakt",
+            tmdbId: "1104027",
             winner: false,
           },
           {
@@ -92247,6 +94595,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Magnus Krepper",
             sourceCategory: "Best Supporting Actor",
             sourceTitle: "Jakt",
+            tmdbId: "1104027",
             winner: false,
           },
           {
@@ -92328,6 +94677,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Simon Öster|Kevin Gullberg",
             sourceCategory: "Best Visual Effects",
             sourceTitle: "XXL",
+            tmdbId: "1229831",
             winner: false,
           },
         ],
@@ -92360,6 +94710,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Andrew Mungai|Baker Karim",
             sourceCategory: "Best Cinematography",
             sourceTitle: "The Dog",
+            tmdbId: "1579399",
             winner: false,
           },
           {
@@ -92621,6 +94972,7 @@ window.OSKARS_BUNDLED_OFFICIAL_RESULTS = {
             recipient: "Jens Lindgård|Petter Lindgård",
             sourceCategory: "Best Score",
             sourceTitle: "The Dog",
+            tmdbId: "1579399",
             winner: false,
           },
           {

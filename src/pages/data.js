@@ -1,4 +1,4 @@
-/** @file Controls account import, backup, summary, publication, and opinion maintenance. */
+/** @file Controls account import, backup, connected sources, publication, and opinion maintenance. */
 
 (function () {
   let ui = window.uiText || ((text) => text);
@@ -7,8 +7,8 @@
   let pendingBackup = null;
   let pendingImdb = null;
   let pendingImdbFiles = {};
-  let pendingSpreadsheet = null;
   let pendingGoogleSpreadsheet = null;
+  let pendingGooglePush = null;
   const GOOGLE_SHEETS_STORAGE_KEY = "oskars-google-sheets-spreadsheet-id";
   let legacyIntakeId = window.pageQueryParam?.("intake") || "";
   if (legacyIntakeId) {
@@ -93,21 +93,11 @@
     };
   }
 
-  // Updates the health panel's own elements in place rather than replacing
-  // its innerHTML wholesale. The panel's static markup in data.html already
-  // has this exact shape (heading, message, four metric cards) with
-  // placeholder content, so the page never goes from empty to fully-grown
-  // once account data loads - only the numbers and message text change,
-  // which keeps everything below it from dropping down a notch mid-load.
-  function renderHealth() {
+  function renderWorkspace() {
     let finishRenderTimer = window.startOskarsPerformance?.(
       "data:renderWorkspace",
     );
     let value = source();
-    let nominations = (value.personalAwards || []).reduce(
-      (total, award) => total + (award.personal_nominations || []).length,
-      0,
-    );
     let empty = archiveIsEmpty(value);
     let letterboxdPanel = document.getElementById("letterboxdImport");
     letterboxdPanel?.classList.toggle("data-panel--recommended", empty);
@@ -116,18 +106,6 @@
       importEyebrow.textContent = ui(
         empty ? "Recommended first step" : "Import from another service",
       );
-    document.getElementById("dataHealthHeading").textContent =
-      ui("Data summary");
-    document.getElementById("dataHealthMessage").innerHTML = empty
-      ? `${escape(ui("Your archive is empty."))} <a href="#letterboxdImport">${escape(ui("Start with a Letterboxd import."))}</a>`
-      : `${escape(ui("Your archive is ready."))} <a href="#backupRestore">${escape(ui("Download a backup before a large restore or irreversible change."))}</a>`;
-    document.getElementById("dataHealthWatched").textContent =
-      value.watched?.length || 0;
-    document.getElementById("dataHealthWatchlist").textContent =
-      value.watchlist?.length || 0;
-    document.getElementById("dataHealthRankings").textContent =
-      value.rankings?.length || 0;
-    document.getElementById("dataHealthAwards").textContent = nominations;
     finishRenderTimer?.(`${value.watched?.length || 0} watched film(s)`);
   }
 
@@ -620,19 +598,19 @@
 
       <article class="data-source-card" id="dataSourceCardSheets">
         <div class="data-source-card-header">
-          <span class="eyebrow">${escape(ui("Path 4 · Spreadsheets"))}</span>
+          <span class="eyebrow">${escape(ui("Path 4 · Google Sheets"))}</span>
           <span class="data-source-badge ${sheetId ? "data-source-badge--connected" : "data-source-badge--disconnected"}">
             ${escape(sheetId ? ui("Connected") : ui("Not connected"))}
           </span>
         </div>
-        <h3>${escape(ui("Google Sheets & Excel"))}</h3>
+        <h3>${escape(ui("Google Sheets"))}</h3>
         <p>${escape(
           sheetId
             ? ui("Connected spreadsheet ID: {id}. Two-way sync ready.", {
                 id: sheetId.length > 20 ? sheetId.slice(0, 16) + "…" : sheetId,
               })
             : ui(
-                "Create a workbook on Google Drive, connect a sheet ID, or download offline CSV templates.",
+                "Create a workbook on Google Drive or connect an existing sheet.",
               ),
         )}</p>
         <div class="data-actions">
@@ -656,6 +634,9 @@
   }
 
   function updateConnectedSheetUI(id) {
+    pendingGooglePush = null;
+    let pushApply = document.getElementById("pushGoogleSheetApplyBtn");
+    if (pushApply) pushApply.disabled = true;
     let connectedSheetInput = document.getElementById("connectedSheetInput");
     let openConnectedSheetLink = document.getElementById(
       "openConnectedSheetLink",
@@ -885,23 +866,26 @@
     },
   ];
 
-  function renderDeleteDataRows() {
+  function setupDeleteDataRows() {
     let container = document.getElementById("deleteDataRows");
     let status = document.getElementById("deleteDataStatus");
     let selectedBtn = document.getElementById("deleteSelectedBtn");
     let selectAll = document.getElementById("deleteSelectAll");
     let selectOpinions = document.getElementById("deleteSelectOpinions");
+    if (!container || !selectedBtn || !selectAll || !selectOpinions) return;
 
-    container.innerHTML = DELETE_CATEGORIES.map(
-      (category) => `
-      <label class="data-delete-row">
-        <input type="checkbox" data-delete-category="${escape(category.id)}" />
-        <span>
-          <h4>${escape(ui(category.label))}</h4>
-          <p>${escape(ui(category.description))}</p>
-        </span>
-      </label>`,
-    ).join("");
+    if (!container.children.length) {
+      container.innerHTML = DELETE_CATEGORIES.map(
+        (category) => `
+        <label class="data-delete-row">
+          <input type="checkbox" data-delete-category="${escape(category.id)}" />
+          <span>
+            <h4>${escape(ui(category.label))}</h4>
+            <p>${escape(ui(category.description))}</p>
+          </span>
+        </label>`,
+      ).join("");
+    }
 
     let checkboxes = [...container.querySelectorAll("[data-delete-category]")];
     function checkedCategories() {
@@ -986,15 +970,15 @@
       window.buildLegacyStateFromSupabaseHydration(refreshed),
     );
     window.rebuildAggregates();
-    renderHealth();
+    renderWorkspace();
     renderDataSources();
   }
 
   async function initialize() {
+    setupDeleteDataRows();
     await window.ensureOskarsData();
-    renderHealth();
+    renderWorkspace();
     renderDataSources();
-    renderDeleteDataRows();
     window
       .loadSupabaseProfile?.()
       .then((profile) => renderDataSources(profile))
@@ -1060,117 +1044,281 @@
         }
       });
 
+    function blockedImportMessage(proposal, fallback) {
+      let errors = proposal?.validation?.errors || [];
+      if (
+        errors.some((entry) =>
+          String(entry?.message || "").includes("changes no canonical data"),
+        )
+      )
+        return ui(
+          "Nothing new to import: everything in this export is already in your archive.",
+        );
+      let findings = errors
+        .map((entry) =>
+          [entry?.path, entry?.message].filter(Boolean).join(": "),
+        )
+        .filter(Boolean);
+      if (!findings.length) return fallback;
+      let shown = findings.slice(0, 5).join(" ");
+      return findings.length > 5
+        ? `${shown} ${ui("(and {count} more)", { count: findings.length - 5 })}`
+        : shown;
+    }
+
+    function renderLetterboxdConfirmationCard(proposal) {
+      let report = proposal?.report || {};
+      let archiveAdded = report.archiveAdded || 0;
+      let watchedOtherAdded = report.watchedOtherAdded || 0;
+      let watchedArchiveMerged = report.watchedArchiveMerged || 0;
+      let watchedOtherMerged = report.watchedOtherMerged || 0;
+      let newWatchedCount = archiveAdded + watchedOtherAdded;
+      let updatedWatchedCount = watchedArchiveMerged + watchedOtherMerged;
+      let filmsParsed =
+        report.filmsParsed || newWatchedCount + updatedWatchedCount;
+      let watchlistAdded = report.watchlistAdded || 0;
+      let watchlistMerged = report.watchlistMerged || 0;
+      let watchlistRemoved = report.watchlistRemoved || 0;
+      let totalWatchlist = watchlistAdded + watchlistMerged;
+
+      let warnings = report.warnings || [];
+      let warningsHtml = warnings.length
+        ? `<div class="data-import-warnings">${warnings.map((w) => escape(w)).join("<br>")}</div>`
+        : "";
+      let skippedHtml =
+        report.skipped > 0
+          ? `<p class="data-panel-status" style="margin: 0;">${escape(ui("{count} row(s) skipped (missing required title or year).", { count: report.skipped }))}</p>`
+          : "";
+
+      return `<div class="data-import-confirm-card">
+        <div class="data-import-confirm-header">
+          <h4>${escape(ui("Ready to import"))}</h4>
+          <p>${escape(ui("Review what was found in your Letterboxd export before saving:"))}</p>
+        </div>
+        <div class="data-import-stats-grid">
+          <div class="data-import-stat-item">
+            <span class="data-import-stat-val">${filmsParsed}</span>
+            <span class="data-import-stat-lbl">${escape(ui("Watched films"))}</span>
+            <span class="data-import-stat-sub">${newWatchedCount} ${escape(ui("new"))} · ${updatedWatchedCount} ${escape(ui("updated"))}</span>
+          </div>
+          <div class="data-import-stat-item">
+            <span class="data-import-stat-val">${totalWatchlist}</span>
+            <span class="data-import-stat-lbl">${escape(ui("Watchlist items"))}</span>
+            <span class="data-import-stat-sub">${watchlistAdded} ${escape(ui("new"))} · ${watchlistMerged} ${escape(ui("updated"))}${watchlistRemoved ? ` · ${watchlistRemoved} ${escape(ui("watched"))}` : ""}</span>
+          </div>
+        </div>
+        ${warningsHtml}
+        ${skippedHtml}
+        <div class="data-actions" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" id="letterboxdConfirmImportBtn">${escape(ui("Confirm import"))}</button>
+          <button type="button" id="letterboxdCancelImportBtn" class="button-secondary">${escape(ui("Cancel"))}</button>
+        </div>
+      </div>`;
+    }
+
+    function renderImdbConfirmationCard(proposal) {
+      let report = proposal?.report || {};
+      let archiveAdded = report.archiveAdded || 0;
+      let watchedOtherAdded = report.watchedOtherAdded || 0;
+      let watchedArchiveMerged = report.watchedArchiveMerged || 0;
+      let watchedOtherMerged = report.watchedOtherMerged || 0;
+      let newWatchedCount = archiveAdded + watchedOtherAdded;
+      let updatedWatchedCount = watchedArchiveMerged + watchedOtherMerged;
+      let filmsParsed =
+        report.filmsParsed || newWatchedCount + updatedWatchedCount;
+      let watchlistAdded = report.watchlistAdded || 0;
+      let watchlistMerged = report.watchlistMerged || 0;
+      let watchlistRemoved = report.watchlistRemoved || 0;
+      let totalWatchlist = watchlistAdded + watchlistMerged;
+
+      let warnings = report.warnings || [];
+      let warningsHtml = warnings.length
+        ? `<div class="data-import-warnings">${warnings.map((w) => escape(w)).join("<br>")}</div>`
+        : "";
+      let skippedHtml =
+        report.skipped > 0
+          ? `<p class="data-panel-status" style="margin: 0;">${escape(ui("{count} row(s) skipped (missing required title or year).", { count: report.skipped }))}</p>`
+          : "";
+
+      return `<div class="data-import-confirm-card">
+        <div class="data-import-confirm-header">
+          <h4>${escape(ui("Ready to import"))}</h4>
+          <p>${escape(ui("Review what was found in your IMDb export before saving:"))}</p>
+        </div>
+        <div class="data-import-stats-grid">
+          <div class="data-import-stat-item">
+            <span class="data-import-stat-val">${filmsParsed}</span>
+            <span class="data-import-stat-lbl">${escape(ui("Watched films"))}</span>
+            <span class="data-import-stat-sub">${newWatchedCount} ${escape(ui("new"))} · ${updatedWatchedCount} ${escape(ui("updated"))}</span>
+          </div>
+          <div class="data-import-stat-item">
+            <span class="data-import-stat-val">${totalWatchlist}</span>
+            <span class="data-import-stat-lbl">${escape(ui("Watchlist items"))}</span>
+            <span class="data-import-stat-sub">${watchlistAdded} ${escape(ui("new"))} · ${watchlistMerged} ${escape(ui("updated"))}${watchlistRemoved ? ` · ${watchlistRemoved} ${escape(ui("watched"))}` : ""}</span>
+          </div>
+        </div>
+        ${warningsHtml}
+        ${skippedHtml}
+        <div class="data-actions" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" id="imdbConfirmImportBtn">${escape(ui("Confirm import"))}</button>
+          <button type="button" id="imdbCancelImportBtn" class="button-secondary">${escape(ui("Cancel"))}</button>
+        </div>
+      </div>`;
+    }
+
     document
       .getElementById("letterboxdZipInput")
-      .addEventListener("change", async (event) => {
+      ?.addEventListener("change", async (event) => {
         let status = document.getElementById("letterboxdImportStatus");
         let progress = document.getElementById("letterboxdImportProgress");
-        let applyBtn = document.getElementById("letterboxdImportApplyBtn");
-        applyBtn.disabled = true;
-        status.textContent = ui("Parsing your export…");
+        let file = event.target.files?.[0];
+        if (!file) return;
+        if (progress) {
+          progress.hidden = false;
+          progress.removeAttribute("max");
+          progress.removeAttribute("value");
+        }
+        status.innerHTML = `<span class="data-panel-subtext">${escape(ui("Reading and parsing your export…"))}</span>`;
         try {
-          pendingLetterboxd = await window.proposeLetterboxdZipImport(
-            event.target.files?.[0],
-            { baseState: window.state },
-          );
+          pendingLetterboxd = await window.proposeLetterboxdZipImport(file, {
+            baseState: window.state,
+          });
           // Films with no archive match get their TMDB details looked up
-          // now, before Apply - the shared catalog is create-only once a
+          // now, before saving - the shared catalog is create-only once a
           // film row exists (issue #440), so this is the only point a
           // fresh film's metadata can still be filled in automatically.
           let freshCount =
-            pendingLetterboxd.report.freshArchiveFilms?.length || 0;
+            pendingLetterboxd.report?.freshArchiveFilms?.length || 0;
           if (freshCount) {
-            status.textContent = ui(
-              "Looking up film details for {count} new film(s)…",
-              { count: freshCount },
-            );
+            status.innerHTML = `<span class="data-panel-subtext">${escape(
+              ui("Looking up film details for {count} new film(s)…", {
+                count: freshCount,
+              }),
+            )}</span>`;
             await window.enrichLetterboxdProposalMetadata(pendingLetterboxd, {
               onProgress(done, total) {
-                progress.hidden = false;
-                progress.max = total || 1;
-                progress.value = done;
-                status.textContent = ui(
-                  "Looking up film details ({done}/{total})…",
-                  { done, total },
-                );
+                if (progress) {
+                  progress.hidden = false;
+                  progress.max = total || 1;
+                  progress.value = done;
+                }
+                status.innerHTML = `<span class="data-panel-subtext">${escape(
+                  ui("Looking up film details ({done}/{total})…", {
+                    done,
+                    total,
+                  }),
+                )}</span>`;
               },
             });
           }
-          status.textContent = JSON.stringify(
-            pendingLetterboxd.report,
-            null,
-            2,
-          );
-          applyBtn.disabled = !pendingLetterboxd.allowed;
+          if (progress) progress.hidden = true;
+          if (!pendingLetterboxd.allowed) {
+            let errorMsg = blockedImportMessage(
+              pendingLetterboxd,
+              ui("Letterboxd export could not be imported."),
+            );
+            status.innerHTML = `<div class="data-import-confirm-card"><strong style="color: var(--error);">${escape(errorMsg)}</strong></div>`;
+          } else {
+            status.innerHTML =
+              renderLetterboxdConfirmationCard(pendingLetterboxd);
+          }
         } catch (error) {
           pendingLetterboxd = null;
-          status.textContent = error.message || String(error);
-        } finally {
-          progress.hidden = true;
+          if (progress) progress.hidden = true;
+          status.innerHTML = `<div class="data-import-confirm-card"><strong style="color: var(--error);">${escape(error.message || String(error))}</strong></div>`;
         }
       });
+
     document
-      .getElementById("letterboxdImportApplyBtn")
-      .addEventListener("click", async (event) => {
-        if (!pendingLetterboxd) return;
-        let button = event.currentTarget;
-        let status = document.getElementById("letterboxdImportStatus");
-        let progress = document.getElementById("letterboxdImportProgress");
-        button.disabled = true;
-        // Saving reconciles the whole archive against Supabase one changed
-        // film at a time (src/core/supabase-legacy-writes.js), so a large
-        // import can take a real while - the stage progress below is the
-        // only other visible sign it's still working, not stuck.
-        status.textContent = ui(
-          "Saving to your account… this can take a while for a large import. Don't close this tab.",
-        );
-        function onProgress(stage, done, total) {
-          progress.hidden = false;
-          progress.max = total || 1;
-          progress.value = done;
-          status.textContent = ui(
-            "Saving {stage} ({done}/{total})… Don't close this tab.",
-            { stage, done, total },
-          );
+      .getElementById("letterboxdImport")
+      ?.addEventListener("click", async (event) => {
+        let confirmBtn = event.target.closest("#letterboxdConfirmImportBtn");
+        let cancelBtn = event.target.closest("#letterboxdCancelImportBtn");
+        if (cancelBtn) {
+          pendingLetterboxd = null;
+          let fileInput = document.getElementById("letterboxdZipInput");
+          if (fileInput) fileInput.value = "";
+          let progress = document.getElementById("letterboxdImportProgress");
+          if (progress) progress.hidden = true;
+          let status = document.getElementById("letterboxdImportStatus");
+          if (status)
+            status.innerHTML = `<span class="data-panel-subtext">${escape(ui("Import cancelled. The ZIP never leaves this browser."))}</span>`;
+          return;
         }
-        try {
-          let result = await window.applyImportProposal(pendingLetterboxd, {
-            onProgress,
-          });
-          if (!result?.ok)
-            throw new Error(result?.errors?.join(" ") || ui("Import failed."));
-          await refreshSource();
-          try {
-            await window.updateSupabaseProfileLetterboxdLastSynced?.(
-              new Date().toISOString(),
-            );
-          } catch (syncErr) {
-            console.warn(
-              "Could not update Letterboxd last synced date",
-              syncErr,
-            );
+        if (confirmBtn) {
+          if (!pendingLetterboxd) return;
+          let status = document.getElementById("letterboxdImportStatus");
+          let progress = document.getElementById("letterboxdImportProgress");
+          confirmBtn.disabled = true;
+          status.innerHTML = `<div class="data-import-saving-box">
+            <div class="data-import-saving-title">${escape(ui("Saving to your account…"))}</div>
+            <div class="data-import-saving-step" id="letterboxdImportSavingStep">${escape(ui("Preparing records… Don't close this tab."))}</div>
+          </div>`;
+          if (progress) {
+            progress.hidden = false;
+            progress.removeAttribute("value");
           }
-          let importedCount =
-            pendingLetterboxd?.report?.archiveAdded ||
-            pendingLetterboxd?.report?.filmsAdded ||
-            0;
-          let profile = await window.loadSupabaseProfile?.();
-          let celebrationText =
-            importedCount > 0
-              ? ui(
-                  "Your {count} films are in! Explore your decades or head to Home.",
-                  { count: importedCount },
-                )
-              : ui("Letterboxd import saved to your account.");
-          let connectCta = !profile?.letterboxd_username
-            ? `<a class="button-link button-secondary" href="profile.html#letterboxdProfilePanel">${escape(ui("Connect username for RSS sync"))}</a>`
-            : "";
-          status.innerHTML = `<div class="data-import-success"><strong>${escape(celebrationText)}</strong><div class="data-actions" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;"><a class="button-link" href="periods.html">${escape(ui("Explore your decades →"))}</a><a class="button-link button-secondary" href="index.html">${escape(ui("Go to Home"))}</a>${connectCta}</div></div>`;
-        } catch (error) {
-          status.textContent = error.message || String(error);
-        } finally {
-          progress.hidden = true;
-          button.disabled = false;
+          function onProgress(stage, done, total) {
+            if (progress) {
+              progress.hidden = false;
+              progress.max = total || 1;
+              if (done === 0) progress.removeAttribute("value");
+              else progress.value = done;
+            }
+            let stepEl = document.getElementById("letterboxdImportSavingStep");
+            let msg = ui(
+              "Saving {stage} ({done}/{total})… Don't close this tab.",
+              {
+                stage,
+                done,
+                total,
+              },
+            );
+            if (stepEl) stepEl.textContent = msg;
+          }
+          try {
+            let result = await window.applyImportProposal(pendingLetterboxd, {
+              onProgress,
+            });
+            if (!result?.ok)
+              throw new Error(
+                result?.errors?.join(" ") || ui("Import failed."),
+              );
+            await refreshSource();
+            try {
+              await window.updateSupabaseProfileLetterboxdLastSynced?.(
+                new Date().toISOString(),
+              );
+            } catch (syncErr) {
+              console.warn(
+                "Could not update Letterboxd last synced date",
+                syncErr,
+              );
+            }
+            let importedCount =
+              pendingLetterboxd?.report?.archiveAdded ||
+              pendingLetterboxd?.report?.filmsAdded ||
+              0;
+            let profile = await window.loadSupabaseProfile?.();
+            let celebrationText =
+              importedCount > 0
+                ? ui(
+                    "Your {count} films are in! Explore your decades or head to Home.",
+                    { count: importedCount },
+                  )
+                : ui("Letterboxd import saved to your account.");
+            let connectCta = !profile?.letterboxd_username
+              ? `<a class="button-link button-secondary" href="profile.html#letterboxdProfilePanel">${escape(ui("Connect username for RSS sync"))}</a>`
+              : "";
+            status.innerHTML = `<div class="data-import-success"><strong>${escape(celebrationText)}</strong><div class="data-actions" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;"><a class="button-link" href="periods.html">${escape(ui("Explore your decades →"))}</a><a class="button-link button-secondary" href="index.html">${escape(ui("Go to Home"))}</a>${connectCta}</div></div>`;
+            pendingLetterboxd = null;
+            let fileInput = document.getElementById("letterboxdZipInput");
+            if (fileInput) fileInput.value = "";
+          } catch (error) {
+            status.innerHTML = `<div class="data-import-confirm-card"><strong style="color: var(--error);">${escape(error.message || String(error))}</strong></div>`;
+          } finally {
+            if (progress) progress.hidden = true;
+          }
         }
       });
 
@@ -1179,12 +1327,16 @@
       ?.addEventListener("change", async (event) => {
         let status = document.getElementById("imdbImportStatus");
         let progress = document.getElementById("imdbImportProgress");
-        let applyBtn = document.getElementById("imdbImportApplyBtn");
-        applyBtn.disabled = true;
-        status.textContent = ui("Parsing your export…");
+        let fileList = Array.from(event.target.files || []);
+        if (!fileList.length) return;
+        if (progress) {
+          progress.hidden = false;
+          progress.removeAttribute("max");
+          progress.removeAttribute("value");
+        }
+        status.innerHTML = `<span class="data-panel-subtext">${escape(ui("Reading and parsing your export…"))}</span>`;
         try {
-          let fileList = Array.from(event.target.files || []);
-          if (!fileList.length) return;
+          pendingImdbFiles = {};
           for (let file of fileList) {
             pendingImdbFiles[file.name] = await file.text();
           }
@@ -1192,83 +1344,127 @@
             baseState: window.state,
             fileName: Object.keys(pendingImdbFiles).join(", "),
           });
-          let freshCount = pendingImdb.report.freshArchiveFilms?.length || 0;
+          let freshCount = pendingImdb.report?.freshArchiveFilms?.length || 0;
           if (freshCount) {
-            status.textContent = ui(
-              "Looking up film details for {count} new film(s)…",
-              { count: freshCount },
-            );
+            status.innerHTML = `<span class="data-panel-subtext">${escape(
+              ui("Looking up film details for {count} new film(s)…", {
+                count: freshCount,
+              }),
+            )}</span>`;
             await window.enrichImdbProposalMetadata(pendingImdb, {
               onProgress(done, total) {
-                progress.hidden = false;
-                progress.max = total || 1;
-                progress.value = done;
-                status.textContent = ui(
-                  "Looking up film details ({done}/{total})…",
-                  { done, total },
-                );
+                if (progress) {
+                  progress.hidden = false;
+                  progress.max = total || 1;
+                  progress.value = done;
+                }
+                status.innerHTML = `<span class="data-panel-subtext">${escape(
+                  ui("Looking up film details ({done}/{total})…", {
+                    done,
+                    total,
+                  }),
+                )}</span>`;
               },
             });
           }
-          status.textContent = JSON.stringify(pendingImdb.report, null, 2);
-          applyBtn.disabled = !pendingImdb.allowed;
+          if (progress) progress.hidden = true;
+          if (!pendingImdb.allowed) {
+            let errorMsg = blockedImportMessage(
+              pendingImdb,
+              ui("IMDb export could not be imported."),
+            );
+            status.innerHTML = `<div class="data-import-confirm-card"><strong style="color: var(--error);">${escape(errorMsg)}</strong></div>`;
+          } else {
+            status.innerHTML = renderImdbConfirmationCard(pendingImdb);
+          }
         } catch (error) {
           pendingImdb = null;
-          status.textContent = error.message || String(error);
-        } finally {
-          progress.hidden = true;
+          if (progress) progress.hidden = true;
+          status.innerHTML = `<div class="data-import-confirm-card"><strong style="color: var(--error);">${escape(error.message || String(error))}</strong></div>`;
         }
       });
 
     document
-      .getElementById("imdbImportApplyBtn")
+      .getElementById("imdbImport")
       ?.addEventListener("click", async (event) => {
-        if (!pendingImdb) return;
-        let button = event.currentTarget;
-        let status = document.getElementById("imdbImportStatus");
-        let progress = document.getElementById("imdbImportProgress");
-        button.disabled = true;
-        status.textContent = ui(
-          "Saving to your account… this can take a while for a large import. Don't close this tab.",
-        );
-        function onProgress(stage, done, total) {
-          progress.hidden = false;
-          progress.max = total || 1;
-          progress.value = done;
-          status.textContent = ui(
-            "Saving {stage} ({done}/{total})… Don't close this tab.",
-            { stage, done, total },
-          );
-        }
-        try {
-          let result = await window.applyImportProposal(pendingImdb, {
-            onProgress,
-          });
-          if (!result?.ok)
-            throw new Error(result?.errors?.join(" ") || ui("Import failed."));
-          await refreshSource();
-          let importedCount =
-            pendingImdb?.report?.archiveAdded ||
-            pendingImdb?.report?.filmsAdded ||
-            0;
-          let celebrationText =
-            importedCount > 0
-              ? ui(
-                  "Your {count} films are in! Explore your decades or head to Home.",
-                  { count: importedCount },
-                )
-              : ui("IMDb import saved to your account.");
-          let watchlistCta = pendingImdb?.report?.watchlistAdded
-            ? `<a class="button-link button-secondary" href="watchlist.html">${escape(ui("Organise watchlist"))}</a>`
-            : "";
-          status.innerHTML = `<div class="data-import-success"><strong>${escape(celebrationText)}</strong><div class="data-actions" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;"><a class="button-link" href="periods.html">${escape(ui("Explore your decades →"))}</a><a class="button-link button-secondary" href="index.html">${escape(ui("Go to Home"))}</a>${watchlistCta}</div></div>`;
+        let confirmBtn = event.target.closest("#imdbConfirmImportBtn");
+        let cancelBtn = event.target.closest("#imdbCancelImportBtn");
+        if (cancelBtn) {
           pendingImdb = null;
           pendingImdbFiles = {};
-        } catch (error) {
-          status.textContent = error.message || String(error);
-        } finally {
-          progress.hidden = true;
-          button.disabled = false;
+          let fileInput = document.getElementById("imdbCsvInput");
+          if (fileInput) fileInput.value = "";
+          let progress = document.getElementById("imdbImportProgress");
+          if (progress) progress.hidden = true;
+          let status = document.getElementById("imdbImportStatus");
+          if (status)
+            status.innerHTML = `<span class="data-panel-subtext">${escape(ui("Import cancelled. Upload ratings.csv or watchlist.csv (or both)."))}</span>`;
+          return;
+        }
+        if (confirmBtn) {
+          if (!pendingImdb) return;
+          let status = document.getElementById("imdbImportStatus");
+          let progress = document.getElementById("imdbImportProgress");
+          confirmBtn.disabled = true;
+          status.innerHTML = `<div class="data-import-saving-box">
+            <div class="data-import-saving-title">${escape(ui("Saving to your account…"))}</div>
+            <div class="data-import-saving-step" id="imdbImportSavingStep">${escape(ui("Preparing records… Don't close this tab."))}</div>
+          </div>`;
+          if (progress) {
+            progress.hidden = false;
+            progress.max = 6;
+            progress.value = 0;
+          }
+          function onProgress(stage, done, total) {
+            if (progress) {
+              progress.hidden = false;
+              progress.max = total || 1;
+              progress.value = done;
+            }
+            let stepEl = document.getElementById("imdbImportSavingStep");
+            let msg = ui(
+              "Saving {stage} ({done}/{total})… Don't close this tab.",
+              {
+                stage,
+                done,
+                total,
+              },
+            );
+            if (stepEl) stepEl.textContent = msg;
+          }
+          try {
+            let result = await window.applyImportProposal(pendingImdb, {
+              onProgress,
+            });
+            if (!result?.ok)
+              throw new Error(
+                result?.errors?.join(" ") || ui("Import failed."),
+              );
+            await refreshSource();
+            let importedCount =
+              pendingImdb?.report?.archiveAdded ||
+              pendingImdb?.report?.filmsAdded ||
+              0;
+            let celebrationText =
+              importedCount > 0
+                ? ui(
+                    "Your {count} films are in! Explore your decades or head to Home.",
+                    { count: importedCount },
+                  )
+                : ui("IMDb import saved to your account.");
+            let watchlistCta = pendingImdb?.report?.watchlistAdded
+              ? `<a class="button-link button-secondary" href="watchlist.html">${escape(ui("Organise watchlist"))}</a>`
+              : "";
+            status.innerHTML = `<div class="data-import-success"><strong>${escape(celebrationText)}</strong><div class="data-actions" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;"><a class="button-link" href="periods.html">${escape(ui("Explore your decades →"))}</a><a class="button-link button-secondary" href="index.html">${escape(ui("Go to Home"))}</a>${watchlistCta}</div></div>`;
+            pendingImdb = null;
+            pendingImdbFiles = {};
+            let fileInput = document.getElementById("imdbCsvInput");
+            if (fileInput) fileInput.value = "";
+          } catch (error) {
+            status.innerHTML = `<div class="data-import-confirm-card"><strong style="color: var(--error);">${escape(error.message || String(error))}</strong></div>`;
+          } finally {
+            if (progress) progress.hidden = true;
+          }
         }
       });
 
@@ -1395,6 +1591,69 @@
         }
       });
 
+    let googleSheetProgress = document.getElementById("googleSheetProgress");
+    function showGoogleSheetProgress(message, done, total) {
+      if (googleSheetProgress) {
+        googleSheetProgress.hidden = false;
+        googleSheetProgress.style.display = "block";
+        googleSheetProgress.max = total || 1;
+        if (done > 0) googleSheetProgress.value = done;
+        else googleSheetProgress.removeAttribute("value");
+      }
+      if (syncGoogleSheetStatus) {
+        syncGoogleSheetStatus.style.display = "block";
+        syncGoogleSheetStatus.textContent = message;
+      }
+    }
+    function hideGoogleSheetProgress() {
+      if (googleSheetProgress) {
+        googleSheetProgress.hidden = true;
+        googleSheetProgress.style.display = "none";
+      }
+    }
+    function renderGoogleSheetReview(proposal) {
+      let report = proposal.report;
+      let counts = [
+        [report.filmsAdded || 0, ui("New films")],
+        [report.filmsMerged || 0, ui("Updated films")],
+        [report.watchlistItemsParsed || 0, ui("Watchlist items")],
+        [report.awardsAdded || 0, ui("Award nominations")],
+      ];
+      let diagnostics = [...new Set(report.warnings || [])].filter(
+        (warning) => !String(warning).startsWith("$proposal:"),
+      );
+      if (report.skipped)
+        diagnostics.push(
+          ui("{count} rows could not be read.", { count: report.skipped }),
+        );
+      if (report.awardsRejected)
+        diagnostics.push(
+          ui("{count} award nominations could not be imported.", {
+            count: report.awardsRejected,
+          }),
+        );
+      let problems = window
+        .googleSheetsImportProblemGroups(report)
+        .map(
+          (group) =>
+            `<details><summary>${escape(ui(group.label))} (${group.lines.length})</summary><ul>${group.lines.map((line) => `<li>${escape(line)}</li>`).join("")}</ul></details>`,
+        )
+        .join("");
+      let heading = proposal.allowed
+        ? ui("Ready to import")
+        : ui("Nothing ready to import");
+      let explanation = proposal.allowed
+        ? ui("Review what was found, then confirm to save it to your archive.")
+        : proposal.validation.errors.every(
+              (error) => error.path === "$proposal",
+            )
+          ? ui("Your archive already matches this sheet.")
+          : ui(
+              "Check the issues below and read the sheet again before importing.",
+            );
+      return `<div class="data-import-confirm-card"><h4>${escape(heading)}</h4><p>${escape(explanation)}</p><div class="data-import-stats-grid">${counts.map(([count, label]) => `<div class="data-import-stat-item"><span class="data-import-stat-val">${count}</span><span class="data-import-stat-lbl">${escape(label)}</span></div>`).join("")}</div>${problems}${diagnostics.length ? `<div class="data-import-warnings">${diagnostics.map((warning) => `<p>${escape(warning)}</p>`).join("")}</div>` : `<p>${escape(ui("No import issues were reported."))}</p>`}</div>`;
+    }
+
     document
       .getElementById("syncGoogleSheetBtn")
       ?.addEventListener("click", async (event) => {
@@ -1416,7 +1675,9 @@
           return;
         }
 
+        pendingGoogleSpreadsheet = null;
         button.disabled = true;
+        showGoogleSheetProgress(ui("Reading Google Sheet…"));
         if (syncGoogleSheetApplyBtn) syncGoogleSheetApplyBtn.disabled = true;
         if (syncGoogleSheetStatus) {
           syncGoogleSheetStatus.style.display = "block";
@@ -1434,13 +1695,15 @@
             accessToken,
           );
           let ranges = [];
-          if (metadata.sheetTitles.includes("Ranked Diary")) {
-            ranges.push("'Ranked Diary'!A1:Z");
-          } else if (metadata.sheetTitles.length > 0) {
-            ranges.push(`'${metadata.sheetTitles[0]}'!A1:Z`);
+          if (!metadata.sheetTitles.includes("Watched")) {
+            throw new Error(ui("Spreadsheet must contain a 'Watched' sheet."));
           }
+          ranges.push("'Watched'");
           if (metadata.sheetTitles.includes("Watchlist")) {
-            ranges.push("'Watchlist'!A1:Z");
+            ranges.push("'Watchlist'");
+          }
+          if (metadata.sheetTitles.includes("Awards")) {
+            ranges.push("'Awards'");
           }
 
           let valuesResult = await window.fetchGoogleSheetValues(
@@ -1448,27 +1711,25 @@
             ranges,
             accessToken,
           );
-          let diaryRows = [];
+          let watchedRows = [];
           let watchlistRows = [];
+          let awardsRows = [];
           for (let valueRange of valuesResult.valueRanges || []) {
             let r = valueRange.range || "";
-            if (
-              r.startsWith("'Ranked Diary'") ||
-              r.startsWith("Ranked Diary")
-            ) {
-              diaryRows = valueRange.values || [];
+            if (r.startsWith("'Watched'") || r.startsWith("Watched")) {
+              watchedRows = valueRange.values || [];
             } else if (
               r.startsWith("'Watchlist'") ||
               r.startsWith("Watchlist")
             ) {
               watchlistRows = valueRange.values || [];
-            } else if (!diaryRows.length) {
-              diaryRows = valueRange.values || [];
+            } else if (r.startsWith("'Awards'") || r.startsWith("Awards")) {
+              awardsRows = valueRange.values || [];
             }
           }
 
           pendingGoogleSpreadsheet = window.proposeGoogleSpreadsheetSync(
-            { diaryRows, watchlistRows },
+            { watchedRows, watchlistRows, awardsRows },
             {
               spreadsheetId,
               sourceName: metadata.title,
@@ -1476,11 +1737,10 @@
             },
           );
 
-          syncGoogleSheetStatus.textContent = JSON.stringify(
-            pendingGoogleSpreadsheet.report,
-            null,
-            2,
-          );
+          if (syncGoogleSheetStatus)
+            syncGoogleSheetStatus.innerHTML = renderGoogleSheetReview(
+              pendingGoogleSpreadsheet,
+            );
           if (syncGoogleSheetApplyBtn) {
             syncGoogleSheetApplyBtn.disabled =
               !pendingGoogleSpreadsheet.allowed;
@@ -1493,6 +1753,7 @@
               : error.message || String(error);
           }
         } finally {
+          hideGoogleSheetProgress();
           button.disabled = false;
         }
       });
@@ -1503,6 +1764,9 @@
         if (!pendingGoogleSpreadsheet) return;
         let button = event.currentTarget;
         button.disabled = true;
+        let readButton = document.getElementById("syncGoogleSheetBtn");
+        if (readButton) readButton.disabled = true;
+        showGoogleSheetProgress(ui("Saving to your archive…"));
         if (syncGoogleSheetStatus) {
           syncGoogleSheetStatus.textContent = ui(
             "Saving to your account… this can take a while for a large import. Don't close this tab.",
@@ -1511,6 +1775,14 @@
         try {
           let result = await window.applyImportProposal(
             pendingGoogleSpreadsheet,
+            {
+              onProgress: (label, done, total) =>
+                showGoogleSheetProgress(
+                  `${ui("Saving to your archive…")} ${ui(label)}`,
+                  done,
+                  total,
+                ),
+            },
           );
           if (!result?.ok)
             throw new Error(result?.errors?.join(" ") || ui("Import failed."));
@@ -1545,153 +1817,100 @@
               : error.message || String(error);
           }
           button.disabled = false;
+        } finally {
+          hideGoogleSheetProgress();
+          if (readButton) readButton.disabled = false;
         }
       });
 
+    let pushGoogleSheetApplyBtn = document.getElementById(
+      "pushGoogleSheetApplyBtn",
+    );
+    function connectedSpreadsheetId() {
+      let value =
+        (typeof localStorage !== "undefined"
+          ? localStorage.getItem(GOOGLE_SHEETS_STORAGE_KEY)
+          : "") || connectedSheetInput?.value.trim();
+      return value?.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1] || value;
+    }
     document
       .getElementById("pushToGoogleSheetBtn")
       ?.addEventListener("click", async (event) => {
         let button = event.currentTarget;
-        let spreadsheetId =
-          (typeof localStorage !== "undefined"
-            ? localStorage.getItem(GOOGLE_SHEETS_STORAGE_KEY)
-            : null) || connectedSheetInput?.value.trim();
-        let match = spreadsheetId?.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-        if (match) spreadsheetId = match[1];
-
+        let spreadsheetId = connectedSpreadsheetId();
         if (!spreadsheetId) return;
-
+        pendingGooglePush = null;
         button.disabled = true;
+        showGoogleSheetProgress(ui("Reading Google Sheet…"));
+        if (pushGoogleSheetApplyBtn) pushGoogleSheetApplyBtn.disabled = true;
         if (syncGoogleSheetStatus) {
           syncGoogleSheetStatus.style.display = "block";
-          syncGoogleSheetStatus.textContent = ui(
-            "Pushing archive to Google Sheets…",
-          );
+          syncGoogleSheetStatus.textContent = ui("Reading Google Sheet…");
         }
         try {
-          let result =
-            await window.writeGoogleSpreadsheetArchive(spreadsheetId);
-          if (syncGoogleSheetStatus) {
-            syncGoogleSheetStatus.textContent = ui(
-              "Archive pushed to Google Sheets ({0} film(s), {1} watchlist item(s)).",
-            )
-              .replace("{0}", result.filmsPushed)
-              .replace("{1}", result.watchlistPushed);
-          }
-        } catch (error) {
-          if (syncGoogleSheetStatus) {
-            syncGoogleSheetStatus.textContent = window.formatGoogleSheetsError
-              ? window.formatGoogleSheetsError(error)
-              : error.message || String(error);
-          }
-        } finally {
-          button.disabled = false;
-        }
-      });
-
-    const DIARY_TEMPLATE_CSV = [
-      "Year,Title,Director,Rating,Type,Tag,Medium,Screenplay,Source,Country,Views,Date,Score,Franchise,Platform,Runtime,tmdbId,letterboxd",
-      "2023,Oppenheimer,Christopher Nolan,★★★★+,Film,Drama,live-action,adapted,American Prometheus,United States,1,2023-07-21,★★★★+,Christopher Nolan,Cinema,180,872585,https://boxd.it/pycK",
-      "2024,Dune: Part Two,Denis Villeneuve,★★★★★,Film,Sci-Fi,live-action,adapted,Frank Herbert novel,United States,1,2024-03-01,★★★★★,Dune,Cinema,166,693134,https://boxd.it/mAVu",
-    ].join("\n");
-
-    const WATCHLIST_TEMPLATE_CSV = [
-      "Date,Name,Year,Letterboxd URI,Tier,Director,Tags,Franchises,TMDB ID",
-      "2024-01-15,Dune: Part Two,2024,https://boxd.it/mAVu,S,Denis Villeneuve,Sci-Fi,Dune,693134",
-      "2024-02-10,Challengers,2024,https://boxd.it/xc5M,A,Luca Guadagnino,Drama,,937287",
-    ].join("\n");
-
-    document
-      .getElementById("downloadDiaryTemplateBtn")
-      ?.addEventListener("click", () => {
-        window.downloadTextFile?.(
-          DIARY_TEMPLATE_CSV,
-          "the-oskars-diary-template.csv",
-          "text/csv;charset=utf-8;",
-        );
-      });
-
-    document
-      .getElementById("downloadWatchlistTemplateBtn")
-      ?.addEventListener("click", () => {
-        window.downloadTextFile?.(
-          WATCHLIST_TEMPLATE_CSV,
-          "the-oskars-watchlist-template.csv",
-          "text/csv;charset=utf-8;",
-        );
-      });
-
-    document
-      .getElementById("spreadsheetInput")
-      ?.addEventListener("change", async (event) => {
-        let status = document.getElementById("spreadsheetImportStatus");
-        let applyBtn = document.getElementById("spreadsheetImportApplyBtn");
-        applyBtn.disabled = true;
-        let file = event.target.files?.[0];
-        if (!file) return;
-        status.textContent = ui("Parsing your spreadsheet…");
-        try {
-          let text = await file.text();
-          let formatType =
-            document.getElementById("spreadsheetTypeSelect")?.value || "ranked";
-          pendingSpreadsheet = window.proposeDelimitedImport(text, formatType, {
-            sourceName: file.name,
-            mode: "merge",
-          });
-          status.textContent = JSON.stringify(
-            pendingSpreadsheet.report,
-            null,
-            2,
-          );
-          applyBtn.disabled = !pendingSpreadsheet.allowed;
-        } catch (error) {
-          pendingSpreadsheet = null;
-          status.textContent = error.message || String(error);
-        }
-      });
-
-    document
-      .getElementById("spreadsheetImportApplyBtn")
-      ?.addEventListener("click", async (event) => {
-        if (!pendingSpreadsheet) return;
-        let button = event.currentTarget;
-        let status = document.getElementById("spreadsheetImportStatus");
-        button.disabled = true;
-        status.textContent = ui(
-          "Saving to your account… this can take a while for a large import. Don't close this tab.",
-        );
-        try {
-          let result = await window.applyImportProposal(pendingSpreadsheet);
-          if (!result?.ok)
-            throw new Error(result?.errors?.join(" ") || ui("Import failed."));
           await refreshSource();
-          let importedCount =
-            pendingSpreadsheet?.report?.filmsAdded ||
-            pendingSpreadsheet?.report?.archiveAdded ||
-            0;
-          let celebrationText =
-            importedCount > 0
-              ? ui(
-                  "Your {count} films are in! Explore your decades or head to Home.",
-                  { count: importedCount },
-                )
-              : ui("Spreadsheet import saved to your account.");
-          let watchlistCount =
-            pendingSpreadsheet?.report?.watchlistItemsAdded ||
-            pendingSpreadsheet?.report?.watchlistAdded ||
-            0;
-          let watchlistCta =
-            watchlistCount > 0
-              ? `<a class="button-link button-secondary" href="watchlist.html">${escape(ui("Organise watchlist"))}</a>`
-              : "";
-          status.innerHTML = `<div class="data-import-success"><strong>${escape(celebrationText)}</strong><div class="data-actions" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;"><a class="button-link" href="periods.html">${escape(ui("Explore your decades →"))}</a><a class="button-link button-secondary" href="index.html">${escape(ui("Go to Home"))}</a>${watchlistCta}</div></div>`;
-          pendingSpreadsheet = null;
+          pendingGooglePush =
+            await window.previewGoogleSpreadsheetArchive(spreadsheetId);
+          if (syncGoogleSheetStatus) {
+            syncGoogleSheetStatus.textContent = [
+              ui(
+                "Review push: {films} watched films, {watchlist} watchlist items, {awards} award placements, {removed} award placements removed.",
+                {
+                  films: pendingGooglePush.filmsPushed,
+                  watchlist: pendingGooglePush.watchlistPushed,
+                  awards: pendingGooglePush.awardsPushed,
+                  removed: pendingGooglePush.awardsCleared,
+                },
+              ),
+              ui(
+                "Watched and Watchlist values will be replaced, including extra columns. Awards changes are listed below; other Awards cells and formatting are preserved. Sync any Sheet edits you want to keep before pushing.",
+              ),
+              ...pendingGooglePush.warnings,
+              ...pendingGooglePush.awardChanges,
+            ].join("\n\n");
+          }
+          if (pushGoogleSheetApplyBtn)
+            pushGoogleSheetApplyBtn.disabled = !pendingGooglePush.hasChanges;
         } catch (error) {
-          status.textContent = error.message || String(error);
+          if (syncGoogleSheetStatus)
+            syncGoogleSheetStatus.textContent =
+              window.formatGoogleSheetsError(error);
         } finally {
+          hideGoogleSheetProgress();
           button.disabled = false;
         }
       });
+    pushGoogleSheetApplyBtn?.addEventListener("click", async () => {
+      if (!pendingGooglePush) return;
+      let previewButton = document.getElementById("pushToGoogleSheetBtn");
+      pushGoogleSheetApplyBtn.disabled = true;
+      showGoogleSheetProgress(ui("Writing to Google Sheet…"));
+      if (previewButton) previewButton.disabled = true;
+      try {
+        await refreshSource();
+        let result = await window.writeGoogleSpreadsheetArchive(
+          connectedSpreadsheetId(),
+          { plan: pendingGooglePush },
+        );
+        if (syncGoogleSheetStatus)
+          syncGoogleSheetStatus.textContent = ui(
+            "Archive pushed to Google Sheets ({films} films, {watchlist} watchlist items, {awards} award placements).",
+            {
+              films: result.filmsPushed,
+              watchlist: result.watchlistPushed,
+              awards: result.awardsPushed,
+            },
+          );
+      } catch (error) {
+        if (syncGoogleSheetStatus)
+          syncGoogleSheetStatus.textContent =
+            window.formatGoogleSheetsError(error);
+      } finally {
+        hideGoogleSheetProgress();
+        pendingGooglePush = null;
+        if (previewButton) previewButton.disabled = false;
+      }
+    });
 
     document.getElementById("dataSharingGroup").hidden =
       !window.oskarsCapabilities?.().canPublish;
@@ -1703,11 +1922,75 @@
       "click",
       window.handlePublicProfilePublicationAction,
     );
+
+    initImportTabs();
+  }
+
+  const IMPORT_TAB_PANELS = [
+    "letterboxdImport",
+    "imdbImport",
+    "spreadsheetTemplates",
+  ];
+
+  function switchImportTab(panelId) {
+    if (!IMPORT_TAB_PANELS.includes(panelId)) return;
+    let tabs = document.querySelectorAll?.(".data-import-tab") || [];
+    tabs.forEach((tab) => {
+      let isTarget = tab.getAttribute?.("aria-controls") === panelId;
+      tab.classList?.toggle?.("is-active", isTarget);
+      tab.setAttribute?.("aria-selected", isTarget ? "true" : "false");
+    });
+    IMPORT_TAB_PANELS.forEach((id) => {
+      let panel = document.getElementById(id);
+      if (panel) {
+        panel.hidden = id !== panelId;
+      }
+    });
+  }
+
+  function initImportTabs() {
+    let tabs = document.querySelectorAll?.(".data-import-tab") || [];
+    tabs.forEach((tab) => {
+      tab.addEventListener?.("click", () => {
+        let panelId = tab.getAttribute?.("aria-controls");
+        if (panelId) {
+          switchImportTab(panelId);
+          if (window.location?.hash !== `#${panelId}`) {
+            try {
+              window.history?.replaceState?.(null, "", `#${panelId}`);
+            } catch {
+              if (window.location) window.location.hash = panelId;
+            }
+          }
+        }
+      });
+    });
+
+    function syncTabFromHash() {
+      let hash = (window.location?.hash || "").replace(/^#/, "");
+      if (IMPORT_TAB_PANELS.includes(hash)) {
+        switchImportTab(hash);
+      }
+    }
+
+    window.addEventListener?.("hashchange", syncTabFromHash);
+    window.addEventListener?.("click", (e) => {
+      let link = e.target?.closest?.('a[href^="#"]');
+      if (!link) return;
+      let targetId = (link.getAttribute?.("href") || "").slice(1);
+      if (IMPORT_TAB_PANELS.includes(targetId)) {
+        switchImportTab(targetId);
+      }
+    });
+
+    syncTabFromHash();
   }
 
   initialize().catch((error) => {
     console.error("Failed to initialize Supabase data tools", error);
-    document.getElementById("dataHealthView").innerHTML =
-      `<div class="detail-empty"><h2>${escape(ui("Could not load data tools"))}</h2><p>${escape(error.message || String(error))}</p></div>`;
+    let container = document.querySelector(".data-workspace");
+    if (container) {
+      container.innerHTML = `<div class="detail-empty"><h2>${escape(ui("Could not load data tools"))}</h2><p>${escape(error.message || String(error))}</p></div>`;
+    }
   });
 })();

@@ -114,8 +114,8 @@
     return window.t ? window.t(key, fallback, values) : fallback;
   }
 
-  // Reuses the existing literal-text translation table (period.js's own
-  // "Other watched"/"Unseen" strings) instead of duplicating them under
+  // Reuses the existing literal-text translation table (films.js's own
+  // "Other"/"Shorts, docs & TV" strings) instead of duplicating them under
   // new nav.*/menu.* keys.
   function literalText(fallback, values) {
     return window.uiText ? window.uiText(fallback, values) : fallback;
@@ -128,45 +128,70 @@
     return headerText(key, type || "");
   }
 
-  function currentSection() {
-    let path =
+  // The tiered, ordered watchlist view (period.html's Watchlist mode), not
+  // films.html's catalog status filter.
+  let WATCHLIST_HREF = "period.html?type=alltime&view=watchlist";
+  let BUILD_PAGES = ["build.html", "rank-year.html", "awards-year.html"];
+  let RANKING_PAGES = [
+    "rankings.html",
+    "merge.html",
+    "watchlist-merge.html",
+    "local-rank-merge.html",
+    "ranking-review.html",
+  ];
+  // Browse rail pane each archive page opens on.
+  let BROWSE_PANE_BY_PAGE = {
+    "films.html": "films",
+    "periods.html": "periods",
+    "period.html": "periods",
+    "categories.html": "categories",
+    "category.html": "categories",
+    "collections.html": "collections",
+    "custom-collections.html": "collections",
+    "collection.html": "collections",
+    "directors.html": "collections",
+    "franchises.html": "collections",
+    "franchise.html": "collections",
+    "tags.html": "collections",
+    "tag.html": "collections",
+    "people.html": "people",
+  };
+
+  function currentPage() {
+    return (
       String(window.location?.pathname || "")
         .split("/")
-        .pop() || "index.html";
+        .pop() || "index.html"
+    );
+  }
+
+  function currentSection() {
+    let path = currentPage();
     if (path === "period.html") {
       let params = new URLSearchParams(window.location?.search || "");
-      let view = params.get("view");
-      // The all-time Watched view moved to films.html (issue #495) -
-      // period.html?view=films remains a valid, narrower period-scoped
-      // Watched browse, so it isn't retired, but no longer claims Films.
-      if (view === "watchlist" || view === "shared" || view === "other")
-        return "films";
-      return "periods";
+      return params.get("view") === "watchlist" ? "watchlist" : "browse";
     }
-    if (path === "films.html") return "films";
-    if (path === "periods.html") return "periods";
-    if (path === "categories.html" || path === "category.html")
-      return "categories";
-    if (
-      path === "directors.html" ||
-      path === "franchises.html" ||
-      path === "franchise.html" ||
-      path === "tags.html" ||
-      path === "tag.html"
-    )
-      return "collections";
-    if (
-      path === "collections.html" ||
-      path === "custom-collections.html" ||
-      path === "collection.html"
-    )
-      return "collections";
+    if (BUILD_PAGES.includes(path)) return "build";
+    if (RANKING_PAGES.includes(path)) return "rankings";
+    if (BROWSE_PANE_BY_PAGE[path]) return "browse";
     if (path === "projects.html" || path === "project.html") return "projects";
     if (path === "compare.html") return "compare";
     if (path === "community.html") return "community";
     if (path === "data.html") return "data";
     if (path === "index.html" || !path) return "home";
     return "";
+  }
+
+  function ownerPagesAllowed() {
+    // Owner-only pages (issue #256) are also omitted for an active
+    // public-profile session (issue #253) regardless of baked mode,
+    // matching entry-loader.js's owner-page gate.
+    return (
+      (window.runtimeModeCapabilities?.(window.getRuntimeMode?.())
+        ?.allowOwnerPages ??
+        true) &&
+      !window.resolveActiveProfileSlug?.()
+    );
   }
 
   function buildSiteSearchIndex() {
@@ -191,99 +216,213 @@
     return window.searchMatches(entries, query, { limit: 8 });
   }
 
+  function previewLinksHtml(rows, escape) {
+    return `<div class="browse-preview-links">${rows.map(([href, label]) => `<a class="browse-preview-link" href="${escape(href)}">${escape(label)}</a>`).join("")}</div>`;
+  }
+
   function filmsPreviewLinksHtml(escape) {
-    // Unseen (issue #453, formerly "Shared archive") reads the viewer's
-    // own signed-in account's watched/watchlist data to compute what's
-    // missing, meaningless (and hidden the same way period.js's own
-    // view-switcher hides it) for a public-profile visitor. "Other watched"
-    // is a community aggregation (other people's watched films at this
-    // period scope) with no equivalent in films.html's own-relationship
-    // status filter, so it still points at period.html (issue #495).
+    // Mirrors films.html's own status row, then its non-feature format
+    // across every status. Other (neither watched nor watchlisted) reads the
+    // viewer's own watched/watchlist data to compute what's missing,
+    // meaningless (and hidden the same way period.js's own view-switcher
+    // hides it) for a public-profile visitor. Watchlist here is the catalog
+    // filter; the primary Watchlist item stays the tiered view.
     let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
-    let rows = [
-      ["films.html?status=watched", headerText("nav.watched", "Watched")],
-      ["films.html?status=watchlist", headerText("nav.watchlist", "Watchlist")],
-      ...(canEdit ? [["films.html?status=unseen", literalText("Unseen")]] : []),
-      ["period.html?type=alltime&view=other", literalText("Other watched")],
-    ];
-    return `<div class="films-preview-links">${rows.map(([href, label]) => `<a class="films-preview-link" href="${escape(href)}">${escape(label)}</a>`).join("")}</div>`;
+    return previewLinksHtml(
+      [
+        ["films.html", literalText("All")],
+        ["films.html?status=watched", headerText("nav.watched", "Watched")],
+        [
+          "films.html?status=watchlist",
+          headerText("nav.watchlist", "Watchlist"),
+        ],
+        ...(canEdit
+          ? [["films.html?status=unseen", literalText("Other")]]
+          : []),
+        ["films.html?format=non-feature", literalText("Shorts, docs & TV")],
+      ],
+      escape,
+    );
   }
 
   function collectionsPreviewLinksHtml(escape) {
-    let rows = [
-      ["directors.html", headerText("menu.directors", "Directors")],
-      ["franchises.html", headerText("nav.franchises", "Franchises")],
-      ["tags.html", headerText("menu.tags", "Tags")],
-      ["custom-collections.html", literalText("Custom Collections")],
-    ];
-    return `<div class="collections-preview-links">${rows.map(([href, label]) => `<a class="collections-preview-link" href="${escape(href)}">${escape(label)}</a>`).join("")}</div>`;
+    return previewLinksHtml(
+      [
+        ["directors.html", headerText("menu.directors", "Directors")],
+        ["franchises.html", headerText("nav.franchises", "Franchises")],
+        ["tags.html", headerText("menu.tags", "Tags")],
+        ["custom-collections.html", literalText("Custom Collections")],
+      ],
+      escape,
+    );
   }
 
-  function primaryPreviewHtml(section, escape) {
-    // The outer .primary-nav-preview box starts flush against the nav link
-    // (no gap) and its top padding stands in for the visual gap, so that
-    // whole padded area stays part of the hoverable region — otherwise a
-    // real gap between the link and the panel is dead space where the
-    // hover chain breaks and the panel closes before the pointer arrives.
-    if (section === "periods")
-      return `<div class="primary-nav-preview primary-nav-preview--periods" aria-label="${escape(headerText("menu.periods", "Periods"))}"><div class="primary-nav-preview-panel"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.periods", "Periods"))}</strong><a href="periods.html">${escape(headerText("menu.browsePeriods", "Browse all periods"))} →</a></div>${window.renderPeriodIndexMatrix({ compact: true })}</div></div>`;
-    if (section === "categories")
-      return `<div class="primary-nav-preview primary-nav-preview--categories" aria-label="${escape(headerText("menu.categories", "Categories"))}"><div class="primary-nav-preview-panel"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.categories", "Categories"))}</strong><a href="categories.html">${escape(headerText("menu.browseCategories", "Browse all categories"))} →</a></div>${window.renderCategoryIndexBoard({ compact: true })}</div></div>`;
-    if (section === "collections")
-      return `<div class="primary-nav-preview primary-nav-preview--collections" aria-label="${escape(headerText("menu.collections", "Collections"))}"><div class="primary-nav-preview-panel"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.collections", "Collections"))}</strong></div>${collectionsPreviewLinksHtml(escape)}</div></div>`;
-    if (section === "films")
-      return `<div class="primary-nav-preview primary-nav-preview--films" aria-label="${escape(headerText("menu.films", "Films"))}"><div class="primary-nav-preview-panel"><div class="primary-nav-preview-heading"><strong>${escape(headerText("menu.films", "Films"))}</strong></div>${filmsPreviewLinksHtml(escape)}</div></div>`;
-    return "";
+  function peoplePreviewLinksHtml(escape) {
+    return previewLinksHtml(
+      [
+        ["people.html", headerText("menu.people", "People")],
+        ["directors.html", headerText("menu.directors", "Directors")],
+      ],
+      escape,
+    );
   }
 
-  function primaryNavHtml(active, escape) {
-    // Kept short and fixed so the header never wraps or resizes between pages.
-    // Everything else (Discover, Compare, People, Editor, Data) lives in the
-    // site-menu dropdown instead.
-    let primaryItems = [
-      ["home", headerText("nav.home", "Home"), "index.html"],
-      ["periods", headerText("nav.periods", "Periods"), "periods.html"],
+  function browseDestinations() {
+    return [
+      ["films", headerText("menu.films", "Films"), "films.html"],
+      ["periods", headerText("menu.periods", "Periods"), "periods.html"],
       [
         "categories",
-        headerText("nav.categories", "Categories"),
+        headerText("menu.categories", "Categories"),
         "categories.html",
       ],
       [
         "collections",
-        headerText("nav.collections", "Collections"),
+        headerText("menu.collections", "Collections"),
         "collections.html",
       ],
-      ["films", headerText("nav.films", "Films"), "films.html"],
+      ["people", headerText("menu.people", "People"), "people.html"],
+    ];
+  }
+
+  function browsePaneBodyHtml(pane, escape) {
+    if (pane === "periods")
+      return window.renderPeriodIndexMatrix({ compact: true });
+    if (pane === "categories")
+      return window.renderCategoryIndexBoard({ compact: true });
+    if (pane === "collections") return collectionsPreviewLinksHtml(escape);
+    if (pane === "people") return peoplePreviewLinksHtml(escape);
+    return filmsPreviewLinksHtml(escape);
+  }
+
+  function browseAllLabel(pane) {
+    if (pane === "periods")
+      return headerText("menu.browsePeriods", "Browse all periods");
+    if (pane === "categories")
+      return headerText("menu.browseCategories", "Browse all categories");
+    if (pane === "films")
+      return headerText("menu.browseFilms", "Browse all films");
+    if (pane === "people")
+      return headerText("menu.browsePeople", "Browse all people");
+    return headerText("menu.browseCollections", "Browse all collections");
+  }
+
+  // Each rail link is an ordinary page link; hovering or focusing it swaps
+  // the pane beside it (bindPrimaryNavHoverIntent), so every archive
+  // preview stays one pointer move from the Browse item.
+  function browsePreviewHtml(escape) {
+    let openPane = BROWSE_PANE_BY_PAGE[currentPage()] || "periods";
+    let destinations = browseDestinations();
+    let rail = destinations
+      .map(
+        ([pane, label, href]) =>
+          `<a class="browse-preview-rail-link${pane === openPane ? " is-active" : ""}" href="${escape(href)}" data-browse-pane="${escape(pane)}">${escape(label)}</a>`,
+      )
+      .join("");
+    let panes = destinations
+      .map(
+        ([pane, label, href]) =>
+          `<section class="browse-preview-pane browse-preview-pane--${escape(pane)}" data-browse-pane-content="${escape(pane)}" aria-label="${escape(label)}"${pane === openPane ? "" : " hidden"}><div class="primary-nav-preview-heading"><strong>${escape(label)}</strong><a href="${escape(href)}">${escape(browseAllLabel(pane))} →</a></div>${browsePaneBodyHtml(pane, escape)}</section>`,
+      )
+      .join("");
+    return `<div class="primary-nav-preview primary-nav-preview--browse" aria-label="${escape(headerText("nav.browse", "Browse"))}"><div class="primary-nav-preview-panel browse-preview"><nav class="browse-preview-rail" aria-label="${escape(headerText("nav.browse", "Browse"))}">${rail}</nav>${panes}</div></div>`;
+  }
+
+  function primaryNavHtml(active, escape) {
+    // Kept short and fixed so the header never wraps or resizes between pages.
+    // The archive's own indexes live in Browse's flyout; everything else
+    // (Discover, Compare, Data, ...) lives in the site-menu dropdown.
+    let ownerItems = ownerPagesAllowed();
+    let primaryItems = [
+      ["home", headerText("nav.home", "Home"), "index.html"],
+      ...(ownerItems
+        ? [
+            [
+              "build",
+              headerText("nav.buildOskars", "Build Oskars"),
+              "build.html",
+            ],
+          ]
+        : []),
+      ["watchlist", headerText("nav.watchlist", "Watchlist"), WATCHLIST_HREF],
+      ...(ownerItems
+        ? [
+            [
+              "rankings",
+              headerText("nav.rankings", "Rankings"),
+              "rankings.html",
+            ],
+          ]
+        : []),
       ["projects", headerText("nav.projects", "Projects"), "projects.html"],
+      ["browse", headerText("nav.browse", "Browse"), "films.html"],
     ];
     return primaryItems
       .map(([section, label, href]) => {
         let current = active === section;
-        let link = `<a class="primary-nav-link${current ? " is-active" : ""}" href="${href}"${current ? ' aria-current="page"' : ""}>${label}</a>`;
-        let preview = primaryPreviewHtml(section, escape);
-        return preview
-          ? `<span class="primary-nav-item primary-nav-item--${section}">${link}${preview}</span>`
+        let link = `<a class="primary-nav-link${current ? " is-active" : ""}" href="${escape(href)}"${current ? ' aria-current="page"' : ""}>${escape(label)}</a>`;
+        return section === "browse"
+          ? `<span class="primary-nav-item primary-nav-item--browse">${link}${browsePreviewHtml(escape)}</span>`
           : link;
       })
       .join("");
   }
 
   function dynamicMenuHtml(escape) {
-    // Owner-only entries (issue #256): entry-loader.js already removes these
+    // Owner-only sections (issue #256): entry-loader.js already removes these
     // from the initial static header before this dynamic render replaces
     // the whole panel, so this render must independently omit them too, or
-    // it would silently put them right back for a viewer-mode session. Also
-    // omitted for an active public-profile session (issue #253) regardless
-    // of baked mode, matching entry-loader.js's owner-page gate.
-    let allowOwnerPages =
-      (window.runtimeModeCapabilities?.(window.getRuntimeMode?.())
-        ?.allowOwnerPages ??
-        true) &&
-      !window.resolveActiveProfileSlug?.();
-    let ownerLinks = allowOwnerPages
-      ? `<a href="build.html">${escape(headerText("nav.build", "Build your Oskars"))}</a><a href="intake.html">${escape(headerText("nav.intake", "Intake"))}</a><a href="rate-watched.html">${escape(headerText("nav.rateWatched", "Rate watched"))}</a><a href="rankings.html">${escape(headerText("nav.rankings", "Rankings"))}</a><a href="data.html">${escape(headerText("nav.data", "Data"))}</a><a href="profile.html">${escape(headerText("nav.profile", "Profile"))}</a>`
-      : "";
-    return `<section><h2>${escape(headerText("menu.elsewhere", "Elsewhere"))}</h2><div class="site-menu-links"><a href="community.html">${escape(headerText("menu.community", "Community"))}</a><a href="discover.html">${escape(headerText("menu.discover", "Discover"))}</a><a href="compare.html">${escape(headerText("nav.compare", "Compare"))}</a><a href="presentation.html">${escape(headerText("menu.showcase", "Showcase"))}</a><a href="completion.html">${escape(headerText("menu.completion", "Completion"))}</a><a href="stats.html">${escape(headerText("menu.statistics", "Statistics"))}</a><a href="people.html">${escape(headerText("menu.people", "People"))}</a>${ownerLinks}</div></section>`;
+    // it would silently put them right back for a viewer-mode session.
+    // Browse repeats the flyout's destinations for viewports where the
+    // flyout stays hidden.
+    let section = (heading, links, ownerOnly) =>
+      `<section${ownerOnly ? " data-site-menu-owner" : ""}><h2>${escape(heading)}</h2><div class="site-menu-links">${links
+        .map(
+          ([label, href]) => `<a href="${escape(href)}">${escape(label)}</a>`,
+        )
+        .join("")}</div></section>`;
+    let sections = [
+      section(
+        headerText("nav.browse", "Browse"),
+        browseDestinations().map(([, label, href]) => [label, href]),
+      ),
+      section(headerText("menu.archiveProjections", "Archive projections"), [
+        [headerText("menu.community", "Community"), "community.html"],
+        [headerText("menu.discover", "Discover"), "discover.html"],
+        [headerText("nav.compare", "Compare"), "compare.html"],
+        [headerText("menu.showcase", "Showcase"), "presentation.html"],
+        [headerText("menu.completion", "Completion"), "completion.html"],
+        [headerText("menu.statistics", "Statistics"), "stats.html"],
+      ]),
+    ];
+    if (ownerPagesAllowed()) {
+      sections.push(
+        section(
+          headerText("menu.editors", "Editors"),
+          [
+            [headerText("nav.intake", "Intake"), "intake.html"],
+            [
+              headerText("nav.rateWatched", "Rate watched"),
+              "rate-watched.html",
+            ],
+            [
+              headerText("nav.tierWatchlist", "Set watchlist tier"),
+              "tier-watchlist.html",
+            ],
+          ],
+          true,
+        ),
+        section(
+          headerText("menu.admin", "Admin"),
+          [
+            [headerText("nav.data", "Data"), "data.html"],
+            [headerText("nav.profile", "Profile"), "profile.html"],
+          ],
+          true,
+        ),
+      );
+    }
+    return sections.join("");
   }
 
   function updateLanguageToggle(button) {
@@ -293,7 +432,7 @@
     button.setAttribute("aria-label", button.title);
   }
 
-  // CSS alone (:hover) drops the periods/categories preview the instant the
+  // CSS alone (:hover) drops the Browse preview the instant the
   // pointer leaves the link's own small box, which happens well before a
   // diagonal path toward the (much wider) panel below arrives - closing the
   // preview out from under the pointer. This grace period keeps it open
@@ -320,10 +459,23 @@
       }, 300),
     );
   }
+  function showBrowsePane(railLink) {
+    let panel = railLink.closest(".browse-preview");
+    if (!panel || railLink.classList.contains("is-active")) return;
+    let pane = railLink.dataset.browsePane;
+    panel
+      .querySelectorAll("[data-browse-pane]")
+      .forEach((link) => link.classList.toggle("is-active", link === railLink));
+    panel.querySelectorAll("[data-browse-pane-content]").forEach((section) => {
+      section.hidden = section.dataset.browsePaneContent !== pane;
+    });
+  }
   function bindPrimaryNavHoverIntent(header) {
     header.addEventListener("focusin", (event) => {
       let item = event.target.closest(".primary-nav-item");
       if (item && header.contains(item)) openPreviewItem(item);
+      let railLink = event.target.closest("[data-browse-pane]");
+      if (railLink) showBrowsePane(railLink);
     });
     header.addEventListener("focusout", (event) => {
       let item = event.target.closest(".primary-nav-item");
@@ -338,6 +490,8 @@
       let item = event.target.closest(".primary-nav-item");
       if (!item || !header.contains(item)) return;
       openPreviewItem(item);
+      let railLink = event.target.closest("[data-browse-pane]");
+      if (railLink) showBrowsePane(railLink);
     });
     header.addEventListener("mouseout", (event) => {
       let item = event.target.closest(".primary-nav-item");
@@ -692,7 +846,6 @@
       <button class="theme-toggle" type="button" data-theme-toggle title="${escape(themeToggleTitle(nextOskarsTheme(preferredTheme())))}" aria-label="${escape(headerText("theme.switch", "Switch color theme"))}">${THEME_ICON[preferredTheme()] || "☾"}</button>
       <button class="poster-grid-toggle" type="button" data-poster-grid-toggle aria-pressed="${preferredPosterGrid() ? "true" : "false"}" title="${escape(posterGridToggleTitle(preferredPosterGrid()))}" aria-label="${escape(posterGridToggleTitle(preferredPosterGrid()))}">🖼️</button>
       <button class="poster-backdrop-toggle" type="button" data-poster-backdrop-toggle aria-pressed="${preferredPosterBackdrop() ? "true" : "false"}" title="${escape(posterBackdropToggleTitle(preferredPosterBackdrop()))}" aria-label="${escape(posterBackdropToggleTitle(preferredPosterBackdrop()))}">🎞️</button>
-      ${window.ensureFocusedShellData ? `<span role="status" data-focused-backdrop-status hidden>${escape(headerText("shell.error", "Could not load the archive."))} <button type="button" data-focused-backdrop-retry>${escape(headerText("shell.retry", "Try again"))}</button></span>` : ""}
       <div class="auth-status" data-auth-status aria-live="polite"></div>
       <details class="site-menu">
         <summary aria-label="${escape(headerText("menu.openDirectory", "Open site directory"))}" title="${escape(headerText("menu.openDirectory", "Site directory"))}"><span></span><span></span><span></span></summary>
@@ -700,7 +853,8 @@
           ${dynamicMenuHtml(escape)}
         </div>
       </details>
-    </div>`;
+    </div>
+      ${window.ensureFocusedShellData ? `<span role="status" data-focused-backdrop-status hidden>${escape(headerText("shell.error", "Could not load the archive."))} <button type="button" data-focused-backdrop-retry>${escape(headerText("shell.retry", "Try again"))}</button></span>` : ""}`;
     } else {
       let nav = header.querySelector(".app-primary-nav");
       if (nav) nav.innerHTML = primary;

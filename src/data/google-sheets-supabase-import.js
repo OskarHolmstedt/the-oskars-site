@@ -1,31 +1,8 @@
 /**
- * @file Live Google Sheets → Supabase import (issue #469), the
- * Supabase-native successor to the old `owner-data.html`'s Sheets import
- * panel (deleted issue #434). Reuses `src/data/google-sheets.js`'s OAuth/
- * fetch plumbing (`window.requestGoogleAccessToken`/`fetchGoogleSheetValues`/
- * `rowsToDelimited`) and the same `src/imports/*.js` parsers, resolver, and
- * per-stage write architecture `scripts/import-owner-sheets-to-supabase.mjs`
- * (issue #468) already proved end-to-end against local Supabase - including
- * every bug fix found there (period-label-as-year disambiguation, single-
- * fuzzy-match auto-resolve, batch-upsert de-duplication, `added_at`
- * omission instead of an explicit null).
- *
- * Two structural simplifications the browser gives for free over the Node
- * script:
- * - No service-role key or `eligibility`-table owner lookup - this runs as
- *   the real signed-in user via `window.ensureSupabaseClient()`; RLS scopes
- *   every read/write to `auth.uid()` automatically, and `find_or_create_film`
- *   (`security invoker`) correctly attributes `created_by` to the real user.
- *   Every personal table's `user_id` column defaults to `auth.uid()`, so it's
- *   omitted from every payload below rather than passed explicitly.
- * - No Node `vm` sandboxing - `src/imports/*.js`'s parsers are already real
- *   `window.*` globals on this page.
- *
- * Public API: `fetchGoogleSheetsSupabaseSource()` (does the OAuth + Sheets
- * fetch once) and `runGoogleSheetsSupabaseImport(source, options)` (runs
- * every stage against that same fetched source, in dry-run or --confirm-
- * equivalent mode) - `src/pages/data.js` calls these for its Preview/Apply
- * buttons, passing the same `source` to both so they see identical data.
+ * @file Imports owner-reviewed franchise lists and director filmographies into
+ * the shared production catalog. Reuses Sheets OAuth and row parsers, resolves
+ * film/person identities, and adds catalog credits and memberships without
+ * writing watched records, watchlist entries, rankings, or personal awards.
  */
 
 (function () {
@@ -103,30 +80,6 @@
     return wordsA.some((word) => wordsB.has(word));
   }
 
-  /** Normalizes a nomination source key so recipient order is deterministic. @param {string} rawKey Raw source key. @returns {string} Normalized key. */
-  window.normalizeNominationSourceKey = function (rawKey) {
-    if (!rawKey || typeof rawKey !== "string") return String(rawKey || "");
-    try {
-      let parsed = JSON.parse(rawKey);
-      if (
-        Array.isArray(parsed) &&
-        parsed.length === 7 &&
-        Array.isArray(parsed[6])
-      ) {
-        let sortedRecipients = [...parsed[6]].sort((a, b) =>
-          String(a).localeCompare(String(b), undefined, {
-            sensitivity: "base",
-          }),
-        );
-        parsed[6] = sortedRecipients;
-        return JSON.stringify(parsed);
-      }
-    } catch (_e) {
-      // If not JSON array, return as is.
-    }
-    return rawKey;
-  };
-
   /** Returns [startYear, endYear] for a bracket period's decade/century label ("1990s"), or null for anything else. */
   function periodYearRange(periodHint) {
     if (!periodHint) return null;
@@ -145,17 +98,6 @@
     return String(value || "")
       .trim()
       .toLowerCase();
-  }
-
-  function dedupeByKey(rows, keyFn) {
-    let byKey = new Map();
-    for (let row of rows) byKey.set(keyFn(row), row);
-    return [...byKey.values()];
-  }
-
-  /** Splits raw text or an already-split rows array uniformly - the Sheets API hands this code rows directly, while a future text-based caller would still work. */
-  function ensureRows(input) {
-    return Array.isArray(input) ? input : window.parseTabbedSheetRows(input);
   }
 
   /* ===========================
@@ -181,43 +123,6 @@
       rows.push(...data);
       if (data.length < PAGE_SIZE) return rows;
     }
-  }
-
-  async function writeBatches(rows, writer, onBatch) {
-    const WRITE_BATCH_SIZE = 500;
-    for (let from = 0; from < rows.length; from += WRITE_BATCH_SIZE) {
-      let batch = rows.slice(from, from + WRITE_BATCH_SIZE);
-      if (!batch.length) continue;
-      await writer(batch);
-      onBatch?.(Math.min(from + batch.length, rows.length), rows.length);
-    }
-  }
-
-  /**
-   * Whether a freshly-computed "watched" row would change anything already
-   * stored for that film - `source_row_number` deliberately excluded: an
-   * All-time re-export very often reorders rows (a re-ranking, a new film
-   * inserted higher up) without any of this row's own watched data
-   * actually changing, and treating a pure reorder as "changed" would
-   * force a real upsert for every film on every import.
-   * @param {Object} incoming Freshly computed watched row (no `id`/`user_id`).
-   * @param {Object} [existing] The matching row already in Supabase, if any.
-   * @returns {boolean}
-   */
-  function watchedRowUnchanged(incoming, existing) {
-    if (!existing) return false;
-    let numbersMatch = (a, b) => (a ?? null) === (b ?? null);
-    return (
-      numbersMatch(incoming.rating, existing.rating) &&
-      (incoming.rating_modifier || null) ===
-        (existing.rating_modifier || null) &&
-      (incoming.date_watched || null) === (existing.date_watched || null) &&
-      numbersMatch(incoming.views, existing.views) &&
-      (incoming.platform || null) === (existing.platform || null) &&
-      (incoming.music_score || null) === (existing.music_score || null) &&
-      (incoming.music_rating || null) === (existing.music_rating || null) &&
-      numbersMatch(incoming.music_rating_value, existing.music_rating_value)
-    );
   }
 
   /* ===========================
@@ -466,9 +371,10 @@
     if (resolution.status !== "missing") return resolution;
     let identity = window.filmTmdbIdentity(source.tmdbId);
     if (!identity) {
+      let letterboxdUrl = source.letterboxdUrl || source.url || "";
       let key = `${String(source.title || "")
         .trim()
-        .toLowerCase()}::${numericOrNull(source.year) ?? ""}`;
+        .toLowerCase()}::${numericOrNull(source.year) ?? ""}::${letterboxdUrl}`;
       ctx.tmdbFilmLookups ??= new Map();
       if (!ctx.tmdbFilmLookups.has(key))
         ctx.tmdbFilmLookups.set(
@@ -477,6 +383,7 @@
             title: source.title,
             year: numericOrNull(source.year),
             type: source.type,
+            letterboxdUrl: letterboxdUrl || undefined,
           }),
         );
       identity = ctx.tmdbFilmLookups.get(key);
@@ -683,15 +590,9 @@
     });
   }
 
-  function noteSkipped(report, rowNumber, reason) {
-    report.skipped.push({ rowNumber: rowNumber ?? null, reason });
-  }
-
   /**
    * Reports a row whose tmdb_id points to a different film than its own
-   * title - never resolved, created, or merged (see resolve()'s
-   * titlesPlausiblyRelated check). rowNumber is separate from source's own
-   * fields since some callers (The Oskars) don't carry a row number.
+   * title rather than resolving, creating, or merging that row.
    */
   function noteTmdbMismatch(report, source, resolution, rowNumber) {
     report.tmdbMismatches.push({
@@ -703,40 +604,6 @@
       matchedFilmTitle: resolution.matchedFilm?.title ?? null,
       matchedFilmYear: resolution.matchedFilm?.year ?? null,
     });
-  }
-
-  /* ===========================
-     Directors and Franchises: bespoke flat-row parser (issue #468) - the
-     existing lane-based parseDirectorWatchlistSheet/parseFranchiseSheet
-     don't fit this tab's flat one-row-per-film layout.
-  =========================== */
-
-  /** Recovers Watchlist's "Date" column, which parseWatchlist never reads. Keyed the same way parseWatchlist's own internal dedup does. */
-  function watchlistDatesByKey(input) {
-    let rows = ensureRows(input);
-    let map = new Map();
-    if (!rows.length) return map;
-    let header = (rows[0] || []).map((cell) =>
-      String(cell || "")
-        .trim()
-        .toLowerCase(),
-    );
-    let dateIdx = header.indexOf("date");
-    let nameIdx = header.findIndex(
-      (cell) => cell === "name" || cell === "title",
-    );
-    let yearIdx = header.indexOf("year");
-    if (dateIdx < 0 || nameIdx < 0) return map;
-    for (let index = 1; index < rows.length; index += 1) {
-      let row = rows[index];
-      let title = window.cleanSheetCell(row[nameIdx]);
-      if (!title) continue;
-      let year = yearIdx >= 0 ? window.cleanSheetCell(row[yearIdx]) : "";
-      let date = window.cleanSheetCell(row[dateIdx]);
-      if (!date) continue;
-      map.set(`${window.normalizeTitle(title)}\n${year}`, date);
-    }
-    return map;
   }
 
   /* ===========================
@@ -783,9 +650,7 @@
   }
 
   /**
-   * Resolves and records a film's director credit, shared by
-   * runAllTimeStage and runDirectorsFranchisesStage (both stages carry a
-   * director name alongside a film row).
+   * Resolves and records a catalog film's director credit.
    */
   async function applyDirectorCredit(
     personResolver,
@@ -828,497 +693,12 @@
   }
 
   /* ===========================
-     Stage 1: All-time ranked list
+     Catalog films, director credits and franchise memberships
   =========================== */
 
-  async function runAllTimeStage(raw, resolvers, ctx) {
-    let report = newStageReport("All-time");
-    let parsed = window.parseRankedList(raw, { includeRowNumbers: true });
-    if (!parsed) return { report, watchedFilmIds: new Set() };
-    report.totalRows = parsed.films.length;
-    report.skipped = (parsed.diagnostics?.skippedDetails || []).map(
-      (entry) => ({ rowNumber: entry.rowNumber, reason: entry.reason }),
-    );
-
-    let watchedFilmIds = new Set();
-    let rankingRowsByScope = new Map();
-    let tagNames = new Set();
-    let filmTagRelations = [];
-    let changedWatchedRows = [];
-
-    function addRankingRow(scopeType, scope, row) {
-      let key = `${scopeType}::${scope}`;
-      let list = rankingRowsByScope.get(key) || [];
-      list.push(row);
-      rankingRowsByScope.set(key, list);
-    }
-
-    let index = 0;
-    for (let film of parsed.films) {
-      index += 1;
-      ctx.onProgress?.("All-time", index, parsed.films.length);
-      let resolution = await resolveOrCreateFilm(
-        resolvers.filmResolver,
-        film,
-        ctx,
-      );
-      noteFilmResolution(report, resolution, film);
-      if (resolution.status === "tmdb-mismatch") {
-        noteTmdbMismatch(report, film, resolution);
-        continue;
-      }
-      if (resolution.status === "ambiguous") {
-        noteAmbiguous(report, film, resolution);
-        continue;
-      }
-      if (resolution.status === "not-created") {
-        continue;
-      }
-      let filmId = resolution.film.id;
-      watchedFilmIds.add(filmId);
-
-      if (film.director) {
-        await applyDirectorCredit(
-          resolvers.personResolver,
-          filmId,
-          film.director,
-          ctx,
-          report,
-        );
-      }
-
-      let ratingParsed = window.parseFilmRating(film.rating);
-      let musicParsed = window.parseFilmRating(film.musicScore);
-      let watchedRow = {
-        film_id: filmId,
-        rating: ratingParsed.value || null,
-        rating_modifier: ratingParsed.value
-          ? textOrNull(ratingParsed.modifier)
-          : null,
-        date_watched: textOrNull(film.dateWatched),
-        views: integerOrNull(film.views),
-        platform: textOrNull(film.platform),
-        music_score: textOrNull(film.musicScore),
-        music_rating: textOrNull(film.musicScore),
-        music_rating_value: musicParsed.value || null,
-        source_row_number: integerOrNull(film.rowNumber),
-      };
-      report.notes["watched rows"] = (report.notes["watched rows"] || 0) + 1;
-      if (ctx.confirm) {
-        if (
-          watchedRowUnchanged(
-            watchedRow,
-            ctx.existingWatchedByFilmId?.get(filmId),
-          )
-        ) {
-          report.notes["watched rows already up to date"] =
-            (report.notes["watched rows already up to date"] || 0) + 1;
-        } else {
-          changedWatchedRows.push(watchedRow);
-        }
-      }
-
-      let year = integerOrNull(film.year);
-      let scopes = [
-        ["years", year ? String(year) : null, integerOrNull(film.yearRank)],
-        [
-          "decades",
-          year ? `${Math.floor(year / 10) * 10}s` : null,
-          integerOrNull(film.decadeRank),
-        ],
-        [
-          "centuries",
-          year ? `${Math.floor(year / 100) * 100}s` : null,
-          integerOrNull(film.centuryRank),
-        ],
-        ["allTime", "alltime", integerOrNull(film.allTimeRank)],
-      ];
-      for (let [scopeType, scope, rank] of scopes) {
-        if (!scope || !rank || rank < 1) continue;
-        addRankingRow(scopeType, scope, {
-          filmId,
-          position: String(rank).padStart(10, "0"),
-          rankConfirmed: film.rankConfirmed !== false,
-          suppressAllTimeRank:
-            scopeType === "allTime" && Boolean(film.suppressAllTimeRank),
-          tieGroupId:
-            scopeType === "allTime" ? textOrNull(film.rankingGroupId) : null,
-          tieGroupTitle:
-            scopeType === "allTime" ? textOrNull(film.rankingGroupTitle) : null,
-        });
-      }
-
-      for (let membership of film.franchises || []) {
-        await applyFranchiseMembership(
-          resolvers.franchiseResolver,
-          filmId,
-          membership,
-          ctx,
-          report,
-        );
-      }
-
-      for (let tag of film.tags || []) {
-        let name = textOrNull(tag);
-        if (!name) continue;
-        tagNames.add(name);
-        filmTagRelations.push({ filmId, name });
-      }
-    }
-
-    if (ctx.confirm && changedWatchedRows.length) {
-      await writeBatches(changedWatchedRows, async (batch) => {
-        let { error } = await ctx.client
-          .from("watched")
-          .upsert(batch, { onConflict: "user_id,film_id" });
-        if (error) throw error;
-      });
-    }
-
-    let scopeKeys = [...rankingRowsByScope.keys()];
-    report.notes["ranking scopes"] = scopeKeys.length;
-    report.notes["ranking entries"] = [...rankingRowsByScope.values()].reduce(
-      (sum, list) => sum + list.length,
-      0,
-    );
-    if (ctx.confirm && scopeKeys.length) {
-      await writeBatches(
-        scopeKeys.map((key) => {
-          let [scopeType, scope] = key.split("::");
-          return { scope_type: scopeType, scope };
-        }),
-        async (batch) => {
-          let { error } = await ctx.client
-            .from("rankings")
-            .upsert(batch, { onConflict: "user_id,scope_type,scope" });
-          if (error) throw error;
-        },
-      );
-      let rankings = (
-        await fetchAll(ctx.client, "rankings", "id,user_id,scope_type,scope")
-      ).filter((row) => row.user_id === ctx.userId);
-      let rankingIdByScope = new Map(
-        rankings.map((row) => [`${row.scope_type}::${row.scope}`, row.id]),
-      );
-      let entries = [];
-      for (let [key, rows] of rankingRowsByScope) {
-        let rankingId = rankingIdByScope.get(key);
-        for (let row of rows) {
-          entries.push({
-            ranking_id: rankingId,
-            film_id: row.filmId,
-            position: row.position,
-            rank_confirmed: row.rankConfirmed,
-            suppress_all_time_rank: row.suppressAllTimeRank,
-            tie_group_id: row.tieGroupId,
-            tie_group_title: row.tieGroupTitle,
-          });
-        }
-      }
-      await writeBatches(
-        dedupeByKey(entries, (row) => `${row.ranking_id}::${row.film_id}`),
-        async (batch) => {
-          let { error } = await ctx.client
-            .from("ranking_entries")
-            .upsert(batch, { onConflict: "ranking_id,film_id" });
-          if (error) throw error;
-        },
-      );
-    }
-
-    report.notes["tags"] = tagNames.size;
-    report.notes["film-tag relations"] = filmTagRelations.length;
-    if (ctx.confirm && tagNames.size) {
-      await writeBatches(
-        [...tagNames].map((name) => ({ name })),
-        async (batch) => {
-          let { error } = await ctx.client
-            .from("tags")
-            .upsert(batch, { onConflict: "user_id,name" });
-          if (error) throw error;
-        },
-      );
-      let tags = (await fetchAll(ctx.client, "tags", "id,user_id,name")).filter(
-        (row) => row.user_id === ctx.userId,
-      );
-      let tagIdByName = new Map(tags.map((row) => [row.name, row.id]));
-      let filmTags = dedupeByKey(
-        filmTagRelations
-          .map((relation) => ({
-            film_id: relation.filmId,
-            tag_id: tagIdByName.get(relation.name),
-          }))
-          .filter((row) => row.tag_id),
-        (row) => `${row.film_id}::${row.tag_id}`,
-      );
-      await writeBatches(filmTags, async (batch) => {
-        let { error } = await ctx.client
-          .from("film_tags")
-          .upsert(batch, { onConflict: "user_id,film_id,tag_id" });
-        if (error) throw error;
-      });
-    }
-
-    return { report, watchedFilmIds };
-  }
-
-  /* ===========================
-     Stage 1b: Diary - every row not already covered by an existing
-     watched row or this run's All-time stage gets its film resolved/
-     created and a plain watched row written (rating, date, views,
-     platform, director credit, franchise memberships) but no ranking
-     rows, since Diary carries no rank. This applies uniformly regardless
-     of the row's own Type (Film, TV-film, Short, Documentary, Stage,
-     Concert, TV-series, Anthology, ...) - `films.type` is a free-text
-     column with no constraint, so a Short or a Stage recording is just
-     as valid a films row as a Film, and shows up correctly in the app's
-     "Other watched" view once created (buildLegacyStateFromSupabaseHydration
-     only routes a watched film there when it's genuinely unranked, not
-     based on type - see supabase-legacy-hydration.js). Earlier versions
-     of this stage skipped every non-Film/TV-film row outright on the
-     mistaken assumption there was nowhere for it to go; issue #622
-     already tracked adding this. A film already covered by All-time/an
-     existing watched row is left untouched even if it recurs in Diary,
-     so a rewatch log never clobbers that film's canonical watched row.
-  =========================== */
-
-  async function runDiaryStage(raw, resolvers, ownedWatchedFilmIds, ctx) {
-    let report = newStageReport("Diary");
-    let parsed = window.parseDiary(raw);
-    if (!parsed) return { report, watchedFilmIds: new Set() };
-    report.totalRows = parsed.entries.length;
-    report.skipped = (parsed.diagnostics?.skippedDetails || []).map(
-      (entry) => ({ rowNumber: entry.rowNumber, reason: entry.reason }),
-    );
-
-    let watchedFilmIds = new Set();
-    let changedWatchedRows = [];
-    let nonFilmTypeRows = 0;
-    let skippedAlreadyWatched = 0;
-
-    let index = 0;
-    for (let entry of parsed.entries) {
-      index += 1;
-      ctx.onProgress?.("Diary", index, parsed.entries.length);
-      if (window.diaryEntryKind(entry.type) !== "archive") nonFilmTypeRows += 1;
-      let resolution = await resolveOrCreateFilm(
-        resolvers.filmResolver,
-        entry,
-        ctx,
-      );
-      noteFilmResolution(report, resolution, entry);
-      if (resolution.status === "tmdb-mismatch") {
-        noteTmdbMismatch(report, entry, resolution);
-        continue;
-      }
-      if (resolution.status === "ambiguous") {
-        noteAmbiguous(report, entry, resolution);
-        continue;
-      }
-      if (resolution.status === "not-created") {
-        continue;
-      }
-      let filmId = resolution.film.id;
-      if (ownedWatchedFilmIds.has(filmId) || watchedFilmIds.has(filmId)) {
-        skippedAlreadyWatched += 1;
-        continue;
-      }
-      watchedFilmIds.add(filmId);
-
-      if (entry.director) {
-        await applyDirectorCredit(
-          resolvers.personResolver,
-          filmId,
-          entry.director,
-          ctx,
-          report,
-        );
-      }
-
-      for (let membership of entry.franchises || []) {
-        await applyFranchiseMembership(
-          resolvers.franchiseResolver,
-          filmId,
-          membership,
-          ctx,
-          report,
-        );
-      }
-
-      let ratingParsed = window.parseFilmRating(entry.rating);
-      let musicParsed = window.parseFilmRating(entry.musicScore);
-      let watchedRow = {
-        film_id: filmId,
-        rating: ratingParsed.value || null,
-        rating_modifier: ratingParsed.value
-          ? textOrNull(ratingParsed.modifier)
-          : null,
-        date_watched: textOrNull(entry.dateWatched),
-        views: integerOrNull(entry.views),
-        platform: textOrNull(entry.platform),
-        music_score: textOrNull(entry.musicScore),
-        music_rating: textOrNull(entry.musicScore),
-        music_rating_value: musicParsed.value || null,
-        source_row_number: integerOrNull(entry.rowNumber),
-      };
-      report.notes["watched rows"] = (report.notes["watched rows"] || 0) + 1;
-      if (ctx.confirm) {
-        if (
-          watchedRowUnchanged(
-            watchedRow,
-            ctx.existingWatchedByFilmId?.get(filmId),
-          )
-        ) {
-          report.notes["watched rows already up to date"] =
-            (report.notes["watched rows already up to date"] || 0) + 1;
-        } else {
-          changedWatchedRows.push(watchedRow);
-        }
-      }
-    }
-
-    // A rewatch log can carry the same not-yet-watched film across several
-    // rows - keep only the last one seen so the batch write below never
-    // sends duplicate film_ids in one upsert.
-    changedWatchedRows = dedupeByKey(changedWatchedRows, (row) => row.film_id);
-    report.notes["diary rows for non-film/TV-film media (still imported)"] =
-      nonFilmTypeRows;
-    report.notes["diary rows already covered by an existing watched film"] =
-      skippedAlreadyWatched;
-    if (ctx.confirm && changedWatchedRows.length) {
-      await writeBatches(changedWatchedRows, async (batch) => {
-        let { error } = await ctx.client
-          .from("watched")
-          .upsert(batch, { onConflict: "user_id,film_id" });
-        if (error) throw error;
-      });
-    }
-
-    return { report, watchedFilmIds };
-  }
-
-  /* ===========================
-     Stage 2: Watchlist
-  =========================== */
-
-  async function runWatchlistStage(
-    raw,
-    resolvers,
-    watchedFilmIds,
-    ctx,
-    staleWatchlistCount = 0,
-  ) {
-    let report = newStageReport("Watchlist");
-    let parsed = window.parseWatchlist(raw);
-    report.totalRows = parsed.items.length;
-    report.skipped = (parsed.diagnostics?.skippedDetails || []).map(
-      (entry) => ({ rowNumber: entry.rowNumber, reason: entry.reason }),
-    );
-    let dateByKey = watchlistDatesByKey(raw);
-
-    let skippedAlreadyWatched = 0;
-    let watchlistFilmIds = new Set();
-    let nextPosition = 1;
-    let rows = [];
-
-    let index = 0;
-    for (let item of parsed.items) {
-      index += 1;
-      ctx.onProgress?.("Watchlist", index, parsed.items.length);
-      let resolution = await resolveOrCreateFilm(
-        resolvers.filmResolver,
-        item,
-        ctx,
-      );
-      noteFilmResolution(report, resolution, item);
-      if (resolution.status === "tmdb-mismatch") {
-        noteTmdbMismatch(report, item, resolution);
-        continue;
-      }
-      if (resolution.status === "ambiguous") {
-        noteAmbiguous(report, item, resolution);
-        continue;
-      }
-      if (resolution.status === "not-created") {
-        continue;
-      }
-      let filmId = resolution.film.id;
-      if (watchedFilmIds.has(filmId)) {
-        skippedAlreadyWatched += 1;
-        continue;
-      }
-      watchlistFilmIds.add(filmId);
-      let dateKey = `${window.normalizeTitle(item.title)}\n${item.year || ""}`;
-      let addedAt = dateByKey.get(dateKey) || null;
-      // added_at is NOT NULL - omit the key (taking the column's own
-      // default now()) on the rare row with no recovered date.
-      let row = {
-        film_id: filmId,
-        tier: null,
-        position: null,
-        reason: null,
-      };
-      if (addedAt) row.added_at = addedAt;
-      rows.push(row);
-    }
-
-    rows = dedupeByKey(rows, (row) => row.film_id);
-    report.notes["skipped (already watched)"] = skippedAlreadyWatched;
-    if (staleWatchlistCount > 0) {
-      report.notes["stale watchlist rows removed (now watched)"] =
-        staleWatchlistCount;
-    }
-    report.notes["would-write watchlist rows"] = rows.length;
-    if (ctx.confirm && rows.length) {
-      await writeBatches(rows, async (batch) => {
-        let { error } = await ctx.client
-          .from("watchlist")
-          .upsert(batch, { onConflict: "user_id,film_id" });
-        if (error) throw error;
-      });
-    }
-
-    return { report, watchlistFilmIds, nextPosition };
-  }
-
-  /* ===========================
-     Stage 3: Directors and Franchises
-  =========================== */
-
-  async function runDirectorsFranchisesStage(
-    input,
-    resolvers,
-    watchedFilmIds,
-    watchlistFilmIds,
-    startPosition,
-    ctx,
-  ) {
-    let report = newStageReport("Directors and Franchises");
-    let items = window.parseDirectorsFranchisesSheet(input);
+  async function runDirectorsFranchisesStage(items, resolvers, ctx) {
+    let report = newStageReport("Catalog franchises and filmographies");
     report.totalRows = items.length;
-
-    // Snapshot of which films are genuinely already a real watchlist row
-    // in Supabase, taken before this stage's own loop mutates
-    // `watchlistFilmIds` - the "changedTierRows" path below sends only
-    // {film_id, tier} (no `position`, a NOT NULL column with no default),
-    // which is only valid as an UPDATE against a row that already exists.
-    // The sheet can repeat the same film across two rows (e.g. two
-    // franchise memberships) - the first occurrence adds it to
-    // `watchlistFilmIds` in memory immediately, but its actual INSERT
-    // doesn't run until this whole loop finishes, so a same-run second
-    // occurrence would otherwise see "already on watchlist" and route to
-    // the tier-only UPDATE payload for a row that doesn't exist in
-    // Supabase yet - PostgREST's upsert then tries an INSERT with no
-    // `position`, violating the NOT NULL constraint (Postgres 23502) and
-    // aborting the whole import before The Oskars stage ever runs.
-    let alreadyOnWatchlistInSupabase = new Set(watchlistFilmIds);
-    let pendingNewWatchlistRowsByFilmId = new Map();
-
-    let alreadyWatched = 0;
-    let tierUpdates = 0;
-    let tierUpdatesSkippedUnchanged = 0;
-    let changedTierRows = [];
-    let newWatchlistRows = [];
 
     let index = 0;
     for (let item of items) {
@@ -1362,418 +742,7 @@
           report,
         );
       }
-
-      if (watchedFilmIds.has(filmId)) {
-        alreadyWatched += 1;
-        continue;
-      }
-      if (watchlistFilmIds.has(filmId)) {
-        if (!alreadyOnWatchlistInSupabase.has(filmId)) {
-          // Added earlier in this same run (e.g. a repeated film across
-          // two Franchise rows) - its INSERT is still pending in
-          // newWatchlistRows, not yet written, so update the tier on
-          // that same pending row instead of sending a separate
-          // {film_id, tier}-only "update" for a row that doesn't exist
-          // in Supabase yet (see the comment above this function).
-          if (item.tier) {
-            let pendingRow = pendingNewWatchlistRowsByFilmId.get(filmId);
-            if (pendingRow) {
-              pendingRow.tier = item.tier;
-              pendingRow.tier_modifier = item.tierModifier || null;
-            }
-          }
-          continue;
-        }
-        if (ctx.confirm && item.tier) {
-          let existingTier = ctx.existingWatchlistTierByFilmId?.get(filmId);
-          let existingModifier =
-            ctx.existingWatchlistTierModifierByFilmId?.get(filmId) ?? null;
-          let targetModifier = item.tierModifier || null;
-          if (
-            (existingTier || null) === (item.tier || null) &&
-            (existingModifier || null) === targetModifier
-          ) {
-            tierUpdatesSkippedUnchanged += 1;
-          } else {
-            tierUpdates += 1;
-            let existingPosition =
-              ctx.existingWatchlistPositionByFilmId?.get(filmId);
-            let position = existingPosition ?? null;
-            changedTierRows.push({
-              film_id: filmId,
-              tier: item.tier,
-              tier_modifier: targetModifier,
-              position,
-            });
-          }
-        } else {
-          tierUpdates += 1;
-        }
-        continue;
-      }
-      watchlistFilmIds.add(filmId);
-      let newRow = {
-        film_id: filmId,
-        tier: item.tier || null,
-        tier_modifier: item.tierModifier || null,
-        position: null,
-        reason: null,
-      };
-      newWatchlistRows.push(newRow);
-      pendingNewWatchlistRowsByFilmId.set(filmId, newRow);
     }
-
-    newWatchlistRows = dedupeByKey(newWatchlistRows, (row) => row.film_id);
-    changedTierRows = dedupeByKey(changedTierRows, (row) => row.film_id);
-    report.notes["already watched (franchise/director only)"] = alreadyWatched;
-    report.notes["existing watchlist tier updates"] = tierUpdates;
-    report.notes["existing watchlist tiers already correct"] =
-      tierUpdatesSkippedUnchanged;
-    report.notes["new watchlist rows (no added_at source)"] =
-      newWatchlistRows.length;
-    if (ctx.confirm && changedTierRows.length) {
-      await writeBatches(changedTierRows, async (batch) => {
-        let { error } = await ctx.client
-          .from("watchlist")
-          .upsert(batch, { onConflict: "user_id,film_id" });
-        if (error) throw error;
-      });
-    }
-    if (ctx.confirm && newWatchlistRows.length) {
-      await writeBatches(newWatchlistRows, async (batch) => {
-        let { error } = await ctx.client
-          .from("watchlist")
-          .upsert(batch, { onConflict: "user_id,film_id" });
-        if (error) throw error;
-      });
-    }
-
-    return { report };
-  }
-
-  /* ===========================
-     Stage 4: The Oskars award brackets
-  =========================== */
-
-  async function runOskarsStage(input, resolvers, existingNominations, ctx) {
-    let report = newStageReport("The Oskars");
-    let blocks = window.splitBracketSheetBlocks(ensureRows(input));
-    let periods = blocks.map((block) =>
-      window.parseTable("", { rows: block.rows }),
-    );
-    // Process narrow-to-broad (years, then decades, then centuries, then
-    // allTime) regardless of sheet layout order, so a decade nomination
-    // resolved earlier in this same run can inform that film's century/
-    // all-time disambiguation later in this same run (see
-    // filmCategoryHistory below). Array.prototype.sort is stable, so blocks
-    // sharing a rank keep their original sheet order.
-    periods.sort(
-      (a, b) =>
-        (PERIOD_RANK[a.periodType] ?? 0) - (PERIOD_RANK[b.periodType] ?? 0),
-    );
-
-    let scopeKeys = new Set();
-    let nominationsBySourceKey = new Map();
-    let resolvedNominations = 0;
-    let skippedNominations = 0;
-
-    // Which award period types (and, within those, which categories) has
-    // each film already been nominated for - read-only, so safe to always
-    // compute even in preview mode. Seeded from the user's real existing
-    // history, then grown live as this run resolves each period
-    // (narrow-to-broad, per the sort above), and used by
-    // resolveByTitleOnly to break same-title/same-century ties: a
-    // candidate with real nomination history at a narrower period is
-    // preferred over one with none, since this app's award brackets
-    // promote a narrower period's winner into the next one up
-    // (src/domain/decade-merge.js) - and specifically history in the
-    // *same category* being resolved is stronger evidence than history in
-    // any category at all (issue #473).
-    let priorAwards = (
-      await fetchAll(
-        ctx.client,
-        "personal_awards",
-        "id,user_id,scope_type,scope",
-      )
-    ).filter((row) => row.user_id === ctx.userId);
-    let scopeTypeByAwardId = new Map(
-      priorAwards.map((row) => [row.id, row.scope_type]),
-    );
-    // filmId -> scopeType -> category -> Set(normalized recipient name) -
-    // the Set stays empty for a category that's never recorded a
-    // recipient (e.g. Best Picture), which resolveByTitleOnly treats as
-    // "recipient check doesn't apply, category match is enough".
-    let filmCategoryHistory = new Map();
-    function noteFilmCategory(filmId, scopeType, category, recipientNames) {
-      let byScope = filmCategoryHistory.get(filmId) || new Map();
-      let byCategory = byScope.get(scopeType) || new Map();
-      let recipientSet = byCategory.get(category) || new Set();
-      for (let name of recipientNames || []) {
-        let normalized = normalizedPersonName(name);
-        if (normalized) recipientSet.add(normalized);
-      }
-      if (category) byCategory.set(category, recipientSet);
-      byScope.set(scopeType, byCategory);
-      filmCategoryHistory.set(filmId, byScope);
-    }
-    let recipientNamesByNominationId = new Map();
-    if (existingNominations.length) {
-      let existingNominationIds = new Set(existingNominations.map((n) => n.id));
-      let recipientRows = (
-        await fetchAll(
-          ctx.client,
-          "personal_nomination_recipients",
-          "nomination_id,recipient_name",
-        )
-      ).filter((row) => existingNominationIds.has(row.nomination_id));
-      for (let row of recipientRows) {
-        let list = recipientNamesByNominationId.get(row.nomination_id) || [];
-        list.push(row.recipient_name);
-        recipientNamesByNominationId.set(row.nomination_id, list);
-      }
-    }
-    for (let nomination of existingNominations) {
-      let scopeType = scopeTypeByAwardId.get(nomination.personal_award_id);
-      if (scopeType && nomination.film_id)
-        noteFilmCategory(
-          nomination.film_id,
-          scopeType,
-          nomination.category,
-          recipientNamesByNominationId.get(nomination.id),
-        );
-    }
-
-    let periodIndex = 0;
-    for (let period of periods) {
-      periodIndex += 1;
-      ctx.onProgress?.("The Oskars", periodIndex, periods.length);
-      if (!period?.films?.length) continue;
-      scopeKeys.add(`${period.periodType}::${period.year}`);
-      report.totalRows += period.films.length;
-
-      for (let film of period.films) {
-        // parseTable's getOrCreateFilm sets every nominee's "year" to the
-        // bracket block's own period key, not the film's real release
-        // year - only true for a "years" (annual) block. For decade/
-        // century/all-time blocks, resolve by title alone against the
-        // working catalog instead of trusting film.year.
-        let awardRecipientNames = (award) =>
-          (award.recipients || [])
-            .map((recipient) => textOrNull(recipient?.name))
-            .filter(Boolean);
-        let resolution = window.filmConcreteYear(film.year)
-          ? await resolveOrCreateFilm(resolvers.filmResolver, film, ctx)
-          : resolvers.filmResolver.resolveByTitleOnly(
-              film.title,
-              { periodType: period.periodType, year: period.year },
-              filmCategoryHistory,
-              (film.awards || []).map((award) => ({
-                category: award.category,
-                recipients: awardRecipientNames(award),
-              })),
-            );
-        noteFilmResolution(report, resolution, film);
-        if (resolution.status === "tmdb-mismatch") {
-          noteTmdbMismatch(report, film, resolution);
-          skippedNominations += (film.awards || []).length;
-          continue;
-        }
-        if (resolution.status === "ambiguous") {
-          noteAmbiguous(report, film, resolution);
-          skippedNominations += (film.awards || []).length;
-          continue;
-        }
-        if (resolution.status === "not-created") {
-          skippedNominations += (film.awards || []).length;
-          continue;
-        }
-        if (resolution.status === "missing") {
-          noteSkipped(
-            report,
-            null,
-            `"${film.title}" has no known real release year (only known as "${film.year}") - skipping ${(film.awards || []).length} nomination(s)`,
-          );
-          skippedNominations += (film.awards || []).length;
-          continue;
-        }
-        let filmId = resolution.film.id;
-        for (let award of film.awards || [])
-          noteFilmCategory(
-            filmId,
-            period.periodType,
-            award.category,
-            awardRecipientNames(award),
-          );
-        let isPending = String(filmId).startsWith("pending:");
-
-        for (let award of film.awards || []) {
-          if (isPending && ctx.confirm) {
-            skippedNominations += 1;
-            noteSkipped(
-              report,
-              null,
-              `Film "${film.title}" unresolved for ${award.category}`,
-            );
-            continue;
-          }
-          let recipients = awardRecipientNames(award);
-          let sortedRecipients = [...recipients].sort((a, b) =>
-            String(a).localeCompare(String(b), undefined, {
-              sensitivity: "base",
-            }),
-          );
-          let sourceKey = JSON.stringify([
-            filmId,
-            period.periodType,
-            period.year,
-            award.category,
-            award.placement,
-            textOrNull(award.detail),
-            sortedRecipients,
-          ]);
-          let rawSourceKey = JSON.stringify([
-            filmId,
-            period.periodType,
-            period.year,
-            award.category,
-            award.placement,
-            textOrNull(award.detail),
-            recipients,
-          ]);
-          resolvedNominations += 1;
-          nominationsBySourceKey.set(sourceKey, {
-            scopeType: period.periodType,
-            scope: period.year,
-            sourceKey,
-            rawSourceKey,
-            category: award.category,
-            placement: award.placement,
-            filmId,
-            detail: textOrNull(award.detail),
-            recipients,
-          });
-        }
-      }
-    }
-
-    report.notes["award periods"] = scopeKeys.size;
-    report.notes["nominations resolved"] = resolvedNominations;
-    report.notes["nominations skipped (unresolved film)"] = skippedNominations;
-
-    if (!ctx.confirm) return { report };
-
-    await writeBatches(
-      [...scopeKeys].map((key) => {
-        let [scopeType, scope] = key.split("::");
-        return { scope_type: scopeType, scope };
-      }),
-      async (batch) => {
-        let { error } = await ctx.client
-          .from("personal_awards")
-          .upsert(batch, { onConflict: "user_id,scope_type,scope" });
-        if (error) throw error;
-      },
-    );
-    let awards = (
-      await fetchAll(
-        ctx.client,
-        "personal_awards",
-        "id,user_id,scope_type,scope",
-      )
-    ).filter((row) => row.user_id === ctx.userId);
-    let awardIdByScope = new Map(
-      awards.map((row) => [`${row.scope_type}::${row.scope}`, row.id]),
-    );
-
-    // personal_nominations: source_key has a *partial* unique index, so
-    // .upsert() can't target it - diff against already-fetched rows and
-    // .insert() only what's missing.
-    let existingBySourceKey = new Map();
-    let existingByNormalizedSourceKey = new Map();
-    existingNominations.forEach((row) => {
-      if (!row.source_key) return;
-      existingBySourceKey.set(row.source_key, row);
-      let norm = window.normalizeNominationSourceKey(row.source_key);
-      if (norm) existingByNormalizedSourceKey.set(norm, row);
-    });
-    let toInsert = [];
-    for (let [sourceKey, nomination] of nominationsBySourceKey) {
-      if (
-        existingBySourceKey.has(sourceKey) ||
-        existingBySourceKey.has(nomination.rawSourceKey) ||
-        existingByNormalizedSourceKey.has(sourceKey)
-      ) {
-        continue;
-      }
-      toInsert.push({
-        personal_award_id: awardIdByScope.get(
-          `${nomination.scopeType}::${nomination.scope}`,
-        ),
-        source_key: sourceKey,
-        category: nomination.category,
-        placement: nomination.placement,
-        film_id: nomination.filmId,
-        detail: nomination.detail,
-      });
-    }
-    await writeBatches(toInsert, async (batch) => {
-      let { error } = await ctx.client
-        .from("personal_nominations")
-        .insert(batch);
-      if (error) throw error;
-    });
-
-    let allAwardIds = new Set(awards.map((row) => row.id));
-    let stored = (
-      await fetchAll(
-        ctx.client,
-        "personal_nominations",
-        "id,personal_award_id,source_key",
-      )
-    ).filter((row) => allAwardIds.has(row.personal_award_id));
-    let nominationIdBySourceKey = new Map();
-    let nominationIdByNormalizedSourceKey = new Map();
-    stored.forEach((row) => {
-      if (!row.source_key) return;
-      nominationIdBySourceKey.set(row.source_key, row.id);
-      let norm = window.normalizeNominationSourceKey(row.source_key);
-      if (norm) nominationIdByNormalizedSourceKey.set(norm, row.id);
-    });
-
-    let recipientRows = [];
-    for (let [sourceKey, nomination] of nominationsBySourceKey) {
-      let nominationId =
-        nominationIdBySourceKey.get(sourceKey) ||
-        nominationIdBySourceKey.get(nomination.rawSourceKey) ||
-        nominationIdByNormalizedSourceKey.get(sourceKey);
-      if (!nominationId) continue;
-      for (let name of nomination.recipients) {
-        let person = await resolvePerson(
-          resolvers.personResolver,
-          name,
-          report,
-          "recipients with no catalog or TMDB person (kept as text)",
-          ctx,
-        );
-        recipientRows.push({
-          nomination_id: nominationId,
-          person_id: person?.id || null,
-          recipient_name: name,
-        });
-      }
-    }
-    await writeBatches(
-      dedupeByKey(
-        recipientRows,
-        (row) => `${row.nomination_id}::${row.recipient_name}`,
-      ),
-      async (batch) => {
-        let { error } = await ctx.client
-          .from("personal_nomination_recipients")
-          .upsert(batch, { onConflict: "nomination_id,recipient_name" });
-        if (error) throw error;
-      },
-    );
 
     return { report };
   }
@@ -1782,100 +751,67 @@
      Public API
   =========================== */
 
-  function googleSheetsSupabaseRanges() {
+  function googleSheetsCatalogRanges() {
     let ranges = window.OSKARS_LOCAL_CONFIG?.googleSheets?.ranges || {};
     return {
-      allTime: ranges.allTime,
-      bracket: ranges.bracket,
-      watchlist: ranges.watchlist,
-      directorsAndFranchises: ranges.directorsAndFranchises,
-      diary: ranges.diary || "'Diary'!A:R",
+      directorsAndFranchises: ranges.directorsAndFranchises || "",
+      franchises: ranges.franchises || "",
+      directors: ranges.directors || "",
     };
   }
 
-  /** Reports whether this browser has a configured Google Sheet to import from - gates the whole feature's visibility. */
+  /** Reports whether the owner has explicitly configured catalog-only Sheet ranges. @returns {boolean} Whether catalog ingestion is configured. */
   window.googleSheetsSupabaseImportConfigured = function () {
-    let config = window.OSKARS_LOCAL_CONFIG?.googleSheets;
     return Boolean(
       window.OSKARS_LOCAL_CONFIG?.googleClientId &&
-      config?.spreadsheetId &&
-      Object.values(googleSheetsSupabaseRanges()).some(Boolean),
+      window.OSKARS_LOCAL_CONFIG?.googleSheets?.spreadsheetId &&
+      Object.values(googleSheetsCatalogRanges()).some(Boolean),
     );
   };
 
   /**
-   * Signs in and fetches every configured range once. The same result is
-   * passed to runGoogleSheetsSupabaseImport for both a dry-run preview and
-   * the real --confirm-equivalent apply, so the two operate on identical
-   * source data.
-   * @returns {Promise<{allTime: string, watchlist: string, bracketRows: string[][], directorsFranchisesRows: string[][]}>}
+   * Fetches only explicitly configured catalog franchise and filmography ranges for reviewed ingestion.
+   * @returns {Promise<Object>} Session source containing shared catalog ranges only.
    */
   window.fetchGoogleSheetsSupabaseSource = async function () {
-    let config = window.OSKARS_LOCAL_CONFIG?.googleSheets;
-    let spreadsheetId = String(config?.spreadsheetId || "").trim();
-    if (!spreadsheetId)
-      throw new Error("Missing googleSheets.spreadsheetId in config.local.js.");
-    let ranges = googleSheetsSupabaseRanges();
-    let rangeKeys = Object.keys(ranges).filter((key) => ranges[key]);
-    if (!rangeKeys.length)
-      throw new Error("Missing googleSheets.ranges in config.local.js.");
-
+    let spreadsheetId = window.OSKARS_LOCAL_CONFIG?.googleSheets?.spreadsheetId;
+    let ranges = googleSheetsCatalogRanges();
+    let keys = Object.keys(ranges).filter((key) => ranges[key]);
+    if (!spreadsheetId || !keys.length)
+      throw new Error(
+        "Configure catalog franchise or filmography Sheet ranges first.",
+      );
     await window.loadGoogleIdentity();
-    let accessToken = await window.requestGoogleAccessToken();
+    let token = await window.requestGoogleAccessToken();
     let data = await window.fetchGoogleSheetValues(
       spreadsheetId,
-      rangeKeys.map((key) => ranges[key]),
-      accessToken,
+      keys.map((key) => ranges[key]),
+      token,
     );
-    let valueRanges = data.valueRanges || [];
-    let byKey = {};
-    rangeKeys.forEach((key, index) => {
-      byKey[key] = valueRanges[index]?.values || [];
+    let source = {};
+    keys.forEach((key, index) => {
+      source[key] = data.valueRanges[index]?.values || [];
     });
-
-    return {
-      allTimeRaw: window.rowsToDelimited(byKey.allTime || [], "\t"),
-      watchlistRaw: window.rowsToDelimited(byKey.watchlist || [], "\t"),
-      bracketRows: byKey.bracket || [],
-      directorsFranchisesRows: byKey.directorsAndFranchises || [],
-      diaryRaw: window.rowsToDelimited(byKey.diary || [], "\t"),
-    };
+    return source;
   };
 
   /**
-   * Runs every stage against an already-fetched source. Pass {confirm:
-   * false} (the default) for a dry run that writes nothing; {confirm: true}
-   * to write for real. onProgress(stageName, done, total) is called
-   * throughout - a real hosted import is thousands of sequential Supabase
-   * round trips, slower than local testing, so the caller should show it.
-   * @returns {Promise<{reports: Object[]}>}
+   * Imports reviewed catalog films, director credits and franchise memberships without writing personal archive tables.
+   * @param {Object} source Reviewed catalog Sheet rows.
+   * @param {Object} [options] Dry-run/apply options and progress callback.
+   * @returns {Promise<{reports: Object[]}>} Catalog ingestion reports.
    */
-  window.runGoogleSheetsSupabaseImport = async function (source, options = {}) {
-    let client = options.client;
-    let user = options.user || (options.userId ? { id: options.userId } : null);
-    if (!client || !user) {
-      let ready = await readyClient();
-      client = client || ready.client;
-      user = user || ready.user;
-    }
-    await window.ensureCatalogIdentity?.();
+  window.runGoogleSheetsCatalogImport = async function (source, options = {}) {
+    let ready = options.client && options.user ? options : await readyClient();
+    let client = ready.client;
     let ctx = {
       confirm: Boolean(options.confirm),
       client,
-      userId: user.id,
+      userId: ready.user.id,
       onProgress: options.onProgress,
     };
-
-    let [
-      films,
-      people,
-      franchises,
-      watched,
-      watchlist,
-      personalNominations,
-      directorCredits,
-      franchiseMemberships,
-    ] = await Promise.all([
+    await window.ensureCatalogIdentity?.();
+    let [films, people, franchises, credits, memberships] = await Promise.all([
       fetchAll(
         client,
         "films",
@@ -1883,177 +819,54 @@
       ),
       fetchAll(client, "people", "id,name"),
       fetchAll(client, "franchises", "id,slug,name,parent_id,source_url"),
-      // All-time's per-film watched-row upsert used to run unconditionally
-      // for every row (issue: "All-time sheet takes some time" - a rating/
-      // date/etc. correction or two, most rows completely unchanged run to
-      // run). Selecting every column the upsert can write lets
-      // runAllTimeStage below diff against what's already there and skip
-      // writing rows that would be a no-op, matching the credits/
-      // film_franchises fix just above.
-      fetchAll(
-        client,
-        "watched",
-        "user_id,film_id,rating,rating_modifier,date_watched,views,platform,music_score,music_rating,music_rating_value",
-      ),
-      // Directors and Franchises' Tier column re-asserts a tier for every
-      // watchlist row it names, not just newly-added ones - selecting tier
-      // here too lets that stage skip a row whose tier already matches
-      // instead of always issuing an update (issue: same "Directors and
-      // Franchises still going through basically every row" report the
-      // credits/franchise-membership skips above were fixing).
-      fetchAll(
-        client,
-        "watchlist",
-        "user_id,film_id,tier,tier_modifier,position",
-      ),
-      fetchAll(
-        client,
-        "personal_nominations",
-        "id,personal_award_id,source_key,category,placement,film_id,detail",
-      ),
-      // Neither table has an update grant for `authenticated` (a shared,
-      // append-only catalog fact - see applyDirectorCredit/
-      // applyFranchiseMembership below), so every insert there previously
-      // had no local way to tell "already recorded" from "new" and always
-      // round-tripped to Supabase, catching the resulting unique-violation
-      // one row at a time. That's fine for a small watchlist stage, but the
-      // Directors and Franchises sheet is typically almost entirely rows
-      // the owner already has recorded, so it paid a wasted network
-      // round trip per row. Pre-fetching both tables once here lets those
-      // two functions skip already-recorded rows locally instead.
       fetchAll(client, "credits", "film_id,person_id,role"),
       fetchAll(client, "film_franchises", "film_id,franchise_id"),
     ]);
-
     let resolvers = {
       filmResolver: buildFilmResolver(films),
       personResolver: buildPersonResolver(people),
       franchiseResolver: buildFranchiseResolver(franchises),
     };
-
-    let ownedWatchedFilmIds = new Set(watched.map((row) => row.film_id));
-    let ownedWatchlistFilmIds = new Set(watchlist.map((row) => row.film_id));
-    let nextWatchlistPosition = ownedWatchlistFilmIds.size + 1;
-    let ctxDirectorCreditKeys = new Set(
-      directorCredits
-        .filter((row) => row.role === "director")
-        .map((row) => `${row.film_id}:${row.person_id}`),
+    ctx.existingDirectorCreditKeys = new Set(
+      credits
+        .filter((entry) => entry.role === "director")
+        .map((entry) => `${entry.film_id}:${entry.person_id}`),
     );
-    let ctxFranchiseMembershipKeys = new Set(
-      franchiseMemberships.map((row) => `${row.film_id}:${row.franchise_id}`),
+    ctx.existingFranchiseMembershipKeys = new Set(
+      memberships.map((entry) => `${entry.film_id}:${entry.franchise_id}`),
     );
-    ctx.existingDirectorCreditKeys = ctxDirectorCreditKeys;
-    ctx.existingFranchiseMembershipKeys = ctxFranchiseMembershipKeys;
-    ctx.existingWatchlistTierByFilmId = new Map(
-      watchlist.map((row) => [row.film_id, row.tier ?? null]),
+    let items = window.parseDirectorsFranchisesSheet(
+      source.directorsAndFranchises || [],
     );
-    ctx.existingWatchlistTierModifierByFilmId = new Map(
-      watchlist.map((row) => [row.film_id, row.tier_modifier ?? null]),
-    );
-    // Belt-and-suspenders for a tier-only update: always carries a real
-    // `position` (a NOT NULL column with no default) sourced from the
-    // film's own existing row when there is one, so a genuine update
-    // never disturbs its ordering. If local bookkeeping is ever wrong
-    // about a film already being a real watchlist row (found live: an
-    // earlier, now-fixed version of this stage could crash mid-run,
-    // leaving a profile in a state where some films the in-memory
-    // tracking expected to exist didn't actually get written yet), this
-    // still lands as a harmless insert instead of a NOT NULL violation
-    // that aborts the whole import before The Oskars stage ever runs.
-    ctx.existingWatchlistPositionByFilmId = new Map(
-      watchlist.map((row) => [row.film_id, row.position ?? null]),
-    );
-    ctx.existingWatchedByFilmId = new Map(
-      watched.map((row) => [row.film_id, row]),
-    );
-
-    let reports = [];
-
-    let stage1 = await runAllTimeStage(source.allTimeRaw, resolvers, ctx);
-    reports.push(stage1.report);
-    stage1.watchedFilmIds.forEach((id) => ownedWatchedFilmIds.add(id));
-
-    let stage1b = await runDiaryStage(
-      source.diaryRaw,
-      resolvers,
-      ownedWatchedFilmIds,
-      ctx,
-    );
-    reports.push(stage1b.report);
-    stage1b.watchedFilmIds.forEach((id) => ownedWatchedFilmIds.add(id));
-
-    // Stale watchlist cleanup (issue #634): any film that was on the user's
-    // watchlist before this run, and was newly marked watched by All-time
-    // or Diary in this run, must have its watchlist row deleted so it
-    // doesn't persist in both tables simultaneously.
-    let newlyWatchedFilmIds = new Set([
-      ...stage1.watchedFilmIds,
-      ...stage1b.watchedFilmIds,
-    ]);
-    let staleWatchlistFilmIds = [];
-    for (let filmId of ownedWatchlistFilmIds) {
-      if (newlyWatchedFilmIds.has(filmId)) {
-        staleWatchlistFilmIds.push(filmId);
-      }
+    let diagnostics = [];
+    for (let key of ["franchises", "directors"]) {
+      if (!source[key]?.length) continue;
+      let parsed =
+        key === "franchises"
+          ? window.parseFranchiseSheet("", { rows: source[key] })
+          : window.parseDirectorWatchlistSheet("", { rows: source[key] });
+      diagnostics.push(...(parsed.diagnostics?.skippedDetails || []));
+      items.push(
+        ...parsed.items.map((item) => ({
+          ...item,
+          franchises:
+            key === "franchises"
+              ? [
+                  {
+                    name: item.franchiseName,
+                    parentChain: item.parentChain || [],
+                    sourceUrl: item.sourceUrl,
+                    rank: item.rank,
+                  },
+                ]
+              : [],
+        })),
+      );
     }
-
-    if (staleWatchlistFilmIds.length) {
-      if (ctx.confirm) {
-        const DELETE_CHUNK_SIZE = 100;
-        for (
-          let i = 0;
-          i < staleWatchlistFilmIds.length;
-          i += DELETE_CHUNK_SIZE
-        ) {
-          let chunk = staleWatchlistFilmIds.slice(i, i + DELETE_CHUNK_SIZE);
-          let query = ctx.client
-            .from("watchlist")
-            .delete()
-            .in("film_id", chunk);
-          if (ctx.userId) query = query.eq("user_id", ctx.userId);
-          let { error } = await query;
-          if (error) throw error;
-        }
-      }
-      for (let filmId of staleWatchlistFilmIds) {
-        ownedWatchlistFilmIds.delete(filmId);
-        ctx.existingWatchlistTierByFilmId?.delete(filmId);
-        ctx.existingWatchlistPositionByFilmId?.delete(filmId);
-      }
-    }
-
-    let stage2 = await runWatchlistStage(
-      source.watchlistRaw,
-      resolvers,
-      ownedWatchedFilmIds,
-      ctx,
-      staleWatchlistFilmIds.length,
-    );
-    reports.push(stage2.report);
-    stage2.watchlistFilmIds.forEach((id) => ownedWatchlistFilmIds.add(id));
-    nextWatchlistPosition = Math.max(
-      nextWatchlistPosition,
-      stage2.nextPosition,
-    );
-
-    let stage3 = await runDirectorsFranchisesStage(
-      source.directorsFranchisesRows,
-      resolvers,
-      ownedWatchedFilmIds,
-      ownedWatchlistFilmIds,
-      nextWatchlistPosition,
-      ctx,
-    );
-    reports.push(stage3.report);
-
-    let stage4 = await runOskarsStage(
-      source.bracketRows,
-      resolvers,
-      personalNominations,
-      ctx,
-    );
-    reports.push(stage4.report);
-
-    return { reports };
+    let result = await runDirectorsFranchisesStage(items, resolvers, ctx);
+    result.report.skipped.push(...diagnostics);
+    result.report.notes["personal archive tables"] =
+      "untouched; ratings and tiers ignored";
+    return { reports: [result.report] };
   };
 })();

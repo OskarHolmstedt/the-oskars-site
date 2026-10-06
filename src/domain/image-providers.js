@@ -99,6 +99,67 @@ window.requestPosterJson = async function (
   );
 };
 
+/**
+ * Extracts a candidate film title from a Letterboxd URL slug.
+ * @param {string} url Letterboxd URL.
+ * @returns {string|null} Extracted title or null.
+ */
+window.extractLetterboxdSlugTitle = function (url) {
+  let text = String(url || "").trim();
+  if (!text) return null;
+  let match = text.match(/\/film\/([^/?#]+)/i);
+  if (!match) return null;
+  let slug = decodeURIComponent(match[1])
+    .replace(/-\d{4}$/, "")
+    .replace(/-/g, " ")
+    .trim();
+  return slug || null;
+};
+
+/**
+ * Resolves a TMDB ID directly from a Letterboxd film URL by fetching its HTML.
+ * @param {string} url Letterboxd URL.
+ * @param {Function} [fetchFn] Fetch implementation.
+ * @returns {Promise<string|null>} TMDB ID or TV reference string, or null.
+ */
+window.lookupLetterboxdFilmTmdbId = async function (url, fetchFn) {
+  let targetUrl = String(url || "").trim();
+  if (!targetUrl || !/letterboxd\.com|boxd\.it/i.test(targetUrl)) return null;
+  let fetcher =
+    fetchFn ||
+    (typeof window !== "undefined" && window.fetch) ||
+    (typeof fetch === "function" ? fetch : null);
+  if (typeof fetcher !== "function") return null;
+  try {
+    let response = await fetcher(targetUrl, {
+      headers: { accept: "text/html,application/xhtml+xml" },
+    });
+    if (!response || !response.ok) return null;
+    let html = typeof response.text === "function" ? await response.text() : "";
+    if (!html) return null;
+
+    let idMatch = html.match(/data-tmdb-id=["'](\d+)["']/i);
+    let typeMatch = html.match(/data-tmdb-type=["'](tv|movie)["']/i);
+    if (idMatch) {
+      let tmdbId = idMatch[1];
+      let isTv = typeMatch && typeMatch[1].toLowerCase() === "tv";
+      return isTv ? `TV:${tmdbId}` : tmdbId;
+    }
+
+    let linkMatch = html.match(
+      /https?:\/\/(?:www\.)?themoviedb\.org\/(movie|tv)\/(\d+)/i,
+    );
+    if (linkMatch) {
+      let isTv = linkMatch[1].toLowerCase() === "tv";
+      let tmdbId = linkMatch[2];
+      return isTv ? `TV:${tmdbId}` : tmdbId;
+    }
+  } catch (_err) {
+    // Unsupported or unreachable network
+  }
+  return null;
+};
+
 /** Returns deduplicated title variants for TMDB search. @param {string} title Film title. @returns {string[]} Variants. */
 window.tmdbMovieSearchTitleVariants = function (title) {
   let raw = String(title || "").trim();
@@ -112,6 +173,12 @@ window.tmdbMovieSearchTitleVariants = function (title) {
   // title alone finds it instantly.
   if (/\s*\([^)]*\)\s*$/.test(raw))
     variants.push(raw.replace(/\s*\([^)]*\)\s*$/, "").trim());
+  // A decade shorthand ("60s") vs expanded ("1960s") causes TMDB search
+  // to return zero results when differing from TMDB's title.
+  if (/\b([2-9]0)s\b/i.test(raw))
+    variants.push(raw.replace(/\b([2-9]0)s\b/gi, "19$1s"));
+  if (/\b([0-2]0)s\b/i.test(raw))
+    variants.push(raw.replace(/\b([0-2]0)s\b/gi, "20$1s"));
   // A heavily comma-punctuated title can make TMDB's own search return
   // zero results even though the exact same title (minus one comma)
   // finds the film immediately - found live with "Jeanne Dielman, 23,

@@ -87,6 +87,9 @@
    * @param {Object} [options] Pagination.
    * @param {number} [options.limit] Page size.
    * @param {number} [options.offset] Zero-based row offset into the ordered, filtered set.
+   * @param {boolean} [options.includeIds] False skips the complete ordered id
+   *   list (the returned `orderedIds` is then empty), for a read that only
+   *   needs the page itself.
    * @returns {Promise<{totalCount:number, tierCounts:Object, subPeriodCounts:Object, orderedIds:string[], page:Object[]}>}
    */
   window.loadSupabaseWatchlistPage = async function (filters, options = {}) {
@@ -114,6 +117,14 @@
       p_limit: Number(options.limit) || 60,
       p_offset: Number(options.offset) || 0,
     };
+    if (options.includeIds === false) {
+      let { data, error } = await ready.client.rpc("read_watchlist_page", {
+        ...args,
+        p_include_ids: false,
+      });
+      if (error) throw error;
+      return window.buildSupabaseWatchlistPageModel(data);
+    }
     let idsKey = JSON.stringify([
       auth.user.id,
       args.p_filters,

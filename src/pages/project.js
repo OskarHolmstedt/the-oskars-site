@@ -72,6 +72,8 @@
     if (record.status === "watchlist") {
       let item = record.item;
       let film = window.watchlistFilmLike(item);
+      let filmId = item.supabaseFilmId || item.id;
+      let displayTitle = window.localizedFilmTitle?.(film) || item.title;
       return window.renderSharedFilmCard(film, {
         classes: [
           "project-film-card",
@@ -81,7 +83,7 @@
         attributes: window.orderEditItemAttributes({
           enabled: editable,
           scope: "queue",
-          id: item.supabaseFilmId,
+          id: filmId,
           index,
           group: "queue",
         }),
@@ -91,12 +93,44 @@
         beforeTitleHtml: item.tier
           ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(item.tier)}</span>`
           : "",
-        titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
+        titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(filmId))}">${escape(displayTitle)}</a>`,
         bodyHtml: `<div class="watchlist-card-actions"><span>${escape(ui("Watchlist"))}</span></div>`,
+        actionsHtml: window.renderCardRemoveButton({
+          escape,
+          title: ui("Remove from project"),
+          attributes: {
+            "data-remove-project-item": filmId,
+            "aria-label": ui("Remove {title} from project", {
+              title: displayTitle,
+            }),
+          },
+        }),
       });
     }
     let film = record.film;
+    let filmId = film.supabaseFilmId || film.id;
+    let displayTitle = window.localizedFilmTitle?.(film) || film.title;
     let missingEditable = editable && record.status === "missing";
+    let rewatchButtonHtml = "";
+    if (record.status === "watched" || record.rewatch) {
+      rewatchButtonHtml = window.renderCollectionActionButton({
+        kind: "rewatch",
+        label: ui(
+          record.rewatch ? "Remove from rewatchlist" : "Want to rewatch",
+        ),
+        escape,
+        active: Boolean(record.rewatch),
+        attributes: record.rewatch
+          ? { "data-project-film-unrewatch": filmId }
+          : { "data-project-film-rewatch": filmId },
+      });
+    }
+    let bodyHtml =
+      record.status === "missing"
+        ? `<div class="leaderboard-meta">${escape(ui("Not in your collection yet"))}</div>`
+        : record.rewatch
+          ? `<div class="watchlist-card-actions"><span class="watchlist-tier tier-rewatch">${escape(ui("Rewatch"))}</span>${rewatchButtonHtml}</div>`
+          : `<div class="watchlist-card-actions">${rewatchButtonHtml}</div>`;
     return window.renderSharedFilmCard(film, {
       classes: [
         "project-film-card",
@@ -105,19 +139,24 @@
       attributes: window.orderEditItemAttributes({
         enabled: missingEditable,
         scope: "queue",
-        id: film.supabaseFilmId,
+        id: filmId,
         index,
         group: "queue",
       }),
       showYear: true,
       escape,
       director: film.director,
-      bodyHtml:
-        record.status === "missing"
-          ? `<div class="leaderboard-meta">${escape(ui("Not in your collection yet"))}</div>`
-          : record.rewatch
-            ? `<div class="watchlist-card-actions"><span>${escape(ui("Rewatch"))}</span></div>`
-            : "",
+      bodyHtml,
+      actionsHtml: window.renderCardRemoveButton({
+        escape,
+        title: ui("Remove from project"),
+        attributes: {
+          "data-remove-project-item": filmId,
+          "aria-label": ui("Remove {title} from project", {
+            title: displayTitle,
+          }),
+        },
+      }),
     });
   }
 
@@ -130,31 +169,70 @@
     if (record.status === "watchlist") {
       let item = record.item;
       let film = window.watchlistFilmLike(item);
+      let filmId = item.supabaseFilmId || item.id;
+      let displayTitle = window.localizedFilmTitle?.(film) || item.title;
       let attributes = window.renderOrderEditItemAttributes(
         {
           enabled: editable,
           scope: "queue",
-          id: item.supabaseFilmId,
+          id: filmId,
           index,
           group: "queue",
         },
         escape,
       );
-      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", item.year))}">${escape(item.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, href: window.filmPageUrl(item.supabaseFilmId) })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td>${window.renderRatingTierCell({ item }, { escape })}</tr>`;
+      let removeButtonHtml = window.renderCardRemoveButton({
+        escape,
+        title: ui("Remove from project"),
+        attributes: {
+          "data-remove-project-item": filmId,
+          "aria-label": ui("Remove {title} from project", {
+            title: displayTitle,
+          }),
+        },
+      });
+      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", item.year))}">${escape(item.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, href: window.filmPageUrl(filmId) })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td>${window.renderRatingTierCell({ item }, { escape })}<td class="project-manage-cell">${removeButtonHtml}</td></tr>`;
     }
     let film = record.film;
+    let filmId = film.supabaseFilmId || film.id;
+    let displayTitle = window.localizedFilmTitle?.(film) || film.title;
     let missingEditable = editable && record.status === "missing";
     let attributes = window.renderOrderEditItemAttributes(
       {
         enabled: missingEditable,
         scope: "queue",
-        id: film.supabaseFilmId,
+        id: filmId,
         index,
         group: "queue",
       },
       escape,
     );
-    return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td>${record.status === "missing" ? `<td>${escape(ui("Not in your collection yet"))}</td>` : window.renderRatingTierCell({ film }, { escape, showRewatchTier })}</tr>`;
+    let rewatchButtonHtml = "";
+    if (record.status === "watched" || record.rewatch) {
+      rewatchButtonHtml = window.renderCollectionActionButton({
+        kind: "rewatch",
+        label: ui(
+          record.rewatch ? "Remove from rewatchlist" : "Want to rewatch",
+        ),
+        escape,
+        active: Boolean(record.rewatch),
+        attributes: record.rewatch
+          ? { "data-project-film-unrewatch": filmId }
+          : { "data-project-film-rewatch": filmId },
+      });
+    }
+    let removeButtonHtml = window.renderCardRemoveButton({
+      escape,
+      title: ui("Remove from project"),
+      attributes: {
+        "data-remove-project-item": filmId,
+        "aria-label": ui("Remove {title} from project", {
+          title: displayTitle,
+        }),
+      },
+    });
+    let manageCellHtml = `<td class="project-manage-cell">${rewatchButtonHtml}${removeButtonHtml}</td>`;
+    return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td>${record.status === "missing" ? `<td>${escape(ui("Not in your collection yet"))}</td>` : window.renderRatingTierCell({ film }, { escape, showRewatchTier })}${manageCellHtml}</tr>`;
   }
 
   function render() {
@@ -189,7 +267,6 @@
       ],
     });
     let reverseTargetSort = sort === "shuffle" ? "year" : sort;
-    let toolbarHtml = `<div class="project-toolbar collection-film-toolbar detail-toolbar"><div class="detail-toolbar-controls">${sortAxisControl}${window.renderChronologyControl({ order, href: projectViewUrl({ sort: reverseTargetSort, order: order === "asc" ? "desc" : "asc" }), escape, iconOnly: true })}${window.renderShuffleControl({ href: projectViewUrl({ sort: "shuffle", seed: window.freshShuffleSeed() }), escape, label: ui("Shuffle") })}</div>${window.renderFilmViewToggle({ view: filmView, listUrl: projectViewUrl({ view: "list" }), gridUrl: projectViewUrl({ view: "grid" }), escape, ariaLabel: ui("Project display") })}</div>`;
 
     let queueCards = queue
       .map((record, index) => itemCard(record, index, queueEditMode))
@@ -200,9 +277,10 @@
     let watchedCards = sortedWatched.map((record) => itemCard(record)).join("");
     let watchedRows = sortedWatched.map((record) => itemRow(record)).join("");
 
+    let addFilmButton = `<button type="button" class="sort-order-button project-add-film-button" data-add-project-film${busy ? " disabled" : ""}>+ ${escape(ui("Add film"))}</button>`;
     let queueControls =
       queue.length > 1
-        ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-project-queue-edit-toggle${busy ? " disabled" : ""}>${escape(ui(queueEditMode ? "Finish order" : "Reorder"))}</button>${queueEditMode ? `<span>${escape(ui("Drag to set this project's queue order."))}</span>` : ""}</div>`
+        ? `<button type="button" class="sort-order-button${queueEditMode ? " is-active" : ""}" data-project-queue-edit-toggle${busy ? " disabled" : ""} title="${escape(ui("Drag to set this project's queue order."))}" aria-pressed="${queueEditMode ? "true" : "false"}">${escape(ui(queueEditMode ? "Finish order" : "Reorder"))}</button>`
         : "";
     let statusLabel =
       project.status === "complete"
@@ -216,26 +294,59 @@
           `<button type="button" class="sort-order-button${project.status === value ? " is-active" : ""}" data-project-status="${escape(value)}"${busy ? " disabled" : ""}>${escape(ui(value === "active" ? "Active" : value === "complete" ? "Complete" : "Archived"))}</button>`,
       )
       .join("");
+    let pinButton = `<button type="button" class="sort-order-button${project.pinned ? " is-active" : ""}" data-pin-project${busy ? " disabled" : ""} aria-pressed="${project.pinned ? "true" : "false"}">${escape(ui(project.pinned ? "Unpin" : "Pin"))}</button>`;
+    let deleteButton = `<button type="button" class="sort-order-button danger-button project-delete-pill" data-delete-project${busy ? " disabled" : ""}>${escape(ui("Delete project"))}</button>`;
 
     let controlBannerHtml = `<div class="project-control-banner">
-      ${toolbarHtml}
-      <div class="project-settings-bar">
-        <div class="period-edit-controls project-status-controls" aria-label="${escape(ui("Project status"))}">${statusButtons}</div>
-        ${queueControls}
+      <div class="project-toolbar collection-film-toolbar detail-toolbar">
+        <div class="detail-toolbar-controls">
+          ${addFilmButton}
+          ${sortAxisControl}
+          ${window.renderChronologyControl({ order, href: projectViewUrl({ sort: reverseTargetSort, order: order === "asc" ? "desc" : "asc" }), escape, iconOnly: true })}
+          ${window.renderShuffleControl({ href: projectViewUrl({ sort: "shuffle", seed: window.freshShuffleSeed() }), escape, label: ui("Shuffle") })}
+          ${queueControls}
+        </div>
+        <div class="project-settings-bar">
+          ${window.renderFilmViewToggle({ view: filmView, listUrl: projectViewUrl({ view: "list" }), gridUrl: projectViewUrl({ view: "grid" }), escape, ariaLabel: ui("Project display") })}
+          ${pinButton}
+          <div class="period-edit-controls project-status-controls" aria-label="${escape(ui("Project status"))}">${statusButtons}</div>
+          ${deleteButton}
+        </div>
       </div>
     </div>`;
 
     let upNextRecord = queue.length ? queue[0] : null;
-    let upNextHtml = upNextRecord
-      ? `<section class="project-up-next" aria-label="${escape(ui("Up next"))}">
-        <div class="project-up-next-header">
-          <span class="eyebrow">${escape(ui("Up next"))}</span>
+    let upNextHtml = "";
+    if (upNextRecord) {
+      let nextFilm =
+        upNextRecord.status === "watchlist"
+          ? window.watchlistFilmLike(upNextRecord.item)
+          : upNextRecord.film;
+      let nextTitle = window.localizedFilmTitle?.(nextFilm) || nextFilm.title;
+      let nextFilmUrl = window.filmPageUrl(
+        nextFilm.supabaseFilmId || nextFilm.id,
+      );
+      let nextMetaParts = [];
+      if (nextFilm.year) nextMetaParts.push(escape(nextFilm.year));
+      if (upNextRecord.status === "watchlist" && upNextRecord.item?.tier) {
+        nextMetaParts.push(escape(upNextRecord.item.tier));
+      } else if (upNextRecord.rewatch) {
+        nextMetaParts.push(escape(ui("Rewatch")));
+      }
+      let nextPosterHtml = window.renderFilmPoster
+        ? window.renderFilmPoster(nextFilm, "thumb")
+        : "";
+      upNextHtml = `<aside class="project-up-next project-header-up-next" aria-label="${escape(ui("Up next"))}">
+        <span class="eyebrow">${escape(ui("Up next"))}</span>
+        <div class="project-up-next-compact">
+          ${nextPosterHtml}
+          <div class="project-up-next-compact-body">
+            <a class="table-film-link" href="${escape(nextFilmUrl)}"><strong>${escape(nextTitle)}</strong></a>
+            <div class="leaderboard-meta">${nextMetaParts.join(" · ")}</div>
+          </div>
         </div>
-        <div class="project-up-next-card">
-          ${itemCard(upNextRecord, 0, false)}
-        </div>
-      </section>`
-      : "";
+      </aside>`;
+    }
 
     let deckFilms = window.projectPosterDeckFilms
       ? window.projectPosterDeckFilms({
@@ -248,53 +359,46 @@
         ? `<div class="project-detail-poster">${window.renderPosterDeck(deckFilms)}</div>`
         : "";
 
+    let queueEditNotice = queueEditMode
+      ? `<div class="project-manage-mode"><span>${escape(ui("Drag to set this project's queue order."))}</span></div>`
+      : "";
+
     container.innerHTML = `${window.renderBreadcrumbs([{ label: ui("Projects"), href: "projects.html" }, { label: project.name }], { escape })}${window.renderDetailHeader(
       {
         classes: "project-detail-header",
         leadingHtml: posterDeckHtml,
         mainHtml: `<h1>${escape(project.name)}</h1><p>${project.source_label ? escape(project.source_label) : escape(ui("Custom project"))} · <span class="project-status-badge">${escape(statusLabel)}</span></p>`,
-        actionsHtml: `<button type="button" class="sort-order-button" data-pin-project${busy ? " disabled" : ""}>${escape(ui(project.pinned ? "Unpin" : "Pin"))}</button>`,
+        actionsHtml: upNextHtml,
       },
     )}
     ${window.renderDetailStats({ itemsHtml: `<span><b>${watched.length}</b> ${escape(ui("Watched"))}</span><span><b>${queue.length}</b> ${escape(ui("Queue"))}</span><span><b>${total}</b> ${escape(ui("Total"))}</span><span><b>${percent}%</b> ${escape(ui("Complete"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}
     ${window.renderSupabaseEntityNote({ entityKind: "project", entityKey: project.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Project note"), escape })}
     <div class="project-progress-meter project-progress-meter--detail" aria-label="${escape(ui("{percent} percent complete", { percent }))}"><span style="width:${escape(percent)}%"></span></div>
     ${controlBannerHtml}
-    ${upNextHtml}
+    ${queueEditNotice}
     <h2>${escape(ui("Queue"))}</h2>${
       filmView === "grid"
         ? `<div class="film-grid project-film-grid">${queueCards || `<p>${escape(ui("No films"))}</p>`}</div>`
-        : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))} / ${escape(ui("Tier"))}</th></tr></thead><tbody>${queueRows || `<tr><td colspan="4">${escape(ui("No films"))}</td></tr>`}</tbody></table></div>`
+        : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))} / ${escape(ui("Tier"))}</th><th class="project-manage-cell" aria-label="${escape(ui("Manage"))}"></th></tr></thead><tbody>${queueRows || `<tr><td colspan="5">${escape(ui("No films"))}</td></tr>`}</tbody></table></div>`
     }
-    ${watched.length ? `<h2>${escape(ui("Watched"))}</h2>${filmView === "grid" ? `<div class="film-grid project-film-grid">${watchedCards}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))}</th></tr></thead><tbody>${watchedRows}</tbody></table></div>`}` : ""}
-    <section class="project-manage" data-project-manage>
-      <h2>${escape(ui("Manage"))}</h2>
-      <button type="button" class="sort-order-button" data-add-project-film${busy ? " disabled" : ""}>${escape(ui("Add film"))}</button>
-      <ul class="project-manage-list">${items
-        .map(
-          (record) =>
-            `<li>${escape((record.film || record.item).title)} <button type="button" class="sort-order-button" data-remove-project-item="${escape((record.film || record.item).supabaseFilmId)}"${busy ? " disabled" : ""}>${escape(ui("Remove"))}</button></li>`,
-        )
-        .join("")}</ul>
-      <button type="button" class="sort-order-button" data-delete-project${busy ? " disabled" : ""}>${escape(ui("Delete project"))}</button>
-      <dialog id="addProjectFilmDialog">
-        <form method="dialog" data-add-project-film-form>
-          <h2>${escape(ui("Add film"))}</h2>
-          <label class="wide">${escape(ui("Search films"))}
-            <input name="filmSearch" autocomplete="off" placeholder="${escape(ui("Start typing…"))}">
-          </label>
-          <p class="data-panel-status" data-add-project-film-status></p>
-          <div class="dialog-actions"><button type="button" data-add-project-film-cancel>${escape(ui("Cancel"))}</button></div>
-        </form>
-      </dialog>
-      <dialog id="deleteProjectDialog">
-        <form method="dialog">
-          <h2>${escape(ui("Delete this project?"))}</h2>
-          <p>${escape(ui("This permanently removes the project. Films stay in your collection."))}</p>
-          <div class="dialog-actions"><button type="button" data-delete-project-cancel>${escape(ui("Cancel"))}</button><button type="button" data-delete-project-confirm>${escape(ui("Delete"))}</button></div>
-        </form>
-      </dialog>
-    </section>`;
+    ${watched.length ? `<h2>${escape(ui("Watched"))}</h2>${filmView === "grid" ? `<div class="film-grid project-film-grid">${watchedCards}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))}</th><th class="project-manage-cell" aria-label="${escape(ui("Manage"))}"></th></tr></thead><tbody>${watchedRows}</tbody></table></div>`}` : ""}
+    <dialog id="addProjectFilmDialog">
+      <form method="dialog" data-add-project-film-form>
+        <h2>${escape(ui("Add film"))}</h2>
+        <label class="wide">${escape(ui("Search films"))}
+          <input name="filmSearch" autocomplete="off" placeholder="${escape(ui("Start typing…"))}">
+        </label>
+        <p class="data-panel-status" data-add-project-film-status></p>
+        <div class="dialog-actions"><button type="button" data-add-project-film-cancel>${escape(ui("Cancel"))}</button></div>
+      </form>
+    </dialog>
+    <dialog id="deleteProjectDialog">
+      <form method="dialog">
+        <h2>${escape(ui("Delete this project?"))}</h2>
+        <p>${escape(ui("This permanently removes the project. Films stay in your collection."))}</p>
+        <div class="dialog-actions"><button type="button" data-delete-project-cancel>${escape(ui("Cancel"))}</button><button type="button" data-delete-project-confirm>${escape(ui("Delete"))}</button></div>
+      </form>
+    </dialog>`;
 
     container
       .querySelector("[data-project-sort]")
@@ -403,8 +507,19 @@
     container
       .querySelectorAll("[data-remove-project-item]")
       .forEach((button) => {
-        button.addEventListener("click", async () => {
+        button.addEventListener("click", async (event) => {
+          event.stopPropagation();
           let filmId = button.dataset.removeProjectItem;
+          let rec = items.find(
+            (r) =>
+              (r.film || r.item).supabaseFilmId === filmId ||
+              (r.film || r.item).id === filmId,
+          );
+          let title = (rec?.film || rec?.item)?.title;
+          let confirmPrompt = title
+            ? ui("Remove {title} from project?", { title })
+            : ui("Remove film from project?");
+          if (!confirm(confirmPrompt)) return;
           busy = true;
           render();
           try {
@@ -415,6 +530,62 @@
             );
             rawItems = rawItems.filter((row) => row.film_id !== filmId);
           } catch (err) {
+            alert(err.message || String(err));
+          } finally {
+            busy = false;
+            render();
+          }
+        });
+      });
+    container
+      .querySelectorAll("[data-project-film-rewatch]")
+      .forEach((button) => {
+        button.addEventListener("click", async (event) => {
+          event.stopPropagation();
+          let filmId = button.dataset.projectFilmRewatch;
+          let rec = items.find(
+            (r) =>
+              (r.film || r.item).supabaseFilmId === filmId ||
+              (r.film || r.item).id === filmId,
+          );
+          if (!rec) return;
+          busy = true;
+          rec.rewatch = true;
+          if (rec.film) rec.film.wantToRewatch = true;
+          render();
+          try {
+            await window.setSupabaseWatchedRewatch(filmId, true);
+          } catch (err) {
+            rec.rewatch = false;
+            if (rec.film) delete rec.film.wantToRewatch;
+            alert(err.message || String(err));
+          } finally {
+            busy = false;
+            render();
+          }
+        });
+      });
+    container
+      .querySelectorAll("[data-project-film-unrewatch]")
+      .forEach((button) => {
+        button.addEventListener("click", async (event) => {
+          event.stopPropagation();
+          let filmId = button.dataset.projectFilmUnrewatch;
+          let rec = items.find(
+            (r) =>
+              (r.film || r.item).supabaseFilmId === filmId ||
+              (r.film || r.item).id === filmId,
+          );
+          if (!rec) return;
+          busy = true;
+          rec.rewatch = false;
+          if (rec.film) delete rec.film.wantToRewatch;
+          render();
+          try {
+            await window.setSupabaseWatchedRewatch(filmId, false);
+          } catch (err) {
+            rec.rewatch = true;
+            if (rec.film) rec.film.wantToRewatch = true;
             alert(err.message || String(err));
           } finally {
             busy = false;

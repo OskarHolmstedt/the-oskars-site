@@ -461,7 +461,7 @@ window.addSharedArchiveFilmToWatchlist = function (tmdbId) {
  * archive or official-results nominee), so the existing classify-and-route
  * logic (classifyTmdbFilmType/setFilmTmdbMetadata) places it correctly: a
  * real film lands unranked in the archive (shows under "Not yet ranked"),
- * anything else (TV/short/documentary) lands in Other Watched.
+ * anything else (TV/short/documentary) lands in Shorts, docs & TV.
  *
  * When `record.type` is already known (issue #372 - shared records pushed
  * after schema v2 carry it), that classification is applied directly from

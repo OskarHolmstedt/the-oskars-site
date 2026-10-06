@@ -25,6 +25,7 @@
     "intake",
     "build",
     "rate-watched",
+    "tier-watchlist",
     "film",
     "person",
     "people",
@@ -96,36 +97,41 @@
     }
   }
 
+  // Mirrors src/ui/site-header.js's currentSection(), keyed by entry.
   function currentSection() {
     if (entry === "period") {
       let params = new URLSearchParams(window.location?.search || "");
-      let view = params.get("view");
-      // The all-time Watched view moved to its own films.html destination
-      // (issue #495) - period.html?view=films remains a valid, narrower
-      // period-scoped Watched browse (e.g. just the 1990s), so it isn't
-      // retired, but it no longer claims the primary Films section.
-      if (view === "watchlist" || view === "shared" || view === "other")
-        return "films";
-      return "periods";
+      return params.get("view") === "watchlist" ? "watchlist" : "browse";
     }
-    if (entry === "periods" || entry === "ranking-review") return "periods";
-    if (entry === "category" || entry === "categories") return "categories";
+    if (["build", "rank-year", "awards-year"].includes(entry)) return "build";
     if (
-      entry === "directors" ||
-      entry === "franchise" ||
-      entry === "franchises" ||
-      entry === "tag" ||
-      entry === "tags"
+      [
+        "rankings",
+        "merge",
+        "watchlist-merge",
+        "local-rank-merge",
+        "ranking-review",
+      ].includes(entry)
     )
-      return "collections";
-    if (entry === "watchlist-merge" || entry === "merge" || entry === "films")
-      return "films";
+      return "rankings";
     if (
-      entry === "collections" ||
-      entry === "custom-collections" ||
-      entry === "collection"
+      [
+        "films",
+        "periods",
+        "categories",
+        "category",
+        "collections",
+        "custom-collections",
+        "collection",
+        "directors",
+        "franchises",
+        "franchise",
+        "tags",
+        "tag",
+        "people",
+      ].includes(entry)
     )
-      return "collections";
+      return "browse";
     if (entry === "project" || entry === "projects") return "projects";
     if (entry === "community") return "community";
     if (entry === "home") return "home";
@@ -152,11 +158,15 @@
     let locale = initialLocale();
     let text = {
       home: locale === "sv" ? "Hem" : "Home",
+      buildOskars: locale === "sv" ? "Bygg Oskars" : "Build Oskars",
+      watchlist: "Watchlist",
+      rankings: locale === "sv" ? "Rangordning" : "Rankings",
+      projects: locale === "sv" ? "Projekt" : "Projects",
+      browse: locale === "sv" ? "Bläddra" : "Browse",
       periods: locale === "sv" ? "Perioder" : "Periods",
       categories: locale === "sv" ? "Kategorier" : "Categories",
       collections: locale === "sv" ? "Samlingar" : "Collections",
       films: locale === "sv" ? "Filmer" : "Films",
-      projects: locale === "sv" ? "Projekt" : "Projects",
       search: locale === "sv" ? "Sök" : "Search",
       searchAria: locale === "sv" ? "Sök i The Oskars" : "Search The Oskars",
       languageNext: locale === "sv" ? "EN" : "SV",
@@ -169,7 +179,10 @@
         locale === "sv" ? "Visa affischbakgrund" : "Show poster backdrop",
       posterBackdropHide:
         locale === "sv" ? "Dölj affischbakgrund" : "Hide poster backdrop",
-      elsewhere: locale === "sv" ? "Annat" : "Elsewhere",
+      archiveProjections:
+        locale === "sv" ? "Arkivprojektioner" : "Archive projections",
+      editors: locale === "sv" ? "Redigering" : "Editors",
+      admin: "Admin",
       discover: locale === "sv" ? "Upptäck" : "Discover",
       compare: locale === "sv" ? "Jämför" : "Compare",
       community: locale === "sv" ? "Gemenskap" : "Community",
@@ -178,18 +191,25 @@
       statistics: locale === "sv" ? "Statistik" : "Statistics",
       people: locale === "sv" ? "Personer" : "People",
       data: "Data",
+      profile: locale === "sv" ? "Profil" : "Profile",
       intake: locale === "sv" ? "Intag" : "Intake",
-      build: locale === "sv" ? "Bygg dina Oskars" : "Build your Oskars",
       rateWatched: locale === "sv" ? "Betygsätt sett" : "Rate watched",
-      rankings: locale === "sv" ? "Rangordning" : "Rankings",
+      tierWatchlist:
+        locale === "sv" ? "Sätt watchlist-tier" : "Set watchlist tier",
     };
+    // Build Oskars and Rankings are owner-only; the runtime-mode and
+    // public-profile gate below removes them once it resolves.
     let navItems = [
       ["home", text.home, "index.html"],
-      ["periods", text.periods, "periods.html"],
-      ["categories", text.categories, "categories.html"],
-      ["collections", text.collections, "collections.html"],
-      ["films", text.films, "films.html"],
+      ["build", text.buildOskars, "build.html"],
+      [
+        "watchlist",
+        text.watchlist,
+        "period.html?type=alltime&amp;view=watchlist",
+      ],
+      ["rankings", text.rankings, "rankings.html"],
       ["projects", text.projects, "projects.html"],
+      ["browse", text.browse, "films.html"],
     ];
     let primary = navItems
       .map(([section, label, href]) => {
@@ -221,7 +241,10 @@
       <details class="site-menu">
         <summary aria-label="${text.menuAria}" title="${text.menuTitle}"><span></span><span></span><span></span></summary>
         <div class="site-menu-panel">
-          <section><h2>${text.elsewhere}</h2><div class="site-menu-links"><a href="community.html">${text.community}</a><a href="discover.html">${text.discover}</a><a href="compare.html">${text.compare}</a><a href="presentation.html">${text.showcase}</a><a href="completion.html">${text.completion}</a><a href="stats.html">${text.statistics}</a><a href="people.html">${text.people}</a><a href="build.html">${text.build}</a><a href="intake.html">${text.intake}</a><a href="rate-watched.html">${text.rateWatched}</a><a href="rankings.html">${text.rankings}</a><a href="data.html">${text.data}</a></div></section>
+          <section><h2>${text.browse}</h2><div class="site-menu-links"><a href="films.html">${text.films}</a><a href="periods.html">${text.periods}</a><a href="categories.html">${text.categories}</a><a href="collections.html">${text.collections}</a><a href="people.html">${text.people}</a></div></section>
+          <section><h2>${text.archiveProjections}</h2><div class="site-menu-links"><a href="community.html">${text.community}</a><a href="discover.html">${text.discover}</a><a href="compare.html">${text.compare}</a><a href="presentation.html">${text.showcase}</a><a href="completion.html">${text.completion}</a><a href="stats.html">${text.statistics}</a></div></section>
+          <section data-site-menu-owner><h2>${text.editors}</h2><div class="site-menu-links"><a href="intake.html">${text.intake}</a><a href="rate-watched.html">${text.rateWatched}</a><a href="tier-watchlist.html">${text.tierWatchlist}</a></div></section>
+          <section data-site-menu-owner><h2>${text.admin}</h2><div class="site-menu-links"><a href="data.html">${text.data}</a><a href="profile.html">${text.profile}</a></div></section>
         </div>
       </details>
     </div>`;
@@ -704,6 +727,7 @@
           "src/imports/zip.js",
           "src/imports/letterboxd.js",
           "src/imports/imdb.js",
+          "src/data/google-sheets.js",
         ]
       : entry === "profile"
         ? ["src/data/import-proposals.js"]
@@ -755,6 +779,20 @@
       "src/ui/detail-scaffold.js",
       "src/ui/search.js",
       "src/ui/scroll-affordance.js",
+      "src/ui/supabase-queue-page.js",
+    ],
+    "tier-watchlist": [
+      "src/core/state.js",
+      "src/core/urls.js",
+      "src/domain/tags.js",
+      "src/domain/posters.js",
+      "src/imports/watchlists.js",
+      "src/ui/film-table.js",
+      "src/ui/posters.js",
+      "src/ui/detail-scaffold.js",
+      "src/ui/search.js",
+      "src/ui/scroll-affordance.js",
+      "src/ui/supabase-queue-page.js",
     ],
     "watchlist-merge": [
       "src/core/state.js",
@@ -849,6 +887,9 @@
     ],
     build: [
       "src/core/state.js",
+      // Collection ceremonies match director ballots by normalized name too.
+      "src/domain/credits.js",
+      "src/domain/people/index.js",
       "src/ui/poster-deck.js",
       "src/ui/detail-scaffold.js",
       "src/ui/scroll-affordance.js",
@@ -860,16 +901,9 @@
       "src/ui/detail-scaffold.js",
       "src/ui/scroll-affordance.js",
     ],
-    // The Google Sheets importer (src/data/google-sheets-supabase-import.js)
-    // fans out into nearly every import/domain helper in the app depending
-    // on which sheet ranges the owner's local config defines (films,
-    // watchlist, brackets, franchise/director sheets, ranked lists, ...),
-    // several of them called without `?.` - a hand-curated trimmed list
-    // here reliably went stale one missing function at a time (found via
-    // real "window.parseRankedList/parseFilmRating is not a function"
-    // reports). Reuse the same broad `dependencies` list every hydrated
-    // entry gets, filtered the same way, plus this page's own
-    // metadata/Sheets-specific files.
+    // Owner catalog ingestion shares film/person identity and lane parsers
+    // with account import flows; metadata tools also use their domain helpers.
+    // Keep the common dependency set and add this page's catalog tools.
     "data-tools": dependencies
       .filter(
         (dependency) =>
@@ -884,7 +918,6 @@
         "src/domain/shared-catalog-editor.js",
         "src/data/google-sheets.js",
         "src/data/google-sheets-supabase-import.js",
-        "src/data/google-sheets-write-back.js",
         // Only merge-check.js's own report needs window.state.years
         // populated - it calls window.ensureOskarsData() itself, lazily,
         // rather than this page paying that hydration cost on every visit
@@ -958,6 +991,7 @@
     "intake",
     "build",
     "rate-watched",
+    "tier-watchlist",
     "rank-year",
     "awards-year",
     "watchlist-merge",
@@ -1001,6 +1035,7 @@
   // other entry's path through this file is unaffected by this set.
   let supabaseBackedEntries = new Set([
     "rate-watched",
+    "tier-watchlist",
     "watchlist-merge",
     "local-rank-merge",
     "ranking-review",
@@ -1164,9 +1199,9 @@
     if (!capabilities.allowOwnerPages || activeProfileSlug) {
       document
         .querySelectorAll(
-          '.site-menu-links a[href="data.html"], .site-menu-links a[href="profile.html"], .site-menu-links a[href="intake.html"], .site-menu-links a[href="build.html"], .site-menu-links a[href="rate-watched.html"], .site-menu-links a[href="rankings.html"]',
+          '.site-menu-panel [data-site-menu-owner], .app-primary-nav a[href="build.html"], .app-primary-nav a[href="rankings.html"]',
         )
-        .forEach((link) => link.remove());
+        .forEach((element) => element.remove());
     }
     if (
       ownerOnlyEntries.has(entry) &&
@@ -1212,7 +1247,7 @@
       ])
         await loadScript(path);
     };
-    if (["awards-year", "person", "franchise", "data"].includes(entry))
+    if (["awards-year", "person", "franchise", "data", "build"].includes(entry))
       await loadScript("src/domain/supabase-collection-ballots.js");
     await loadScript("src/core/supabase-hydration-cache.js");
     await loadScript("src/ui/privacy-notice.js");
@@ -1223,8 +1258,9 @@
     // existing `dependencies` array already uses throughout, just
     // evaluated in this branch instead since it needs to exist before
     // ensureOskarsData()'s skip check below, not interleaved with it.
+    if (entry === "rate-watched" || entry === "tier-watchlist")
+      await loadScript("src/domain/supabase-queue-groups.js");
     if (entry === "rate-watched") {
-      await loadScript("src/domain/supabase-watched-ratings.js");
       // supabaseIntakeRatingGrade() sorts the Rated section by exact
       // grade (rating + minus/plus) - "intake" in the name is a misnomer
       // for this reuse, the function itself is just a pure grade
@@ -1240,7 +1276,6 @@
       await loadScript("src/domain/supabase-watched-merge.js");
       await loadScript("src/domain/supabase-local-rank.js");
       await loadScript("src/domain/supabase-ranking-consistency.js");
-      await loadScript("src/domain/supabase-watched-ratings.js");
       await loadScript("src/domain/fractional-position.js");
     }
     if (entry === "rankings") {

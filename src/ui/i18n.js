@@ -5,11 +5,7 @@
 
   let translations = {
     "nav.home": { sv: "Hem" },
-    "nav.periods": { sv: "Perioder" },
-    "nav.categories": { sv: "Kategorier" },
-    "nav.collections": { sv: "Samlingar" },
     "nav.franchises": { sv: "Franchises" },
-    "nav.films": { sv: "Filmer" },
     "nav.watchlist": { sv: "Watchlist" },
     "nav.watched": { sv: "Sett" },
     "nav.projects": { sv: "Projekt" },
@@ -17,9 +13,11 @@
     "nav.data": { sv: "Data" },
     "nav.profile": { sv: "Profil" },
     "nav.intake": { sv: "Intag" },
-    "nav.build": { sv: "Bygg dina Oskars" },
     "nav.rateWatched": { sv: "Betygsätt sedda" },
+    "nav.tierWatchlist": { sv: "Sätt watchlist-tier" },
     "nav.rankings": { sv: "Rangordning" },
+    "nav.buildOskars": { sv: "Bygg Oskars" },
+    "nav.browse": { sv: "Bläddra" },
     "action.view": { sv: "Visa" },
     "search.placeholder": { sv: "Sök" },
     "search.loading": { sv: "Laddar sökning…" },
@@ -28,7 +26,7 @@
     "shell.retry": { sv: "Försök igen" },
     "search.aria": { sv: "Sök i The Oskars" },
     "search.type.film": { sv: "Film" },
-    "search.type.otherwatched": { sv: "Övrigt sett" },
+    "search.type.shorts,docs&tv": { sv: "Kortfilm, dokumentär & TV" },
     "search.type.watchlist": { sv: "Watchlist" },
     "search.type.person": { sv: "Person" },
     "search.type.song": { sv: "Låt" },
@@ -42,7 +40,7 @@
     "search.type.decade": { sv: "Årtionde" },
     "search.type.century": { sv: "Århundrade" },
     "search.type.period": { sv: "Period" },
-    "search.type.unseen": { sv: "Osedd" },
+    "search.type.notseen": { sv: "Inte sedd" },
     "search.meta.tier": { sv: "Tier" },
     "search.meta.inArchive": { sv: "Sedd" },
     "search.meta.watchlist": { sv: "Watchlist" },
@@ -55,7 +53,12 @@
     "menu.periods": { sv: "Perioder" },
     "menu.films": { sv: "Filmer" },
     "menu.browsePeriods": { sv: "Bläddra bland alla perioder" },
-    "menu.elsewhere": { sv: "Annat" },
+    "menu.browseFilms": { sv: "Bläddra bland alla filmer" },
+    "menu.browseCollections": { sv: "Bläddra bland alla samlingar" },
+    "menu.browsePeople": { sv: "Bläddra bland alla personer" },
+    "menu.archiveProjections": { sv: "Arkivprojektioner" },
+    "menu.editors": { sv: "Redigering" },
+    "menu.admin": { sv: "Admin" },
     "menu.community": { sv: "Gemenskap" },
     "menu.discover": { sv: "Upptäck" },
     "menu.showcase": { sv: "Utställning" },
@@ -82,6 +85,51 @@
   };
 
   let literalTranslations = {
+    "Start with": { sv: "Börja med" },
+    "Individual films": { sv: "Enskilda filmer" },
+    "Find a person": { sv: "Hitta en person" },
+    "Find a franchise": { sv: "Hitta en franchise" },
+    "Choose a source, review its known catalog films, and make the queue your own.":
+      {
+        sv: "Välj en källa, granska dess kända katalogfilmer och anpassa kön.",
+      },
+    "Turn a filmography, a franchise, or a handful of films into your next watch journey.":
+      {
+        sv: "Gör en filmografi, en franchise eller några filmer till din nästa filmresa.",
+      },
+    "Review the films below before creating your project.": {
+      sv: "Granska filmerna nedan innan du skapar ditt projekt.",
+    },
+    "Google Sheet link": { sv: "Länk till Google-ark" },
+    "Paste your Google Sheets link": {
+      sv: "Klistra in länken till ditt Google-ark",
+    },
+    "Read Google Sheet": { sv: "Läs Google-ark" },
+    "Review export": { sv: "Granska export" },
+    "Confirm export": { sv: "Bekräfta export" },
+    "Google Sheets progress": { sv: "Förlopp för Google-ark" },
+    "Reading Google Sheet…": { sv: "Läser Google-ark…" },
+    "Writing to Google Sheet…": { sv: "Skriver till Google-ark…" },
+    "Saving to your archive…": { sv: "Sparar i ditt arkiv…" },
+    "Updated films": { sv: "Uppdaterade filmer" },
+    "Award nominations": { sv: "Prisnomineringar" },
+    "{count} rows could not be read.": {
+      sv: "{count} rader kunde inte läsas.",
+    },
+    "{count} award nominations could not be imported.": {
+      sv: "{count} prisnomineringar kunde inte importeras.",
+    },
+    "Nothing ready to import": { sv: "Inget redo att importera" },
+    "Review what was found, then confirm to save it to your archive.": {
+      sv: "Granska innehållet och bekräfta sedan för att spara i ditt arkiv.",
+    },
+    "Your archive already matches this sheet.": {
+      sv: "Ditt arkiv stämmer redan överens med arket.",
+    },
+    "Check the issues below and read the sheet again before importing.": {
+      sv: "Kontrollera problemen nedan och läs arket igen innan du importerar.",
+    },
+
     "An unexpected error occurred.": { sv: "Ett oväntat fel inträffade." },
     "This page encountered a problem. Reload it or return home.": {
       sv: "Ett problem uppstod på sidan. Ladda om den eller gå till startsidan.",
@@ -95,6 +143,7 @@
       },
     "Export diagnostic log": { sv: "Exportera diagnostiklogg" },
     "Not watched": { sv: "Inte sedd" },
+    Trophies: { sv: "Troféer" },
     "Trophy cabinet": { sv: "Troféskåp" },
     "Fixed collections from your viewing history.": {
       sv: "Fasta samlingar från din visningshistorik.",
@@ -303,10 +352,6 @@
     "IMDb import saved to your account.": {
       sv: "IMDb-importen sparades i ditt konto.",
     },
-    "Parsing your spreadsheet…": { sv: "Tolkar ditt kalkylark…" },
-    "Spreadsheet import saved to your account.": {
-      sv: "Kalkylarksimporten sparades i ditt konto.",
-    },
     "Choose the onboarding path that matches how you want to build and track your films.":
       {
         sv: "Välj den introduktionsväg som matchar hur du vill bygga och spåra dina filmer.",
@@ -387,16 +432,11 @@
         sv: "Importera dina IMDb ratings- och watchlist-CSV:er. Betyg 1–10 konverteras direkt till vår 0,5–5,0★-skala.",
       },
     "Import IMDb": { sv: "Importera IMDb" },
-    "Path 4 · Spreadsheets": { sv: "Spår 4 · Kalkylark" },
-    "Google Sheets & Excel": { sv: "Google Sheets & Excel" },
-    "Download our ready-made CSV starter templates or import your custom ranked diary and watchlist spreadsheets.":
+    "Path 4 · Google Sheets": { sv: "Spår 4 · Google Sheets" },
+    "Google Sheets": { sv: "Google Sheets" },
+    "Create a formatted workbook in your Google Drive or connect an existing sheet, then sync changes in either direction.":
       {
-        sv: "Ladda ner våra färdiga CSV-startmallar eller importera dina anpassade rankade dagboks- och watchlistkalkylark.",
-      },
-    "Explore templates": { sv: "Utforska mallar" },
-    "Create a spreadsheet directly in your Google Drive, download CSV starter templates, or sync your custom sheets.":
-      {
-        sv: "Skapa ett kalkylark direkt på din Google Drive, ladda ner CSV-startmallar eller synka dina anpassade ark.",
+        sv: "Skapa en formaterad arbetsbok på din Google Drive eller anslut ett befintligt kalkylark och synka sedan ändringar åt båda hållen.",
       },
     "Connect Google Sheets": { sv: "Koppla Google Sheets" },
     "Connected spreadsheet ID saved.": {
@@ -409,12 +449,30 @@
     "Please connect a spreadsheet first.": {
       sv: "Vänligen koppla ett kalkylark först.",
     },
+    "Spreadsheet must contain a 'Watched' sheet.": {
+      sv: "Kalkylarket måste innehålla ett blad med namnet 'Watched'.",
+    },
     "Connecting to Google Sheets…": {
       sv: "Ansluter till Google Sheets…",
     },
     "Spreadsheet sync saved to your account.": {
       sv: "Kalkylarkssynk sparades på ditt konto.",
     },
+    "Preview archive push": { sv: "Förhandsgranska arkivöverföring" },
+    "Apply reviewed push": { sv: "Tillämpa granskad överföring" },
+    "Previewing archive push…": { sv: "Förhandsgranskar arkivöverföring…" },
+    "Review push: {films} watched films, {watchlist} watchlist items, {awards} award placements, {removed} award placements removed.":
+      {
+        sv: "Granska överföring: {films} sedda filmer, {watchlist} filmer i bevakningslistan, {awards} prisplaceringar, {removed} borttagna prisplaceringar.",
+      },
+    "Watched and Watchlist values will be replaced, including extra columns. Awards changes are listed below; other Awards cells and formatting are preserved. Sync any Sheet edits you want to keep before pushing.":
+      {
+        sv: "Värden i Watched och Watchlist ersätts, även extra kolumner. Ändringar i Awards visas nedan; övriga celler och formatering i Awards bevaras. Synka först ändringar i arket som du vill behålla.",
+      },
+    "Archive pushed to Google Sheets ({films} films, {watchlist} watchlist items, {awards} award placements).":
+      {
+        sv: "Arkivet skickades till Google Sheets ({films} filmer, {watchlist} filmer i bevakningslistan, {awards} prisplaceringar).",
+      },
     "Pushing archive to Google Sheets…": {
       sv: "Skickar arkivet till Google Sheets…",
     },
@@ -427,13 +485,6 @@
     "Your sheet is connected. Edit films in Google Sheets, then sync back anytime.":
       {
         sv: "Ditt kalkylark är anslutet. Redigera filmer i Google Sheets och synka sedan tillbaka när som helst.",
-      },
-    "No Google account? Download starter templates": {
-      sv: "Inget Google-konto? Ladda ner startmallar",
-    },
-    "Track your films locally in Excel, Numbers, or CSV. Download starter templates or preview and import a completed delimited file.":
-      {
-        sv: "Håll koll på dina filmer lokalt i Excel, Numbers eller CSV. Ladda ner startmallar eller förhandsgranska och importera en färdig textfil.",
       },
     "Edit in Google Sheets": { sv: "Redigera i Google Sheets" },
     "Log films, ratings, and watchlist additions in your sheet.": {
@@ -616,6 +667,45 @@
         sv: "Sparar till ditt konto… det kan ta ett tag för en stor import. Stäng inte den här fliken.",
       },
     "Parsing your export…": { sv: "Tolkar din export…" },
+    "Reading and parsing your export…": {
+      sv: "Läser och tolkar din export…",
+    },
+    "Letterboxd export could not be imported.": {
+      sv: "Letterboxd-exporten kunde inte importeras.",
+    },
+    "IMDb export could not be imported.": {
+      sv: "IMDb-exporten kunde inte importeras.",
+    },
+    "Nothing new to import: everything in this export is already in your archive.":
+      {
+        sv: "Inget nytt att importera: allt i den här exporten finns redan i ditt arkiv.",
+      },
+    "(and {count} more)": { sv: "(och {count} till)" },
+    "Import cancelled. The ZIP never leaves this browser.": {
+      sv: "Importen avbröts. ZIP-filen lämnar aldrig webbläsaren.",
+    },
+    "Import cancelled. Upload ratings.csv or watchlist.csv (or both).": {
+      sv: "Importen avbröts. Ladda upp ratings.csv eller watchlist.csv (eller båda).",
+    },
+    "Ready to import": { sv: "Redo att importera" },
+    "Review what was found in your Letterboxd export before saving:": {
+      sv: "Granska vad som hittades i din Letterboxd-export innan du sparar:",
+    },
+    "Review what was found in your IMDb export before saving:": {
+      sv: "Granska vad som hittades i din IMDb-export innan du sparar:",
+    },
+    "Watched films": { sv: "Sedda filmer" },
+    "Watchlist items": { sv: "Watchlist-objekt" },
+    new: { sv: "nya" },
+    updated: { sv: "uppdaterade" },
+    "Confirm import": { sv: "Bekräfta import" },
+    "{count} row(s) skipped (missing required title or year).": {
+      sv: "{count} rad(er) hoppades över (saknar obligatorisk titel eller årtal).",
+    },
+    "Saving to your account…": { sv: "Sparar till ditt konto…" },
+    "Preparing records… Don't close this tab.": {
+      sv: "Förbereder poster… Stäng inte den här fliken.",
+    },
     "Saving {stage} ({done}/{total})… Don't close this tab.": {
       sv: "Sparar {stage} ({done}/{total})… Stäng inte den här fliken.",
     },
@@ -783,11 +873,25 @@
     "Needs ratings": { sv: "Behöver betyg" },
     "Ready to rank": { sv: "Redo att rankas" },
     "Build the ceremony": { sv: "Bygg ceremonin" },
-    "Year complete": { sv: "Året är klart" },
+    "Ready for ceremony": { sv: "Redo för ceremoni" },
+    "Collection ceremonies": { sv: "Samlingsceremonier" },
+    "Annual ceremonies": { sv: "Årsceremonier" },
+    "Director and franchise awards from your own watched films.": {
+      sv: "Regissörs- och franchisepriser bland dina egna sedda filmer.",
+    },
+    "Loading collection ceremonies…": { sv: "Läser in samlingsceremonier…" },
+    "Could not load collection ceremonies.": {
+      sv: "Kunde inte läsa in samlingsceremonier.",
+    },
+    "Hold ceremony": { sv: "Håll ceremoni" },
+    "Continue ceremony": { sv: "Fortsätt ceremonin" },
+    "View ceremony": { sv: "Visa ceremonin" },
+    "{reviewed}/{total} categories": { sv: "{reviewed}/{total} kategorier" },
+    "{count} watched film": { sv: "{count} sedd film" },
+    "{count} watched films": { sv: "{count} sedda filmer" },
     "Rate this year": { sv: "Betygsätt året" },
     "Rank this year": { sv: "Ranka året" },
     "View year": { sv: "Visa året" },
-    Ceremonies: { sv: "Ceremonier" },
     "Journey overview and filters": { sv: "Resans översikt och filter" },
     "Stage progression for {year}": { sv: "Stegförlopp för {year}" },
     Rate: { sv: "Betygsätt" },
@@ -870,7 +974,18 @@
         sv: "{count} sedda verk behöver ditt personliga betyg. Importdiagnostiken kan vänta medan du börjar med filmerna.",
       },
     "Start building your Oskars": { sv: "Börja bygga dina Oskars" },
-    "Other watched": { sv: "Övrigt sett" },
+    "Shorts, docs & TV": { sv: "Kortfilm, dokumentär & TV" },
+    "Feature films": { sv: "Långfilmer" },
+    "All formats": { sv: "Alla format" },
+    "Not seen": { sv: "Inte sedd" },
+    Short: { sv: "Kortfilm" },
+    Documentary: { sv: "Dokumentär" },
+    Stage: { sv: "Scen" },
+    Concert: { sv: "Konsert" },
+    Anthology: { sv: "Antologi" },
+    "TV Special": { sv: "TV-special" },
+    "TV-film": { sv: "TV-film" },
+    "TV-series": { sv: "TV-serie" },
     "Not yet ranked": { sv: "Ännu inte rangordnad" },
     "In the shared archive": { sv: "I det delade arkivet" },
     "Add to watchlist": { sv: "Lägg till i att se-listan" },
@@ -889,8 +1004,8 @@
       sv: "Redan i din egen samling.",
     },
     works: { sv: "verk" },
-    "No other watched entries in this period.": {
-      sv: "Inga övriga sedda poster under denna period.",
+    "No shorts, documentaries or TV watched in this period.": {
+      sv: "Ingen kortfilm, dokumentär eller TV sedd under denna period.",
     },
     "{count} changes": { sv: "{count} ändringar" },
     "1 change": { sv: "1 ändring" },
@@ -1439,6 +1554,7 @@
       sv: "Varje film i katalogen — sedd, på watchlist eller osedd.",
     },
     "Filter by status": { sv: "Filtrera efter status" },
+    "Filter by format": { sv: "Filtrera efter format" },
     "Advanced filters": { sv: "Avancerade filter" },
     "Any country": { sv: "Alla länder" },
     "Minimum runtime": { sv: "Minsta speltid" },
@@ -1788,6 +1904,9 @@
     Films: { sv: "Filmer" },
     "{count} annual nominations": { sv: "{count} årsnomineringar" },
     "{count} films": { sv: "{count} filmer" },
+    "{count} film": { sv: "{count} film" },
+    "{value} stars": { sv: "{value} stjärnor" },
+    "Tier {tier}": { sv: "Tier {tier}" },
     "Films I want to watch.": { sv: "Filmer jag vill se." },
     "Focused watch queues from directors, franchises, and watchlist filters.": {
       sv: "Fokuserade se-köer från regissörer, franchises och watchlist-filter.",
@@ -2305,11 +2424,11 @@
       sv: "Inga filtrerade filmer behöver den intresseändringen.",
     },
     "No matching watchlist films.": { sv: "Inga matchande watchlist-filmer." },
-    "No unseen films match this search.": {
-      sv: "Inga osedda filmer matchar sökningen.",
+    "No other films match this search.": {
+      sv: "Inga andra filmer matchar sökningen.",
     },
-    "No unseen films in this period.": {
-      sv: "Inga osedda filmer i den här perioden.",
+    "Every film in this period is watched or on your watchlist.": {
+      sv: "Alla filmer i den här perioden är sedda eller i din watchlist.",
     },
     "No tiers": { sv: "Inga tiers" },
     "No maximum": { sv: "Inget maximum" },
@@ -2690,6 +2809,13 @@
     "Remove {title}": { sv: "Ta bort {title}" },
     "Remove from watched": { sv: "Ta bort som sedd" },
     "Remove from watchlist": { sv: "Ta bort från watchlist" },
+    "Remove from project": { sv: "Ta bort från projekt" },
+    "Remove {title} from project": { sv: "Ta bort {title} från projekt" },
+    "Remove from project?": { sv: "Ta bort från projektet?" },
+    "Remove film from project?": { sv: "Ta bort filmen från projektet?" },
+    "Remove {title} from project?": {
+      sv: "Ta bort {title} från projektet?",
+    },
     "Removed from watchlist": { sv: "Borttagen från watchlist" },
     'Removed "{title}" from your watchlist.': {
       sv: 'Tog bort "{title}" från din watchlist.',
@@ -3038,7 +3164,7 @@
     "Screenplay type": { sv: "Manustyp" },
     Screenplays: { sv: "Manus" },
     Search: { sv: "Sök" },
-    "Search unseen films": { sv: "Sök osedda filmer" },
+    "Search other films": { sv: "Sök andra filmer" },
     Screenwriter: { sv: "Manusförfattare" },
     "Set batch": { sv: "Välj batch" },
     "Set filtered interest": { sv: "Sätt filtrerat intresse" },
@@ -3061,7 +3187,6 @@
     "Shared collaborators": { sv: "Gemensamma medarbetare" },
     "Shared films": { sv: "Gemensamma filmer" },
     Unseen: { sv: "Osedd" },
-    "Unseen films": { sv: "Osedda filmer" },
     "Shared traits": { sv: "Gemensamma drag" },
     "Show watched and watchlist separately": {
       sv: "Visa sedda och watchlist separat",
@@ -3104,7 +3229,7 @@
     "Slots filled": { sv: "Fyllda platser" },
     Source: { sv: "Källa" },
     Start: { sv: "Starta" },
-    "Start project": { sv: "Starta projekt" },
+    "Start watch project": { sv: "Starta projekt" },
     "Start one from a director or franchise page.": {
       sv: "Starta ett från en regissörs- eller franchise-sida.",
     },
@@ -3112,6 +3237,9 @@
     Shared: { sv: "Gemensamt" },
     "Loading unseen films…": {
       sv: "Laddar osedda filmer…",
+    },
+    "Loading other films…": {
+      sv: "Laddar andra filmer…",
     },
     "Not watched or watchlisted": { sv: "Inte sedd eller i watchlist" },
     Sub: { sv: "Sub" },
@@ -3352,8 +3480,8 @@
         sv: "Medium styr behörighet för animation. Rätta ranked-listans Medium-kolumn i Google Sheets.",
       },
     None: { sv: "Inga" },
-    "Other watched entries with no franchise or director link": {
-      sv: "Övrigt sett utan franchise- eller regissörskoppling",
+    "Shorts, docs & TV with no franchise or director link": {
+      sv: "Kortfilm, dokumentär & TV utan franchise- eller regissörskoppling",
     },
     "Otherwise only findable through search - link a franchise or director in the source sheet.":
       {
@@ -4228,10 +4356,9 @@
     "Connected spreadsheet ID: {id}. Two-way sync ready.": {
       sv: "Anslutet kalkylarks-ID: {id}. Tvåvägssynk redo.",
     },
-    "Create a workbook on Google Drive, connect a sheet ID, or download offline CSV templates.":
-      {
-        sv: "Skapa en arbetsbok på Google Drive, anslut ett kalkylarks-ID eller ladda ner offline-CSV-mallar.",
-      },
+    "Create a workbook on Google Drive or connect an existing sheet.": {
+      sv: "Skapa en arbetsbok på Google Drive eller anslut ett befintligt kalkylark.",
+    },
     "Open in Sheets ↗": { sv: "Öppna i Sheets ↗" },
     "Sync / Push": { sv: "Synka / Skicka" },
     "Connect sheet": { sv: "Anslut kalkylark" },
@@ -4276,14 +4403,14 @@
         sv: "Välj ett utgivningsår för att markera filmer du har sett, eller lägg till enskilda visningar med betyg och röstsedlar i Intag.",
       },
     "Explore release years ↗": { sv: "Utforska utgivningsår ↗" },
-    "How does spreadsheet sync work?": {
-      sv: "Hur fungerar kalkylarkssynk?",
+    "How does Google Sheets sync work?": {
+      sv: "Hur fungerar synk med Google Sheets?",
     },
-    "Create a formatted workbook on Google Drive or download CSV starter templates. Edit in sheets, then sync or push updates anytime.":
+    "Your sheet keeps Watched, Watchlist, and Awards tabs. Edit it in Google Sheets, then sync changes into your archive or push your archive back anytime.":
       {
-        sv: "Skapa en formaterad arbetsbok på Google Drive eller ladda ner CSV-startmallar. Redigera i kalkylark och synka eller skicka uppdateringar när som helst.",
+        sv: "Ditt kalkylark har flikarna Watched, Watchlist och Awards. Redigera det i Google Sheets och synka sedan in ändringar i ditt arkiv eller skicka tillbaka arkivet när som helst.",
       },
-    "Open spreadsheet templates ↗": { sv: "Öppna kalkylarksmallar ↗" },
+    "Open Google Sheets import ↗": { sv: "Öppna import från Google Sheets ↗" },
   };
 
   let categoryTranslations = {
@@ -4348,6 +4475,9 @@
       sv: "{count} filmer från detta premiärår sedda under {year}.",
     },
     "{count} films from {country}.": { sv: "{count} filmer från {country}." },
+    "{count} films · Add films and review list": {
+      sv: "{count} filmer · Lägg till filmer och granska lista",
+    },
     "{rated}/{total} films rated. Average rating {average}/5.": {
       sv: "{rated}/{total} filmer betygsatta. Medelbetyg {average}/5.",
     },

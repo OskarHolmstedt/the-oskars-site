@@ -60,6 +60,37 @@ window.renderFilmRating = function (value) {
 };
 
 /**
+ * Renders a rating for display: its stars and, when present, a distinct
+ * plus/minus mark, kept together as one non-wrapping unit. Stored rating
+ * text is unchanged; text that doesn't parse as a rating is shown as is.
+ * @param {*} value Rating value or film-like record.
+ * @param {Object} [options] Rendering options.
+ * @param {(value: *) => string} [options.escape] HTML escaping function.
+ * @returns {string} Rating HTML, or "" when there is no rating.
+ */
+window.renderFilmRatingHtml = function (value, options = {}) {
+  let escape = options.escape || window.pageEscape;
+  let ui =
+    window.uiText ||
+    ((text, values = {}) =>
+      text.replace(/\{(\w+)\}/g, (_, key) => values[key] ?? ""));
+  let parsed = window.parseFilmRating(value);
+  if (!parsed.value) {
+    let text = value && typeof value === "object" ? value.rating : value;
+    return escape(String(text || "").trim());
+  }
+  let stars = `${"★".repeat(Math.floor(parsed.value))}${parsed.value % 1 ? "½" : ""}`;
+  let modifierLabel = parsed.modifier ? ui(parsed.modifier) : "";
+  let label = [ui("{value} stars", { value: parsed.value }), modifierLabel]
+    .filter(Boolean)
+    .join(", ");
+  let modifier = parsed.modifier
+    ? `<span class="film-rating-mod film-rating-mod--${parsed.modifier}" aria-hidden="true">${parsed.modifier === "plus" ? "+" : "−"}</span>`
+    : "";
+  return `<span class="film-rating-value" role="img" aria-label="${escape(label)}" title="${escape(label)}"><span class="film-rating-stars" aria-hidden="true">${stars}</span>${modifier}</span>`;
+};
+
+/**
  * Renders a star-rating input: a plain, fully keyboard-editable text field
  * (accepting literal star glyphs or typed shorthand like "4.5-") paired with
  * a clickable/sweepable star bar and a minus/plus modifier toggle (no

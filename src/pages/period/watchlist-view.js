@@ -410,6 +410,106 @@ window.renderAddWatchlistForm = function (options = {}) {
 };
 
 /**
+ * Counts the watchlist per interest tier ("" for unset), scoped by every
+ * filter except the tier filter itself.
+ * @param {WatchlistFilters} filters Watchlist filter/sort state.
+ * @param {Object} [options] Count source.
+ * @param {Object.<string,number>} [options.tierCounts] Pre-computed
+ *   `{tierKey: count}` counts from the compact read, used instead of
+ *   recomputing from window.state.watchlist.
+ * @returns {Map<string, number>} Count per tier, every tier present.
+ */
+window.watchlistTierCounts = function (filters, options = {}) {
+  let counts = new Map(
+    window.watchlistTierFilterValues().map((tier) => [tier, 0]),
+  );
+  if (options.tierCounts) {
+    Object.entries(options.tierCounts).forEach(([tierKey, count]) => {
+      let tier = window.normalizeWatchlistTier(tierKey);
+      counts.set(tier, (counts.get(tier) || 0) + Number(count));
+    });
+  } else {
+    watchlistTierFilterEntries(filters).forEach((entry) => {
+      let tier = window.normalizeWatchlistTier(entry.item.tier);
+      counts.set(tier, (counts.get(tier) || 0) + 1);
+    });
+  }
+  return counts;
+};
+
+function watchlistTierShelfLabel(tier, ui) {
+  return tier ? ui("Tier {tier}", { tier }) : ui("Unset");
+}
+
+/**
+ * Renders interest-ordered watchlist entries with a full-width shelf
+ * heading wherever the tier changes, so S, A, B... read as separate rows of
+ * the poster grid (or table). A page that starts mid-tier opens with that
+ * tier's heading.
+ * @param {Object[]} entries Visible `{item, index, archiveFilm}` entries, in interest order.
+ * @param {(entry: Object, visibleIndex: number) => string} renderEntry Renders one card or row.
+ * @param {Object} options Rendering options.
+ * @param {Map<string, number>} options.counts Tier totals from window.watchlistTierCounts().
+ * @param {'grid'|'list'} [options.layout] Grid cards or table rows.
+ * @param {(value:*) => string} [options.escape] HTML escaper.
+ * @param {Function} [options.ui] Localized-text function.
+ * @returns {string}
+ */
+window.renderWatchlistTierShelves = function (entries, renderEntry, options) {
+  let escape = options.escape || window.pageEscape;
+  let ui = options.ui || window.uiText || ((text) => text);
+  let previousTier = null;
+  return entries
+    .map((entry, visibleIndex) => {
+      let tier = window.normalizeWatchlistTier(entry.item.tier);
+      let shelf = "";
+      if (tier !== previousTier) {
+        previousTier = tier;
+        let count = options.counts.get(tier) || 0;
+        let badge = tier
+          ? window.renderWatchlistTierBadge(tier, { escape })
+          : "";
+        let content = `${badge}<span>${escape(watchlistTierShelfLabel(tier, ui))}</span><small>${escape(ui(count === 1 ? "{count} film" : "{count} films", { count }))}</small>`;
+        let modifierClass = `watchlist-tier-shelf--${escape(tier ? tier.toLowerCase() : "unset")}`;
+        shelf =
+          options.layout === "list"
+            ? `<tr class="watchlist-tier-shelf-row"><th colspan="4" scope="colgroup"><span class="watchlist-tier-shelf ${modifierClass}">${content}</span></th></tr>`
+            : `<h3 class="watchlist-tier-shelf ${modifierClass}">${content}</h3>`;
+      }
+      return shelf + renderEntry(entry, visibleIndex);
+    })
+    .join("");
+};
+
+/**
+ * Renders the top of the watchlist in interest order as a compact strip of
+ * linked posters with their position and tier.
+ * @param {Object[]} entries Up to five `{item, archiveFilm}` entries, in interest order.
+ * @param {Object} [options] Rendering options.
+ * @param {boolean} [options.loading] Shows a loading status instead of entries.
+ * @param {(value:*) => string} [options.escape] HTML escaper.
+ * @param {Function} [options.ui] Localized-text function.
+ * @returns {string} Strip HTML, or "" when there is nothing to show.
+ */
+window.renderWatchlistUpNext = function (entries, options = {}) {
+  let escape = options.escape || window.pageEscape;
+  let ui = options.ui || window.uiText || ((text) => text);
+  let label = escape(ui("Up next"));
+  if (options.loading)
+    return `<section class="watchlist-up-next" aria-label="${label}"><span class="eyebrow">${label}</span><p role="status">${escape(ui("Loading…"))}</p></section>`;
+  if (!entries?.length) return "";
+  let items = entries
+    .map((entry, index) => {
+      let item = entry.item;
+      let film = window.watchlistFilmLike(item, entry.archiveFilm);
+      let title = window.localizedFilmTitle?.(film) || item.title;
+      return `<li><a class="watchlist-up-next-item" href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${window.renderFilmPoster(film, "thumb")}<span class="watchlist-up-next-text"><span class="watchlist-rank-badge">#${index + 1}</span><strong>${escape(title)}</strong><span class="leaderboard-meta">${escape(item.year || "")}</span></span>${window.renderWatchlistTierBadge(item.tier, { escape, modifier: item.tierModifier })}</a></li>`;
+    })
+    .join("");
+  return `<section class="watchlist-up-next" aria-label="${label}"><span class="eyebrow">${label}</span><ol class="watchlist-up-next-list">${items}</ol></section>`;
+};
+
+/**
  * Renders the multi-tier toggle-button filter, with per-tier counts scoped
  * by every other active filter so picking a tier never zeroes the others.
  * @param {WatchlistFilters} filters Watchlist filter/sort state.
@@ -427,20 +527,7 @@ window.renderAddWatchlistForm = function (options = {}) {
 window.renderWatchlistTierFilter = function (filters, options = {}) {
   let escape = options.escape || window.pageEscape;
   let ui = options.ui || window.uiText || ((text) => text);
-  let counts = new Map(
-    window.watchlistTierFilterValues().map((tier) => [tier, 0]),
-  );
-  if (options.tierCounts) {
-    Object.entries(options.tierCounts).forEach(([tierKey, count]) => {
-      let tier = window.normalizeWatchlistTier(tierKey);
-      counts.set(tier, (counts.get(tier) || 0) + Number(count));
-    });
-  } else {
-    watchlistTierFilterEntries(filters).forEach((entry) => {
-      let tier = window.normalizeWatchlistTier(entry.item.tier);
-      counts.set(tier, (counts.get(tier) || 0) + 1);
-    });
-  }
+  let counts = window.watchlistTierCounts(filters, options);
   let selected = selectedTierSet(filters);
   let buttons = window
     .watchlistTierFilterValues()
@@ -556,11 +643,23 @@ window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
   let item = entry.item;
   item.id ||= window.watchlistItemId(item);
   let film = window.watchlistFilmLike(item, entry.archiveFilm);
+  let rankText =
+    Number.isInteger(periodRank) && periodRank > 0 ? `#${periodRank}` : "NR";
+  let tierBadge = window.renderWatchlistTierBadge(item.tier, {
+    escape: escape,
+    modifier: item.tierModifier,
+  });
+  // In interest order the position and tier sit on the poster itself, so
+  // they stay readable in posters-only mode.
+  let posterBadges =
+    periodOrder === "rank" &&
+    !tierEditMode &&
+    window.normalizePosterRecord?.(film.poster);
   let orderRankLabel =
-    periodOrder === "rank"
-      ? Number.isInteger(periodRank) && periodRank > 0
-        ? `${periodRank}.`
-        : "NR"
+    periodOrder === "rank" && !posterBadges
+      ? rankText === "NR"
+        ? "NR"
+        : `${periodRank}.`
       : null;
   let directorHtml = window.renderLinkedDirectors(film, {
     escape: escape,
@@ -582,6 +681,9 @@ window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
     }),
     openFilm: false,
     rankLabel: orderRankLabel,
+    beforeTitleHtml: posterBadges
+      ? `<div class="watchlist-poster-badges"><span class="watchlist-rank-badge">${escape(rankText)}</span>${tierBadge}</div>`
+      : "",
     showYear: true,
     directorHtml: directorHtml
       ? `<div class="film-director">${escape(ui("by"))} ${directorHtml}</div>`
@@ -590,10 +692,9 @@ window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
     titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
     bodyHtml: tierEditMode
       ? watchlistTierEditor(item, escape, ui)
-      : window.renderWatchlistTierBadge(item.tier, {
-          escape: escape,
-          modifier: item.tierModifier,
-        }),
+      : posterBadges
+        ? ""
+        : tierBadge,
   });
 };
 
@@ -649,7 +750,7 @@ window.renderWatchlistRow = function (entry, visibleIndex = 0, options = {}) {
 /**
  * Renders the Watchlist filters fieldset: active director-filter chip,
  * search box, min/max runtime inputs, the shared bulk-tier control, the
- * disposable-queue toggle, and the "Start project" button.
+ * disposable-queue toggle, and the start-watch-project icon button.
  * @param {WatchlistFilters} filters Watchlist filter/sort state.
  * @param {Object} [options] Rendering options.
  * @param {(value:*) => string} [options.escape] HTML escaper.
@@ -667,7 +768,7 @@ window.watchlistFilterControls = function (filters, options = {}) {
   let projectSourceId = options.projectSourceId || "";
   let bulkTierValue = options.bulkTierValue;
   let queueVisible = Boolean(options.queueVisible);
-  return `<fieldset class="period-filter-controls"><legend>${escape(ui("Watchlist filters"))}</legend>${filters.director ? `<div class="active-filter-chip">${escape(ui("Director"))}: <strong>${escape(filters.director)}</strong> <button type="button" data-clear-period-watchlist-director aria-label="${escape(ui("Clear director filter"))}">×</button></div>` : ""}<label>${escape(ui("Search"))} <input type="search" data-period-watchlist-search value="${escape(filters.search)}"></label><label>${escape(ui("Minimum runtime (minutes)"))} <input type="number" min="1" max="2000" data-period-watchlist-min-runtime value="${filters.minRuntime ? escape(String(filters.minRuntime)) : ""}"></label><label>${escape(ui("Maximum runtime (minutes)"))} <input type="number" min="1" max="2000" data-period-watchlist-max-runtime value="${filters.maxRuntime ? escape(String(filters.maxRuntime)) : ""}"></label>${window.renderWatchlistBulkTierControl({ escape, count: filteredCount, value: bulkTierValue })}<button type="button" class="sort-order-button" data-period-watchlist-queue-toggle ${filteredCount ? "" : "disabled"}>${escape(ui(queueVisible ? "Hide queue" : "Show queue"))}</button><button type="button" class="sort-order-button" data-start-project-source="watchlist-filter" data-project-source-id="${escape(projectSourceId)}" ${filteredCount ? "" : "disabled"}>${escape(ui("Start project"))}</button></fieldset>`;
+  return `<fieldset class="period-filter-controls"><legend>${escape(ui("Watchlist filters"))}</legend>${filters.director ? `<div class="active-filter-chip">${escape(ui("Director"))}: <strong>${escape(filters.director)}</strong> <button type="button" data-clear-period-watchlist-director aria-label="${escape(ui("Clear director filter"))}">×</button></div>` : ""}<label>${escape(ui("Search"))} <input type="search" data-period-watchlist-search value="${escape(filters.search)}"></label><label>${escape(ui("Minimum runtime (minutes)"))} <input type="number" min="1" max="2000" data-period-watchlist-min-runtime value="${filters.minRuntime ? escape(String(filters.minRuntime)) : ""}"></label><label>${escape(ui("Maximum runtime (minutes)"))} <input type="number" min="1" max="2000" data-period-watchlist-max-runtime value="${filters.maxRuntime ? escape(String(filters.maxRuntime)) : ""}"></label>${window.renderWatchlistBulkTierControl({ escape, count: filteredCount, value: bulkTierValue })}<button type="button" class="sort-order-button" data-period-watchlist-queue-toggle ${filteredCount ? "" : "disabled"}>${escape(ui(queueVisible ? "Hide queue" : "Show queue"))}</button>${window.renderStartProjectButton("watchlist-filter", projectSourceId, { escape, disabled: !filteredCount })}</fieldset>`;
 };
 
 // A disposable queue: recomputed from the current filtered entries every

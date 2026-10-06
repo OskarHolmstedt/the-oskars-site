@@ -749,10 +749,8 @@ function targetProjectAction(target) {
   if (!["person", "franchise", "tag"].includes(target.type))
     return `<span class="compare-muted">—</span>`;
   return (
-    window.renderSourceProjectAction?.(target.type, target.id, {
-      escape,
-      buttonClass: "button-link",
-    }) || `<span class="compare-muted">—</span>`
+    window.renderSourceProjectAction?.(target.type, target.id, { escape }) ||
+    `<span class="compare-muted">—</span>`
   );
 }
 

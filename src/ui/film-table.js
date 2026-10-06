@@ -322,7 +322,7 @@ window.renderRatingTierCell = function (record = {}, options = {}) {
   let escape = options.escape || window.pageEscape;
   let content = options.editHtml || "";
   if (!content && record.film) {
-    content = escape(record.film.rating || "");
+    content = window.renderFilmRatingHtml(record.film, { escape });
     if (options.showRewatchTier && record.film.wantToRewatch) {
       let rewatchTier = window.renderWatchlistTierBadge(
         record.film.rewatchTier,
