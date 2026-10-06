@@ -1370,18 +1370,52 @@
   // Each block is one bracket: Position 1-N (the period's category
   // capacity), with the Period column's first two cells naming the period
   // type and value, as splitBracketSheetBlocks() and parseTable() read them.
-  function awardsSheetLayoutRows() {
-    return awardsSheetPeriodBlocks().flatMap((block) =>
-      Array.from(
-        { length: window.bracketCapacities(block.periodType).category },
-        (_, index) =>
-          index === 0
-            ? [1, block.marker]
-            : index === 1 && block.value
-              ? [2, block.value]
-              : [index + 1],
-      ),
+  function awardsSheetLayoutRows(scopes = new Map()) {
+    let blocks = awardsSheetPeriodBlocks();
+    let existingKeys = new Set(
+      blocks.map((block) => {
+        let parsed = window.bracketPeriodFromMeta?.(block.marker, block.value);
+        return parsed ? awardScope(parsed.periodType, parsed.year).key : "";
+      }),
     );
+    for (let scope of scopes.values()) {
+      if (existingKeys.has(scope.key)) continue;
+      blocks.push({
+        periodType: scope.periodType,
+        marker: awardScopeMarker(scope),
+        value: scope.periodType === "allTime" ? "" : scope.year,
+      });
+      existingKeys.add(scope.key);
+    }
+    let rows = [];
+    blocks.forEach((block) => {
+      let parsed = window.bracketPeriodFromMeta?.(block.marker, block.value);
+      let scopeKey = parsed
+        ? awardScope(parsed.periodType, parsed.year).key
+        : "";
+      let nominations = scopes.get(scopeKey)?.nominations;
+      let capacity = window.bracketCapacities(block.periodType).category;
+      for (let position = 1; position <= capacity; position++) {
+        let rowCells = [position];
+        if (position === 1) {
+          rowCells[1] = block.marker;
+        } else if (position === 2 && block.value) {
+          rowCells[1] = block.value;
+        }
+        if (nominations) {
+          AWARDS_SHEET_HEADERS.slice(2).forEach((name, idx) => {
+            let spec = awardColumnSpec(name);
+            let placement = position + (spec.secondHalf ? capacity : 0);
+            let val =
+              nominations.get(`${spec.category}::${placement}`)?.[spec.field] ||
+              "";
+            if (val) rowCells[idx + 2] = val;
+          });
+        }
+        rows.push(rowCells);
+      }
+    });
+    return rows;
   }
 
   function sheetCellData(value) {
@@ -1430,14 +1464,20 @@
     return paddedRows;
   }
 
-  function awardsSheetGridRows() {
+  function awardsSheetGridRows(films = []) {
+    let scopes = films?.length
+      ? archiveAwardScopes(films, { lenient: true })
+      : new Map();
+    let layoutRows = awardsSheetLayoutRows(scopes);
     return [
       sheetHeaderRowData(AWARDS_SHEET_HEADERS),
-      ...awardsSheetLayoutRows().map((row) =>
+      ...layoutRows.map((row) =>
         row[0] === 1
           ? {
               values: AWARDS_SHEET_HEADERS.map((_, columnIndex) => ({
-                ...(columnIndex < row.length
+                ...(columnIndex < row.length &&
+                row[columnIndex] !== undefined &&
+                row[columnIndex] !== ""
                   ? sheetCellData(row[columnIndex])
                   : {}),
                 userEnteredFormat: {
@@ -1446,7 +1486,13 @@
                 },
               })),
             }
-          : { values: row.map(sheetCellData) },
+          : {
+              values: Array.from({ length: row.length }, (_, i) =>
+                row[i] !== undefined && row[i] !== ""
+                  ? sheetCellData(row[i])
+                  : {},
+              ),
+            },
       ),
     ];
   }
@@ -1486,7 +1532,7 @@
     let watchlist =
       options.watchlist ||
       (options.populateFromArchive ? window.state?.watchlist || [] : []);
-    let awardsRows = awardsSheetGridRows();
+    let awardsRows = awardsSheetGridRows(films);
     return {
       properties: {
         title: options.title || "The Oskars — Film Archive & Awards",
@@ -1626,9 +1672,11 @@
       spreadsheetId,
       accessToken,
     );
-    let sheets = metadata.sheets.filter((sheet) =>
-      ["Watched", "Watchlist", "Awards"].includes(sheet.title),
-    );
+    let sheets = metadata.sheets
+      .filter((sheet) =>
+        ["Watched", "Watchlist", "Awards"].includes(sheet.title),
+      )
+      .sort((left, right) => left.title.localeCompare(right.title));
     let data = sheets.length
       ? await fetchSheetValues(
           spreadsheetId,
@@ -1676,7 +1724,7 @@
     };
   }
 
-  function archiveAwardScopes(films) {
+  function archiveAwardScopes(films, options = {}) {
     let scopes = new Map();
     let categories = new Set(
       AWARDS_SHEET_HEADERS.slice(2).map(
@@ -1685,7 +1733,13 @@
     );
     films.forEach((film) =>
       (film.awards || []).forEach((award) => {
-        let scope = awardScope(window.getAwardPeriodType(award), award.year);
+        let scope;
+        try {
+          scope = awardScope(window.getAwardPeriodType(award), award.year);
+        } catch (err) {
+          if (options.lenient) return;
+          throw err;
+        }
         let capacity = window.bracketCapacities(scope.periodType);
         let placement = Number(award.placement);
         if (
@@ -1696,18 +1750,22 @@
             (award.category === "Best Picture"
               ? capacity.picture
               : capacity.category)
-        )
+        ) {
+          if (options.lenient) return;
           throw new Error(
             `Cannot export Awards placement: ${scope.year} ${award.category} #${award.placement}.`,
           );
+        }
         if (!scopes.has(scope.key))
           scopes.set(scope.key, { ...scope, nominations: new Map() });
         let nominations = scopes.get(scope.key).nominations;
         let key = `${award.category}::${placement}`;
-        if (nominations.has(key))
+        if (nominations.has(key)) {
+          if (options.lenient) return;
           throw new Error(
             `Multiple films share Awards ${scope.year} ${award.category} #${placement}. Resolve this placement before pushing.`,
           );
+        }
         nominations.set(key, {
           film: film.title,
           recipient:
@@ -2045,14 +2103,21 @@
         scope: GOOGLE_SHEETS_WRITE_SCOPE,
       }));
     let snapshot = await archivePushSnapshot(spreadsheetId, accessToken);
-    if (
-      JSON.stringify(snapshot) !== JSON.stringify(reviewed.snapshot) ||
+    let sheetChanged =
+      JSON.stringify(snapshot) !== JSON.stringify(reviewed.snapshot);
+    let archiveChanged =
       archivePushRevision(archivePushSource(options)) !==
-        reviewed.sourceRevision
-    ) {
+      reviewed.sourceRevision;
+    if (sheetChanged || archiveChanged) {
       archivePushPlans.delete(options.plan);
+      let target =
+        sheetChanged && archiveChanged
+          ? "The Sheet and archive"
+          : sheetChanged
+            ? "The Sheet"
+            : "The archive";
       throw new Error(
-        "The Sheet or archive changed after preview. Preview the push again before applying it.",
+        `${target} changed after preview. Preview the push again before applying it.`,
       );
     }
     if (reviewed.requests.length)

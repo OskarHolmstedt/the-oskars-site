@@ -1887,7 +1887,6 @@
       showGoogleSheetProgress(ui("Writing to Google Sheet…"));
       if (previewButton) previewButton.disabled = true;
       try {
-        await refreshSource();
         let result = await window.writeGoogleSpreadsheetArchive(
           connectedSpreadsheetId(),
           { plan: pendingGooglePush },

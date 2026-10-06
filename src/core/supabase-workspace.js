@@ -2554,7 +2554,7 @@ const HYDRATION_DOMAIN_LOADERS = {
   rankings: async (client) => {
     let [rankings, rankingEntries] = await Promise.all([
       supabaseResultData(
-        client.from("rankings").select("id, scope, scope_type"),
+        client.from("rankings").select("id, scope, scope_type").order("id"),
       ),
       fetchAllSupabaseRows((withCount) =>
         client
@@ -2586,7 +2586,8 @@ const HYDRATION_DOMAIN_LOADERS = {
         .select(
           "id, scope, scope_type, personal_nominations(id, category, placement, film_id, detail, personal_nomination_recipients(recipient_name, person_id))",
         )
-        .order("placement", { foreignTable: "personal_nominations" }),
+        .order("placement", { foreignTable: "personal_nominations" })
+        .order("id"),
     ),
   // The shared catalogs are paginated (issue #463): a plain .select()
   // risks PostgREST's max_rows cap silently truncating them.
