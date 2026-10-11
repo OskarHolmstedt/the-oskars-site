@@ -170,10 +170,12 @@ function parseRankedList(raw, options = {}) {
       : -1;
 
   if (titleIndex === -1) titleIndex = 1;
-  if (directorIndex === -1) directorIndex = 2;
-  if (ratingIndex === -1) ratingIndex = 3;
-  if (liveIndex === -1) liveIndex = inferredMediumIndex;
-  if (adaptIndex === -1) adaptIndex = 7;
+  if (!columns) {
+    if (directorIndex === -1) directorIndex = 2;
+    if (ratingIndex === -1) ratingIndex = 3;
+    if (liveIndex === -1) liveIndex = inferredMediumIndex;
+    if (adaptIndex === -1) adaptIndex = 7;
+  }
 
   let films = [];
   let skippedRows = 0;

@@ -9,27 +9,29 @@ window.supabaseRankingConsistencyPairKey = function (filmIdA, filmIdB) {
 };
 
 /**
- * A ranking entry's exact-rating bucket key, or "" when unrated.
- * @param {{rating?: number, rating_modifier?: string}} watchedRow
+ * A ranking entry's exact-rating bucket key, or "unrated" when unrated, or "" when not a watched row.
+ * @param {{rating?: number, rating_modifier?: string}|null|undefined} watchedRow
  * @returns {string}
  */
 window.supabaseRankingRatingKey = function (watchedRow) {
+  if (!watchedRow) return "";
   let parsed = window.parseFilmRating({
     ratingValue: watchedRow?.rating,
     ratingModifier: watchedRow?.rating_modifier,
   });
-  return parsed.value ? `${parsed.value}|${parsed.modifier || ""}` : "";
+  return parsed.value ? `${parsed.value}|${parsed.modifier || ""}` : "unrated";
 };
 
 /**
  * A rating bucket key's exact sortable grade from 1 through 30 (issue
  * #432), companion to supabaseRankingRatingKey - reuses
  * src/ui/film-rating.js's filmRatingGrade rather than duplicating its
- * star/modifier-to-grade math.
+ * star/modifier-to-grade math. Unrated keys sort with value 0.
  * @param {string} key Bucket key from supabaseRankingRatingKey.
  * @returns {number}
  */
 window.supabaseRankingRatingSortValueFromKey = function (key) {
+  if (!key || key === "unrated") return 0;
   let parts = String(key || "").split("|");
   let value = Number(parts[0]) || 0;
   let modifier = parts[1] || "";

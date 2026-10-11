@@ -28,15 +28,6 @@ const CANONICAL_TOP_LEVEL_KEYS = [
   "editLog",
 ];
 
-// The data-bearing top-level sections, excluding the schema-version marker
-// - shared with src/core/workspace-sections.js (issue #248) so the
-// The sync unit list can never drift from the actual canonical
-// contract. Exposed on window rather than duplicated because both files
-// need the identical list, and this one already owns it.
-window.OSKARS_CANONICAL_SECTION_KEYS = CANONICAL_TOP_LEVEL_KEYS.filter(
-  (key) => key !== "canonicalSchemaVersion",
-);
-
 // The four ranking scopes a film/period can be grouped by. Declared once
 // and reused everywhere this set is checked, so the allowlist can't drift
 // between call sites.
@@ -819,11 +810,11 @@ function canonicalValidateOpinionRebuildSession(errors, session) {
     session.sourceConflicts,
     "$.opinionRebuildSession.sourceConflicts",
   );
-  [
+  /** @type {[string, Set<string>][]} */ ([
     ["films", CANONICAL_OPINION_REBUILD_FILM_FIELDS],
     ["watchlist", CANONICAL_OPINION_REBUILD_WATCHLIST_FIELDS],
     ["watchedOther", CANONICAL_OPINION_REBUILD_WATCHED_FIELDS],
-  ].forEach(([key, allowed]) => {
+  ]).forEach(([key, allowed]) => {
     Object.entries(session[key] || {}).forEach(([recordId, snapshot]) => {
       let path = `$.opinionRebuildSession.${key}.${recordId}`;
       if (canonicalCheckRecord(errors, snapshot, path))
@@ -1410,34 +1401,13 @@ window.validateCanonicalData = function (source) {
 window.assertCanonicalData = function (source) {
   let result = window.validateCanonicalData(source);
   if (result.valid) return source;
-  let error = new Error(
-    `Invalid canonical dataset:\n${result.errors
-      .map((entry) => `${entry.path}: ${entry.message}`)
-      .join("\n")}`,
-  );
-  error.code = "OSKARS_INVALID_CANONICAL_DATA";
-  error.validationErrors = result.errors;
-  throw error;
-};
-
-/**
- * Whether a validateCanonicalData error path falls under the given
- * top-level section key - the key itself ("$.sectionKey") or anything
- * nested under it ("$.sectionKey.foo", "$.sectionKey[3]"). Lets a caller
- * that merges several sections into one document (e.g. firestore-sync.js
- * applying several just-pulled sections at once) work out which specific
- * section a validation failure belongs to, rather than only knowing the
- * merged whole is invalid.
- * @param {string} errorPath A validateCanonicalData error's `path`.
- * @param {string} sectionKey One of window.OSKARS_CANONICAL_SECTION_KEYS.
- * @returns {boolean} Whether the error belongs to that section.
- */
-window.canonicalErrorBelongsToSection = function (errorPath, sectionKey) {
-  let prefix = `$.${sectionKey}`;
-  return (
-    errorPath === prefix ||
-    errorPath.startsWith(`${prefix}.`) ||
-    errorPath.startsWith(`${prefix}[`)
+  throw Object.assign(
+    new Error(
+      `Invalid canonical dataset:\n${result.errors
+        .map((entry) => `${entry.path}: ${entry.message}`)
+        .join("\n")}`,
+    ),
+    { code: "OSKARS_INVALID_CANONICAL_DATA", validationErrors: result.errors },
   );
 };
 
@@ -1516,13 +1486,11 @@ function canonicalCollectionRecordCount(value) {
   return value === undefined || value === null ? 0 : 1;
 }
 
-/**
- * Extracts stable identity/record pairs from a canonical array or map for
- * import and cloud-conflict diff summaries.
- * @param {Array|Object} value Collection to extract records from.
- * @returns {Array<[string, *]>} Identity/record pairs.
+/** Extracts stable record identities for canonical change summaries.
+ * @param {Array|Object} value Collection.
+ * @returns {Array<[string, *]>} Identity and record pairs.
  */
-window.canonicalRecordEntries = function (value) {
+function canonicalRecordEntries(value) {
   if (Array.isArray(value))
     return value.map((record, index) => [
       String(
@@ -1532,11 +1500,11 @@ window.canonicalRecordEntries = function (value) {
     ]);
   if (value && typeof value === "object") return Object.entries(value);
   return [["$value", value]];
-};
+}
 
 function canonicalChangedRecordCount(before, after) {
-  let beforeRecords = new Map(window.canonicalRecordEntries(before));
-  let afterRecords = new Map(window.canonicalRecordEntries(after));
+  let beforeRecords = new Map(canonicalRecordEntries(before));
+  let afterRecords = new Map(canonicalRecordEntries(after));
   let identities = new Set([...beforeRecords.keys(), ...afterRecords.keys()]);
   return [...identities].filter(
     (identity) =>
@@ -1575,16 +1543,6 @@ window.canonicalSectionChanges = function (before, after) {
       };
     })
     .filter((entry) => entry.changed);
-};
-
-/**
- * Parses, migrates, and validates canonical JSON without mutating live state.
- * @param {string} text Canonical or legacy snapshot JSON.
- * @returns {Object} Current valid canonical dataset.
- */
-window.parseCanonicalData = function (text) {
-  let canonical = window.migrateCanonicalData(JSON.parse(text));
-  return window.assertCanonicalData(canonical);
 };
 
 /**
@@ -1952,14 +1910,14 @@ window.validatePublicData = function (source) {
 window.assertPublicData = function (source) {
   let result = window.validatePublicData(source);
   if (result.valid) return source;
-  let error = new Error(
-    `Invalid public-profile dataset:\n${result.errors
-      .map((entry) => `${entry.path}: ${entry.message}`)
-      .join("\n")}`,
+  throw Object.assign(
+    new Error(
+      `Invalid public-profile dataset:\n${result.errors
+        .map((entry) => `${entry.path}: ${entry.message}`)
+        .join("\n")}`,
+    ),
+    { code: "OSKARS_INVALID_PUBLIC_DATA", validationErrors: result.errors },
   );
-  error.code = "OSKARS_INVALID_PUBLIC_DATA";
-  error.validationErrors = result.errors;
-  throw error;
 };
 
 /**
@@ -2095,34 +2053,12 @@ window.serializePublicData = function (canonical, options = {}) {
 };
 
 /**
- * Produces a stable, content-addressed, filename-safe revision id for a
- * validated public-profile document (issue #253's publish pipeline) —
- * reuses canonicalDataRevision()'s deterministic hash, which is already
- * fully generic over any JSON-like value, so publishing byte-identical
- * content twice reproduces the same revision id rather than minting a new
- * one. Unlike canonicalDataRevision() (never used as a filename elsewhere),
- * this id becomes a literal `<revisionId>.json` filename in the published
- * repository, so its colons are replaced — `:` is illegal in Windows
- * filenames and unusual even where it's technically legal.
- * @param {Object} publicData Public-profile document (buildPublicProjection()'s output).
- * @returns {string} Filename-safe revision id.
- */
-window.publicDataRevision = function (publicData) {
-  return window.canonicalDataRevision(publicData).replace(/:/g, "-");
-};
-
-/**
  * Hydrates a validated public-profile document (buildPublicProjection()'s
  * output) into browsable runtime state, for a viewer-mode session browsing
- * another owner's published profile (issue #256). Deliberately does not
- * reuse hydrateState()/browserPersistenceToRuntimeState(): those stamp
- * draftMetadata with a base revision and dirty tracking that assumes the
- * hydrated data is a private canonical draft eligible for reconciliation
- * and publication, which public-profile data never is. This path sets
- * draftMetadata to null and isPublicProfileView to true instead, and never
- * touches persistence — window.save() already refuses to write anything in
- * viewer mode (src/core/persistence.js), so this state can only ever live
- * for the current tab.
+ * another owner's published profile (issue #256). Public-profile data is
+ * never a private canonical draft, so this path sets draftMetadata to null
+ * and isPublicProfileView to true, and the state only ever lives for the
+ * current tab.
  * @param {Object} publicData Public-profile document to hydrate.
  * @param {{slug?: string, ownerName?: string, revision?: string, publishedAt?: string}} [meta]
  *   Manifest-resolved profile identity (issue #253) stashed as

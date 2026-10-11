@@ -34,11 +34,6 @@ window.registerTransientProjectSource = function (
   return sourceId;
 };
 
-/** Builds a deterministic project id for a source. @param {string} sourceType Source type. @param {string} sourceId Source id. @returns {string} Project id. */
-window.projectIdForSource = function (sourceType, sourceId) {
-  return `${String(sourceType || "").trim()}-${window.normalizeProjectId(sourceId)}`;
-};
-
 /** Builds the detail URL for a project's source entity. @param {ProjectRecord} project Project. @returns {string} Source URL or empty string. */
 window.projectSourceHref = function (project) {
   if (project?.sourceType === "person")
@@ -725,20 +720,6 @@ function projectSortValue(record, sort) {
     titleKey,
   ];
 }
-
-// Axes where "ascending" already means best-first (lower rank/tier number
-// wins, oldest year first, A-Z, manual order) default to 'asc'; count/score
-// axes where higher is better default to 'desc' so the initial view still
-// shows best-first without the user having to hit reverse immediately.
-/** Returns the default direction for a project sort axis. @param {string} sort Sort axis. @returns {'asc'|'desc'} Direction. */
-window.defaultOrderForProjectSort = function (sort) {
-  return sort === "rating" ||
-    sort === "wins" ||
-    sort === "nominations" ||
-    sort === "score"
-    ? "desc"
-    : "asc";
-};
 
 /** Sorts project listing records by a selected axis. @param {Object[]} records Records. @param {string} sort Sort axis. @param {string|number} seed Shuffle seed. @param {'asc'|'desc'} order Direction. @returns {Object[]} Sorted records. */
 window.sortProjectRecords = function (records, sort, seed, order) {

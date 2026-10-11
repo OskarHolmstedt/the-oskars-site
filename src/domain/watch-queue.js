@@ -36,7 +36,7 @@
   /**
    * Lists watchlist items matching the shared film-filter vocabulary
    * (period, tier, director, franchise, tag, rating, ...).
-   * @param {Record<string, import('../domain/film-filters.js').FilmFilterValue>} [filters]
+   * @param {Record<string, FilmFilterValue>} [filters]
    * @param {Record<string, Object>} [options] Per-filter predicate context,
    *   forwarded to `filmMatchesFilters` (e.g. `{period: {alltimeMatchesAll: true}}`
    *   since watchlist items never carry an all-time rank).
@@ -184,6 +184,7 @@
   // Checked in priority order; the first that holds wins. Only signals
   // already on WatchlistItem (director, franchises, tags, year, medium) are
   // used - no new data modeled for this.
+  /** @returns {WatchQueuePairing} */
   function pairingSignal(anchorItem, candidate) {
     if (
       anchorItem.director &&

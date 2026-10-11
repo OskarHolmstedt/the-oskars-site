@@ -256,7 +256,11 @@
 
   function filters() {
     currentFilters = Object.fromEntries(
-      new FormData(document.getElementById("discoveryFilters")).entries(),
+      new FormData(
+        /** @type {HTMLFormElement} */ (
+          document.getElementById("discoveryFilters")
+        ),
+      ).entries(),
     );
     return currentFilters;
   }
@@ -339,7 +343,9 @@
     if (resetButton) {
       let form = document.getElementById("discoveryFilters");
       form?.reset();
-      currentFilters = Object.fromEntries(new FormData(form).entries());
+      currentFilters = Object.fromEntries(
+        new FormData(/** @type {HTMLFormElement} */ (form)).entries(),
+      );
       discoverUrlState.replace(currentFilters);
       let resultContainer = document.getElementById("discoveryResult");
       if (resultContainer) {

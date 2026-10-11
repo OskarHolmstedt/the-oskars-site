@@ -46,7 +46,7 @@
     }
   };
 
-  /** Combines nonempty groups with explicit union or intersection semantics. @param {CollectionFilterExpression|null} expression Collection expression. @param {Function} matches Membership predicate. @returns {boolean} Whether the film matches. */
+  /** Combines nonempty groups with explicit union or intersection semantics. @param {CollectionFilterExpression|null} expression Collection expression. @param {(item: CollectionFilterItem) => boolean} matches Membership predicate. @returns {boolean} Whether the film matches. */
   window.matchesCollectionFilter = function (expression, matches) {
     let groups = expression?.groups.filter((group) => group.items.length) || [];
     if (!groups.length) return true;

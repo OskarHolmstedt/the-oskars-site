@@ -36,7 +36,7 @@ window.resolveAwardRecipientPersonId = function (value) {
   return window.normalizePersonName(canonicalName);
 };
 
-/** Returns normalized, deduplicated award recipients. @param {AwardRecord|CollectionAwardNomination|OfficialNomination|null} award Award. @returns {AwardRecipient[]} Recipients. */
+/** Returns normalized, deduplicated award recipients. @param {{recipients?: AwardRecipient[], recipientText?: string, recipient?: string}|null} award Personal award, collection nomination, or official nomination. @returns {AwardRecipient[]} Recipients. */
 window.awardRecipients = function (award) {
   if (!award) return [];
   let records = Array.isArray(award.recipients)

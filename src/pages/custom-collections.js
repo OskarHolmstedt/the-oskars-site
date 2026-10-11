@@ -121,7 +121,10 @@
       event.preventDefault();
       let submitBtn = createForm.querySelector('button[type="submit"]');
       if (submitBtn?.disabled) return;
-      let name = String(new FormData(createForm).get("name") || "").trim();
+      let name = String(
+        new FormData(/** @type {HTMLFormElement} */ (createForm)).get("name") ||
+          "",
+      ).trim();
       if (!name) return;
       if (submitBtn) submitBtn.disabled = true;
       statusEl.textContent = ui("Creating…");

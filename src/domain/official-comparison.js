@@ -71,6 +71,7 @@
         ...officialWinnersByCategory.keys(),
       ]),
     ].sort(categoryOrder);
+    /** @type {OfficialAwardCategoryComparison[]} */
     let categories = categoryNames.map((category) => {
       let personalWinners = personalWinnersByCategory.get(category) || [];
       let personalWinner = personalWinners[0] || null;
@@ -153,14 +154,18 @@
         entries.push(entry);
         personalEntriesByPeriod.set(periodKey, entries);
       });
+    /** @type {OfficialAwardCategoryPeriodComparison[]} */
     let periods = Object.entries(officialSource?.periods || {})
-      .map(([periodKey, period]) => [
-        periodKey,
-        period,
-        (period?.nominations || []).filter(
-          (nomination) => nomination.category === category,
-        ),
-      ])
+      .map(
+        /** @returns {[string, OfficialResultsPeriod, OfficialNomination[]]} */
+        ([periodKey, period]) => [
+          periodKey,
+          period,
+          (period?.nominations || []).filter(
+            (nomination) => nomination.category === category,
+          ),
+        ],
+      )
       .filter(([, , nominations]) => nominations.length)
       .sort(([left], [right]) =>
         left.localeCompare(right, undefined, { numeric: true }),

@@ -105,12 +105,6 @@
     return window.parseFilmTags?.([...(left || []), ...(right || [])]) || [];
   }
 
-  function latestDate(left, right) {
-    let valid = (value) =>
-      /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? value : "";
-    return [valid(left), valid(right)].sort().pop() || "";
-  }
-
   function ratingFor(row) {
     let value = Number(String(row?.rating || "").replace(",", "."));
     if (!Number.isFinite(value) || value < 0.5 || value > 5 || (value * 2) % 1)
@@ -133,28 +127,11 @@
     if (!record.letterboxdUrl && uri) record.letterboxdUrl = uri;
     if (facts.rating) Object.assign(record, facts.rating);
     record.tags = mergeTags(record.tags, facts.tags);
-    record.dateWatched = latestDate(record.dateWatched, facts.dateWatched);
-    record.views = Math.max(Number(record.views) || 0, facts.views || 1);
-  }
-
-  function archiveSourceRecords() {
-    let records = [];
-    let seen = new Set();
-    Object.values(window.state.years || {}).forEach((period) =>
-      (period.films || []).forEach((film) => {
-        if (film && !seen.has(film)) {
-          seen.add(film);
-          records.push(film);
-        }
-      }),
+    record.dateWatched = window.latestImportDate(
+      record.dateWatched,
+      facts.dateWatched,
     );
-    Object.values(window.state.filmsById || {}).forEach((film) => {
-      if (film && !seen.has(film)) {
-        seen.add(film);
-        records.push(film);
-      }
-    });
-    return records;
+    record.views = Math.max(Number(record.views) || 0, facts.views || 1);
   }
 
   function viewingFacts(rows, ratings, diary) {
@@ -171,7 +148,7 @@
       };
       group.views += 1;
       group.rewatch ||= /^yes$/i.test(entry.rewatch);
-      group.dateWatched = latestDate(
+      group.dateWatched = window.latestImportDate(
         group.dateWatched,
         entry["watched date"] || entry.date,
       );
@@ -232,7 +209,7 @@
   }
 
   function importWatched(rows, ratings, diary, report) {
-    let archiveRecords = archiveSourceRecords();
+    let archiveRecords = window.importArchiveSourceRecords();
     let archiveLookup = buildLookup(archiveRecords);
     let otherLookup = buildLookup(window.state.watchedOther || []);
     let factsByRow = viewingFacts(rows, ratings, diary);
@@ -272,14 +249,8 @@
         window.enrichPersonalRecordFromSharedArchive?.(existingOther, "film");
         report.watchedOtherMerged += 1;
       } else if (validYear) {
-        // state.watchedOther has no Supabase table backing it - nothing
-        // ever syncs it, so anything routed there is lost the next time
-        // this page (or any Supabase-hydrated page) reloads. A row with a
-        // real release year belongs in the ranked archive instead, which
-        // does persist (find_or_create_film via reconcile()'s syncWatched)
-        // - regardless of whether this account already had other films
-        // before this import. Only a row with no usable year at all (rare)
-        // still has nowhere real to go and falls back to watchedOther below.
+        // A usable release year places a fresh record in the archive;
+        // hydration later routes non-feature catalog types to watchedOther.
         let entry = freshWatchedRecordFields(row, validYear);
         applyViewingFacts(entry, row, facts);
         window.enrichPersonalRecordFromSharedArchive?.(entry, "film");
@@ -450,108 +421,14 @@
     return window.proposeLetterboxdImport(files, options);
   };
 
-  function applyTmdbMatchToFilm(film, match) {
-    if (match.tmdbId) film.tmdbId = String(match.tmdbId);
-    if (match.director) film.director = String(match.director).trim();
-    if (match.country) film.country = String(match.country).trim();
-    if (match.primaryCountry)
-      film.primaryCountry = String(match.primaryCountry).trim();
-    if (match.swedishTitle)
-      film.swedishTitle = String(match.swedishTitle).trim();
-    if (match.runtimeMinutes) film.runtimeMinutes = match.runtimeMinutes;
-    if (match.poster) film.poster = match.poster;
-    if (match.type) film.type = match.type;
-    window.normalizeFilmMetadata?.(film);
-  }
-
   /**
-   * Looks up TMDB metadata for every freshly created archive film tracked
-   * on a Letterboxd proposal's report (proposal.report.freshArchiveFilms),
-   * filling in tmdbId/director/country/runtime/poster/type directly on
-   * proposal.candidateState before the proposal is ever applied - the
-   * shared catalog is create-only for ordinary users once a film row
-   * exists (issue #440), so this is the one point where getting it right
-   * actually matters, mirroring the pattern Intake now uses (issue #496).
-   * Deliberately separate from proposeLetterboxdImport/proposeLetterboxdZipImport
-   * (which stay synchronous) rather than folded into the parse/classify
-   * pass, both because createImportProposal deep-clones candidateState/
-   * report (so an object reference captured during classification would
-   * already be orphaned by the time this could run) and so the fast
-   * preview render never blocks on what could be many network round trips.
-   * A lookup failure or no match just leaves that film without metadata,
-   * same as an ordinary Letterboxd import row always has today - it still
-   * gets created either way. A lookup revealing the row is actually a TV
-   * special, documentary, or short (not the "Film" type importWatched
-   * always defaults a fresh row to) moves it from
-   * proposal.candidateState.years[year].films into
-   * proposal.candidateState.watchedOther, matching how every other
-   * metadata-resolution path (setFilmTmdbMetadata, src/domain/posters.js)
-   * keeps non-Film types out of ranking/awards eligibility.
-   * @param {ImportProposal} proposal A Letterboxd proposal, already built.
-   * @param {Object} [options] Batch controls.
-   * @param {number} [options.concurrency] Parallel lookups, default 4.
-   * @param {(done: number, total: number) => void} [options.onProgress] Called
-   *   as (done, total) after each lookup settles.
+   * Looks up TMDB metadata for freshly created archive films on a Letterboxd proposal
+   * (see enrichImportProposalFreshFilms() in src/imports/import-proposals.js).
+   * @param {ImportProposal} proposal The Letterboxd proposal, already built.
+   * @param {Object} [options] Batch controls passed through.
    * @returns {Promise<void>} Completion after every lookup settles.
    */
-  window.enrichLetterboxdProposalMetadata = async function (
-    proposal,
-    options = {},
-  ) {
-    let targets = proposal?.report?.freshArchiveFilms || [];
-    if (!targets.length || !window.lookupTmdbMovieMetadata) return;
-    let concurrency = Math.max(
-      1,
-      Math.min(targets.length, Number(options.concurrency) || 4),
-    );
-    let cursor = 0;
-    let done = 0;
-    async function worker() {
-      while (cursor < targets.length) {
-        let target = targets[cursor++];
-        let yearFilms = proposal.candidateState?.years?.[target.year]?.films;
-        let filmIndex = (yearFilms || []).findIndex(
-          (candidate) => candidate.id === target.id,
-        );
-        let film = filmIndex >= 0 ? yearFilms[filmIndex] : null;
-        if (film && !film.tmdbId) {
-          try {
-            let match = await window.lookupTmdbMovieMetadata({
-              title: film.title,
-              year: film.year,
-            });
-            if (match) {
-              applyTmdbMatchToFilm(film, match);
-              // A fresh row always starts as type "Film" (importWatched's
-              // only option, since watched.csv carries no type of its
-              // own) - a lookup revealing it's actually a TV special,
-              // documentary, or short must move it out of the ranked
-              // archive the same way setFilmTmdbMetadata (src/domain/
-              // posters.js) already does for every other metadata-
-              // resolution path, or it stays wrongly eligible for
-              // ranking/awards despite having the correct type recorded.
-              if (match.type && match.type !== "Film") {
-                yearFilms.splice(filmIndex, 1);
-                proposal.candidateState.watchedOther ||= [];
-                proposal.candidateState.watchedOther.push(film);
-                if (proposal.report) {
-                  proposal.report.archiveAdded = Math.max(
-                    0,
-                    (proposal.report.archiveAdded || 0) - 1,
-                  );
-                  proposal.report.watchedOtherAdded =
-                    (proposal.report.watchedOtherAdded || 0) + 1;
-                }
-              }
-            }
-          } catch (err) {
-            console.warn(`TMDB lookup failed for ${target.title}`, err);
-          }
-        }
-        done += 1;
-        options.onProgress?.(done, targets.length);
-      }
-    }
-    await Promise.all(Array.from({ length: concurrency }, worker));
+  window.enrichLetterboxdProposalMetadata = function (proposal, options = {}) {
+    return window.enrichImportProposalFreshFilms(proposal, options);
   };
 })();

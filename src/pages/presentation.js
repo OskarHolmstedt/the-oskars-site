@@ -1,4 +1,4 @@
-/** @file Renders the read-only archive showcase — the whole archive by default, or a generated pack scoped to a project, franchise, person, tag, category, period, or a watched-year recap — its guided navigation, ceremony mode, and print presentation. */
+/** @file Renders the read-only archive showcase — the whole archive by default, or a generated pack scoped to a project, franchise, person, tag, category, period, or a watched-year recap — its guided navigation, ceremony mode, print presentation, and shareable recap poster export. */
 
 (function () {
   let escape = window.pageEscape;
@@ -632,6 +632,10 @@
     ? ui("Nothing was watched in {year} yet.", { year: pack.recapYear })
     : ui("Nothing here has been watched yet.");
 
+  let recapPosterButtonHtml = pack.isYearRecap
+    ? `<button type="button" class="button-link" data-presentation-poster-export ${films.length ? "" : `disabled title="${escape(ui("Nothing was watched in {year} yet.", { year: pack.recapYear }))}"`}>${escape(ui("Export recap poster"))}</button>`
+    : "";
+
   container.innerHTML = scopeInvalid
     ? `<div class="detail-empty"><h1>${escape(ui("Showcase not found"))}</h1><p>${escape(ui("This project, franchise, person, tag, category, period, or year could not be found."))}</p><a href="presentation.html">${escape(ui("Return to the whole-archive showcase"))}</a></div>`
     : films.length
@@ -641,12 +645,12 @@
     <h1>${escape(heroTitle)}</h1>
     <p>${escape(heroSubtitle)}</p>
     ${window.renderDetailStats({ classes: "presentation-stats", itemsHtml: snapshotHtml })}
-    <div class="presentation-print-row"><button type="button" class="button-link" data-presentation-print>${escape(ui("Export PDF slides"))}</button>${window.renderCopyViewLinkButton({ escape })}</div>
+    <div class="presentation-print-row"><button type="button" class="button-link" data-presentation-print>${escape(ui("Export PDF slides"))}</button>${recapPosterButtonHtml}${window.renderCopyViewLinkButton({ escape })}</div>
     ${scopePickerHtml}
   </header>
   ${sections.map((section) => section.html).join("")}`
       : isScoped
-        ? `<div class="detail-empty"><h1>${escape(ui("Nothing to show yet"))}</h1><p>${escape(scopeEmptyMessage)}</p><a href="presentation.html">${escape(ui("Return to the whole-archive showcase"))}</a></div>`
+        ? `<div class="detail-empty"><h1>${escape(ui("Nothing to show yet"))}</h1><p>${escape(scopeEmptyMessage)}</p>${pack.isYearRecap ? `<div class="presentation-print-row"><button type="button" class="button-link" data-presentation-poster-export disabled title="${escape(scopeEmptyMessage)}">${escape(ui("Export recap poster"))}</button></div>` : ""}<a href="presentation.html">${escape(ui("Return to the whole-archive showcase"))}</a></div>`
         : `<div class="detail-empty"><h1>${escape(ui("Nothing to show yet"))}</h1><p>${escape(ui("Import some films first, then come back for the tour."))}</p><a href="index.html">${escape(ui("Return home"))}</a></div>`;
 
   // PDF slide export (issue #60): the print stylesheet turns each section
@@ -666,10 +670,22 @@
     });
   window.addEventListener?.("beforeprint", preparePresentationForPrint);
 
-  // Copy-view-link (issue #59) and scope picker: delegated at the container
-  // like discover.js's own copy-link handling, since the picker's result
-  // list is regenerated on every keystroke rather than bound once.
+  // Copy-view-link (issue #59), scope picker, and recap poster export:
+  // delegated at the container like discover.js's own copy-link handling.
   container.addEventListener?.("click", (event) => {
+    let posterExportButton = event.target.closest?.(
+      "[data-presentation-poster-export]",
+    );
+    if (posterExportButton && !posterExportButton.disabled) {
+      let posterData = window.buildWatchedYearRecapPosterData(
+        films,
+        pack.recapYear,
+      );
+      if (posterData?.canExport) {
+        window.openWatchedYearRecapPosterModal(posterData);
+      }
+      return;
+    }
     let copyButton = event.target.closest?.("[data-copy-view-link]");
     if (!copyButton) return;
     window
@@ -949,6 +965,571 @@
     window.addEventListener?.("keydown", handleKeydown);
   }
   setupPresentationInteractivity();
+
+  // Watched-year recap poster export (issue #894): single shareable poster
+  // image for the recap pack, reusing its existing film selection and
+  // viewing statistics with strict privacy exclusions (no notes, reviews,
+  // watch dates, or user IDs) and taint-safe canvas rendering.
+
+  /**
+   * Safely wraps and renders lines of canvas text without overflowing max width.
+   * @param {CanvasRenderingContext2D} ctx Context.
+   * @param {string} text Text to wrap.
+   * @param {number} maxWidth Maximum width in pixels.
+   * @returns {string[]} Lines of text.
+   */
+  function wrapPosterText(ctx, text, maxWidth) {
+    let words = String(text || "").split(/\s+/);
+    let lines = [];
+    let currentLine = "";
+    for (let i = 0; i < words.length; i++) {
+      let word = words[i];
+      let candidate = currentLine ? `${currentLine} ${word}` : word;
+      if (ctx.measureText(candidate).width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = candidate;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+    return lines;
+  }
+
+  /**
+   * Traces a rounded rectangle path on a 2D canvas context.
+   * @param {CanvasRenderingContext2D} ctx Context.
+   * @param {number} x Left offset.
+   * @param {number} y Top offset.
+   * @param {number} width Width.
+   * @param {number} height Height.
+   * @param {number} radius Corner radius.
+   */
+  function traceRoundedRect(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  }
+
+  /**
+   * Safely loads an image URL with anonymous cross-origin credentials and timeout.
+   * @param {string|null} url Image URL.
+   * @returns {Promise<HTMLImageElement|null>} Loaded image, or null on error/timeout.
+   */
+  function loadPosterImageSafe(url) {
+    return new Promise((resolve) => {
+      if (!url || typeof Image === "undefined") {
+        resolve(null);
+        return;
+      }
+      try {
+        let img = new Image();
+        img.crossOrigin = "anonymous";
+        let timer = setTimeout(() => resolve(null), 3500);
+        img.onload = () => {
+          clearTimeout(timer);
+          resolve(img);
+        };
+        img.onerror = () => {
+          clearTimeout(timer);
+          resolve(null);
+        };
+        img.src = url;
+      } catch {
+        resolve(null);
+      }
+    });
+  }
+
+  /**
+   * Draws an elegant typographic card fallback when poster artwork is missing or inaccessible.
+   * @param {CanvasRenderingContext2D} ctx Context.
+   * @param {{title: string, year: string, rating: *}} film Film summary.
+   * @param {number} x Card left.
+   * @param {number} y Card top.
+   * @param {number} width Card width.
+   * @param {number} height Card height.
+   * @param {number} radius Corner radius.
+   */
+  function drawPosterTypographicCard(ctx, film, x, y, width, height, radius) {
+    ctx.save();
+    traceRoundedRect(ctx, x, y, width, height, radius);
+    ctx.fillStyle = "#161922";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = "#c59b27";
+    ctx.font = "24px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("★", x + width / 2, y + 42);
+
+    let fontSize = Math.min(22, Math.max(15, Math.floor(width / 14)));
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+    let lines = wrapPosterText(ctx, film.title, width - 36).slice(0, 3);
+    let startY = y + height / 2 - (lines.length * 24) / 2;
+    lines.forEach((line, index) => {
+      ctx.fillText(line, x + width / 2, startY + index * 26);
+    });
+
+    if (film.year) {
+      ctx.fillStyle = "#8a8f9f";
+      ctx.font = "16px system-ui, -apple-system, sans-serif";
+      ctx.fillText(
+        `(${film.year})`,
+        x + width / 2,
+        startY + lines.length * 26 + 18,
+      );
+    }
+
+    if (film.rating) {
+      ctx.fillStyle = "#e5b83b";
+      ctx.font = "16px system-ui, -apple-system, sans-serif";
+      let ratingStr = window.renderFilmRating
+        ? window.renderFilmRating(film.rating)
+        : `★ ${film.rating}`;
+      ctx.fillText(ratingStr, x + width / 2, y + height - 24);
+    }
+    ctx.restore();
+  }
+
+  /**
+   * Draws a poster image card or falls back to typographic rendering on draw failure.
+   * @param {CanvasRenderingContext2D} ctx Context.
+   * @param {HTMLImageElement|null} img Loaded image element.
+   * @param {{title: string, year: string, rating: *}} film Film summary.
+   * @param {number} x Card left.
+   * @param {number} y Card top.
+   * @param {number} width Card width.
+   * @param {number} height Card height.
+   * @param {number} radius Corner radius.
+   */
+  function drawPosterImageCard(ctx, img, film, x, y, width, height, radius) {
+    if (!img) {
+      drawPosterTypographicCard(ctx, film, x, y, width, height, radius);
+      return;
+    }
+    try {
+      ctx.save();
+      traceRoundedRect(ctx, x, y, width, height, radius);
+      ctx.clip();
+      ctx.drawImage(img, x, y, width, height);
+      ctx.restore();
+
+      ctx.save();
+      traceRoundedRect(ctx, x, y, width, height, radius);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    } catch {
+      drawPosterTypographicCard(ctx, film, x, y, width, height, radius);
+    }
+  }
+
+  /**
+   * Builds the export data model for a watched-year recap poster image, excluding private opinion and account fields.
+   * @param {FilmRecord[]} films In-scope recap films.
+   * @param {string} year Four-digit calendar year.
+   * @returns {{year: string, filmCount: number, averageRating: string|null, ratedCount: number, selectedFilms: Array<{id: string, title: string, year: string, rating: *|null, posterUrl: string|null}>, canExport: boolean, emptyReason: string|null}}
+   */
+  window.buildWatchedYearRecapPosterData = function (films, year) {
+    let list = Array.isArray(films) ? films : [];
+    let safeYear = String(year || "");
+    if (!list.length) {
+      return {
+        year: safeYear,
+        filmCount: 0,
+        averageRating: null,
+        ratedCount: 0,
+        selectedFilms: [],
+        canExport: false,
+        emptyReason: ui("Nothing was watched in {year} yet.", {
+          year: safeYear,
+        }),
+      };
+    }
+
+    let recapStats = window.viewingStatistics
+      ? window.viewingStatistics(list)
+      : {
+          filmCount: list.length,
+          ratedCount: list.filter((film) => film.rating).length,
+          averageRating: 0,
+        };
+
+    let formattedAvg = null;
+    if (recapStats.ratedCount > 0 && recapStats.averageRating) {
+      formattedAvg = window.formatAverageRating
+        ? window.formatAverageRating(recapStats.averageRating)
+        : String(Math.round(recapStats.averageRating * 100) / 100);
+    }
+
+    let sorted = [...list].sort((left, right) => {
+      let leftRank =
+        Number(left.allTimeRank) > 0 ? Number(left.allTimeRank) : Infinity;
+      let rightRank =
+        Number(right.allTimeRank) > 0 ? Number(right.allTimeRank) : Infinity;
+      if (leftRank !== rightRank) return leftRank - rightRank;
+
+      let leftRating = window.filmRatingSortValue
+        ? window.filmRatingSortValue(left.rating) || 0
+        : 0;
+      let rightRating = window.filmRatingSortValue
+        ? window.filmRatingSortValue(right.rating) || 0
+        : 0;
+      if (leftRating !== rightRating) return rightRating - leftRating;
+
+      return window.compareEnglishTitles
+        ? window.compareEnglishTitles(left.title, right.title)
+        : String(left.title || "").localeCompare(String(right.title || ""));
+    });
+
+    let selectedFilms = sorted.slice(0, 9).map((film) => {
+      let posterRecord = window.normalizePosterRecord
+        ? window.normalizePosterRecord(film.poster)
+        : film.poster && typeof film.poster === "object"
+          ? film.poster
+          : null;
+      return {
+        id: String(film.id || ""),
+        title: String(film.title || ""),
+        year: String(film.year || ""),
+        rating: film.rating ?? null,
+        posterUrl: posterRecord?.url || null,
+      };
+    });
+
+    return {
+      year: safeYear,
+      filmCount: recapStats.filmCount || list.length,
+      averageRating: formattedAvg,
+      ratedCount: recapStats.ratedCount || 0,
+      selectedFilms,
+      canExport: true,
+      emptyReason: null,
+    };
+  };
+
+  /**
+   * Draws a 1200x1600 shareable watched-year recap poster onto a canvas with graceful missing-artwork and taint fallbacks.
+   * @param {HTMLCanvasElement} canvas Target canvas element.
+   * @param {{year: string, filmCount: number, averageRating: string|null, selectedFilms: Array<{id: string, title: string, year: string, rating: *|null, posterUrl: string|null}>}} data Recap poster data model.
+   * @param {{width?: number, height?: number, skipExternalImages?: boolean, imageLoader?: (url: string|null) => Promise<HTMLImageElement|null>}} [options] Drawing options.
+   * @returns {Promise<boolean>} True when drawing succeeded.
+   */
+  window.drawWatchedYearRecapPoster = async function (
+    canvas,
+    data,
+    options = {},
+  ) {
+    let width = options.width || 1200;
+    let height = options.height || 1600;
+    canvas.width = width;
+    canvas.height = height;
+    let ctx = canvas.getContext ? canvas.getContext("2d") : null;
+    if (!ctx) return false;
+
+    let bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+    bgGradient.addColorStop(0, "#0c0e14");
+    bgGradient.addColorStop(0.5, "#12151e");
+    bgGradient.addColorStop(1, "#0a0b10");
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = "#c59b27";
+    ctx.fillRect(80, 0, width - 160, 6);
+
+    ctx.strokeStyle = "rgba(197, 155, 39, 0.22)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(36, 36, width - 72, height - 72);
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#a88836";
+    ctx.font = "600 22px system-ui, -apple-system, sans-serif";
+    ctx.fillText("THE OSKARS · CINEMATIC YEAR RECAP", width / 2, 105);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 96px Georgia, 'Times New Roman', serif";
+    ctx.fillText(String(data.year || ""), width / 2, 205);
+
+    let statsText =
+      data.filmCount === 1
+        ? ui("1 film watched")
+        : ui("{count} films watched", { count: data.filmCount });
+    if (data.averageRating) {
+      statsText += `   ·   ★ ${data.averageRating} ${ui("Average rating").toLocaleLowerCase()}`;
+    }
+    ctx.fillStyle = "#c0c4d4";
+    ctx.font = "500 28px system-ui, -apple-system, sans-serif";
+    ctx.fillText(statsText, width / 2, 260);
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(100, 295);
+    ctx.lineTo(width - 100, 295);
+    ctx.stroke();
+
+    let films = data.selectedFilms || [];
+    let skipExternal = Boolean(options.skipExternalImages);
+    let loadedImages = skipExternal
+      ? films.map(() => null)
+      : await Promise.all(
+          films.map((film) =>
+            options.imageLoader
+              ? options.imageLoader(film.posterUrl)
+              : loadPosterImageSafe(film.posterUrl),
+          ),
+        );
+
+    let count = films.length;
+    if (count === 0) {
+      ctx.fillStyle = "#8a8f9f";
+      ctx.font = "24px system-ui, -apple-system, sans-serif";
+      ctx.fillText(
+        ui("Nothing was watched in {year} yet.", { year: data.year }),
+        width / 2,
+        800,
+      );
+    } else if (count === 1) {
+      let cardW = 480;
+      let cardH = 720;
+      let cardX = (width - cardW) / 2;
+      let cardY = 340 + (1160 - cardH) / 2;
+      drawPosterImageCard(
+        ctx,
+        loadedImages[0],
+        films[0],
+        cardX,
+        cardY,
+        cardW,
+        cardH,
+        16,
+      );
+    } else if (count <= 4) {
+      let cols = 2;
+      let rows = Math.ceil(count / 2);
+      let cardW = 340;
+      let cardH = 510;
+      let gapX = 60;
+      let gapY = 40;
+      let totalW = cols * cardW + (cols - 1) * gapX;
+      let totalH = rows * cardH + (rows - 1) * gapY;
+      let startX = (width - totalW) / 2;
+      let startY = 320 + (1180 - totalH) / 2;
+      for (let i = 0; i < count; i++) {
+        let r = Math.floor(i / cols);
+        let c = i % cols;
+        let x = startX + c * (cardW + gapX);
+        let y = startY + r * (cardH + gapY);
+        drawPosterImageCard(
+          ctx,
+          loadedImages[i],
+          films[i],
+          x,
+          y,
+          cardW,
+          cardH,
+          12,
+        );
+      }
+    } else if (count <= 6) {
+      let cols = 3;
+      let cardW = 280;
+      let cardH = 420;
+      let gapX = 40;
+      let gapY = 40;
+      let totalW = cols * cardW + (cols - 1) * gapX;
+      let totalH = 2 * cardH + gapY;
+      let startX = (width - totalW) / 2;
+      let startY = 320 + (1180 - totalH) / 2;
+      for (let i = 0; i < count; i++) {
+        let r = Math.floor(i / cols);
+        let c = i % cols;
+        let x = startX + c * (cardW + gapX);
+        let y = startY + r * (cardH + gapY);
+        drawPosterImageCard(
+          ctx,
+          loadedImages[i],
+          films[i],
+          x,
+          y,
+          cardW,
+          cardH,
+          12,
+        );
+      }
+    } else {
+      let cols = 3;
+      let cardW = 260;
+      let cardH = 370;
+      let gapX = 35;
+      let gapY = 24;
+      let totalW = cols * cardW + (cols - 1) * gapX;
+      let startX = (width - totalW) / 2;
+      let startY = 325;
+      for (let i = 0; i < count; i++) {
+        let r = Math.floor(i / cols);
+        let c = i % cols;
+        let x = startX + c * (cardW + gapX);
+        let y = startY + r * (cardH + gapY);
+        drawPosterImageCard(
+          ctx,
+          loadedImages[i],
+          films[i],
+          x,
+          y,
+          cardW,
+          cardH,
+          10,
+        );
+      }
+    }
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#656a7a";
+    ctx.font = "400 18px system-ui, -apple-system, sans-serif";
+    ctx.fillText("THE OSKARS · CURATED PERSONAL FILM ARCHIVE", width / 2, 1545);
+
+    if (!skipExternal && typeof canvas.toDataURL === "function") {
+      let isTainted = false;
+      try {
+        canvas.toDataURL("image/png");
+      } catch {
+        isTainted = true;
+      }
+      if (isTainted) {
+        return await window.drawWatchedYearRecapPoster(canvas, data, {
+          ...options,
+          skipExternalImages: true,
+        });
+      }
+    }
+
+    return true;
+  };
+
+  /**
+   * Opens a modal dialog previewing the generated recap poster card and offering a PNG download.
+   * @param {{year: string, filmCount: number, averageRating: string|null, selectedFilms: Array<{id: string, title: string, year: string, rating: *|null, posterUrl: string|null}>}} data Recap poster data model.
+   * @returns {HTMLDialogElement|null} The opened dialog element, or null if unsupported.
+   */
+  window.openWatchedYearRecapPosterModal = function (data) {
+    if (typeof document === "undefined" || !document.createElement) return null;
+
+    let existing = document.getElementById("presentationPosterDialog");
+    if (existing) existing.remove();
+
+    let dialog = document.createElement("dialog");
+    dialog.id = "presentationPosterDialog";
+    dialog.className = "presentation-poster-dialog";
+
+    dialog.innerHTML = `
+      <div class="presentation-poster-modal-content">
+        <header class="presentation-poster-modal-header">
+          <h2>${escape(ui("Recap poster preview"))}</h2>
+          <button type="button" class="presentation-poster-modal-close" data-presentation-poster-close aria-label="${escape(ui("Close"))}">×</button>
+        </header>
+        <div class="presentation-poster-modal-body">
+          <div class="presentation-poster-meta">
+            <span class="presentation-poster-badge">1200 × 1600 px · PNG</span>
+            <p class="presentation-poster-privacy-note">${escape(ui("Private reviews, personal notes, watch dates, and account details are excluded."))}</p>
+          </div>
+          <div class="presentation-poster-preview-wrapper" data-presentation-poster-preview>
+            <div class="presentation-poster-loading">${escape(ui("Generating poster preview…"))}</div>
+          </div>
+        </div>
+        <footer class="presentation-poster-modal-footer">
+          <button type="button" class="button-primary" data-presentation-poster-download disabled>${escape(ui("Download PNG"))}</button>
+          <button type="button" class="button-link" data-presentation-poster-close>${escape(ui("Close"))}</button>
+        </footer>
+      </div>
+    `;
+
+    document.body.appendChild(dialog);
+    if (typeof dialog.showModal === "function") {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
+
+    let previewWrapper = dialog.querySelector(
+      "[data-presentation-poster-preview]",
+    );
+    let downloadBtn = dialog.querySelector(
+      "[data-presentation-poster-download]",
+    );
+
+    function closeDialog() {
+      if (typeof dialog.close === "function") dialog.close();
+      dialog.remove();
+    }
+
+    dialog
+      .querySelectorAll("[data-presentation-poster-close]")
+      .forEach((btn) => {
+        btn.addEventListener("click", closeDialog);
+      });
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) closeDialog();
+    });
+    dialog.addEventListener("cancel", () => {
+      dialog.remove();
+    });
+
+    let canvas = document.createElement("canvas");
+    window.drawWatchedYearRecapPoster(canvas, data).then((success) => {
+      if (!success) {
+        if (previewWrapper) {
+          previewWrapper.innerHTML = `<p class="presentation-poster-error">${escape(ui("Unable to generate poster preview."))}</p>`;
+        }
+        return;
+      }
+      let dataUrl = null;
+      try {
+        dataUrl = canvas.toDataURL("image/png");
+      } catch {
+        dataUrl = null;
+      }
+      if (previewWrapper && dataUrl) {
+        previewWrapper.innerHTML = `<img class="presentation-poster-preview-img" alt="Recap poster preview for ${escape(data.year)}" src="${dataUrl}">`;
+      }
+      if (downloadBtn) {
+        downloadBtn.disabled = false;
+        downloadBtn.addEventListener("click", () => {
+          if (typeof canvas.toBlob === "function") {
+            canvas.toBlob((blob) => {
+              if (!blob) return;
+              let url = URL.createObjectURL(blob);
+              let link = document.createElement("a");
+              link.href = url;
+              link.download = `the-oskars-recap-${data.year}.png`;
+              link.click();
+              setTimeout(() => URL.revokeObjectURL(url), 100);
+            }, "image/png");
+          } else if (dataUrl) {
+            let link = document.createElement("a");
+            link.href = dataUrl;
+            link.download = `the-oskars-recap-${data.year}.png`;
+            link.click();
+          }
+        });
+      }
+    });
+
+    return dialog;
+  };
 
   finishRenderTimer?.(
     `${films.length} films, ${peopleWall.length} people, ${franchiseShelf.length} franchises, ceremony ${ceremony ? ceremony.key : "none"}, scope ${packParams.scope || "archive"}`,

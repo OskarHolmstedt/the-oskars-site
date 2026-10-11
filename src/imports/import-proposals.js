@@ -206,7 +206,7 @@ window.importProposalDraftMetadata = function (
 };
 
 /**
- * Applies the exact reviewed proposal after recovery, revalidation, and a stale check.
+ * Applies the exact reviewed proposal after revalidation against the current state.
  * @param {ImportProposal} proposal Session proposal.
  * @param {Object} [options] Apply options.
  * @param {(label: string, done: number, total: number) => void} [options.onProgress]
@@ -217,36 +217,6 @@ window.applyImportProposal = async function (proposal, options = {}) {
   let plan = window.planImportProposalApplication(proposal);
   if (!plan.ok) return { ok: false, errors: plan.errors };
   let beforeState = window.cloneRecord(window.state);
-  let retained = true;
-  if (window.saveRecoveryWorkspace) {
-    retained = await window.saveRecoveryWorkspace(
-      window.getBrowserPersistenceState(),
-      {
-        reason: `before-import-proposal:${proposal.sourceKind}:${proposal.mode}`,
-      },
-    );
-  }
-  if (!retained)
-    return {
-      ok: false,
-      errors: ["Could not retain the current recovery workspace."],
-    };
-
-  let postAwaitPlan = window.planImportProposalApplication(
-    proposal,
-    window.state,
-  );
-  if (!postAwaitPlan.ok) {
-    return {
-      ok: false,
-      stale: true,
-      errors: postAwaitPlan.errors.length
-        ? postAwaitPlan.errors
-        : [
-            "The archive was modified while saving recovery workspace. Please re-preview the import proposal against the latest state.",
-          ],
-    };
-  }
 
   let appliedAt = new Date().toISOString();
   window.state = Object.assign(
@@ -294,4 +264,128 @@ window.applyImportProposal = async function (proposal, options = {}) {
   }
   proposal.status = "applied";
   return { ok: true, report: window.state.lastImportReport };
+};
+
+/**
+ * Lists every archive film record once, from period films and the film store,
+ * so the Letterboxd and IMDb importers can match rows against it.
+ * @returns {FilmRecord[]}
+ */
+window.importArchiveSourceRecords = function () {
+  let records = [];
+  let seen = new Set();
+  Object.values(window.state.years || {}).forEach((period) =>
+    (period.films || []).forEach((film) => {
+      if (film && !seen.has(film)) {
+        seen.add(film);
+        records.push(film);
+      }
+    }),
+  );
+  Object.values(window.state.filmsById || {}).forEach((film) => {
+    if (film && !seen.has(film)) {
+      seen.add(film);
+      records.push(film);
+    }
+  });
+  return records;
+};
+
+/**
+ * Returns the later of two `YYYY-MM-DD` dates, ignoring any other value.
+ * @param {string} left First date.
+ * @param {string} right Second date.
+ * @returns {string} The later valid date, or "".
+ */
+window.latestImportDate = function (left, right) {
+  let valid = (value) =>
+    /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? value : "";
+  return [valid(left), valid(right)].sort().pop() || "";
+};
+
+function applyTmdbMatchToImportedFilm(film, match) {
+  if (match.tmdbId) film.tmdbId = String(match.tmdbId);
+  if (match.director) film.director = String(match.director).trim();
+  if (match.country) film.country = String(match.country).trim();
+  if (match.primaryCountry)
+    film.primaryCountry = String(match.primaryCountry).trim();
+  if (match.swedishTitle) film.swedishTitle = String(match.swedishTitle).trim();
+  if (match.runtimeMinutes) film.runtimeMinutes = match.runtimeMinutes;
+  if (match.poster) film.poster = match.poster;
+  if (match.type) film.type = match.type;
+  window.normalizeFilmMetadata?.(film);
+}
+
+/**
+ * Looks up TMDB metadata for the fresh archive films on a Letterboxd or IMDb
+ * proposal (`report.freshArchiveFilms`), filling in fields on
+ * `candidateState` before the proposal is applied: the shared catalog is
+ * create-only for ordinary users once a film row exists. It runs after the
+ * proposal is built, never during parsing, because createImportProposal()
+ * deep-clones the candidate state and the preview must not wait on network
+ * lookups. A failed lookup or no match leaves the film without metadata; it
+ * is still created. A fresh row starts as type "Film"; when TMDB classifies
+ * it as TV, a documentary, or a short, it moves to `watchedOther` (as
+ * setFilmTmdbMetadata() does elsewhere) so it never becomes eligible for
+ * rankings or awards.
+ * @param {ImportProposal} proposal A Letterboxd or IMDb proposal, already built.
+ * @param {Object} [options] Batch controls.
+ * @param {number} [options.concurrency] Parallel lookups, default 4.
+ * @param {(done: number, total: number) => void} [options.onProgress] Called
+ *   as (done, total) after each lookup settles.
+ * @returns {Promise<void>} Completion after every lookup settles.
+ */
+window.enrichImportProposalFreshFilms = async function (
+  proposal,
+  options = {},
+) {
+  let targets = proposal?.report?.freshArchiveFilms || [];
+  if (!targets.length || !window.lookupTmdbMovieMetadata) return;
+  let concurrency = Math.max(
+    1,
+    Math.min(targets.length, Number(options.concurrency) || 4),
+  );
+  let cursor = 0;
+  let done = 0;
+  async function worker() {
+    while (cursor < targets.length) {
+      let target = targets[cursor++];
+      let yearFilms = proposal.candidateState?.years?.[target.year]?.films;
+      let filmIndex = (yearFilms || []).findIndex(
+        (candidate) => candidate.id === target.id,
+      );
+      let film = filmIndex >= 0 ? yearFilms[filmIndex] : null;
+      if (film && !film.tmdbId) {
+        try {
+          let match = await window.lookupTmdbMovieMetadata({
+            title: film.title,
+            year: film.year,
+          });
+          if (match) {
+            applyTmdbMatchToImportedFilm(film, match);
+            if (match.type && match.type !== "Film") {
+              yearFilms.splice(filmIndex, 1);
+              proposal.candidateState.watchedOther ||= [];
+              proposal.candidateState.watchedOther.push(
+                /** @type {WatchedOtherEntry} */ (film),
+              );
+              if (proposal.report) {
+                proposal.report.archiveAdded = Math.max(
+                  0,
+                  (proposal.report.archiveAdded || 0) - 1,
+                );
+                proposal.report.watchedOtherAdded =
+                  (proposal.report.watchedOtherAdded || 0) + 1;
+              }
+            }
+          }
+        } catch (err) {
+          console.warn(`TMDB lookup failed for ${target.title}`, err);
+        }
+      }
+      done += 1;
+      options.onProgress?.(done, targets.length);
+    }
+  }
+  await Promise.all(Array.from({ length: concurrency }, worker));
 };

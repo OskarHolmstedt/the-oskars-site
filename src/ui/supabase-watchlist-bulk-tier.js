@@ -6,7 +6,7 @@
  * bindWatchlistBulkTierControl() (which mutate window.state/window.save()
  * through applyWatchlistBulkTierChange(), with an undo mechanism) - this
  * writes straight to Supabase via setSupabaseWatchlistTierForItems()
- * (src/core/supabase-workspace.js) and deliberately has no undo, matching
+ * (src/core/supabase/watchlist.js) and deliberately has no undo, matching
  * tag.js's original scope reduction.
  */
 (function () {

@@ -7,8 +7,10 @@
 /**
  * Parses a bracket table and attaches its valid placements to resolved films.
  * @param {string} raw Raw tab-delimited bracket text.
- * @param {Object} [options] Optional preparsed rows, period hints, and result mode.
+ * @param {Object} [options] Optional preparsed rows and result mode.
  * @param {boolean} [options.checkEligibility] Whether to check nomination eligibility against metadata; defaults to true.
+ * @param {string[][]} [options.rows] Pre-split rows used in place of `raw`.
+ * @param {'collection'|'official'} [options.resultMode] Parse a collection-award or official-results table instead of a personal bracket.
  * @returns {Object} Parsed period metadata, films, source URL, and diagnostics.
  */
 function parseTable(raw, options = {}) {
@@ -687,16 +689,11 @@ function parseTable(raw, options = {}) {
 /**
  * Parses bracket-shaped TSV with official winner/nominee semantics.
  * @param {string} raw Raw tab-delimited official results.
- * @param {Object} [options] Optional preparsed rows and period hints.
+ * @param {Object} [options] Optional preparsed rows.
  * @returns {Object|null} Parsed official period and diagnostics.
  */
 window.parseOfficialResultsTable = function (raw, options = {}) {
   return parseTable(raw, { ...options, resultMode: "official" });
-};
-
-/** Parses bracket-shaped TSV as one collection-specific personal Oskars bracket. @param {string} raw Raw tab-delimited bracket text. @param {Object} [options] Optional preparsed rows. @returns {Object|null} Parsed collection bracket and diagnostics. */
-window.parseCollectionAwardsTable = function (raw, options = {}) {
-  return parseTable(raw, { ...options, resultMode: "collection" });
 };
 
 window.parseTable = parseTable;

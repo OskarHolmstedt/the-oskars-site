@@ -96,7 +96,8 @@
   // cutover. `compactReady` tracks whether the one-film fetch itself has
   // resolved yet - distinct from compactActive, which stays true even
   // after that (until the *background full* hydration also finishes).
-  let compactActive = Boolean(window.OSKARS_FILM_COMPACT) && Boolean(filmId);
+  let compactActive =
+    Boolean(window.OSKARS_FILM_COMPACT) && Boolean(filmId || previewTmdbId);
   let compactReady = !compactActive;
   let fullyHydratedPromise = null;
 
@@ -110,22 +111,42 @@
   // for the watchlist-detail view's archive-match-review section.
   if (!compactActive) window.ensurePeopleIndex?.();
 
-  // Watchlisted-film detail (issue #451/#457): film.html?id=<filmId> is now
-  // the one canonical URL regardless of status - a Watchlisted film used to
-  // live at a separate watchlist-film.html?id=<watchlistRowId> URL entirely.
-  // Recomputed once at load (and again once compact/full hydration lands),
-  // not on every render, since a film's Watched/Watchlisted status doesn't
-  // change without a navigation away (mark-as-watched/add-to-watched both
-  // redirect elsewhere; removal shows an inline "Removed from watchlist"
-  // state via removedWatchlistSnapshot below, matching this file's existing
-  // shared-preview add flow rather than re-deriving status from
-  // window.state on every render).
+  // The canonical film URL stays stable as personal collection status changes.
   let watchlistItem = null;
   let isWatchlistDetail = false;
   let watchlistBusy = false;
-  let watchedBusy = false;
+  let pendingCollectionAction = "";
+  let collectionDetail = null;
+  let collectionFilm = null;
+  let collectionPreview = null;
+  let pendingCollectionActive = true;
+  let requestedWatchedForm = window.pageQueryParam("action") === "watched";
   let removedWatchlistSnapshot = null;
   let watchlistFranchiseChains = null;
+  let scopedOpenIntake = null;
+  let intakeRequestedForFilm = "";
+
+  function ensureOpenIntake() {
+    let id = window.isUuid?.(filmId) ? filmId : currentFilm()?.supabaseFilmId;
+    if (
+      !canEdit ||
+      window.state?.isPublicProfileView ||
+      window.resolveActiveProfileSlug?.() ||
+      !window.isUuid?.(id) ||
+      intakeRequestedForFilm === id ||
+      !window.loadSupabaseOpenIntakeForFilm
+    )
+      return;
+    intakeRequestedForFilm = id;
+    window
+      .loadSupabaseOpenIntakeForFilm(id)
+      .then((workflow) => {
+        scopedOpenIntake = workflow;
+        if (workflow && !currentlyEditing) render(false);
+      })
+      .catch(() => {});
+  }
+
   let scopedActiveProjects = [];
   let scopedArchiveMatch = null;
   // Read-only archive-match hint, ported from watchlist-film.js: built
@@ -162,13 +183,13 @@
 
   function refreshWatchlistDetailState() {
     watchlistItem = filmId
-      ? window.state.watchlist?.find(
+      ? (collectionDetail?.watchlist || window.state.watchlist)?.find(
           (entry) => entry.supabaseFilmId === filmId,
         ) || null
       : null;
     isWatchlistDetail = Boolean(watchlistItem);
     watchedTitlesByYear = new Map();
-    if (isWatchlistDetail && !compactActive) {
+    if (isWatchlistDetail && !compactActive && !collectionDetail) {
       Object.values(window.state.filmsById || {}).forEach((watched) => {
         let title = window.normalizeTitle(watched.title || "");
         if (!title) return;
@@ -180,24 +201,27 @@
   }
 
   /**
-   * Resolves once window.state holds this film's complete personal record
-   * (issue #617) - a no-op once already hydrated (legacy mode, or a prior
-   * call already finished). Every write handler below calls this first, so
-   * a click that lands before the eager background upgrade finishes still
-   * waits for real data instead of risking a write against a partial
-   * state; #607's own reconcile() guard is the last-resort backstop this
-   * is meant to make normally unreachable, not depended on for
-   * correctness.
+   * Loads current complete archive state before compound editors and legacy writes.
+   * Collection status actions instead own a one-film projection and do not
+   * require this upgrade. A successful upgrade replaces that projection.
    * @returns {Promise<void>}
    */
   function ensureFilmFullyHydrated() {
-    if (!compactActive) return Promise.resolve();
+    if (
+      !compactActive &&
+      !collectionDetail &&
+      window.OSKARS_STATE_HYDRATION_COMPLETE !== false
+    )
+      return Promise.resolve();
     if (fullyHydratedPromise) return fullyHydratedPromise;
     fullyHydratedPromise = (
       window.ensureFocusedShellData?.() || Promise.resolve()
     )
       .then(() => {
         compactActive = false;
+        collectionDetail = null;
+        collectionFilm = null;
+        collectionPreview = null;
         scopedActiveProjects = [];
         scopedArchiveMatch = null;
         window.ensurePeopleIndex?.();
@@ -206,10 +230,7 @@
         ensureOfficialResultsForThisFilm();
       })
       .catch((error) => {
-        // Leaves compactActive true so a later interaction can try again;
-        // the compact view itself keeps working from its own last-fetched
-        // data in the meantime, so a transient hydration failure doesn't
-        // break browsing, only temporarily disables writes/credits.
+        // Retain the scoped projection so a failed editor upgrade stays retryable.
         fullyHydratedPromise = null;
         throw error;
       });
@@ -217,12 +238,45 @@
   }
 
   if (compactActive) {
+    let detailPromise = previewTmdbId
+      ? window.loadSupabaseFilmDetailByTmdbId?.(previewTmdbId)
+      : window.loadSupabaseFilmDetail(filmId);
     let projectsPromise = window.isUuid?.(filmId)
       ? window.loadSupabaseActiveProjectsForFilm?.(filmId).catch(() => [])
       : Promise.resolve([]);
-    Promise.all([window.loadSupabaseFilmDetail(filmId), projectsPromise])
+    Promise.all([detailPromise, projectsPromise])
       .then(async ([source, activeProjects]) => {
+        if (!source) {
+          compactReady = true;
+          window.OSKARS_SHARED_FILM_ARCHIVE_STATUS = "ready";
+          render(currentlyEditing);
+          return;
+        }
+        let hasFilmRecord =
+          Boolean(source.watched?.length) ||
+          Boolean(source.watchlist?.length) ||
+          Boolean(source.catalogFilms?.length);
+        if (!hasFilmRecord) {
+          compactReady = true;
+          window.OSKARS_SHARED_FILM_ARCHIVE_STATUS = "ready";
+          render(currentlyEditing);
+          return;
+        }
+        if (!filmId && source.catalogFilms?.[0]?.id) {
+          filmId = source.catalogFilms[0].id;
+        }
         scopedActiveProjects = activeProjects || [];
+        if (source.catalogFilms?.length) {
+          window.applySharedFilmArchive?.(
+            window.buildSharedFilmArchiveFromSupabase(
+              source.catalogFilms,
+              source.franchises,
+            ),
+            { merge: true },
+          );
+        } else {
+          window.OSKARS_SHARED_FILM_ARCHIVE_STATUS = "ready";
+        }
         Object.assign(
           window.state,
           window.buildLegacyStateFromSupabaseHydration(source),
@@ -259,6 +313,7 @@
         // meantime still waits instead of racing ahead of real data.
         ensureFilmFullyHydrated().finally(() => {
           compactReady = true;
+          window.OSKARS_SHARED_FILM_ARCHIVE_STATUS = "ready";
           render(currentlyEditing);
           ensureOfficialResultsForThisFilm();
         });
@@ -278,19 +333,70 @@
   }
 
   function currentFilm() {
+    if (collectionDetail) return collectionFilm;
     return window.findFilmById(filmId) || window.findWatchedFilmById?.(filmId);
   }
 
+  async function refreshFilmCollection(isCurrent) {
+    // The retained archive is no longer a complete write baseline after a
+    // scoped mutation. Legacy saves must wait for an explicit full upgrade.
+    window.OSKARS_STATE_HYDRATION_COMPLETE = false;
+    window.OSKARS_SUPABASE_HYDRATION_SOURCE = null;
+    fullyHydratedPromise = null;
+    window.invalidateCachedSupabaseHydrationSource?.();
+    let [source, projects] = await Promise.all([
+      window.loadSupabaseFilmDetail(filmId),
+      window
+        .loadSupabaseActiveProjectsForFilm?.(filmId)
+        .catch(() => scopedActiveProjects) ||
+        Promise.resolve(scopedActiveProjects),
+    ]);
+    if (!isCurrent())
+      throw new Error("Account changed while performing operation.");
+    // Keep this one-film projection separate from any already-loaded archive.
+    // Compound editors still upgrade through ensureFilmFullyHydrated.
+    collectionDetail = window.buildLegacyStateFromSupabaseHydration(source);
+    collectionPreview =
+      Object.values(
+        window.buildSharedFilmArchiveFromSupabase(
+          source.catalogFilms || [],
+          source.franchises || [],
+        ),
+      )[0] || null;
+    collectionFilm =
+      Object.values(collectionDetail.years || {}).flatMap(
+        (period) => period.films || [],
+      )[0] ||
+      collectionDetail.watchedOther?.[0] ||
+      null;
+    scopedActiveProjects = projects;
+    watchlistFranchiseChains = window.buildSupabaseFranchiseChains(
+      source.franchises || [],
+    );
+    refreshWatchlistDetailState();
+    if (watchlistItem?.title) {
+      let matches = await window
+        .loadSupabaseWatchedTitleMatches?.(watchlistItem.title)
+        .catch(() => []);
+      if (!isCurrent())
+        throw new Error("Account changed while performing operation.");
+      scopedArchiveMatch = archiveMatchCandidateFromMatches(
+        matches || [],
+        watchlistItem,
+      );
+    }
+  }
+
   // Objective catalog metadata - shared verbatim across the Watched
-  // (archive) detail view, the Watchlist detail view, and the Unseen
-  // (catalog-only, no personal record) preview: none of these facts
+  // (archive) detail view, the Watchlist detail view, and the catalog-only
+  // preview: none of these facts
   // (type, medium, screenplay, TMDB/Letterboxd ids, country, runtime...)
   // depend on the viewer's relation to the film, only on the shared
-  // `films` row itself, so a watched film, a watchlist item, and an
-  // Unseen preview all read the same field names here and must render
+  // `films` row itself, so a watched film, a watchlist item, and a
+  // catalog preview all read the same field names here and must render
   // identically. Previously each of the 3 views hand-built its own row
   // list and had quietly drifted apart - the Watchlist view was missing
-  // Type/Primary country/URL entirely, and the Unseen preview surfaced
+  // Type/Primary country/URL entirely, and the catalog preview surfaced
   // only TMDB/Country/Runtime out of an object that already carried
   // every other field too (see buildSharedFilmArchiveFromSupabase in
   // src/domain/supabase-legacy-hydration.js).
@@ -338,20 +444,17 @@
       ],
       [ui("Swedish title"), film.swedishTitle],
       [
-        ui("Primary country"),
-        primaryCountry,
-        "",
-        primaryCountry && countryValues.length > 1
-          ? window.renderCountryLinks(primaryCountry, filmPageEscape)
-          : "",
-      ],
-      [
         ui("Country"),
-        countryValues.join(", "),
+        countryValues.join(", ") || primaryCountry,
         "",
-        countryValues.length
-          ? window.renderCountryLinks(countryValues.join(", "), filmPageEscape)
-          : "",
+        [...new Set([primaryCountry, ...countryValues].filter(Boolean))]
+          .map((country) => {
+            let link = window.renderCountryLinks(country, filmPageEscape);
+            return country === primaryCountry
+              ? `<strong>${link}</strong>`
+              : link;
+          })
+          .join(", "),
       ],
       [ui("Runtime"), formatRuntime(film.runtimeMinutes)],
       ["URL", otherUrl, otherUrl],
@@ -378,7 +481,7 @@
   // needs no write of its own): a simple normalized-title/year match
   // against the signed-in user's own already-watched titles.
   function archiveMatchCandidate() {
-    if (compactActive) return scopedArchiveMatch;
+    if (compactActive || collectionDetail) return scopedArchiveMatch;
     let normalizedTitle = window.normalizeTitle(watchlistItem.title || "");
     let year = String(watchlistItem.year || "");
     let sameTitleYear = watchedTitlesByYear.get(`${normalizedTitle}::${year}`);
@@ -426,37 +529,28 @@
     window.enhanceRatingInputs?.(container);
   }
 
-  // canEdit-gated throughout (issue #457): watchlist-film.html was
-  // entirely owner-only before this merge, so its own mutation controls
-  // never needed to check capabilities - film.html is publicly viewable
-  // (matching how the Watched view already gates its own edit controls),
-  // so every control that writes needs the same explicit check here.
-  function renderWatchlistTagEditor() {
-    let tags = watchlistItem.tags || [];
-    let tagsHtml = tags
-      .map((tag) =>
-        canEdit
-          ? `<span class="film-tag">${filmPageEscape(tag)}<button type="button" class="chip-remove" data-remove-tag="${filmPageEscape(tag)}" aria-label="${filmPageEscape(ui("Remove tag {tag}", { tag }))}">×</button></span>`
-          : `<a class="film-tag" href="${filmPageEscape(window.tagPageUrl(tag))}">${filmPageEscape(tag)}</a>`,
+  function filmCollectionSections(film, itemId = false) {
+    let tags = window
+      .parseFilmTags(film.tags)
+      .map(
+        (tag) =>
+          `<a class="film-tag" href="${filmPageEscape(window.tagPageUrl(tag))}">${filmPageEscape(tag)}</a>`,
       )
       .join("");
-    let addFormHtml = canEdit
-      ? `<form class="data-form data-form--inline" data-add-tag-form><label>${filmPageEscape(ui("Add tag"))} <input name="tag" required></label><button type="submit"${watchlistBusy ? " disabled" : ""}>${filmPageEscape(ui("Add"))}</button></form>`
-      : "";
-    if (!tagsHtml && !addFormHtml) return "";
-    return `<section class="film-tags"><h2>${filmPageEscape(ui("Your tags"))}</h2><div class="film-tag-list">${tagsHtml}</div>${addFormHtml}</section>`;
+    let franchises = window.renderFranchiseMembershipLinks(film.franchises, {
+      ...(itemId ? { itemId: film.id } : { filmId: film.id }),
+      escape: filmPageEscape,
+    });
+    return `${tags || canEdit ? `<section class="film-tags"><h2>${filmPageEscape(ui("Your tags"))}${canEdit ? `<button type="button" class="film-inline-add" data-edit-film="tags" aria-label="${filmPageEscape(ui("Tags"))}">+</button>` : ""}</h2><div class="film-tag-list">${tags}</div></section>` : ""}${franchises || canEdit ? `<section class="film-franchises"><h2>${filmPageEscape(ui("Franchises"))}${canEdit ? `<button type="button" class="film-inline-add" data-edit-film="franchises" aria-label="${filmPageEscape(ui("Add franchise"))}">+</button>` : ""}</h2><div class="film-franchise-links">${franchises}</div></section>` : ""}`;
   }
 
-  function renderWatchlistFranchiseEditor() {
-    let franchiseHtml = window.renderFranchiseMembershipLinks(
-      watchlistItem.franchises,
-      { itemId: watchlistItem.id, escape: filmPageEscape },
-    );
-    let addFormHtml = canEdit
-      ? `<form class="data-form data-form--inline" data-add-franchise-form><label>${filmPageEscape(ui("Add franchise"))} <input name="franchise" placeholder="${filmPageEscape(ui("Franchise name"))}" required></label><label>${filmPageEscape(ui("Parent (optional)"))} <input name="parent" placeholder="${filmPageEscape(ui("Parent franchise"))}"></label><button type="submit"${watchlistBusy ? " disabled" : ""}>${filmPageEscape(ui("Add"))}</button></form><p class="data-panel-status">${filmPageEscape(ui("Adds a new membership only - an existing one can't be edited or removed here."))}</p>`
-      : "";
-    if (!franchiseHtml && !addFormHtml) return "";
-    return `<section class="film-franchises"><h2>${filmPageEscape(ui("Franchises"))}</h2>${franchiseHtml ? `<div class="film-franchise-links">${franchiseHtml}</div>` : ""}${addFormHtml}</section>`;
+  function watchlistEditFormHtml() {
+    return `<form id="watchlistEditForm" class="film-edit-form">
+        <section class="film-edit-section"><h2>${filmPageEscape(ui("Interest tier"))}</h2><div class="film-edit-grid"><label>${filmPageEscape(ui("Interest tier"))}<span class="tier-select-row">${window.renderTierSetter({ tierName: "tier", tier: watchlistItem.tier, modifierName: "tierModifier", modifier: watchlistItem.tierModifier, escape: filmPageEscape, ui })}</span></label></div></section>
+      <section class="film-edit-section"><h2>${filmPageEscape(ui("Your tags"))}</h2><div class="film-edit-grid"><label class="wide">${filmPageEscape(ui("Tags"))}<input name="tags" value="${filmPageEscape(window.formatFilmTags(watchlistItem.tags))}"><span class="field-help">${filmPageEscape(ui("Separate tags with commas."))}</span></label></div></section>
+      <section class="film-edit-section"><h2>${filmPageEscape(ui("Franchises"))}</h2>${window.renderFranchiseMembershipLinks(watchlistItem.franchises, { itemId: watchlistItem.id, escape: filmPageEscape })}<div class="film-edit-grid"><label>${filmPageEscape(ui("Add franchise"))}<input name="franchise" placeholder="${filmPageEscape(ui("Franchise name"))}"></label><label>${filmPageEscape(ui("Parent (optional)"))}<input name="parent" placeholder="${filmPageEscape(ui("Parent franchise"))}"></label></div><p class="field-help">${filmPageEscape(ui("New memberships can be added. Existing shared-catalog memberships cannot be removed or corrected here."))}</p></section>
+      <div class="film-edit-actions"><button type="submit">${filmPageEscape(ui("Save changes"))}</button><button type="button" data-cancel-film-edit>${filmPageEscape(ui("Cancel"))}</button></div>
+    </form>`;
   }
 
   function renderWatchlistDetail() {
@@ -472,9 +566,6 @@
     }
 
     let displayTitle = window.localizedFilmTitle(watchlistItem);
-    let localizedTitleMeta = window.hasLocalizedFilmTitle(watchlistItem)
-      ? `<span class="leaderboard-meta localized-title-meta">${filmPageEscape(ui("Original title"))}: ${filmPageEscape(watchlistItem.title)}</span>`
-      : "";
     let posterHtml = renderPosterArea(watchlistItem);
     let directorHtml = window.renderLinkedDirectors(watchlistItem, {
       escape: filmPageEscape,
@@ -484,38 +575,20 @@
     let archiveMatchHtml = renderArchiveMatchReview();
 
     document.title = `${displayTitle} · Watchlist · The Oskars`;
-    container.innerHTML = `<nav class="detail-breadcrumbs" aria-label="Breadcrumb"><a href="watchlist-merge.html">Watchlist</a><span aria-hidden="true">›</span><span aria-current="page">${filmPageEscape(watchlistItem.title)}</span></nav>
-    ${window.renderDetailHeader({
+    container.innerHTML = `${window.renderDetailHeader({
       classes: posterHtml ? "has-poster" : "",
       leadingHtml: posterHtml,
       mainClasses: "detail-header-main film-detail-main",
-      mainHtml: `<div class="film-title-row"><h1>${filmPageEscape(displayTitle)}</h1>${window.renderWatchlistTierBadge(watchlistItem.tier, { escape: filmPageEscape, modifier: watchlistItem.tierModifier })}</div>
-        ${localizedTitleMeta}
+      mainHtml: `<div class="film-title-row"><h1>${filmPageEscape(displayTitle)}</h1><div class="film-personal-rating">${canEdit ? `<button type="button" class="film-inline-value" data-edit-film="tier" aria-label="${filmPageEscape(ui("Interest tier"))}">${window.renderWatchlistTierBadge(watchlistItem.tier, { escape: filmPageEscape, modifier: watchlistItem.tierModifier }) || filmPageEscape(ui("Interest tier"))}</button>` : window.renderWatchlistTierBadge(watchlistItem.tier, { escape: filmPageEscape, modifier: watchlistItem.tierModifier })}</div></div>
         ${directorHtml ? `<p>${filmPageEscape(ui("by"))} ${directorHtml}</p>` : ""}
         ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}
-        ${
-          canEdit
-            ? `<label class="data-field">${filmPageEscape(ui("Interest tier"))}<span class="tier-select-row">${window.renderTierSetter(
-                {
-                  tierName: "tier",
-                  tier: watchlistItem.tier,
-                  modifierName: "tierModifier",
-                  modifier: watchlistItem.tierModifier,
-                  tierAttributes: "data-tier-select",
-                  disabled: watchlistBusy,
-                  escape: filmPageEscape,
-                  ui,
-                },
-              )}</span></label>`
-            : ""
-        }`,
+`,
       actionsHtml: canEdit
-        ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Mark as watched"), escape: filmPageEscape, attributes: { "data-mark-watchlist-watched": true, disabled: watchlistBusy } })}${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Remove from watchlist"), escape: filmPageEscape, active: true, attributes: { "data-remove-watchlist-film": true, disabled: watchlistBusy } })}`
+        ? `${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Remove from watchlist"), escape: filmPageEscape, active: true, attributes: { "data-remove-watchlist-film": true, disabled: watchlistBusy } })}${window.renderCollectionActionButton({ kind: "watched", label: ui("Mark as watched"), escape: filmPageEscape, attributes: { "data-mark-watchlist-watched": true, disabled: watchlistBusy } })}`
         : "",
     })}
     ${catalogTagsHtml()}
-    ${renderWatchlistTagEditor()}
-    ${renderWatchlistFranchiseEditor()}
+    ${filmCollectionSections(watchlistItem, true)}
     ${archiveMatchHtml}`;
     window.enhanceTierSetters?.(container);
     window.enhanceTierModifierToggles?.(container);
@@ -813,26 +886,6 @@
     return `<section class="film-relations"><h2>${filmPageEscape(ui("Film relations"))}</h2>${sections.join("")}</section>`;
   }
 
-  function renderEditAwardRows(awards) {
-    let rows = awards
-      .map(
-        (
-          award,
-        ) => `<tr data-award-edit-row data-category="${filmPageEscape(award.category)}" data-placement="${filmPageEscape(award.placement)}" data-period="${filmPageEscape(award.year || "")}">
-    <td>${filmPageEscape(award.year || "")}</td>
-    <td class="detail-place">${filmPageEscape(award.placement)}</td>
-    <td>${filmPageEscape(award.category)}</td>
-    <td><input name="recipient" value="${filmPageEscape(window.awardRecipientText(award))}" aria-label="${filmPageEscape(ui("Recipients for {category}", { category: award.category }))}"></td>
-    <td><input name="detail" value="${filmPageEscape(window.awardDetail(award))}" aria-label="${filmPageEscape(ui("Detail for {category}", { category: award.category }))}"></td>
-  </tr>`,
-      )
-      .join("");
-    return (
-      rows ||
-      `<tr><td colspan="5">${filmPageEscape(ui("No nominations"))}</td></tr>`
-    );
-  }
-
   function awardCreditAchievementHtml(person) {
     let awards = Array.isArray(person.awards) ? person.awards : [];
     let placements = awards
@@ -856,9 +909,6 @@
 
   function renderView(film) {
     let displayTitle = window.localizedFilmTitle(film);
-    let localizedTitleMeta = window.hasLocalizedFilmTitle(film)
-      ? `<span class="leaderboard-meta localized-title-meta">${filmPageEscape(ui("Original title"))}: ${filmPageEscape(film.title)}</span>`
-      : "";
     let awards = sortedAwards(film);
     let officialContext = officialFilmContext(film);
     let officialWins =
@@ -967,30 +1017,20 @@
       })
       .join("");
     let posterHtml = renderPosterArea(film);
-    let franchiseHtml = window.renderFranchiseMembershipLinks(film.franchises, {
-      filmId: film.id,
-      escape: filmPageEscape,
-    });
     let relationsHtml = renderFilmRelations(film);
-    let tagHtml = window
-      .parseFilmTags(film.tags)
-      .map(
-        (tag) =>
-          `<a class="film-tag" href="${filmPageEscape(window.tagPageUrl(tag))}">${filmPageEscape(tag)}</a>`,
-      )
-      .join("");
-    let activeProjects = compactActive
-      ? scopedActiveProjects.map((row) => ({
-          id: row.id,
-          name: row.name,
-          sourceLabel: row.source_label,
-          pinned: Boolean(row.pinned),
-          progress: {
-            watchedCount: row.watched_count,
-            total: row.total,
-          },
-        }))
-      : window.activeProjectsForFilm?.({ archiveId: film.id }) || [];
+    let activeProjects =
+      compactActive || collectionDetail
+        ? scopedActiveProjects.map((row) => ({
+            id: row.id,
+            name: row.name,
+            sourceLabel: row.source_label,
+            pinned: Boolean(row.pinned),
+            progress: {
+              watchedCount: row.watched_count,
+              total: row.total,
+            },
+          }))
+        : window.activeProjectsForFilm?.({ archiveId: film.id }) || [];
     let projectMembershipHtml = window.renderProjectMembershipSection(
       activeProjects,
       { escape: filmPageEscape, title: ui("Active projects") },
@@ -1005,9 +1045,7 @@
       : `<div class="film-award-period-grid">${renderAwardGroups(film, awards, officialContext)}</div>`
   }</div></section>`
         : "";
-    let openIntake = (window.state.intakeWorkflows || []).find(
-      (workflow) => workflow.filmId === film.id && !workflow.completedAt,
-    );
+    let openIntake = scopedOpenIntake;
     let intakeBannerHtml = openIntake
       ? `<section class="detail-note"><div><h2>${filmPageEscape(ui("Watched-film intake is open"))}</h2></div><p>${filmPageEscape(ui("Rating, global ranking, or awards review still needs an explicit decision."))}</p><a class="button-link" href="${filmPageEscape(window.intakePageUrl(openIntake.id))}">${filmPageEscape(ui("Continue intake"))}</a></section>`
       : "";
@@ -1016,14 +1054,12 @@
       classes: posterHtml ? "has-poster" : "",
       leadingHtml: posterHtml,
       mainClasses: "detail-header-main film-detail-main",
-      mainHtml: `<div class="film-title-row"><h1>${filmPageEscape(displayTitle)}</h1>${film.rating ? `<strong class="detail-rating">${window.renderFilmRatingHtml(film, { escape: filmPageEscape })}</strong>` : ""}</div>${localizedTitleMeta}${directorHtml ? `<p>${filmPageEscape(ui("by"))} ${directorHtml}</p>` : ""}
-      ${statsHtml}
+      mainHtml: `<div class="film-title-row"><h1>${filmPageEscape(displayTitle)}</h1><div class="film-personal-rating">${canEdit ? `<button type="button" class="film-inline-value" data-edit-film="rating" aria-label="${filmPageEscape(ui("Rating"))}">${film.rating ? window.renderFilmRatingHtml(film, { escape: filmPageEscape }) : filmPageEscape(ui("Rating"))}</button>` : film.rating ? window.renderFilmRatingHtml(film, { escape: filmPageEscape }) : ""}</div></div>${directorHtml ? `<p>${filmPageEscape(ui("by"))} ${directorHtml}</p>` : ""}
       ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}
-      ${viewingHtml}
-      ${film.review ? `<section class="detail-note film-review-compact"><div><h2>${filmPageEscape(ui("Review"))}</h2></div><p>${filmPageEscape(film.review)}</p></section>` : ""}`,
+      `,
       actionsHtml: `<a class="button-link" href="${filmPageEscape(window.comparePageUrl([film.id]))}">${filmPageEscape(ui("Compare"))}</a>${
         canEdit
-          ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Remove from watched"), escape: filmPageEscape, active: true, attributes: { "data-remove-watched-film": true, disabled: watchedBusy } })}${window.renderCollectionActionButton({ kind: "rewatch", label: ui(film.wantToRewatch ? "Remove from rewatchlist" : "Want to rewatch"), escape: filmPageEscape, active: film.wantToRewatch, attributes: { "data-toggle-film-rewatch": true } })}<button type="button" data-edit-film>${filmPageEscape(ui("Edit"))}</button>${
+          ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Remove from watched"), escape: filmPageEscape, active: true, attributes: { "data-remove-watched-film": true } })}${window.renderCollectionActionButton({ kind: "rewatch", label: ui(film.wantToRewatch ? "Remove from rewatchlist" : "Want to rewatch"), escape: filmPageEscape, active: film.wantToRewatch, attributes: { "data-toggle-film-rewatch": true } })}${
               film.wantToRewatch && window.renderTierSetter
                 ? `<label class="film-rewatch-tier-label">${filmPageEscape(ui("Rewatch tier"))} <span class="tier-select-row">${window.renderTierSetter({ tierName: "rewatchTier", tier: film.rewatchTier, modifierName: "rewatchTierModifier", modifier: film.rewatchTierModifier, tierAttributes: "data-rewatch-tier-select", escape: filmPageEscape, ui })}</span></label>`
                 : ""
@@ -1031,10 +1067,12 @@
           : ""
       }`,
     })}
+  <section class="film-personal-summary">      ${statsHtml}
+      ${viewingHtml}
+      ${film.review || canEdit ? `<section class="detail-note film-review-compact"><div><h2>${filmPageEscape(ui("Review"))}${canEdit ? `<button type="button" class="film-inline-add" data-edit-film="review" aria-label="${filmPageEscape(ui("Review / comment"))}">✎</button>` : ""}</h2></div><p>${filmPageEscape(film.review || "")}</p></section>` : ""}</section>
   ${intakeBannerHtml}
   ${catalogTagsHtml()}
-  ${tagHtml ? `<section class="film-tags"><h2>${filmPageEscape(ui("Your tags"))}</h2><div class="film-tag-list">${tagHtml}</div></section>` : ""}
-  ${franchiseHtml ? `<section class="film-franchises"><h2>${filmPageEscape(ui("Franchises"))}</h2><div class="film-franchise-links">${franchiseHtml}</div></section>` : ""}
+  ${filmCollectionSections(film)}
   ${relationsHtml}
   ${projectMembershipHtml}
   ${
@@ -1048,15 +1086,17 @@
     window.enhanceTierModifierToggles?.(container);
   }
 
-  function renderEdit(film) {
-    let awards = sortedAwards(film);
-    container.innerHTML = `<form id="filmEditForm" class="film-edit-form">
-    ${window.renderDetailHeader({ mainHtml: `<h1>${filmPageEscape(ui("Edit {title}", { title: film.title }))}</h1><p>${filmPageEscape(ui("Your rating, notes, tags, and memberships"))}</p>`, actionsHtml: `<button type="submit">${filmPageEscape(ui("Save"))}</button><button type="button" data-cancel-film-edit>${filmPageEscape(ui("Cancel"))}</button>` })}
-    <section class="film-edit-section"><h2>${filmPageEscape(ui("Your film data"))}</h2><p class="edit-help">${filmPageEscape(ui("Shared catalog facts and posters are read-only. Corrections are handled through the catalog maintenance workflow."))}</p><div class="film-edit-grid">
+  function filmEditFormHtml(film) {
+    return `<form id="filmEditForm" class="film-edit-form">
+    <section class="film-edit-section"><h2>${filmPageEscape(ui("Rating"))}</h2><div class="film-edit-grid">
       <label>${filmPageEscape(ui("Rating"))} ${window.renderRatingInput({ value: film.rating || "" })}</label>
-      <label class="wide">${filmPageEscape(ui("Franchises"))} <textarea name="franchises" rows="5" placeholder="${filmPageEscape(ui("Parent franchise > Subfranchise | rank"))}">${filmPageEscape(window.formatFranchiseMemberships(film.franchises))}</textarea><span class="field-help">${filmPageEscape(ui("New memberships can be added. Existing shared-catalog memberships cannot be removed or corrected here."))}</span></label>
+    </div></section><section class="film-edit-section"><h2>${filmPageEscape(ui("Franchises"))}</h2><div class="film-edit-grid">
+      <label>${filmPageEscape(ui("Add franchise"))}<input name="franchise" placeholder="${filmPageEscape(ui("Franchise name"))}"></label><label>${filmPageEscape(ui("Parent (optional)"))}<input name="parent" placeholder="${filmPageEscape(ui("Parent franchise"))}"></label><p class="field-help">${filmPageEscape(ui("New memberships can be added. Existing shared-catalog memberships cannot be removed or corrected here."))}</p>
+    </div></section><section class="film-edit-section"><h2>${filmPageEscape(ui("Your tags"))}</h2><div class="film-edit-grid">
       <label class="wide">${filmPageEscape(ui("Tags"))} <input name="tags" value="${filmPageEscape(window.formatFilmTags(film.tags))}" placeholder="${filmPageEscape(ui("Noir, courtroom drama, rewatch"))}"><span class="field-help">${filmPageEscape(ui("Separate tags with commas."))}</span></label>
+    </div></section><section class="film-edit-section"><h2>${filmPageEscape(ui("Review"))}</h2><div class="film-edit-grid">
       <label class="wide">${filmPageEscape(ui("Review / comment"))} <textarea name="review" rows="5" maxlength="1000">${filmPageEscape(film.review || "")}</textarea><span class="field-help">${filmPageEscape(ui("A short personal note about the film."))}</span></label>
+    </div></section><section class="film-edit-section"><h2>${filmPageEscape(ui("Rewatchlist"))}</h2><div class="film-edit-grid">
       <label><input type="checkbox" name="wantToRewatch" ${film.wantToRewatch ? "checked" : ""}> ${filmPageEscape(ui("Rewatchlist"))}</label>
       <label>${filmPageEscape(ui("Rewatch tier"))} <span class="tier-select-row">${window.renderTierSetter(
         {
@@ -1069,26 +1109,186 @@
         },
       )}</span></label>
     </div></section>
-    <section class="film-edit-section"><h2>${filmPageEscape(ui("Award credits"))}</h2><p class="edit-help">${filmPageEscape(ui("Period, placement, and category define the bracket entry and remain structural. Recipients and details can be edited here."))}</p>
-      <div class="leaderboard-wrap"><table class="leaderboard film-edit-awards"><thead><tr><th>${filmPageEscape(ui("Period"))}</th><th>${filmPageEscape(ui("Place"))}</th><th>${filmPageEscape(ui("Category"))}</th><th>${filmPageEscape(ui("Recipients"))}</th><th>${filmPageEscape(ui("Detail"))}</th></tr></thead><tbody>${renderEditAwardRows(awards)}</tbody></table></div>
-    </section>
     <div class="film-edit-actions"><button type="submit">${filmPageEscape(ui("Save changes"))}</button><button type="button" data-cancel-film-edit>${filmPageEscape(ui("Cancel"))}</button></div>
   </form>`;
-    window.enhanceRatingInputs?.(container);
-    window.enhanceTierSetters?.(container);
-    window.enhanceTierModifierToggles?.(container);
   }
 
-  // An Unseen (catalog-only) film has no personal record at all - it's
+  // Keep the detail page visible while a focused personal-data draft is open.
+  function openFilmEditor(field) {
+    let watched = !isWatchlistDetail;
+    let draft = document.createElement("div");
+    draft.innerHTML = watched
+      ? filmEditFormHtml(currentFilm())
+      : watchlistEditFormHtml();
+    let form = draft.querySelector("form");
+    let sections = Array.from(form.querySelectorAll(".film-edit-section"));
+    let index = watched
+      ? { rating: 0, franchises: 1, tags: 2, review: 3 }[field]
+      : { tier: 0, tags: 1, franchises: 2 }[field];
+    sections.forEach((section, i) => {
+      section.hidden = i !== index;
+    });
+    let dialog = document.createElement("dialog");
+    dialog.className = "film-inline-dialog";
+    dialog.setAttribute(
+      "aria-label",
+      sections[index].querySelector("h2").textContent,
+    );
+    dialog.append(form);
+    container.append(dialog);
+    dialog.addEventListener("close", () => {
+      currentlyEditing = false;
+      dialog.remove();
+      container.querySelector(`[data-edit-film="${field}"]`)?.focus();
+    });
+    currentlyEditing = true;
+    dialog.addEventListener("cancel", (event) => {
+      if (watchlistBusy || filmEditBusy) event.preventDefault();
+    });
+    dialog.showModal();
+    window.enhanceRatingInputs?.(dialog);
+    window.enhanceTierSetters?.(dialog);
+    window.enhanceTierModifierToggles?.(dialog);
+  }
+
+  // Rating and tier drafts use the current one-film projection, including its
+  // row version, so opening or saving them never waits for the whole archive.
+  function openFilmQuickEditor(anchor, field) {
+    if (!canEdit || container.querySelector("[data-film-quick-editor]")) return;
+    let target = field === "rating" ? currentFilm() : watchlistItem;
+    if (!target) return;
+    let panel = document.createElement("div");
+    panel.className = "film-quick-popover";
+    panel.setAttribute("popover", "auto");
+    panel.setAttribute("data-film-quick-editor", field);
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute(
+      "aria-label",
+      ui(field === "rating" ? "Rating" : "Interest tier"),
+    );
+    panel.innerHTML = `<form id="filmQuickEditForm">
+      <div class="film-quick-heading"><strong>${filmPageEscape(ui(field === "rating" ? "Rating" : "Interest tier"))}</strong><button type="button" data-close-film-quick-editor aria-label="${filmPageEscape(ui("Close"))}">×</button></div>
+      ${
+        field === "rating"
+          ? window.renderRatingInput({
+              id: "filmQuickRating",
+              value: window.renderFilmRating(target),
+              starsOnly: true,
+            })
+          : window.renderTierSetter({
+              tier: target.tier,
+              modifier: target.tierModifier,
+              escape: filmPageEscape,
+              ui,
+            })
+      }
+      <div class="film-quick-actions"><button type="submit">${filmPageEscape(ui("Save"))}</button></div>
+    </form>`;
+    let busy = false;
+    function close() {
+      if (!panel.isConnected) return;
+      panel.hidePopover();
+      panel.remove();
+      currentlyEditing = false;
+      anchor.setAttribute("aria-expanded", "false");
+      window.removeEventListener("resize", position);
+      window.removeEventListener("scroll", position, true);
+      anchor.focus();
+    }
+    function position() {
+      let bounds = anchor.getBoundingClientRect();
+      let size = panel.getBoundingClientRect();
+      let left = Math.max(
+        8,
+        Math.min(bounds.left, window.innerWidth - size.width - 8),
+      );
+      let top = bounds.bottom + 6;
+      if (top + size.height > window.innerHeight - 8)
+        top = bounds.top - size.height - 6;
+      panel.style.left = `${left}px`;
+      panel.style.top = `${Math.max(8, top)}px`;
+    }
+    window.enhanceRatingInputs(panel);
+    let slider = panel.querySelector('[role="slider"]');
+    panel
+      .querySelector("[data-close-film-quick-editor]")
+      .addEventListener("click", close);
+    panel.addEventListener("toggle", (event) => {
+      if (event.newState === "closed") close();
+    });
+    panel.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (busy) return;
+      busy = true;
+      let controls = Array.from(panel.querySelectorAll("button, input"));
+      let enabledControls = controls.filter((control) => !control.disabled);
+      let values = Object.fromEntries(
+        new FormData(
+          /** @type {HTMLFormElement} */ (panel.querySelector("form")),
+        ).entries(),
+      );
+      enabledControls.forEach((control) => {
+        control.disabled = true;
+      });
+      try {
+        let isCurrent =
+          window.supabaseWorkspaceContext.beginWorkspaceMutation();
+        if (field === "rating") {
+          await window.updateSupabaseWatchedFilm(target, {
+            rating: String(values.rating || ""),
+          });
+        } else {
+          await window.setSupabaseWatchlistTier(
+            target.id,
+            String(values.tier || ""),
+            String(values.tierModifier || ""),
+          );
+        }
+        if (!isCurrent())
+          throw new Error("Account changed while performing operation.");
+        filmId = target.supabaseFilmId || filmId;
+        await refreshFilmCollection(isCurrent);
+        close();
+        updateFilmViewUrl();
+        render(false);
+        container.querySelector(`[data-edit-film="${field}"]`)?.focus();
+      } catch (error) {
+        alert(error.message || String(error));
+        enabledControls.forEach((control) => {
+          control.disabled = false;
+        });
+      } finally {
+        busy = false;
+      }
+    });
+    container.append(panel);
+    currentlyEditing = true;
+    anchor.setAttribute("aria-haspopup", "dialog");
+    anchor.setAttribute("aria-expanded", "true");
+    window.enhanceTierSetters?.(panel);
+    panel
+      .querySelectorAll("[data-tier-setter-tier], [data-tier-setter-mod]")
+      .forEach((button) => {
+        button.setAttribute("tabindex", "0");
+      });
+    panel.showPopover();
+    position();
+    window.addEventListener("resize", position);
+    window.addEventListener("scroll", position, true);
+    (slider || panel.querySelector("[data-tier-setter-tier]")).focus();
+  }
+
+  // A catalog-only film has no personal record at all - it's
   // reached either via film.html?tmdb=<id> (a shared-archive card, a
-  // director page's Unseen grid, or a header search "Unseen" result built
+  // director page's Other films grid, or a header search result built
   // before this film's real id was known) or film.html?id=<filmId> (every
-  // other Unseen link, once resolved to the film's own Supabase id).
+  // other catalog film link, once resolved to the film's own Supabase id).
   // Rendered with a deliberately separate, much simpler template rather
   // than threading preview-mode conditionals through renderView's full
   // local-film layout, which assumes dozens of fields (medium,
   // screenplayType, rank, awards, notes...) a shared record never has.
   function currentSharedPreview() {
+    if (collectionPreview) return collectionPreview;
     return previewTmdbId
       ? window.sharedArchiveCandidateFilmByTmdbId?.(previewTmdbId)
       : window.sharedArchiveCandidateFilmById?.(filmId);
@@ -1097,12 +1297,13 @@
     let preview = currentSharedPreview();
     if (!preview) {
       let status = window.OSKARS_SHARED_FILM_ARCHIVE_STATUS;
-      document.title = `${ui("Unseen film")} · The Oskars`;
-      let message =
-        status === "loading" || status === "idle"
-          ? ui("Loading unseen films…")
-          : ui("This film could not be found.");
-      container.innerHTML = `<div class="detail-empty"><h1>${filmPageEscape(ui("Unseen film"))}</h1><p>${filmPageEscape(message)}</p><a href="index.html">${filmPageEscape(ui("Return home"))}</a></div>`;
+      if (status === "loading" || status === "idle") {
+        document.title = `${ui("Loading…")} · The Oskars`;
+        container.innerHTML = `<div class="detail-empty"><h1>${filmPageEscape(ui("Loading…"))}</h1><p class="data-panel-status">${filmPageEscape(ui("Loading film…"))}</p></div>`;
+        return;
+      }
+      document.title = `${ui("Film not found")} · The Oskars`;
+      container.innerHTML = `<div class="detail-empty"><h1>${filmPageEscape(ui("Film not found"))}</h1><p>${filmPageEscape(ui("This film could not be found."))}</p><a href="index.html">${filmPageEscape(ui("Return home"))}</a></div>`;
       return;
     }
     let title = window.localizedFilmTitle?.(preview) || preview.title;
@@ -1118,11 +1319,6 @@
       escape: filmPageEscape,
       expanded: true,
     });
-    let localizedTitle = window.localizedFilmTitle?.(preview);
-    let localizedTitleMeta =
-      preview.swedishTitle && preview.swedishTitle !== preview.title
-        ? `<p class="film-localized-title">${filmPageEscape(preview.swedishTitle === localizedTitle ? preview.title : preview.swedishTitle)}</p>`
-        : "";
     // Same shared objective-metadata table the Watched and Watchlist
     // detail views use (see objectiveFilmMetadataHtml above) - preview
     // already carries every field it needs (buildSharedFilmArchiveFromSupabase
@@ -1142,23 +1338,41 @@
       classes: posterHtml ? "has-poster" : "",
       leadingHtml: posterHtml,
       mainClasses: "detail-header-main film-detail-main",
-      mainHtml: `<div class="film-title-row"><h1>${filmPageEscape(title)}</h1></div>${localizedTitleMeta}${directorHtml ? `<p>${filmPageEscape(ui("by"))} ${directorHtml}</p>` : ""}
+      mainHtml: `<div class="film-title-row"><h1>${filmPageEscape(title)}</h1><div class="film-personal-rating">${filmPageEscape(ui("Not seen"))}</div></div>${directorHtml ? `<p>${filmPageEscape(ui("by"))} ${directorHtml}</p>` : ""}
       ${metadataHtml ? `<dl class="film-metadata">${metadataHtml}</dl>` : ""}`,
       actionsHtml: canEdit
-        ? `<div class="collection-action-buttons">${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Add to watchlist"), escape: filmPageEscape, attributes: { "data-add-shared-preview-watchlist": true } })}${window.renderCollectionActionButton({ kind: "watched", label: ui("Add to watched"), escape: filmPageEscape, attributes: { "data-add-shared-preview-watched": true } })}</div>`
+        ? `${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Add to watchlist"), escape: filmPageEscape, attributes: { "data-add-shared-preview-watchlist": true } })}${window.renderCollectionActionButton({ kind: "watched", label: ui("Add to watched"), escape: filmPageEscape, attributes: { "data-add-shared-preview-watched": true } })}`
         : "",
     })}
     ${catalogTagsHtml()}
-    ${franchiseHtml ? `<section class="film-franchises"><h2>${filmPageEscape(ui("Franchises"))}</h2><div class="film-franchise-links">${franchiseHtml}</div></section>` : ""}
-    <p class="detail-empty">${filmPageEscape(ui("This film is in the catalog but hasn't been added to your own collection yet."))}</p>`;
+    ${franchiseHtml ? `<section class="film-franchises"><h2>${filmPageEscape(ui("Franchises"))}</h2><div class="film-franchise-links">${franchiseHtml}</div></section>` : ""}`;
   }
 
   // Tracked only so the post-hydration re-render below can't kick a user
   // out of an in-progress edit by hardcoding false.
   let currentlyEditing = false;
+  let filmEditBusy = false;
   let stopArchiveWatch = () => {};
   function render(editing = false) {
+    if (container.querySelector("[data-film-quick-editor]")) return;
+    if (editing && container.querySelector(".film-inline-dialog[open]")) return;
     renderContent(editing);
+    if (pendingCollectionAction) {
+      container
+        .querySelectorAll("[data-collection-action]")
+        .forEach((button) => {
+          let active =
+            button.getAttribute("data-collection-action") ===
+              pendingCollectionAction && pendingCollectionActive;
+          button.classList.toggle("is-active", active);
+          button.setAttribute("aria-pressed", active ? "true" : "false");
+          window.setCollectionActionButtonState(button, {
+            label: button.getAttribute("aria-label"),
+            busy: true,
+          });
+        });
+    }
+    if (compactReady) ensureOpenIntake();
     stopArchiveWatch();
     stopArchiveWatch = window.whenCompleteArchiveNeeded(container, () =>
       ensureFilmFullyHydrated().catch(() => {}),
@@ -1174,7 +1388,13 @@
       return;
     }
     let film = currentFilm();
-    if (!film && isWatchlistDetail) {
+    if (!film && (isWatchlistDetail || removedWatchlistSnapshot)) {
+      if (requestedWatchedForm && canEdit) {
+        requestedWatchedForm = false;
+        renderWatchlistWatchedForm();
+        finishRenderTimer?.("watchlist watched form");
+        return;
+      }
       renderWatchlistDetail();
       finishRenderTimer?.("watchlist detail");
       return;
@@ -1185,16 +1405,14 @@
       return;
     }
     if (!film) {
-      document.title = "Film not found · The Oskars";
-      container.innerHTML =
-        '<div class="detail-empty"><h1>Film not found</h1><a href="index.html">Return home</a></div>';
+      document.title = `${ui("Film not found")} · The Oskars`;
+      container.innerHTML = `<div class="detail-empty"><h1>${filmPageEscape(ui("Film not found"))}</h1><a href="index.html">${filmPageEscape(ui("Return home"))}</a></div>`;
       finishRenderTimer?.("not found");
       return;
     }
     editing = editing && canEdit;
     document.title = `${editing ? ui("Edit {title}", { title: film.title }) : window.localizedFilmTitle(film)} · The Oskars`;
-    if (editing) renderEdit(film);
-    else renderView(film);
+    renderView(film);
     finishRenderTimer?.(
       `${film.id}, ${editing ? "edit" : "view"}, ${(film.awards || []).length} award(s)`,
     );
@@ -1217,149 +1435,118 @@
   }
 
   container.addEventListener("click", async (event) => {
+    let quickButton = event.target.closest(
+      '[data-edit-film="rating"], [data-edit-film="tier"]',
+    );
+    if (quickButton) {
+      openFilmQuickEditor(quickButton, quickButton.dataset.editFilm);
+      return;
+    }
+    if (event.target.closest("[data-film-quick-editor]")) return;
+    let collectionButton = event.target.closest(
+      "[data-add-shared-preview-watchlist], [data-add-shared-preview-watched], [data-mark-watchlist-watched], [data-remove-watchlist-film], [data-remove-watched-film], [data-undo-watchlist-removal]",
+    );
+    if (collectionButton) {
+      if (!canEdit || pendingCollectionAction) return;
+      let addWatchlist = collectionButton.hasAttribute(
+        "data-add-shared-preview-watchlist",
+      );
+      let fromWatchlist = collectionButton.hasAttribute(
+        "data-mark-watchlist-watched",
+      );
+      let removeWatchlist = collectionButton.hasAttribute(
+        "data-remove-watchlist-film",
+      );
+      let removeWatched = collectionButton.hasAttribute(
+        "data-remove-watched-film",
+      );
+      let undoRemoval = collectionButton.hasAttribute(
+        "data-undo-watchlist-removal",
+      );
+      let preview = fromWatchlist ? null : currentSharedPreview();
+      let watched = currentFilm();
+      let item = watchlistItem;
+      if (undoRemoval && !removedWatchlistSnapshot) return;
+      let owner = window.getSupabaseCurrentUser?.()?.id;
+      let isCurrent = () => owner === window.getSupabaseCurrentUser?.()?.id;
+      pendingCollectionAction =
+        addWatchlist || removeWatchlist || undoRemoval
+          ? "watchlist"
+          : "watched";
+      pendingCollectionActive = !removeWatchlist && !removeWatched;
+      render(false);
+      try {
+        if (!isCurrent())
+          throw new Error("Account changed while performing operation.");
+        if (removeWatchlist) {
+          await window.removeFromSupabaseWatchlist(item.id);
+          removedWatchlistSnapshot = {
+            title: item.title,
+            filmId: item.supabaseFilmId,
+            tier: item.tier,
+            tierModifier: item.tierModifier,
+            reason: item.reason,
+            position: item.position,
+          };
+        } else if (removeWatched) {
+          await window.removeFromSupabaseWatched(watched.supabaseWatchedId);
+        } else if (undoRemoval) {
+          await window.addToSupabaseWatchlist(
+            removedWatchlistSnapshot.filmId,
+            removedWatchlistSnapshot,
+          );
+          removedWatchlistSnapshot = null;
+        } else if (addWatchlist) {
+          let row = await window.addSupabaseWatchlistRecord({
+            ...preview,
+            supabaseFilmId: preview.supabaseFilmId || preview.id,
+          });
+          filmId = row.film_id;
+        } else if (fromWatchlist) {
+          let workflow = await window.createSupabaseWatchlistWatchedIntake(
+            watchlistItem.id,
+            {},
+            { refreshWorkspace: false },
+          );
+          filmId = workflow.watched.film_id;
+        } else {
+          let result = await window.addSupabaseCandidateToWatched(preview, {
+            refreshWorkspace: false,
+          });
+          if (!result.ok)
+            throw new Error(result.reason || ui("Could not add this film."));
+          filmId = result.filmId;
+        }
+        if (!removeWatchlist && !removeWatched) removedWatchlistSnapshot = null;
+        await refreshFilmCollection(isCurrent);
+        previewTmdbId = "";
+        refreshWatchlistDetailState();
+        updateFilmViewUrl();
+        intakeRequestedForFilm = "";
+        ensureOfficialResultsForThisFilm();
+      } catch (err) {
+        alert(err.message || String(err));
+      } finally {
+        pendingCollectionAction = "";
+        render(false);
+      }
+      return;
+    }
+    // Plain clicks, including popover light dismissal, do not need archive data.
+    if (
+      !event.target.closest(
+        "[data-cancel-watchlist-transition], [data-toggle-film-rewatch], [data-edit-film], [data-cancel-film-edit]",
+      )
+    )
+      return;
     // Every write action below waits on the real background full
     // hydration first (issue #617, same blanket policy as #598's own
     // Watchlist cutover) - a no-op once already hydrated (legacy mode, or
     // compact mode's eager upgrade already finished, almost always true
     // by the time a person could actually click anything).
     await ensureFilmFullyHydrated().catch(() => {});
-    if (event.target.closest("[data-mark-watchlist-watched]")) {
-      renderWatchlistWatchedForm();
-      return;
-    }
     if (event.target.closest("[data-cancel-watchlist-transition]")) {
       render(false);
-      return;
-    }
-    let removeTagButton = event.target.closest("[data-remove-tag]");
-    if (removeTagButton) {
-      watchlistBusy = true;
-      render(false);
-      try {
-        await window.removeSupabaseFilmTag(
-          watchlistItem.supabaseFilmId,
-          removeTagButton.dataset.removeTag,
-        );
-        await reloadWatchlistItem();
-      } catch (err) {
-        alert(err.message || String(err));
-      } finally {
-        watchlistBusy = false;
-        render(false);
-      }
-      return;
-    }
-    let removeWatchlistButton = event.target.closest(
-      "[data-remove-watchlist-film]",
-    );
-    if (removeWatchlistButton) {
-      watchlistBusy = true;
-      render(false);
-      try {
-        removedWatchlistSnapshot = {
-          title: watchlistItem.title,
-          filmId: watchlistItem.supabaseFilmId,
-          tier: watchlistItem.tier,
-          tierModifier: watchlistItem.tierModifier,
-          reason: watchlistItem.reason,
-          position: watchlistItem.position,
-        };
-        await window.removeFromSupabaseWatchlist(watchlistItem.id);
-        watchlistItem = null;
-        render(false);
-      } catch (err) {
-        alert(err.message || String(err));
-        watchlistBusy = false;
-        render(false);
-      }
-      return;
-    }
-    if (event.target.closest("[data-undo-watchlist-removal]")) {
-      if (!removedWatchlistSnapshot) return;
-      watchlistBusy = true;
-      render(false);
-      try {
-        await window.addToSupabaseWatchlist(removedWatchlistSnapshot.filmId, {
-          tier: removedWatchlistSnapshot.tier,
-          tierModifier: removedWatchlistSnapshot.tierModifier,
-          reason: removedWatchlistSnapshot.reason,
-          position: removedWatchlistSnapshot.position,
-        });
-        removedWatchlistSnapshot = null;
-        // Undo recreates a watchlist row for the same film - the URL
-        // (film.html?id=<filmId>) doesn't change, unlike before this merge
-        // when a new watchlist row meant a new watchlist-film.html?id=
-        // <rowId> URL to navigate to.
-        window.location.href = window.filmPageUrl(filmId);
-      } catch (err) {
-        alert(err.message || String(err));
-        watchlistBusy = false;
-        render(false);
-      }
-      return;
-    }
-    if (event.target.closest("[data-add-shared-preview-watchlist]")) {
-      let preview = currentSharedPreview();
-      let backup = window.cloneRecord(window.getSerializableState());
-      try {
-        let result = window.addFilmRecordToWatchlist(preview);
-        if (!result.ok)
-          throw new Error(result.reason || ui("Could not add this film."));
-        await window.save();
-        // One canonical URL regardless of status (issue #451/#457) - no
-        // need to look up the new watchlist row's own id anymore, the
-        // film's own id already resolves the detail page.
-        window.location.href = window.filmPageUrl(result.item.supabaseFilmId);
-      } catch (err) {
-        window.restoreSerializableState?.(backup);
-        alert(err.message || String(err));
-      }
-      return;
-    }
-    let addWatchedButton = event.target.closest(
-      "[data-add-shared-preview-watched]",
-    );
-    if (addWatchedButton) {
-      let preview = currentSharedPreview();
-      window.setCollectionActionButtonState(addWatchedButton, {
-        label: ui("Adding…"),
-        busy: true,
-      });
-      try {
-        let result = await window.addFilmRecordToWatched(preview);
-        if (!result.ok)
-          throw new Error(result.reason || ui("Could not add this film."));
-        window.location.href = result.intakeId
-          ? window.intakePageUrl(result.intakeId)
-          : window.filmPageUrl(result.filmId);
-      } catch (err) {
-        window.setCollectionActionButtonState(addWatchedButton, {
-          label: ui("Add to watched"),
-        });
-        alert(err.message || String(err));
-      }
-      return;
-    }
-    let removeWatchedButton = event.target.closest(
-      "[data-remove-watched-film]",
-    );
-    if (removeWatchedButton) {
-      let film = currentFilm();
-      watchedBusy = true;
-      render(false);
-      try {
-        await window.removeFromSupabaseWatched(film.supabaseWatchedId);
-        delete window.state.filmsById?.[film.id];
-        if (Array.isArray(window.state.watchedOther))
-          window.state.watchedOther = window.state.watchedOther.filter(
-            (entry) => entry.id !== film.id,
-          );
-        render(false);
-      } catch (err) {
-        watchedBusy = false;
-        alert(err.message || String(err));
-        render(false);
-      }
       return;
     }
     if (event.target.closest("[data-toggle-film-rewatch]")) {
@@ -1375,59 +1562,40 @@
         // Render immediately so the button state and the tier picker card
         // update without waiting for the network round-trip.
         render(false);
-        await window.save();
+        await window.updateSupabaseWatchedFilm(currentFilm(), {
+          wantToRewatch: currentFilm().wantToRewatch || false,
+          rewatchTier: currentFilm().rewatchTier || "",
+          rewatchTierModifier: currentFilm().rewatchTierModifier || "",
+        });
       } catch (err) {
-        window.restoreSerializableState?.(backup);
+        if (err.code !== "OSKARS_ACCOUNT_CHANGED")
+          window.restoreSerializableState?.(backup);
         alert(err.message || String(err));
         render(false);
       }
       return;
     }
     if (event.target.closest("[data-edit-film]")) {
-      render(true);
+      openFilmEditor(
+        event.target.closest("[data-edit-film]").dataset.editFilm || "rating",
+      );
       return;
     }
     if (event.target.closest("[data-cancel-film-edit]")) {
-      render(false);
+      container.querySelector(".film-inline-dialog")?.close();
       return;
     }
   });
 
   container.addEventListener("change", async (event) => {
-    await ensureFilmFullyHydrated().catch(() => {});
-    let tierSelect = event.target.closest("[data-tier-select]");
-    let tierModifierToggle = event.target.closest(
-      '[data-tier-modifier-input] input[name="tierModifier"]',
-    );
-    if (tierSelect || tierModifierToggle) {
-      // Both controls write the tier+modifier pair together - whichever
-      // one didn't fire this change still has its just-picked value
-      // sitting live in the DOM (a detached node after render() below
-      // keeps its .value in memory, same trick the tier-only write
-      // already relied on here).
-      let selectEl =
-        tierSelect || container.querySelector("[data-tier-select]");
-      let modifierEl =
-        tierModifierToggle ||
-        container.querySelector(
-          '[data-tier-modifier-input] input[name="tierModifier"]',
-        );
-      watchlistBusy = true;
-      render(false);
-      try {
-        await window.setSupabaseWatchlistTier(
-          watchlistItem.id,
-          selectEl?.value || "",
-          modifierEl?.value || "",
-        );
-        await reloadWatchlistItem();
-      } catch (err) {
-        alert(err.message || String(err));
-        watchlistBusy = false;
-        render(false);
-      }
+    if (event.target.closest("[data-film-quick-editor]")) return;
+    if (
+      !event.target.closest(
+        '[data-rewatch-tier-select], input[name="filmAwardsView"]',
+      )
+    )
       return;
-    }
+    await ensureFilmFullyHydrated().catch(() => {});
     // Inline rewatch-tier setter on the watched-film view (the tier setter
     // dispatches change from the hidden rewatchTier / rewatchTierModifier
     // input; both use data-rewatch-tier-select on their [data-tier-setter]).
@@ -1454,9 +1622,13 @@
         // Optimistic render before the network write so the badge updates
         // immediately, then save in the background.
         render(false);
-        await window.save();
+        await window.updateSupabaseWatchedFilm(currentFilm(), {
+          rewatchTier: currentFilm().rewatchTier || "",
+          rewatchTierModifier: currentFilm().rewatchTierModifier || "",
+        });
       } catch (err) {
-        window.restoreSerializableState?.(backup);
+        if (err.code !== "OSKARS_ACCOUNT_CHANGED")
+          window.restoreSerializableState?.(backup);
         alert(err.message || String(err));
         render(false);
       }
@@ -1475,10 +1647,13 @@
     // the browser's default submit navigation race an in-flight hydration
     // wait would reload the page out from under it.
     event.preventDefault();
+    if (event.target.closest("[data-film-quick-editor]")) return;
     await ensureFilmFullyHydrated().catch(() => {});
     let transitionForm = event.target.closest("#markWatchlistWatchedForm");
     if (transitionForm) {
-      let values = Object.fromEntries(new FormData(transitionForm).entries());
+      let values = Object.fromEntries(
+        new FormData(/** @type {HTMLFormElement} */ (transitionForm)).entries(),
+      );
       let parsed = window.parseFilmRating(values.rating);
       watchlistBusy = true;
       render(false);
@@ -1501,111 +1676,108 @@
       }
       return;
     }
-    let watchlistTagForm = event.target.closest("[data-add-tag-form]");
-    if (watchlistTagForm) {
-      let name = new FormData(watchlistTagForm).get("tag")?.trim();
-      if (!name) return;
+    let watchlistForm = event.target.closest("#watchlistEditForm");
+    if (watchlistForm) {
+      if (watchlistBusy) return;
       watchlistBusy = true;
-      render(false);
-      try {
-        await window.addSupabaseFilmTag(watchlistItem.supabaseFilmId, name);
-        await reloadWatchlistItem();
-      } catch (err) {
-        alert(err.message || String(err));
-      } finally {
-        watchlistBusy = false;
-        render(false);
-      }
-      return;
-    }
-    let watchlistFranchiseForm = event.target.closest(
-      "[data-add-franchise-form]",
-    );
-    if (watchlistFranchiseForm) {
       let values = Object.fromEntries(
-        new FormData(watchlistFranchiseForm).entries(),
+        new FormData(/** @type {HTMLFormElement} */ (watchlistForm)).entries(),
       );
-      let name = values.franchise?.trim();
-      if (!name) return;
-      watchlistBusy = true;
-      render(false);
+      let controls = Array.from(
+        watchlistForm.querySelectorAll("button, input, textarea"),
+      ).filter((control) => !control.disabled);
+      controls.forEach((control) => {
+        control.disabled = true;
+      });
       try {
-        await window.addSupabaseFilmFranchiseMembership(
-          watchlistItem.supabaseFilmId,
-          name,
-          values.parent?.trim() || "",
+        let tags = window.parseFilmTags(String(values.tags || ""));
+        let previousTags = watchlistItem.tags || [];
+        await window.setSupabaseWatchlistTier(
+          watchlistItem.id,
+          String(values.tier || ""),
+          String(values.tierModifier || ""),
         );
+        for (let tag of tags.filter((tag) => !previousTags.includes(tag)))
+          await window.addSupabaseFilmTag(watchlistItem.supabaseFilmId, tag);
+        for (let tag of previousTags.filter((tag) => !tags.includes(tag)))
+          await window.removeSupabaseFilmTag(watchlistItem.supabaseFilmId, tag);
+        if (String(values.franchise || "").trim())
+          await window.addSupabaseFilmFranchiseMembership(
+            watchlistItem.supabaseFilmId,
+            String(values.franchise).trim(),
+            String(values.parent || "").trim(),
+          );
         await reloadWatchlistItem();
       } catch (err) {
         alert(err.message || String(err));
+        controls.forEach((control) => {
+          control.disabled = false;
+        });
       } finally {
         watchlistBusy = false;
-        render(false);
+        if (!currentlyEditing) render(false);
       }
       return;
     }
     let form = event.target.closest("#filmEditForm");
-    if (!form) return;
+    if (!form || filmEditBusy) return;
+    filmEditBusy = true;
+    let controls = Array.from(form.querySelectorAll("button"));
+    controls.forEach((control) => {
+      control.disabled = true;
+    });
     let backup = window.cloneRecord(window.getSerializableState());
+    let persistenceStarted = false;
     try {
       let film = currentFilm();
+      let before = window.cloneRecord(film);
       let values = Object.assign(
         window.filmMetadataFormValues(film),
-        Object.fromEntries(new FormData(form).entries()),
+        Object.fromEntries(
+          new FormData(/** @type {HTMLFormElement} */ (form)).entries(),
+        ),
       );
       values.wantToRewatch = form.elements.wantToRewatch.checked;
+      let addedFranchise = String(values.franchise || "").trim();
+      let parentFranchise = String(values.parent || "").trim();
       values.franchises = window.formatFranchiseMemberships(
         window.normalizeFranchiseMemberships([
           ...(film.franchises || []),
-          ...window.parseFranchiseMemberships(values.franchises),
+          ...window.parseFranchiseMemberships(
+            addedFranchise
+              ? `${parentFranchise ? parentFranchise + " > " : ""}${addedFranchise}`
+              : "",
+          ),
         ]),
       );
       let updated = window.updateFilmMetadata(filmId, values);
       if (!updated) throw new Error(ui("Film could not be updated."));
       let nextId = updated.id;
-      form.querySelectorAll("[data-award-edit-row]").forEach((row) => {
-        let category = row.dataset.category;
-        let placement = row.dataset.placement;
-        let period = row.dataset.period;
-        let recipient = row.querySelector('[name="recipient"]').value;
-        let detail = row.querySelector('[name="detail"]').value;
-        if (
-          !window.updateAwardRecipient(
-            nextId,
-            category,
-            placement,
-            period,
-            recipient,
-          )
-        ) {
-          let message =
-            window.lastRuleViolation?.errors?.join("\n") ||
-            ui("Could not update {category} recipients.", { category });
-          throw new Error(message);
-        }
-        if (
-          !window.updateAwardDetail(nextId, category, placement, period, detail)
-        ) {
-          throw new Error(
-            ui("Could not update {category} detail.", { category }),
-          );
-        }
-      });
-      await window.save();
+      persistenceStarted = true;
+      await window.persistSupabaseFilmForm(before, currentFilm());
       filmId = nextId;
       updateFilmViewUrl();
       render(false);
     } catch (err) {
-      window.restoreSerializableState?.(backup);
+      if (err.code !== "OSKARS_ACCOUNT_CHANGED")
+        window.restoreSerializableState?.(backup);
+      if (persistenceStarted) {
+        await window.ensureOskarsData({ forceRefresh: true }).catch(() => {});
+      }
       alert(err.message || String(err));
-      render(true);
+      // Keep the user’s draft available after a failed save.
+    } finally {
+      filmEditBusy = false;
+      controls.forEach((control) => {
+        control.disabled = false;
+      });
     }
   });
 
-  // A direct/bookmarked film.html?tmdb=... or ?id=<unseenFilmId> load can
+  // A direct/bookmarked film.html?tmdb=... or ?id=<catalogFilmId> load can
   // land here before the async shared-archive pull finishes - re-render
   // once it does so the preview appears without a manual reload (same fix
-  // as person.js's director-page Unseen section). Guarded by
+  // as person.js's director-page Other films section). Guarded by
   // !isWatchlistDetail so an archive refresh doesn't spuriously re-render
   // a Watchlisted-detail page too, which also has filmId set.
   window.onSharedFilmArchiveChange?.(() => {
@@ -1615,7 +1787,7 @@
 
   // officialFilmContext() (used only by renderView()'s Watched-film case)
   // is the one caller of official-results content on this page - a
-  // Watchlist-detail or Unseen-preview visit never reads it, so it's
+  // Watchlist-detail or catalog-preview visit never reads it, so it's
   // skipped entirely there rather than fetching even a scoped slice for
   // nothing. Guarded against firing twice: once synchronously below for
   // the already-resolved legacy path, and once from compactActive's own

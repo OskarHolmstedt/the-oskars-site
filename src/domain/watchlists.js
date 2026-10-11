@@ -1,45 +1,8 @@
 /**
- * @file Parses, normalizes, indexes, sorts, edits, and enriches watchlist
- * records, including poster and TMDB metadata batch operations.
+ * @file Owns the watchlist model: tiers and modifiers, item identity and
+ * lookup, ordering, view-model edits, and poster and TMDB metadata batches.
+ * Parsing watchlist exports lives in src/imports/watchlist-export.js.
  */
-
-function parseWatchlistDelimitedRows(raw) {
-  let rows = [];
-  let row = [];
-  let value = "";
-  let quoted = false;
-  let text = String(raw || "")
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n");
-  let delimiter = text.includes("\t") ? "\t" : ",";
-
-  for (let index = 0; index < text.length; index++) {
-    let character = text[index];
-    if (quoted) {
-      if (character === '"' && text[index + 1] === '"') {
-        value += '"';
-        index += 1;
-      } else if (character === '"') quoted = false;
-      else value += character;
-      continue;
-    }
-    if (character === '"') {
-      quoted = true;
-    } else if (character === delimiter) {
-      row.push(value);
-      value = "";
-    } else if (character === "\n") {
-      row.push(value);
-      if (row.some((cell) => String(cell).trim())) rows.push(row);
-      row = [];
-      value = "";
-    } else value += character;
-  }
-
-  row.push(value);
-  if (row.some((cell) => String(cell).trim())) rows.push(row);
-  return rows;
-}
 
 window.WATCHLIST_TIERS = ["S", "A", "B", "C", "D", "E", "F"];
 
@@ -56,6 +19,7 @@ window.parseWatchlistTier = function (value) {
   let tier = match[1].toUpperCase();
   if (!window.WATCHLIST_TIERS.includes(tier)) return { tier: "", modifier: "" };
   let modSymbol = match[2] || "";
+  /** @type {'plus'|'minus'|''} */
   let modifier = "";
   if (/[+＋]/.test(modSymbol)) {
     modifier = "plus";
@@ -207,6 +171,8 @@ window.normalizeWatchlistItem = function (item) {
     franchises: window.normalizeFranchiseMemberships?.(item?.franchises) || [],
     poster: window.normalizePosterRecord?.(item?.poster) || null,
     order: Number.isFinite(order) && order > 0 ? order : null,
+    supabaseFilmId:
+      item?.supabaseFilmId || (window.isUuid?.(item?.id) ? item.id : "") || "",
   };
 };
 
@@ -242,111 +208,6 @@ window.addWatchlistItem = function (values, options = {}) {
   }
   if (options.save !== false) window.save();
   return { ok: true, item };
-};
-
-/**
- * Parses a Letterboxd-compatible CSV or TSV watchlist and records skipped rows.
- * @param {string} raw Raw delimited text.
- * @returns {Object} Parsed watchlist items and skipped-row diagnostics.
- */
-window.parseWatchlist = function (raw) {
-  let rows = parseWatchlistDelimitedRows(raw);
-  if (!rows.length)
-    return { items: [], diagnostics: { skippedRows: 0, skippedDetails: [] } };
-  let header = rows[0].map((value) =>
-    String(value || "")
-      .trim()
-      .toLowerCase(),
-  );
-  let hasHeader = header.some((value) =>
-    [
-      "date",
-      "name",
-      "title",
-      "year",
-      "director",
-      "tier",
-      "rank",
-      "letterboxd uri",
-      "letterboxd url",
-    ].includes(value),
-  );
-  let dataRows = hasHeader ? rows.slice(1) : rows;
-  let indexes = hasHeader
-    ? {
-        title:
-          header.indexOf("name") >= 0
-            ? header.indexOf("name")
-            : header.indexOf("title"),
-        year: header.indexOf("year"),
-        letterboxdUrl: Math.max(
-          header.indexOf("letterboxd uri"),
-          header.indexOf("letterboxd url"),
-        ),
-        tier: Math.max(header.indexOf("tier"), header.indexOf("rank")),
-        director: header.indexOf("director"),
-        tags:
-          header.indexOf("tags") >= 0
-            ? header.indexOf("tags")
-            : header.indexOf("tag"),
-        franchises: header.indexOf("franchises"),
-        tmdbId: Math.max(header.indexOf("tmdb id"), header.indexOf("tmdbid")),
-        order: Math.max(
-          header.indexOf("order"),
-          header.indexOf("watchlist order"),
-          header.indexOf("interest order"),
-          header.indexOf("global order"),
-        ),
-      }
-    : { title: 1, year: 2, letterboxdUrl: 3 };
-  let skippedRows = 0;
-  let skippedDetails = [];
-  let seen = new Set();
-  let items = [];
-
-  function cleanCell(value) {
-    return String(value || "").trim();
-  }
-
-  function recordSkipped(rowIndex, reason, values) {
-    skippedRows += 1;
-    skippedDetails.push({
-      rowNumber: rowIndex + (hasHeader ? 2 : 1),
-      reason,
-      values: (values || [])
-        .map((value) => cleanCell(value))
-        .filter(Boolean)
-        .slice(0, 8),
-    });
-  }
-
-  dataRows.forEach((row, rowIndex) => {
-    let item = window.normalizeWatchlistItem({
-      title: indexes.title >= 0 ? row[indexes.title] : "",
-      year: indexes.year >= 0 ? row[indexes.year] : "",
-      letterboxdUrl:
-        indexes.letterboxdUrl >= 0 ? row[indexes.letterboxdUrl] : "",
-      tier: indexes.tier >= 0 ? row[indexes.tier] : "",
-      director: indexes.director >= 0 ? row[indexes.director] : "",
-      tags: indexes.tags >= 0 ? row[indexes.tags] : "",
-      franchises:
-        indexes.franchises >= 0
-          ? window.parseFranchiseMemberships(row[indexes.franchises])
-          : [],
-      tmdbId: indexes.tmdbId >= 0 ? row[indexes.tmdbId] : "",
-      order: indexes.order >= 0 ? row[indexes.order] : "",
-    });
-    if (!item) {
-      recordSkipped(rowIndex, "No usable film title found.", row);
-      return;
-    }
-    let key = `${window.normalizeTitle(item.title)}\n${item.year}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    items.push(item);
-  });
-
-  return { items, diagnostics: { skippedRows, skippedDetails } };
 };
 
 /**
@@ -443,59 +304,6 @@ window.findWatchlistArchiveFilm = function (item, stateRef = state) {
 };
 
 /**
- * Lists exact and possible archive matches for a watchlist item.
- * @param {WatchlistItem} item Watchlist item.
- * @param {Object} [options] Candidate limit options.
- * @returns {Object[]} Ranked candidates with film, confidence, and reason fields.
- */
-window.watchlistArchiveMatchCandidates = function (item, options = {}) {
-  let normalizedTitle = window.normalizeTitle(item?.title || "");
-  let year =
-    window.filmConcreteYear?.(item?.year) ||
-    (/^\d{4}$/.test(String(item?.year || "")) ? String(item.year) : "");
-  let tmdbId = String(item?.tmdbId || "").trim();
-  let limit = Math.max(1, Number(options.limit) || 5);
-  let candidates = [];
-  let seen = new Set();
-  function confidence(film) {
-    let sameTmdb = tmdbId && String(film.tmdbId || "").trim() === tmdbId;
-    let sameTitle =
-      normalizedTitle && window.normalizeTitle(film.title) === normalizedTitle;
-    let sameYear = year && String(film.year || "") === year;
-    if (sameTmdb) return { level: "exact", label: "TMDB ID match" };
-    if (sameTitle && sameYear)
-      return { level: "exact", label: "Title and year match" };
-    if (sameTitle)
-      return {
-        level: "possible",
-        label: year ? "Same title, different year" : "Same title, year unknown",
-      };
-    return null;
-  }
-  Object.values(state.filmsById || {}).forEach((film) => {
-    let result = confidence(film);
-    if (!result || seen.has(film.id)) return;
-    seen.add(film.id);
-    candidates.push({ film, confidence: result.level, reason: result.label });
-  });
-  return candidates
-    .sort((left, right) => {
-      let order = { exact: 0, possible: 1 };
-      return (
-        (order[left.confidence] ?? 9) - (order[right.confidence] ?? 9) ||
-        Math.abs(
-          Number(left.film.year || 0) - Number(year || left.film.year || 0),
-        ) -
-          Math.abs(
-            Number(right.film.year || 0) - Number(year || right.film.year || 0),
-          ) ||
-        window.compareEnglishTitles(left.film.title, right.film.title)
-      );
-    })
-    .slice(0, limit);
-};
-
-/**
  * Projects a watchlist item and optional archive match into a film-like record.
  * @param {WatchlistItem} item Watchlist item.
  * @param {FilmRecord|null} [archiveFilm] Matching archive film.
@@ -526,7 +334,10 @@ window.watchlistFilmLike = function (
     adaptationSource:
       item.adaptationSource || archiveFilm?.adaptationSource || "",
     platform: item.platform || archiveFilm?.platform || "",
-    runtimeMinutes: item.runtimeMinutes || archiveFilm?.runtimeMinutes || "",
+    // '' when unknown, unlike a stored FilmRecord.
+    runtimeMinutes: /** @type {number} */ (
+      item.runtimeMinutes || archiveFilm?.runtimeMinutes || ""
+    ),
     tags: window.parseFilmTags([
       ...(archiveFilm?.tags || []),
       ...(item.tags || []),
@@ -750,44 +561,6 @@ window.setWatchlistMetadata = function (id, values, options = {}) {
 };
 
 /**
- * Removes one item from the watchlist entirely (as opposed to marking it
- * watched, which is a transition, not a removal). Always records the id
- * into `state.declinedOfficialWatchlistAdds` (issue: shared official-results
- * archive) so the shared archive's automatic reconciliation never re-adds
- * this exact title+year again - harmless to record for a non-official item,
- * since that reconciliation only ever consults the set for official
- * candidates. This exclusion is scoped to that one automatic path only: a
- * manual re-add (the existing Completion-page "Add unseen" button) or any
- * other import path is never blocked by it.
- * @param {string} id Watchlist identifier.
- * @param {Object} [options] Logging and persistence options.
- * @returns {boolean} Whether an item was removed.
- */
-window.removeWatchlistItem = function (id, options = {}) {
-  let item = window.findWatchlistItemById(id);
-  if (!item) return false;
-  item.id ||= window.watchlistItemId(item);
-  state.watchlist = (state.watchlist || []).filter(
-    (candidate) => candidate !== item,
-  );
-  state.declinedOfficialWatchlistAdds ||= [];
-  if (!state.declinedOfficialWatchlistAdds.includes(item.id))
-    state.declinedOfficialWatchlistAdds.push(item.id);
-  if (options.log !== false && window.recordEdit)
-    window.recordEdit({
-      type: "watchlist removed",
-      summary: `${item.title || "Watchlist film"} (${item.year || ""})`,
-      sheetHint: "Watchlist",
-      changes: [{ field: "watchlist", before: item.title || "", after: "" }],
-      context: { watchlistId: item.id },
-    });
-  window.recomputeWatchlistOrder?.();
-  window.markAggregatesDirty?.("watchlist item removed");
-  if (options.save !== false) window.save();
-  return true;
-};
-
-/**
  * Assigns a tier to selected watchlist items and restores canonical ordering.
  * @param {string[]} ids Watchlist identifiers.
  * @param {string} tier Target tier.
@@ -905,101 +678,6 @@ window.recomputeWatchlistOrder = function () {
 };
 
 /**
- * Moves one watchlist item relative to another item in the same tier.
- * @param {string} fromId Identifier of the item to move.
- * @param {string} toId Identifier of the reference item.
- * @param {'before'|'after'} [position] Placement relative to the reference item.
- * @returns {Object} Move result with an explanatory reason on failure.
- */
-window.moveWatchlistItemWithinTier = function (
-  fromId,
-  toId,
-  position = "before",
-  options = {},
-) {
-  if (!fromId || !toId || fromId === toId)
-    return { ok: false, reason: "Choose two different watchlist films." };
-  let fromItem = window.findWatchlistItemById(fromId);
-  let toItem = window.findWatchlistItemById(toId);
-  if (!fromItem || !toItem)
-    return { ok: false, reason: "Both films must exist in the watchlist." };
-  let fromTier = window.normalizeWatchlistTier(fromItem.tier);
-  let fromGrade = window.watchlistTierGrade(
-    fromItem.tier,
-    fromItem.tierModifier,
-  );
-  let toGrade = window.watchlistTierGrade(toItem.tier, toItem.tierModifier);
-  if (fromGrade !== toGrade)
-    return {
-      ok: false,
-      reason: "Watchlist ordering moves are limited to the same interest tier.",
-    };
-
-  let orderedItems = watchlistItemsInCanonicalOrder();
-  let buckets = new Map();
-  orderedItems.forEach((item) => {
-    let grade = window.watchlistTierGrade(item.tier, item.tierModifier);
-    if (!buckets.has(grade)) buckets.set(grade, []);
-    buckets.get(grade).push(item);
-  });
-  let gradeItems = [...(buckets.get(fromGrade) || [])];
-  let fromIndex = gradeItems.indexOf(fromItem);
-  let toIndex = gradeItems.indexOf(toItem);
-  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex)
-    return { ok: false, reason: "No watchlist move needed." };
-  let beforeOrder = fromItem.order || "";
-  gradeItems.splice(fromIndex, 1);
-  toIndex = gradeItems.indexOf(toItem);
-  gradeItems.splice(position === "after" ? toIndex + 1 : toIndex, 0, fromItem);
-  buckets.set(fromGrade, gradeItems);
-  let rankedOrder = 1;
-  [...buckets.keys()]
-    .sort((a, b) => a - b)
-    .forEach((grade) => {
-      let items = buckets.get(grade);
-      let isTierRanked =
-        grade === fromGrade ||
-        items.some(
-          (it) => Number.isFinite(Number(it.order)) && Number(it.order) > 0,
-        );
-      items.forEach((item) => {
-        if (isTierRanked) {
-          item.order = rankedOrder++;
-        } else {
-          item.order = null;
-        }
-      });
-    });
-  window.state._watchlistDirectorLookup = null;
-  window.markAggregatesDirty?.("watchlist order reordered");
-  if (window.recordEdit) {
-    window.recordEdit({
-      type: "watchlist order reorder",
-      summary: `${fromItem.title} ${position} ${toItem.title}`,
-      sheetHint: "Watchlist",
-      changes: [
-        {
-          field: fromItem.title,
-          before: String(beforeOrder),
-          after: String(fromItem.order || ""),
-        },
-        {
-          field: "moved",
-          before: "",
-          after:
-            position === "after"
-              ? `after ${toItem.title}`
-              : `before ${toItem.title}`,
-        },
-      ],
-      context: { fromId, toId, position, tier: fromTier },
-    });
-  }
-  if (options.save !== false) window.save();
-  return { ok: true };
-};
-
-/**
  * Lists one interest tier's watchlist items in their current canonical order.
  * @param {string} tier Interest tier.
  * @returns {WatchlistItem[]}
@@ -1009,120 +687,6 @@ window.watchlistTierItemsInOrder = function (tier) {
   return watchlistItemsInCanonicalOrder().filter(
     (item) => window.normalizeWatchlistTier(item.tier) === normalizedTier,
   );
-};
-
-/**
- * Filters one interest tier's items to a period scope, or the whole tier,
- * keeping their existing relative order (issue #73's merge tool).
- * @param {string} tier Interest tier.
- * @param {'year'|'decade'|'century'|'all'} periodType Scope granularity.
- * @param {string} [periodKey] Period key; ignored when periodType is "all".
- * @returns {WatchlistItem[]}
- */
-window.watchlistTierPeriodScopeItems = function (tier, periodType, periodKey) {
-  let items = window.watchlistTierItemsInOrder(tier);
-  if (periodType === "all") return items;
-  return items.filter((item) => {
-    let archiveFilm = window.findWatchlistArchiveFilm(item);
-    return window.filmMatchesFilters(
-      { year: String(item.year || archiveFilm?.year || "").trim() },
-      { period: `${periodType}:${periodKey}` },
-    );
-  });
-};
-
-/**
- * Applies a fully-decided merge order to the tier-bucket slots the given ids
- * already occupy, leaving every other item in the tier at its existing
- * position. A workflow tool for arriving at a tier's order faster by
- * interleaving two already-ordered groups (issue #73) - not a second
- * persisted order model; the result is still just the one global `order`
- * field every other watchlist tool reads and writes.
- * @param {string} tier Interest tier.
- * @param {string[]} orderedIds Watchlist ids in the desired final relative order.
- * @returns {Object} Apply result with an explanatory reason on failure.
- */
-window.applyWatchlistTierMergeOrder = function (
-  tier,
-  orderedIds,
-  options = {},
-) {
-  let normalizedTier = window.normalizeWatchlistTier(tier);
-  let ids = (orderedIds || []).map((id) => String(id || "")).filter(Boolean);
-  let idSet = new Set(ids);
-  if (!normalizedTier || idSet.size < 2 || idSet.size !== ids.length)
-    return {
-      ok: false,
-      reason: "Choose at least two distinct watchlist films to merge.",
-    };
-  let orderedItems = watchlistItemsInCanonicalOrder();
-  let buckets = new Map();
-  orderedItems.forEach((item) => {
-    item.id ||= window.watchlistItemId(item);
-    let itemTier = window.normalizeWatchlistTier(item.tier);
-    if (!buckets.has(itemTier)) buckets.set(itemTier, []);
-    buckets.get(itemTier).push(item);
-  });
-  let tierItems = [...(buckets.get(normalizedTier) || [])];
-  let byId = new Map(tierItems.map((item) => [item.id, item]));
-  let mergedItems = ids.map((id) => byId.get(id)).filter(Boolean);
-  let slots = tierItems
-    .map((item, index) => ({ id: item.id, index }))
-    .filter((entry) => idSet.has(entry.id))
-    .map((entry) => entry.index);
-  if (mergedItems.length !== ids.length || slots.length !== ids.length)
-    return {
-      ok: false,
-      reason: "Some selected films are no longer in this tier.",
-    };
-  let nextTierItems = [...tierItems];
-  slots.forEach((slotIndex, position) => {
-    nextTierItems[slotIndex] = mergedItems[position];
-  });
-  buckets.set(normalizedTier, nextTierItems);
-  let rankedOrder = 1;
-  [...buckets.keys()]
-    .sort(
-      (left, right) =>
-        window.watchlistTierRank(left) - window.watchlistTierRank(right),
-    )
-    .forEach((bucketTier) => {
-      let items = buckets.get(bucketTier);
-      let isTierRanked =
-        bucketTier === normalizedTier ||
-        items.some(
-          (it) => Number.isFinite(Number(it.order)) && Number(it.order) > 0,
-        );
-      items.forEach((item) => {
-        if (isTierRanked) {
-          item.order = rankedOrder++;
-        } else {
-          item.order = null;
-        }
-      });
-    });
-  window.state._watchlistArchiveLookup = null;
-  window.state._watchlistItemLookup = null;
-  window.state._watchlistDirectorLookup = null;
-  window.markAggregatesDirty?.("watchlist tier order merged");
-  if (window.recordEdit) {
-    let sample = mergedItems
-      .slice(0, 12)
-      .map((item) => item.title)
-      .join(", ");
-    let extra = mergedItems.length > 12 ? `, +${mergedItems.length - 12}` : "";
-    window.recordEdit({
-      type: "watchlist order merge",
-      summary: `Merged order for ${mergedItems.length} watchlist film(s) in tier ${normalizedTier}`,
-      sheetHint: "Watchlist",
-      changes: [
-        { field: "merged films", before: "", after: `${sample}${extra}` },
-      ],
-      context: { tier: normalizedTier, ids },
-    });
-  }
-  if (options.save !== false) window.save();
-  return { ok: true, changed: mergedItems.length };
 };
 
 /**
@@ -1205,8 +769,8 @@ window.compareWatchlistItems = function (left, right) {
 
 /**
  * Compares watchlist items by tier and a selected secondary field.
- * @param {WatchlistItem} left Left item.
- * @param {WatchlistItem} right Right item.
+ * @param {WatchlistItem & {tier_modifier?: string}} left Left item or Supabase watchlist row.
+ * @param {WatchlistItem & {tier_modifier?: string}} right Right item or Supabase watchlist row.
  * @param {'order'|'title'|'year'} [sort] Secondary sort field.
  * @param {'asc'|'desc'} [order] Secondary sort direction.
  * @returns {number}
@@ -1254,216 +818,4 @@ window.compareWatchlistItemsBy = function (
     Number(left?.year || 9999) - Number(right?.year || 9999) ||
     window.compareEnglishTitles(left?.title, right?.title);
   return order === "desc" ? -result : result;
-};
-
-/**
- * Sets or removes a normalized poster on a watchlist item.
- * @param {string} id Watchlist identifier.
- * @param {PosterRecord|null} poster Poster value, or null to remove it.
- * @param {Object} [options] Persistence options.
- * @returns {boolean}
- */
-window.setWatchlistPoster = function (id, poster, options = {}) {
-  let item = window.findWatchlistItemById(id);
-  if (!item) return false;
-  let normalized = poster ? window.normalizePosterRecord(poster) : null;
-  if (poster && !normalized)
-    throw new Error("Poster URL must use HTTP or HTTPS.");
-  item.id ||= window.watchlistItemId(item);
-  if (normalized) item.poster = normalized;
-  else delete item.poster;
-  window.markAggregatesDirty?.("watchlist poster updated");
-  if (options.save !== false) window.save();
-  return true;
-};
-
-let watchlistPosterLookupAttempts = new Set();
-let watchlistMetadataLookupAttempts = new Set();
-
-// Session attempt counts for Data Health's retry queues (issue #44); the
-// shared failure registry itself lives in image-batches.js, which loads
-// before this file on every page.
-/**
- * Returns the number of watchlist enrichment attempts made in this session.
- * @param {'watchlist-posters'|'watchlist-metadata'} type Enrichment queue.
- * @returns {number}
- */
-window.watchlistSessionAttemptCount = function (type) {
-  if (type === "watchlist-posters") return watchlistPosterLookupAttempts.size;
-  if (type === "watchlist-metadata")
-    return watchlistMetadataLookupAttempts.size;
-  return 0;
-};
-
-/**
- * Reports whether a watchlist item needs a poster lookup.
- * @param {WatchlistItem} item Watchlist item.
- * @returns {boolean}
- */
-window.watchlistNeedsPosterLookup = function (item) {
-  let film = window.watchlistFilmLike(item);
-  return Boolean(item?.title) && !film.poster;
-};
-
-/**
- * Looks up and persists a poster for one watchlist item.
- * @param {string} id Watchlist identifier.
- * @param {Object} [options] Poster lookup options.
- * @returns {Promise<PosterRecord|null>}
- */
-window.loadWatchlistPoster = async function (id, options = {}) {
-  let item = window.findWatchlistItemById(id);
-  if (!item) throw new Error("Watchlist film not found.");
-  let film = window.watchlistFilmLike(item);
-  try {
-    let poster = await window.lookupFilmPoster(film, options);
-    if (!poster) {
-      window.recordImageImportFailure("poster");
-      window.save();
-      return null;
-    }
-    window.setWatchlistPoster(id, poster);
-    return poster;
-  } catch (err) {
-    window.recordImageImportFailure("poster");
-    window.save();
-    throw err;
-  }
-};
-
-function watchlistItemKey(item) {
-  return item.id || window.watchlistItemId(item);
-}
-
-function watchlistFailureRecord(
-  item,
-  reason,
-  fallbackReason = "No match found.",
-) {
-  return {
-    title: String(item?.title || "Watchlist film"),
-    year: item?.year || "",
-    id: watchlistItemKey(item),
-    reason: String(reason || fallbackReason),
-  };
-}
-
-/**
- * Fetches posters for an eligible, session-deduplicated batch of watchlist items.
- * @param {WatchlistItem[]} items Candidate items.
- * @param {Object} [options] Batch limits, concurrency, fetch, and progress options.
- * @returns {Promise<MetadataBatchResult>} Batch counts and failure details.
- */
-window.fetchWatchlistPosters = async function (items, options = {}) {
-  return window.runBoundedLookupBatch(
-    items,
-    {
-      idOf: watchlistItemKey,
-      eligible: (item) => window.watchlistNeedsPosterLookup(item),
-      attempts: watchlistPosterLookupAttempts,
-      failureType: "watchlist-posters",
-      failureRecord: (item, reason) => watchlistFailureRecord(item, reason),
-      lookup: (item, context) =>
-        window.lookupFilmPoster(window.watchlistFilmLike(item), context),
-      apply: (item, poster) =>
-        window.setWatchlistPoster(watchlistItemKey(item), poster, {
-          save: false,
-        }),
-      notFoundReason: "No poster found.",
-      warnMessage: (item) => `Watchlist poster lookup failed for ${item.title}`,
-      imageFailureType: "poster",
-    },
-    options,
-  );
-};
-
-/**
- * Reports whether a watchlist item lacks TMDB identity, director, or
- * runtime metadata, or a poster (issue #386 - lookupTmdbMovieMetadata's
- * single TMDB call already returns poster_path regardless of which field
- * prompted the lookup, and setWatchlistTmdbMetadata already applies it
- * when missing, so an otherwise-complete item only needs to become
- * *eligible* for this batch to get it for free - watchlistNeedsPosterLookup
- * stays the source of truth for what "needs a poster" means, reused
- * rather than duplicated here).
- * @param {WatchlistItem} item Watchlist item.
- * @returns {boolean}
- */
-window.watchlistNeedsMetadataLookup = function (item) {
-  return (
-    Boolean(item?.title) &&
-    (!item.tmdbId ||
-      !item.director ||
-      !item.runtimeMinutes ||
-      window.watchlistNeedsPosterLookup(item))
-  );
-};
-
-/**
- * Looks up and persists TMDB metadata for one watchlist item.
- * @param {string} id Watchlist identifier.
- * @param {Object} [options] Metadata lookup and persistence options.
- * @returns {Promise<Object|null>}
- */
-window.loadWatchlistMetadata = async function (id, options = {}) {
-  let item = window.findWatchlistItemById(id);
-  if (!item) throw new Error("Watchlist film not found.");
-  let metadata = await window.lookupTmdbMovieMetadata(
-    window.watchlistFilmLike(item),
-    options,
-  );
-  if (!metadata) return null;
-  window.setWatchlistTmdbMetadata(id, metadata, options);
-  return metadata;
-};
-
-/**
- * Fetches TMDB metadata for an eligible, session-deduplicated watchlist batch.
- * @param {WatchlistItem[]} items Candidate items.
- * @param {Object} [options] Batch limits, concurrency, provider, and progress options.
- * @returns {Promise<MetadataBatchResult>} Batch counts and failure details.
- */
-window.fetchWatchlistMetadata = async function (items, options = {}) {
-  return window.runBoundedLookupBatch(
-    items,
-    {
-      idOf: watchlistItemKey,
-      eligible: (item) => window.watchlistNeedsMetadataLookup(item),
-      attempts: watchlistMetadataLookupAttempts,
-      failureType: "watchlist-metadata",
-      failureRecord: (item, reason) =>
-        watchlistFailureRecord(item, reason, "No TMDB match found."),
-      lookup: (item, context) =>
-        window.lookupTmdbMovieMetadata(window.watchlistFilmLike(item), context),
-      apply: (item, metadata) =>
-        window.setWatchlistTmdbMetadata(watchlistItemKey(item), metadata, {
-          save: false,
-        }),
-      notFoundReason: "No TMDB match found.",
-      warnMessage: (item) =>
-        `Watchlist metadata lookup failed for ${item.title}`,
-    },
-    options,
-  );
-};
-
-/**
- * Loads the bundled watchlist once when state has no persisted watchlist data.
- * @returns {Promise<WatchlistItem[]>}
- */
-window.ensureWatchlistData = async function () {
-  if ((state.watchlist || []).length || typeof fetch !== "function")
-    return state.watchlist || [];
-  try {
-    let response = await fetch("data/watchlist.csv", { cache: "no-store" });
-    if (!response.ok) return state.watchlist || [];
-    let data = window.parseWatchlist(await response.text());
-    state.watchlist = data.items;
-    window.recomputeWatchlistOrder?.();
-    state.watchlistOrderVersion = 1;
-    window.save?.();
-  } catch (err) {
-    // Direct file opening and missing bundled files simply leave the watchlist empty.
-  }
-  return state.watchlist || [];
 };

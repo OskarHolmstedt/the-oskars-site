@@ -6,6 +6,7 @@
   let container = document.getElementById("buildPage");
   let journeyYears = [];
   // Director and franchise ceremonies load after the year map renders.
+  /** @type {{loading?: boolean, model?: Object, error?: string}} */
   let collectionCeremonies = { loading: true };
 
   function stageLabel(stage) {
@@ -48,6 +49,19 @@
   // still open always keeps a direct way to start its ceremony, so a new
   // account isn't stuck grinding through a whole year's ratings first.
   function secondaryAwardsAction(year) {
+    if (year.stage === "awards") {
+      if (year.ratedCount < year.totalCount)
+        return {
+          href: `rate-watched.html?year=${encodeURIComponent(year.year)}`,
+          label: ui("Rate this year"),
+        };
+      if (!year.rankingComplete)
+        return {
+          href: window.yearRankingPageUrl(year.year),
+          label: ui("Rank this year"),
+        };
+      return null;
+    }
     let needsPrompt = year.stage === "rating" || year.stage === "ranking";
     if (needsPrompt && year.totalCount > 0 && !year.awardComplete)
       return {
@@ -81,36 +95,33 @@
           <span class="build-stage-pill build-stage-pill--${escape(year.stage)}">${escape(stageLabel(year.stage))}</span>
         </div>
         <div class="build-stage-banner" aria-label="${escape(ui("Stage progression for {year}", { year: year.year }))}">
-          <div class="build-stage-step ${rateDone ? "is-complete" : year.stage === "rating" ? "is-active" : ""}">
+          <a class="build-stage-step ${rateDone ? "is-complete" : year.stage === "rating" ? "is-active" : ""}" href="rate-watched.html?year=${encodeURIComponent(year.year)}" aria-label="${escape(ui("Rate {year}", { year: year.year }))}">
             <span class="build-stage-step-marker">${rateDone ? "✓" : "1"}</span>
             <span class="build-stage-step-text">
               <span class="build-stage-step-name">${escape(ui("Rate"))}</span>
               <small class="build-stage-step-metric">${rateMetric}</small>
             </span>
-          </div>
-          <div class="build-stage-connector ${rateDone ? "is-complete" : ""}"></div>
-          <div class="build-stage-step ${rankDone ? "is-complete" : year.stage === "ranking" ? "is-active" : ""}">
+          </a>
+          <a class="build-stage-step ${rankDone ? "is-complete" : year.stage === "ranking" ? "is-active" : ""}" href="${escape(window.yearRankingPageUrl(year.year))}" aria-label="${escape(ui("Rank {year}", { year: year.year }))}">
             <span class="build-stage-step-marker">${rankDone ? "✓" : "2"}</span>
             <span class="build-stage-step-text">
               <span class="build-stage-step-name">${escape(ui("Rank"))}</span>
               <small class="build-stage-step-metric">${rankMetric}</small>
             </span>
-          </div>
-          <div class="build-stage-connector ${rankDone ? "is-complete" : ""}"></div>
-          <div class="build-stage-step ${awardDone ? "is-complete" : year.stage === "awards" ? "is-active" : ""}">
+          </a>
+          <a class="build-stage-step ${awardDone ? "is-complete" : year.stage === "awards" ? "is-active" : ""}" href="${escape(window.yearAwardsPageUrl(year.year))}" aria-label="${escape(ui("Ceremony for {year}", { year: year.year }))}">
             <span class="build-stage-step-marker">${awardDone ? "✓" : "3"}</span>
             <span class="build-stage-step-text">
               <span class="build-stage-step-name">${escape(ui("Ceremony"))}</span>
               <small class="build-stage-step-metric">${awardMetric}</small>
             </span>
-          </div>
-          <div class="build-stage-connector ${awardDone ? "is-complete" : ""}"></div>
-          <div class="build-stage-step ${isComplete ? "is-complete is-active" : ""}">
+          </a>
+          <a class="build-stage-step ${isComplete ? "is-complete is-active" : ""}" href="${escape(window.periodPageUrl("year", year.year))}" aria-label="${escape(ui("View {year}", { year: year.year }))}">
             <span class="build-stage-step-marker">${isComplete ? "★" : "4"}</span>
             <span class="build-stage-step-text">
               <span class="build-stage-step-name">${escape(ui("Done"))}</span>
             </span>
-          </div>
+          </a>
         </div>
         ${window.renderPeriodThresholdBadges ? window.renderPeriodThresholdBadges(year.thresholdStats || year.archiveFilms || [], { escape, ui, periodType: "year" }) : ""}
         ${year.otherFilms.length ? `<p class="build-year-note">${escape(ui("{count} rating-only standalone work(s)", { count: year.otherFilms.length }))}</p>` : ""}
@@ -272,8 +283,21 @@
     )
       ? requestedStage
       : "all";
+    function matchesStageFilter(item, filterStage) {
+      if (filterStage === "all") return true;
+      if (filterStage === "rating") return item.ratedCount < item.totalCount;
+      if (filterStage === "ranking")
+        return item.rankingGroupCount > 0 && !item.rankingComplete;
+      if (filterStage === "awards")
+        return item.totalCount > 0 && !item.awardComplete;
+      if (filterStage === "complete") return item.stage === "complete";
+      return item.stage === filterStage;
+    }
+
     let visible =
-      stage === "all" ? years : years.filter((year) => year.stage === stage);
+      stage === "all"
+        ? years
+        : years.filter((item) => matchesStageFilter(item, stage));
     let totals = years.reduce(
       (summary, year) => {
         summary.watched += year.totalCount;
@@ -304,7 +328,7 @@
     ]
       .map(
         ([value, label]) =>
-          `<a href="${escape(filterUrl(value))}"${stage === value ? ' class="active" aria-current="page"' : ""}>${escape(label)}<span>${escape(value === "all" ? years.length : years.filter((year) => year.stage === value).length)}</span></a>`,
+          `<a href="${escape(filterUrl(value))}"${stage === value ? ' class="active" aria-current="page"' : ""}>${escape(label)}<span>${escape(value === "all" ? years.length : years.filter((item) => matchesStageFilter(item, value)).length)}</span></a>`,
       )
       .join("");
     let recommendationAction = recommendation && stageAction(recommendation);

@@ -144,34 +144,23 @@ window.retryBackgroundJob = async function (client, jobId) {
 };
 
 /**
- * Lists background jobs for the authenticated user with optional filtering.
+ * Releases unstarted claimed background job items back to pending upon worker budget exhaustion.
  * @param {Object} client Supabase client instance.
- * @param {Object} [options] Filter options.
- * @param {'film_metadata'|'person_portrait'|'film_gaps'} [options.kind] Optional job kind filter.
- * @param {string|string[]} [options.status] Optional status or statuses filter.
- * @param {number} [options.limit=10] Maximum jobs to return.
- * @returns {Promise<Object[]>}
+ * @param {string} workerId Worker identifier holding the claim.
+ * @param {string[]} itemIds Array of item UUIDs to release.
+ * @returns {Promise<number>} Number of items released.
  */
-window.listBackgroundJobs = async function (client, options = {}) {
+window.releaseBackgroundJobItems = async function (client, workerId, itemIds) {
   if (!client) throw new Error("Supabase client is required.");
-  let query = client
-    .from("background_jobs")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(options.limit || 10);
-  if (options.kind) {
-    query = query.eq("kind", options.kind);
-  }
-  if (options.status) {
-    if (Array.isArray(options.status)) {
-      query = query.in("status", options.status);
-    } else {
-      query = query.eq("status", options.status);
-    }
-  }
-  let { data, error } = await query;
+  let cleanWorker = String(workerId || "").trim();
+  if (!cleanWorker) throw new Error("Worker ID is required.");
+  if (!itemIds?.length) return 0;
+  let { data, error } = await client.rpc("release_background_job_items", {
+    p_worker_id: cleanWorker,
+    p_item_ids: itemIds,
+  });
   if (error) throw error;
-  return data || [];
+  return Number(data || 0);
 };
 
 /**
@@ -276,6 +265,7 @@ window.applyBackgroundFilmMetadata = async function (client, filmId, metadata) {
  * @param {string} options.workerId Unique worker ID.
  * @param {number} [options.batchSize=10] Max items to claim.
  * @param {number} [options.leaseSeconds=60] Lease timeout.
+ * @param {number} [options.maxExecutionMs] Execution budget limit in milliseconds.
  * @param {(kind: string, payload: Object) => Promise<Object|null>} options.lookup Async item lookup function.
  * @param {(kind: string, itemKey: string, result: Object) => Promise<void>} [options.apply] Optional custom apply override.
  * @returns {Promise<{claimed: number, processed: number, succeeded: number, failed: number, items: Object[]}>}
@@ -301,11 +291,35 @@ window.runBackgroundMetadataBatchWorker = async function (client, options) {
     items: [],
   };
 
-  for (let item of claimed) {
+  let startTime = Date.now();
+  let maxExecutionMs = options.maxExecutionMs || null;
+  let minItemBudgetMs = 2000;
+
+  for (let i = 0; i < claimed.length; i++) {
+    let item = claimed[i];
+    if (
+      maxExecutionMs &&
+      Date.now() - startTime > maxExecutionMs - minItemBudgetMs
+    ) {
+      let unstartedIds = claimed.slice(i).map((it) => it.item_id);
+      if (unstartedIds.length) {
+        try {
+          await window.releaseBackgroundJobItems(
+            client,
+            workerId,
+            unstartedIds,
+          );
+        } catch (relErr) {
+          console.warn("Could not release unstarted job items:", relErr);
+        }
+      }
+      break;
+    }
     try {
       let payload = item.payload;
       let filmJob =
         item.job_kind === "film_metadata" || item.job_kind === "film_gaps";
+      let personJob = item.job_kind === "person_portrait";
       if (filmJob && !options.apply) {
         let prepared = await client.rpc("prepare_background_film_lookup", {
           p_film_id: item.item_key,
@@ -314,6 +328,33 @@ window.runBackgroundMetadataBatchWorker = async function (client, options) {
         payload = prepared.data;
         if (!payload)
           throw new Error("Film lookup preparation returned no data");
+      } else if (personJob && !options.apply) {
+        let prepared = await client.rpc("prepare_background_person_lookup", {
+          p_person_id: item.item_key,
+        });
+        if (prepared.error) throw prepared.error;
+        if (!prepared.data)
+          throw new Error("Person lookup preparation returned no data");
+
+        let queuedTmdbId = item.payload?.tmdb_id ?? item.payload?.tmdbId;
+        if (
+          queuedTmdbId != null &&
+          prepared.data.tmdb_id != null &&
+          Number(queuedTmdbId) !== Number(prepared.data.tmdb_id)
+        ) {
+          throw new Error("Conflicting TMDB identities; review this person");
+        }
+
+        payload = {
+          ...item.payload,
+          ...prepared.data,
+          credited_film_tmdb_ids: [
+            ...new Set([
+              ...(item.payload?.credited_film_tmdb_ids || []),
+              ...(prepared.data?.credited_film_tmdb_ids || []),
+            ]),
+          ],
+        };
       }
       let skipped =
         filmJob &&

@@ -108,6 +108,7 @@
       `<p class="data-panel-status">Using ${escape(source)}: <strong>${escape(title)}</strong>${year ? ` (${escape(year)})` : ""}. <button type="button" class="button-link" data-intake-lookup-clear>Change</button></p>`;
   }
 
+  /** @param {Element} form @param {{id?: string, tmdbId?: string, title?: string, year?: string, director?: string}} film */
   function applyPickedFilm(form, { id, tmdbId, title, year, director }) {
     form.querySelector('[name="title"]').value = title || "";
     form.querySelector('[name="year"]').value = year || "";
@@ -454,7 +455,7 @@
     if (!fresh && !rating && !ranking && !award) return;
     event.preventDefault();
     if (busy) return;
-    let submitted = new FormData(event.target);
+    let submitted = new FormData(/** @type {HTMLFormElement} */ (event.target));
     if (event.submitter?.name)
       submitted.set(event.submitter.name, event.submitter.value);
     busy = true;

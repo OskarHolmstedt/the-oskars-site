@@ -1,9 +1,7 @@
 /**
- * @file Loads the live public Community directory and defines its snapshot contract and
- * read-only aggregation used by multi-profile comparisons and joint ceremonies.
+ * @file Loads the live public Community directory and defines the read-only
+ * aggregation used by multi-profile comparisons and joint ceremonies.
  */
-
-window.OSKARS_COMMUNITY_INDEX_SCHEMA_VERSION = 1;
 
 /**
  * Lists published profiles with live public counts and a small poster preview without hydrating an archive.
@@ -191,85 +189,6 @@ function communityTitleCompare(left, right) {
     sensitivity: "base",
   });
 }
-
-/**
- * Validates the small generated public Community directory.
- * @param {Object} source Candidate directory.
- * @returns {{valid: boolean, errors: string[]}} Validation result.
- */
-window.validateCommunityIndex = function (source) {
-  let errors = [];
-  if (!source || typeof source !== "object" || Array.isArray(source))
-    return { valid: false, errors: ["directory is not a JSON object"] };
-  if (
-    source.communityIndexSchemaVersion !==
-    window.OSKARS_COMMUNITY_INDEX_SCHEMA_VERSION
-  )
-    errors.push(
-      `communityIndexSchemaVersion must be ${window.OSKARS_COMMUNITY_INDEX_SCHEMA_VERSION}`,
-    );
-  if (!Array.isArray(source.profiles)) errors.push("profiles must be an array");
-  let slugs = new Set();
-  (source.profiles || []).forEach((profile, index) => {
-    let path = `profiles[${index}]`;
-    if (!profile || typeof profile !== "object" || Array.isArray(profile)) {
-      errors.push(`${path} must be an object`);
-      return;
-    }
-    let slug = communityText(profile.slug);
-    if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
-      errors.push(`${path}.slug is invalid`);
-    if (slugs.has(slug)) errors.push(`${path}.slug is duplicated`);
-    slugs.add(slug);
-    if (!communityText(profile.ownerName))
-      errors.push(`${path}.ownerName is missing`);
-    if (!communityText(profile.activeRevision))
-      errors.push(`${path}.activeRevision is missing`);
-    if (!profile.summary || typeof profile.summary !== "object")
-      errors.push(`${path}.summary is missing`);
-    if (!Array.isArray(profile.posters))
-      errors.push(`${path}.posters must be an array`);
-  });
-  return { valid: errors.length === 0, errors };
-};
-
-/**
- * Builds the privacy-safe summary embedded in the generated directory.
- * @param {Object} publicData Valid public-profile data.
- * @returns {{filmCount: number, ratedCount: number, nominationCount: number, winnerCount: number, yearCount: number, posters: string[]}}
- */
-window.buildCommunityProfileSummary = function (publicData) {
-  let films = [...communityFilmMap(publicData).values()];
-  let nominations = 0;
-  let winners = 0;
-  films.forEach((film) =>
-    (film.awards || []).forEach((award) => {
-      nominations += 1;
-      if (Number(award.placement) === 1) winners += 1;
-    }),
-  );
-  let posters = films
-    .filter((film) => /^https?:\/\//.test(communityText(film.poster?.url)))
-    .sort(
-      (left, right) =>
-        (Number(left.allTimeRank) || 999999) -
-          (Number(right.allTimeRank) || 999999) ||
-        communityRatingValue(right) - communityRatingValue(left) ||
-        communityTitleCompare(left.title, right.title),
-    )
-    .slice(0, 4)
-    .map((film) => film.poster.url);
-  return {
-    filmCount: films.length,
-    ratedCount: films.filter(communityRatingValue).length,
-    nominationCount: nominations,
-    winnerCount: winners,
-    yearCount: new Set(
-      films.map((film) => communityText(film.year)).filter(Boolean),
-    ).size,
-    posters,
-  };
-};
 
 /**
  * Compares selected live public-profile projections.

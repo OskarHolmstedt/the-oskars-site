@@ -65,18 +65,6 @@ function filmTagLookup() {
   return cache;
 }
 
-/** Finds archive films carrying a tag. @param {string} tag Tag. @returns {FilmRecord[]} Films. */
-window.filmsByTag = function (tag) {
-  let key = window.normalizeFilmTag(tag).toLocaleLowerCase();
-  return filmTagLookup().byKey.get(key)?.films || [];
-};
-
-/** Finds watchlist items carrying a tag. @param {string} tag Tag. @returns {WatchlistItem[]} Items. */
-window.watchlistItemsForTag = function (tag) {
-  let key = window.normalizeFilmTag(tag).toLocaleLowerCase();
-  return filmTagLookup().byKey.get(key)?.watchlist || [];
-};
-
 /** Finds one indexed tag record. @param {string} tag Tag. @returns {TagRecord|null} Tag record. */
 window.tagRecord = function (tag) {
   let key = window.normalizeFilmTag(tag).toLocaleLowerCase();

@@ -266,27 +266,6 @@ window.planAwardPlacementReorder = function (
   });
 };
 
-/** Reorders dense award placements through the shared plan application path. @param {string} year Period key. @param {string} category Category. @param {string} fromFilmId Moved film id. @param {number} fromPlacement Old placement. @param {string} toFilmId Target film id. @param {number} toPlacement Target placement. @returns {boolean} Whether reordered. */
-window.swapAwardPlacements = function (
-  year,
-  category,
-  fromFilmId,
-  fromPlacement,
-  toFilmId,
-  toPlacement,
-) {
-  let plan = window.planAwardPlacementReorder(
-    year,
-    category,
-    fromFilmId,
-    fromPlacement,
-    toFilmId,
-    toPlacement,
-  );
-  if (!plan.ok) return false;
-  return window.applyNominationPlacementPlan(plan).ok;
-};
-
 /** Builds a dry-run deletion that compacts an emptied placement and preserves ties. @param {string} year Period key. @param {string} category Category. @param {string} filmId Deleted film id. @param {number} placement Deleted placement. @returns {NominationPlacementPlan} Deletion plan. */
 window.planNominationDeletion = function (year, category, filmId, placement) {
   let key = String(year || "");
@@ -491,11 +470,4 @@ window.planNominationDeletion = function (year, category, filmId, placement) {
       tieRetained,
     },
   });
-};
-
-/** Deletes one nomination through the shared plan application path. @param {string} year Period key. @param {string} category Category. @param {string} filmId Deleted film id. @param {number} placement Deleted placement. @returns {Object} Delete result. */
-window.deleteNomination = function (year, category, filmId, placement) {
-  let plan = window.planNominationDeletion(year, category, filmId, placement);
-  if (!plan.ok) return { ok: false, reason: plan.errors.join("\n"), plan };
-  return window.applyNominationPlacementPlan(plan);
 };

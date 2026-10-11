@@ -54,7 +54,7 @@ window.pageQueryParam = function (name) {
  * Renders persistent, politely announced action feedback with an optional
  * caller-owned follow-up action such as Undo.
  * @param {Object} [options] Feedback content and action options.
- * @param {string} options.message Plain-text result message.
+ * @param {string} [options.message] Plain-text result message.
  * @param {string} [options.actionLabel] Plain-text action label.
  * @param {string} [options.actionAttribute] Safe `data-*` attribute for delegated handling.
  * @param {string} [options.actionValue] Optional action attribute value.
@@ -75,30 +75,13 @@ window.renderActionFeedback = function (options = {}) {
   return `<p class="data-panel-status action-feedback" role="status" aria-live="polite" aria-atomic="true"><span>${escape(message)}</span>${actionHtml}</p>`;
 };
 
-/**
- * Renders optional plain-text diagnostics behind a consistent disclosure.
- * @param {Object} [options] Disclosure content and labels.
- * @param {string} options.text Plain-text technical detail.
- * @param {string} [options.summary] Disclosure label.
- * @param {(value:*)=>string} [options.escape] HTML escaping function.
- * @returns {string} Disclosure HTML, or an empty string without detail.
- */
-window.renderTechnicalDetails = function (options = {}) {
-  let escape = options.escape || window.pageEscape;
-  let text = String(options.text || "").trim();
-  if (!text) return "";
-  let ui = window.uiText || ((value) => value);
-  let summary = String(options.summary || ui("Technical details"));
-  return `<details class="technical-details"><summary>${escape(summary)}</summary><p>${escape(text)}</p></details>`;
-};
-
 // Turns a watch-queue reason (src/domain/watch-queue.js, issue #160) into
 // one full, independently localizable sentence per reason type, rather than
 // gluing a translated lead-in to a translated fragment (composed sentences
 // don't reliably hold together across languages). Shared by Discover's
 // "Surprise me" picker (issue #161) and the watchlist view's queue panel
 // (issue #163) so the two surfaces describe a pick identically.
-/** Formats a watch-queue pick reason for display. @param {import('../domain/watch-queue.js').WatchQueueReason} reason Reason to format. @returns {string} */
+/** Formats a watch-queue pick reason for display. @param {WatchQueueReason} reason Reason to format. @returns {string} */
 window.watchQueueReasonText = function (reason) {
   let ui =
     window.uiText ||
@@ -177,7 +160,7 @@ window.filmViewMode = function (defaultMode = "grid") {
   let view = window.pageQueryParam("view");
   return view === "list" || view === "grid"
     ? view
-    : String(defaultMode || "grid");
+    : /** @type {'list'|'grid'} */ (String(defaultMode || "grid"));
 };
 
 // Split-vs-combined mode for pages that render separate watched and
@@ -285,10 +268,14 @@ window.applyWatchlistBulkTierChange = function (
     window.alert?.(ui("No filtered films need that interest change."));
     return { ok: false, changed: 0, cancelled: true };
   }
+  let changedIds = new Set(
+    changedEntries.map((entry) => watchlistBulkEntryItem(entry)?.id),
+  );
   let snapshot = (window.state?.watchlist || []).map((item) => ({
     id: item.id || window.watchlistItemId?.(item),
     tier: item.tier || "",
     order: item.order || "",
+    changedTier: changedIds.has(item.id),
   }));
   let ids = changedEntries
     .map((entry) => {
@@ -313,15 +300,15 @@ window.applyWatchlistBulkTierChange = function (
   return result;
 };
 
-/** Restores the last bulk interest change made in the current view. @returns {Object} Undo result. */
-window.undoWatchlistBulkTierChange = function () {
+/** Restores the last bulk interest change made in the current view. @param {Object} [options] Persistence controls. @returns {Object} Undo result. */
+window.undoWatchlistBulkTierChange = function (options = {}) {
   let feedback = watchlistBulkTierFeedbackForCurrentView();
   if (!feedback?.snapshot) return { ok: false, reason: "Nothing to undo." };
   let restored = 0;
   feedback.snapshot.forEach((before) => {
     let item = window.findWatchlistItemById?.(before.id);
     if (!item) return;
-    item.tier = before.tier;
+    if (before.changedTier) item.tier = before.tier;
     item.order = before.order;
     restored += 1;
   });
@@ -335,7 +322,8 @@ window.undoWatchlistBulkTierChange = function () {
       { field: "tier", before: "bulk change", after: "previous values" },
     ],
   });
-  window.save?.({ immediate: true, rebuild: false });
+  if (options.save !== false)
+    window.save?.({ immediate: true, rebuild: false });
   let ui = window.uiText || ((text) => text);
   watchlistBulkTierFeedback = {
     viewKey: watchlistBulkTierViewKey(),
@@ -347,22 +335,57 @@ window.undoWatchlistBulkTierChange = function () {
 
 /**
  * Binds the standardized bulk-tier select and apply button within a page container.
- * @param {{container:Element, entries:() => Object[], rerender:(outcome:{tier:string, result:Object}) => *}} options Page-specific entry and rerender hooks.
- * @returns {{apply:(nextTier?:string) => Object, value:() => string, destroy:() => void}} Controller methods for direct use and cleanup.
+ * @param {{container?:Element, entries?:() => Object[], rerender?:(outcome:{tier:string, result:Object, undone?:boolean}) => *, persist?:(before:Object[], after:Object[]) => Promise<void>}} [options] Page-specific entry and rerender hooks.
+ * @returns {{apply:(nextTier?:string) => (Object|Promise<Object>), value:() => string, destroy:() => void}} Controller methods for direct use and cleanup.
  */
 window.bindWatchlistBulkTierControl = function (options = {}) {
   let container = options.container;
   let selectedTier = "";
 
+  let busy = false;
+  function finish(result, before, undone = false) {
+    let renderResult = () => {
+      if (result?.ok)
+        options.rerender?.({ tier: selectedTier, result, undone });
+      if (
+        watchlistBulkTierFeedback &&
+        watchlistBulkTierFeedback.viewKey !== watchlistBulkTierViewKey()
+      ) {
+        watchlistBulkTierFeedback.viewKey = watchlistBulkTierViewKey();
+        // A filter-changing action renders under its new URL; show Undo there too.
+        options.rerender?.({ tier: selectedTier, result, undone });
+      }
+      return result || { ok: false };
+    };
+    if (!options.persist || !result?.ok) return renderResult();
+    busy = true;
+    return options
+      .persist(before, window.cloneRecord(window.state.watchlist || []))
+      .then(renderResult)
+      .catch((err) => {
+        watchlistBulkTierFeedback = null;
+        window.alert?.(err.message || String(err));
+        let failure = { ok: false, reason: err.message || String(err) };
+        options.rerender?.({ tier: selectedTier, result: failure, undone });
+        return failure;
+      })
+      .finally(() => {
+        busy = false;
+      });
+  }
   function apply(nextTier = selectedTier) {
-    if (!(window.oskarsCapabilities?.().canEdit ?? true)) return { ok: false };
+    if (busy || !(window.oskarsCapabilities?.().canEdit ?? true))
+      return { ok: false };
+    let before = options.persist
+      ? window.cloneRecord(window.state.watchlist || [])
+      : [];
     selectedTier = window.normalizeWatchlistTier?.(nextTier) || "";
     let result = window.applyWatchlistBulkTierChange?.(
       options.entries?.() || [],
       selectedTier,
+      { save: !options.persist },
     );
-    if (result?.ok) options.rerender?.({ tier: selectedTier, result });
-    return result || { ok: false };
+    return finish(result, before);
   }
 
   function onChange(event) {
@@ -373,9 +396,14 @@ window.bindWatchlistBulkTierControl = function (options = {}) {
 
   function onClick(event) {
     if (event.target?.closest?.("[data-watchlist-bulk-tier-undo]")) {
-      let result = window.undoWatchlistBulkTierChange?.() || { ok: false };
-      if (result.ok)
-        options.rerender?.({ tier: selectedTier, result, undone: true });
+      if (busy) return;
+      let before = options.persist
+        ? window.cloneRecord(window.state.watchlist || [])
+        : [];
+      let result = window.undoWatchlistBulkTierChange?.({
+        save: !options.persist,
+      }) || { ok: false };
+      finish(result, before, true);
       return;
     }
     let button = event.target?.closest?.("[data-watchlist-bulk-tier-apply]");
@@ -470,7 +498,7 @@ window.initialsFor = function (name) {
 
 /**
  * Formats a numeric star rating with a star symbol (e.g. 4★, 4.5★).
- * @param {number} value Star rating value.
+ * @param {number|string} value Star rating value.
  * @returns {string} Formatted star rating string.
  */
 window.formatStarRating = function (value) {

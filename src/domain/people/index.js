@@ -182,14 +182,29 @@ window.peopleDirectoryEdgesInUse = function () {
  */
 window.personWatchlistItems = function (person) {
   if (!peopleDirectoryEdges()) {
-    let byId = new Map(
-      (state.watchlist || []).map((item) => [
-        item.id || window.watchlistItemId?.(item),
-        item,
-      ]),
-    );
+    let version = Number(state.aggregateVersion) || 0;
+    let cache = state._watchlistByIdLookup;
+    if (
+      cache?.source !== state.watchlist ||
+      cache?.length !== (state.watchlist?.length || 0) ||
+      cache?.version !== version
+    ) {
+      let byId = new Map(
+        (state.watchlist || []).map((item) => [
+          item.id || window.watchlistItemId?.(item),
+          item,
+        ]),
+      );
+      cache = {
+        source: state.watchlist,
+        length: state.watchlist?.length || 0,
+        version,
+        byId,
+      };
+      state._watchlistByIdLookup = cache;
+    }
     return (person?.watchlistIds || [])
-      .map((id) => byId.get(id))
+      .map((id) => cache.byId.get(id))
       .filter(Boolean);
   }
   return (person?.watchlistPreview || [])

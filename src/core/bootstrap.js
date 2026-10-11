@@ -70,7 +70,7 @@ async function ensurePublicProfileData(slug) {
   return false;
 }
 
-// Without supabase-workspace.js's domain list (a stubbed loader), the archive
+// Without supabase/workspace.js's domain list (a stubbed loader), the archive
 // is one all-or-nothing domain.
 function allHydrationDomains() {
   return window.SUPABASE_HYDRATION_DOMAINS || ["complete"];

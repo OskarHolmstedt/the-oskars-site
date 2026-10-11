@@ -55,30 +55,27 @@ window.importFieldValuesDiffer = importFieldValuesDiffer;
  * @param {Object} [options] Merge, parsing, persistence, and reporting options.
  * @param {boolean} [options.confirmDerivedRanks] Whether ranked imports confirm the year, decade, and century positions derived from global order.
  * @param {boolean} [options.checkEligibility] Whether to check nomination eligibility against metadata; defaults to true.
+ * @param {string[][]} [options.rows] Pre-split table rows used in place of `raw`.
+ * @param {string[][]} [options.tableRows] Alias of `rows`.
+ * @param {number} [options.sheetStartRow] Sheet row number of the first table row.
+ * @param {string} [options.sourceLabel] Source name used in warnings.
+ * @param {boolean} [options.requireAllTimeMembership] Whether to report imported films missing from the all-time list.
+ * @param {boolean} [options.silentReport] Whether to skip showing the import report.
  * @returns {ImportReport|null|undefined} Import report, null on exceptions, or
  *   undefined when input or import type validation stops the transaction.
  */
 window.importData = function (raw, importType, options = {}) {
   try {
     if (importType === "ranked") importType = "list";
-    let suppliedRows =
-      options.rows ||
-      options.tableRows ||
-      options.collectionAwardRows ||
-      options.directorRows ||
-      options.franchiseRows;
+    let suppliedRows = options.rows || options.tableRows;
 
     if (!String(raw || "").trim() && !Array.isArray(suppliedRows)) {
       alert("Empty input");
       return;
     }
+    let importedPeriods = new Set();
     let report = {
-      source:
-        importType === "table"
-          ? "Bracket text"
-          : importType === "collection-awards"
-            ? "Collection awards"
-            : "Ranked list",
+      source: importType === "table" ? "Bracket text" : "Ranked list",
       filmsParsed: 0,
       filmsAdded: 0,
       filmsMerged: 0,
@@ -86,7 +83,7 @@ window.importData = function (raw, importType, options = {}) {
       awardsRejected: 0,
       ruleWarnings: 0,
       skipped: 0,
-      periods: new Set(),
+      periods: [],
       warnings: [],
       titleVariants: [],
       ruleViolations: [],
@@ -143,55 +140,6 @@ window.importData = function (raw, importType, options = {}) {
         return;
       state.sourceConflicts.push(record);
       report.sourceConflicts.push(record);
-    }
-
-    function ratingsDisagree(existingValue, incomingValue) {
-      let existing = window.filmRatingSortValue?.(existingValue) ?? 0;
-      let incoming = window.filmRatingSortValue?.(incomingValue) ?? 0;
-      return Boolean(existing && incoming && existing !== incoming);
-    }
-
-    let archiveFilmsByTitle = null;
-    function getArchiveFilmsByTitle() {
-      if (!archiveFilmsByTitle) {
-        archiveFilmsByTitle = new Map();
-        Object.values(state.years || {}).forEach((period) => {
-          (period.films || []).forEach((film) => {
-            let title = normalizeTitle(film?.title || "");
-            if (!title) return;
-            let list = archiveFilmsByTitle.get(title);
-            if (!list) {
-              list = [];
-              archiveFilmsByTitle.set(title, list);
-            }
-            list.push(film);
-          });
-        });
-      }
-      return archiveFilmsByTitle;
-    }
-
-    function recordArchiveRatingConflicts(entry) {
-      let title = normalizeTitle(entry?.title || "");
-      if (!title) return;
-      let candidates = getArchiveFilmsByTitle().get(title) || [];
-      candidates.forEach((film) => {
-        if (!sourceFilmMatchesEntry(film, entry)) return;
-        if (!ratingsDisagree(film, entry.rating)) return;
-        recordSourceConflict({
-          target: "archive",
-          field: "rating",
-          title: film.title,
-          year: film.year || "",
-          rowNumber: entry.rowNumber || "",
-          existing:
-            window.renderFilmRating?.(film) || String(film.rating || ""),
-          incoming:
-            window.renderFilmRating?.(entry.rating) ||
-            String(entry.rating || ""),
-          kept: "existing",
-        });
-      });
     }
 
     function validateFilmAwards(film, periodType) {
@@ -602,368 +550,6 @@ window.importData = function (raw, importType, options = {}) {
           }
         }
       }
-      archiveFilmsByTitle = null;
-    }
-
-    function sourceFilmMatchesEntry(film, entry) {
-      let title = normalizeTitle(entry?.title || "");
-      if (!title || normalizeTitle(film?.title || "") !== title) return false;
-      if (
-        entry.year &&
-        window.filmConcreteYear?.(film?.year) !== entry.year &&
-        String(film?.year || "") !== entry.year
-      )
-        return false;
-      return true;
-    }
-
-    function addFranchiseToFilmSource(film, membership) {
-      let before = window.formatFranchiseMemberships?.(film.franchises) || "";
-      film.franchises = window.normalizeFranchiseMemberships?.([
-        ...(film.franchises || []),
-        membership,
-      ]) ||
-        film.franchises || [membership];
-      let after = window.formatFranchiseMemberships?.(film.franchises) || "";
-      return before !== after;
-    }
-
-    function addDirectorToFilmSource(film, director) {
-      if (!director || film.director) return false;
-      film.director = director;
-      film.directors = window.splitRecipientNames
-        ? window.splitRecipientNames(director)
-        : [director];
-      let canonical = film.id ? state.filmsById?.[film.id] : null;
-      if (canonical && canonical !== film && !canonical.director) {
-        canonical.director = film.director;
-        canonical.directors = film.directors;
-      }
-      return true;
-    }
-
-    function updateSourceFilmsForLaneEntry(entry, options = {}) {
-      let matched = 0;
-      let updated = 0;
-      let title = normalizeTitle(entry?.title || "");
-      if (!title) return { matched, updated };
-      let candidates = getArchiveFilmsByTitle().get(title) || [];
-      candidates.forEach((film) => {
-        if (!sourceFilmMatchesEntry(film, entry)) return;
-        matched += 1;
-        if (
-          options.membership &&
-          addFranchiseToFilmSource(film, options.membership)
-        ) {
-          updated += 1;
-        } else if (
-          options.director &&
-          addDirectorToFilmSource(film, options.director)
-        ) {
-          updated += 1;
-        }
-      });
-      return { matched, updated };
-    }
-
-    function updateSourceFilmsForFranchise(entry, membership) {
-      return updateSourceFilmsForLaneEntry(entry, { membership });
-    }
-
-    function updateSourceFilmsForDirector(entry) {
-      return updateSourceFilmsForLaneEntry(entry, { director: entry.director });
-    }
-
-    function watchlistCandidatesForFranchiseEntry(entry) {
-      let title = normalizeTitle(entry?.title || "");
-      if (!title) return [];
-      return (state.watchlist || []).filter(
-        (item) => normalizeTitle(item.title) === title,
-      );
-    }
-
-    function findWatchlistItemForFranchiseEntry(entry) {
-      let candidates = watchlistCandidatesForFranchiseEntry(entry);
-      if (entry.year) {
-        return (
-          candidates.find((item) => String(item.year || "") === entry.year) ||
-          null
-        );
-      }
-      return candidates.length === 1 ? candidates[0] : null;
-    }
-
-    function watchlistItemMatchesFranchiseEntry(item, entry) {
-      if (
-        normalizeTitle(item?.title || "") !== normalizeTitle(entry?.title || "")
-      )
-        return false;
-      if (entry.year && String(item?.year || "") !== entry.year) return false;
-      return true;
-    }
-
-    function removeWatchlistItemsForFranchiseEntry(entry) {
-      let before = (state.watchlist || []).length;
-      state.watchlist = (state.watchlist || []).filter(
-        (item) => !watchlistItemMatchesFranchiseEntry(item, entry),
-      );
-      return before - state.watchlist.length;
-    }
-
-    function upsertWatchlistLaneEntry(entry, options = {}) {
-      let item = findWatchlistItemForFranchiseEntry(entry);
-      if (item) {
-        let fieldChanged = false;
-        if (options.membership) {
-          let before =
-            window.formatFranchiseMemberships?.(item.franchises) || "";
-          item.franchises = window.normalizeFranchiseMemberships?.([
-            ...(item.franchises || []),
-            options.membership,
-          ]) ||
-            item.franchises || [options.membership];
-          let after =
-            window.formatFranchiseMemberships?.(item.franchises) || "";
-          fieldChanged = before !== after;
-        } else if (entry.director && !item.director) {
-          item.director = entry.director;
-          fieldChanged = true;
-        }
-        let tierChanged = Boolean(entry.tier && !item.tier);
-        if (tierChanged) item.tier = entry.tier;
-        else if (entry.tier && item.tier && item.tier !== entry.tier) {
-          recordSourceConflict({
-            target: "watchlist",
-            field: "tier",
-            title: item.title,
-            year: item.year || "",
-            rowNumber: entry.rowNumber || "",
-            existing: item.tier,
-            incoming: entry.tier,
-            kept: "existing",
-          });
-        }
-        if (!item.id) item.id = window.watchlistItemId?.(item);
-        return { added: false, changed: fieldChanged || tierChanged };
-      }
-      let rawItem = {
-        title: entry.title,
-        year: entry.year,
-        tier: entry.tier,
-      };
-      if (options.membership) rawItem.franchises = [options.membership];
-      if (entry.director) rawItem.director = entry.director;
-      item = window.normalizeWatchlistItem?.(rawItem);
-      if (!item) return { added: false, changed: false };
-      state.watchlist ||= [];
-      state.watchlist.push(item);
-      return { added: true, changed: true };
-    }
-
-    function upsertWatchlistFranchiseEntry(entry, membership) {
-      return upsertWatchlistLaneEntry(entry, { membership });
-    }
-
-    function upsertWatchlistDirectorEntry(entry) {
-      return upsertWatchlistLaneEntry(entry, { director: entry.director });
-    }
-
-    // Rated, already-watched entries that don't match any archive film
-    // (e.g. a miniseries or other non-film credit) aren't a watchlist item,
-    // so a row with a usable year gets its own new ranked-archive entry
-    // below; watchedOther is only the fallback for the rare row with no
-    // year at all, since it isn't persisted anywhere.
-    function upsertWatchedOtherEntry(entry, extra = {}) {
-      state.watchedOther ||= [];
-      let year = String(entry.year || "");
-      let id = `${year}::${normalizeTitle(entry.title || "")}`;
-      let membership = extra.franchiseName
-        ? {
-            name: extra.franchiseName,
-            parentName: extra.parentName || "",
-            parentChain: extra.parentChain || [],
-            rank: extra.rank,
-          }
-        : null;
-      let existing = state.watchedOther.find((item) => item.id === id);
-      if (existing) {
-        let changed = false;
-        if (entry.rating && existing.rating !== entry.rating) {
-          if (ratingsDisagree(existing, entry.rating)) {
-            recordSourceConflict({
-              target: "watched-other",
-              field: "rating",
-              title: existing.title,
-              year: existing.year || "",
-              rowNumber: entry.rowNumber || "",
-              existing:
-                window.renderFilmRating?.(existing) ||
-                String(existing.rating || ""),
-              incoming:
-                window.renderFilmRating?.(entry.rating) ||
-                String(entry.rating || ""),
-              kept: "incoming",
-            });
-          }
-          existing.rating = entry.rating;
-          existing.ratingValue = entry.ratingValue || 0;
-          changed = true;
-        }
-        if (extra.director && !existing.director) {
-          existing.director = extra.director;
-          changed = true;
-        }
-        if (membership) {
-          let before =
-            window.formatFranchiseMemberships?.(existing.franchises) || "";
-          existing.franchises = window.normalizeFranchiseMemberships?.([
-            ...(existing.franchises || []),
-            membership,
-          ]) ||
-            existing.franchises || [membership];
-          let after =
-            window.formatFranchiseMemberships?.(existing.franchises) || "";
-          if (before !== after) changed = true;
-        }
-        return { added: false, changed };
-      }
-      // state.watchedOther has no Supabase table backing it (nothing ever
-      // syncs it), so anything routed there on a Supabase-hydrated page is
-      // lost the next time it reloads. A row with a real release year
-      // belongs in the ranked archive instead, which does persist -
-      // addOrUpdateYearFilm already guards against creating a duplicate
-      // there. Only a row with no usable year at all still has nowhere
-      // real to go and falls back to watchedOther below.
-      if (/^\d{4}$/.test(year)) {
-        let mergedBefore = report.filmsMerged;
-        addOrUpdateYearFilm(
-          year,
-          {
-            title: entry.title,
-            rating: entry.rating || "",
-            ratingValue: entry.ratingValue || 0,
-            director: extra.director || "",
-            franchises: membership ? [membership] : [],
-          },
-          {},
-        );
-        // addOrUpdateYearFilm routes to either report.filmsAdded or
-        // report.filmsMerged internally - report {added:false} when this
-        // call merged into an existing archive film, so the caller's own
-        // watchedOtherAdded/watchedOtherMerged tally (this entry never
-        // touched watchedOther either way) doesn't mislabel a merge as an
-        // add.
-        return { added: report.filmsMerged === mergedBefore, changed: true };
-      }
-      state.watchedOther.push({
-        id,
-        title: entry.title,
-        year,
-        type: "unknown",
-        rating: entry.rating || "",
-        ratingValue: entry.ratingValue || 0,
-        director: extra.director || "",
-        franchises: membership ? [membership] : [],
-        rowNumber: entry.rowNumber,
-      });
-      return { added: true, changed: true };
-    }
-
-    function diaryWatchedRecord(entry) {
-      let year = String(entry.year || "").trim();
-      let record = window.cloneRecord(entry);
-      record.id = `${year}::${normalizeTitle(entry.title || "")}`;
-      record.normalizedTitle = normalizeTitle(entry.title || "");
-      record.year = year;
-      record.type = String(entry.type || "").trim();
-      record.awards = [];
-      window.normalizeFilmMetadata?.(record);
-      return record;
-    }
-
-    function upsertDiaryWatchedEntry(entry) {
-      state.watchedOther ||= [];
-      let incoming = diaryWatchedRecord(entry);
-      let existing = state.watchedOther.find((item) => item.id === incoming.id);
-      if (!existing) {
-        state.watchedOther.push(incoming);
-        return { added: true, changed: true };
-      }
-
-      let before = JSON.stringify(existing);
-      let scalarFields = [
-        "title",
-        "director",
-        "rating",
-        "ratingValue",
-        "ratingModifier",
-        "medium",
-        "screenplayType",
-        "adaptationSource",
-        "country",
-        "primaryCountry",
-        "platform",
-        "runtimeMinutes",
-        "tmdbId",
-        "letterboxdUrl",
-        "url",
-        "musicScore",
-      ];
-      scalarFields.forEach((field) => {
-        if (
-          (existing[field] === undefined ||
-            existing[field] === null ||
-            existing[field] === "" ||
-            existing[field] === "unknown") &&
-          incoming[field] !== undefined &&
-          incoming[field] !== null &&
-          incoming[field] !== ""
-        ) {
-          existing[field] = window.cloneRecord(incoming[field]);
-        }
-      });
-      if (!existing.type || existing.type === "unknown")
-        existing.type = incoming.type;
-      existing.views =
-        Math.max(Number(existing.views) || 0, Number(incoming.views) || 0) ||
-        null;
-      if (
-        incoming.dateWatched &&
-        (!existing.dateWatched || incoming.dateWatched > existing.dateWatched)
-      ) {
-        existing.dateWatched = incoming.dateWatched;
-      }
-      existing.tags =
-        window.parseFilmTags?.([
-          ...(existing.tags || []),
-          ...(incoming.tags || []),
-        ]) ||
-        existing.tags ||
-        incoming.tags ||
-        [];
-      existing.franchises =
-        window.normalizeFranchiseMemberships?.([
-          ...(existing.franchises || []),
-          ...(incoming.franchises || []),
-        ]) ||
-        existing.franchises ||
-        incoming.franchises ||
-        [];
-      window.normalizeFilmMetadata?.(existing);
-      return { added: false, changed: JSON.stringify(existing) !== before };
-    }
-
-    function findDiaryArchiveFilm(entry) {
-      let title = normalizeTitle(entry?.title || "");
-      let year = String(entry?.year || "").trim();
-      if (!title || !year) return null;
-      return (
-        allTimeRosterFilms().find(
-          (film) =>
-            normalizeTitle(film.title) === title &&
-            String(film.year || "").trim() === year,
-        ) || null
-      );
     }
 
     function cleanTableCell(value) {
@@ -1001,111 +587,7 @@ window.importData = function (raw, importType, options = {}) {
       return tableBlockLabelFromRows(rows, index, "");
     }
 
-    if (importType === "collection-awards") {
-      let tableRows = Array.isArray(options.collectionAwardRows)
-        ? options.collectionAwardRows
-        : Array.isArray(options.tableRows)
-          ? options.tableRows
-          : String(raw || "")
-              .replace(/\r\n/g, "\n")
-              .replace(/\r/g, "\n")
-              .split("\n")
-              .map((line) => line.split("\t"));
-      let blocks = window.splitCollectionAwardSheetBlocks(tableRows, {
-        sheetStartRow: options.sheetStartRow || 1,
-      });
-      state.collectionAwards ||= { director: {}, franchise: {} };
-      let imported = [];
-      blocks.forEach((block) => {
-        let parsed = window.parseCollectionAwardsTable("", {
-          rows: block.rows,
-        });
-        let label = block.label || "collection award bracket";
-        if (!parsed) {
-          report.skipped += 1;
-          report.warnings.push(`${label} could not be parsed.`);
-          report.skippedDetails.push({
-            rowNumber: block.rowNumber || "",
-            reason: "Collection award bracket could not be parsed.",
-            values: [label],
-          });
-          return;
-        }
-        (parsed.diagnostics?.metadataErrors || []).forEach((message) =>
-          report.warnings.push(`${label}: ${message}`),
-        );
-        if (!parsed.collectionType || !parsed.collectionId) {
-          report.skipped += 1;
-          report.skippedDetails.push({
-            rowNumber: block.rowNumber || "",
-            reason: "Missing or unsupported collection metadata.",
-            values: [label],
-          });
-          return;
-        }
-        (parsed.diagnostics?.unsupportedHeaders || []).forEach((header) =>
-          report.warnings.push(
-            `${label} ignored unsupported header "${header}".`,
-          ),
-        );
-        (parsed.diagnostics?.malformedRows || []).forEach((finding) => {
-          report.skipped += 1;
-          report.skippedDetails.push({
-            rowNumber:
-              (block.rowNumber || 1) + Number(finding.rowNumber || 1) - 2,
-            reason: finding.reason,
-            values: [label],
-          });
-        });
-        if (parsed.diagnostics?.duplicateNominations?.length)
-          report.warnings.push(
-            `${label} ignored ${parsed.diagnostics.duplicateNominations.length} duplicate nomination(s).`,
-          );
-        state.collectionAwards[parsed.collectionType] ||= {};
-        let bracket = {
-          collectionType: parsed.collectionType,
-          collectionId: parsed.collectionId,
-          collectionName: parsed.collectionName,
-          sourceUrl: parsed.sourceUrl,
-          nominations: parsed.nominations,
-        };
-        state.collectionAwards[parsed.collectionType][parsed.collectionId] =
-          bracket;
-        imported.push(bracket);
-        report.awardsAdded += bracket.nominations.length;
-      });
-      window.rebuildAggregates?.();
-      let membershipWarnings = [];
-      imported.forEach((bracket) => {
-        let model = window.collectionAwardViewModel?.(
-          bracket.collectionType,
-          bracket.collectionId,
-        );
-        (model?.unresolved || []).forEach((entry) =>
-          membershipWarnings.push({
-            collection: bracket.collectionName,
-            title: entry.sourceTitle,
-            ambiguous: entry.ambiguous,
-          }),
-        );
-      });
-      report.filmsParsed = new Set(
-        imported.flatMap((bracket) =>
-          bracket.nominations.map((nomination) =>
-            normalizeTitle(nomination.sourceTitle),
-          ),
-        ),
-      ).size;
-      if (membershipWarnings.length)
-        report.warnings.push(
-          `${membershipWarnings.length} collection award film(s) are not uniquely known as members of their collection; their titles were retained for display.`,
-        );
-      report.collectionAwardSummary = {
-        brackets: imported.length,
-        nominations: report.awardsAdded,
-        membershipWarnings,
-      };
-    } else if (importType === "table") {
+    if (importType === "table") {
       let tableRows = Array.isArray(options.tableRows)
         ? options.tableRows
         : String(raw || "")
@@ -1129,11 +611,9 @@ window.importData = function (raw, importType, options = {}) {
         let data = block.rows
           ? parseTable("", {
               rows: block.rows,
-              periodTypeHint: options.tablePeriodType,
               checkEligibility: options.checkEligibility,
             })
           : parseTable(chunk, {
-              periodTypeHint: options.tablePeriodType,
               checkEligibility: options.checkEligibility,
             });
 
@@ -1167,7 +647,7 @@ window.importData = function (raw, importType, options = {}) {
         // otherwise dropped; store it on the period so it can be linked.
         state.years[year] ||= { films: [] };
         if (data.sourceUrl) state.years[year].sourceUrl = data.sourceUrl;
-        report.periods.add(year);
+        importedPeriods.add(year);
         report.filmsParsed += data.films.length;
         report.awardsRejected += data.diagnostics?.rejectedAwards?.length || 0;
         (data.diagnostics?.rejectedAwards || []).forEach((violation) =>
@@ -1213,7 +693,7 @@ window.importData = function (raw, importType, options = {}) {
           values: [],
         });
       } else {
-        report.periods.add(data.yearKey);
+        importedPeriods.add(data.yearKey);
         report.filmsParsed += data.films.length;
         report.skipped += data.diagnostics?.skippedRows || 0;
         report.skippedDetails.push(...(data.diagnostics?.skippedDetails || []));
@@ -1281,55 +761,6 @@ window.importData = function (raw, importType, options = {}) {
           'input[name="periodType"][value="alltime"]',
         );
         if (alltimeRadio) alltimeRadio.checked = true;
-      }
-    } else if (importType === "diary") {
-      let data = window.parseDiary(raw);
-      report.source = "Diary";
-      if (!data) {
-        report.skipped += 1;
-        report.warnings.push(
-          "Diary input could not be parsed. Check the header row and entries.",
-        );
-      } else {
-        report.filmsParsed = data.entries.length;
-        report.skipped += data.diagnostics?.skippedRows || 0;
-        report.skippedDetails.push(...(data.diagnostics?.skippedDetails || []));
-        let archiveMatched = 0;
-        let missingArchive = [];
-        let standaloneAdded = 0;
-        let standaloneMerged = 0;
-
-        data.entries.forEach((entry) => {
-          let kind = window.diaryEntryKind(entry.type);
-          if (kind === "archive") {
-            if (findDiaryArchiveFilm(entry)) {
-              archiveMatched += 1;
-              if (entry.ratingValue) recordArchiveRatingConflicts(entry);
-            } else missingArchive.push(entry);
-            return;
-          }
-          let result = upsertDiaryWatchedEntry(entry);
-          if (result.added) standaloneAdded += 1;
-          else standaloneMerged += 1;
-        });
-
-        report.filmsAdded = standaloneAdded;
-        report.filmsMerged = standaloneMerged;
-        if (missingArchive.length) {
-          let samples = missingArchive
-            .slice(0, 8)
-            .map((entry) => `${entry.title} (${entry.year})`)
-            .join(", ");
-          report.warnings.push(
-            `${missingArchive.length} Diary Film/TV-film row(s) did not match All-time and were not imported${samples ? `: ${samples}` : "."}`,
-          );
-        }
-        report.diarySummary = {
-          archiveMatched,
-          missingArchive: missingArchive.length,
-          standaloneAdded,
-          standaloneMerged,
-        };
       }
     } else if (importType === "watchlist") {
       let data = window.parseWatchlist(raw);
@@ -1409,269 +840,12 @@ window.importData = function (raw, importType, options = {}) {
         report.warnings.push(
           `${report.skipped} watchlist row(s) had no usable film title.`,
         );
-    } else if (importType === "franchises") {
-      let data = window.parseFranchiseSheet(raw, {
-        rows: options.franchiseRows || options.rows || options.tableRows,
-        sheetStartRow: options.sheetStartRow,
-      });
-      report.source = "Franchises";
-      state.sourceConflicts = (state.sourceConflicts || []).filter(
-        (conflict) => conflict.source !== report.source,
-      );
-      report.filmsParsed = data.items.length;
-      report.skipped += data.diagnostics?.skippedRows || 0;
-      report.skippedDetails.push(...(data.diagnostics?.skippedDetails || []));
-      let archiveMerged = 0;
-      let archiveUpdated = 0;
-      let watchlistAdded = 0;
-      let watchlistMerged = 0;
-      let watchlistRemoved = 0;
-      let watchedOtherAdded = 0;
-      let watchedOtherMerged = 0;
-      let unmatchedRated = [];
-      let untiered = [];
-      let ambiguousWatchlist = [];
-      data.items.forEach((entry) => {
-        // Every item under one lane header carries that header's own URL
-        // (see franchise-sheet.js), so this fires once per lane in effect -
-        // state.franchisesById is fully derived on every load (never
-        // persisted directly), so the URL has to live in its own persisted
-        // side-table, keyed the same way rebuildFranchiseIndex() keys a
-        // franchise node, and get merged back in during that rebuild.
-        if (entry.sourceUrl) {
-          state.franchiseLinks ||= {};
-          state.franchiseLinks[
-            window.normalizeFranchiseId(entry.franchiseName)
-          ] = entry.sourceUrl;
-        }
-        let membership = {
-          name: entry.franchiseName,
-          parentName: entry.parentName,
-          parentChain: entry.parentChain,
-          rank: entry.rank,
-        };
-        let archiveResult = updateSourceFilmsForFranchise(entry, membership);
-        if (archiveResult.matched) {
-          archiveMerged += 1;
-          archiveUpdated += archiveResult.updated ? 1 : 0;
-          if (entry.ratingValue) recordArchiveRatingConflicts(entry);
-          watchlistRemoved += removeWatchlistItemsForFranchiseEntry(entry);
-          return;
-        }
-        if (entry.ratingValue) {
-          unmatchedRated.push(entry);
-          let result = upsertWatchedOtherEntry(entry, {
-            franchiseName: entry.franchiseName,
-            parentName: entry.parentName,
-            parentChain: entry.parentChain,
-            rank: entry.rank,
-          });
-          if (result.added) watchedOtherAdded += 1;
-          else if (result.changed) watchedOtherMerged += 1;
-          return;
-        }
-        if (!entry.tier) untiered.push(entry);
-        let watchlistCandidates = watchlistCandidatesForFranchiseEntry(entry);
-        if (!entry.year && watchlistCandidates.length > 1) {
-          ambiguousWatchlist.push(entry);
-        }
-        let result = upsertWatchlistFranchiseEntry(entry, membership);
-        if (result.added) watchlistAdded += 1;
-        else if (result.changed) watchlistMerged += 1;
-      });
-      report.filmsAdded = watchlistAdded;
-      report.filmsMerged = archiveMerged + watchlistMerged;
-      if (report.skipped)
-        report.warnings.push(
-          `${report.skipped} franchise sheet row(s) had no usable film/franchise data.`,
-        );
-      if (unmatchedRated.length) {
-        report.warnings.push(
-          `${unmatchedRated.length} franchise sheet row(s) had a star rating but did not match an archive film; they were stored as watched entries of unknown type instead of watchlist rows.`,
-        );
-      }
-      if (ambiguousWatchlist.length) {
-        report.warnings.push(
-          `${ambiguousWatchlist.length} franchise sheet row(s) had no year and matched multiple watchlist titles; a new watchlist row may have been added.`,
-        );
-      }
-      if (untiered.length) {
-        report.warnings.push(
-          `${untiered.length} franchise sheet row(s) had no recognized rating or interest tier.`,
-        );
-      }
-      report.franchiseSummary = {
-        lanes: data.diagnostics?.lanes || 0,
-        headers: data.diagnostics?.headers || 0,
-        withYear: data.diagnostics?.itemsWithYear || 0,
-        withoutYear: data.diagnostics?.itemsWithoutYear || 0,
-        rated: data.diagnostics?.ratedItems || 0,
-        tiered: data.diagnostics?.tieredItems || 0,
-        untiered: data.diagnostics?.untieredItems || 0,
-        archiveMatched: archiveMerged,
-        archiveUpdated,
-        watchlistMerged,
-        watchlistAdded,
-        duplicateWatchlistRemoved: watchlistRemoved,
-        watchedOtherAdded,
-        watchedOtherMerged,
-        unmatchedRated: unmatchedRated.slice(0, 25).map((entry) => ({
-          rowNumber: entry.rowNumber,
-          title: entry.title,
-          year: entry.year,
-          franchise: entry.parentName
-            ? `${entry.parentName} > ${entry.franchiseName}`
-            : entry.franchiseName,
-        })),
-        ambiguousWatchlist: ambiguousWatchlist.slice(0, 25).map((entry) => ({
-          rowNumber: entry.rowNumber,
-          title: entry.title,
-          franchise: entry.parentName
-            ? `${entry.parentName} > ${entry.franchiseName}`
-            : entry.franchiseName,
-        })),
-        untieredRows: untiered.slice(0, 25).map((entry) => ({
-          rowNumber: entry.rowNumber,
-          title: entry.title,
-          year: entry.year,
-          franchise: entry.parentName
-            ? `${entry.parentName} > ${entry.franchiseName}`
-            : entry.franchiseName,
-        })),
-      };
-      report.warnings.push(
-        `Franchise sheet read ${data.diagnostics?.headers || 0} franchise header(s) across ${data.diagnostics?.lanes || 0} lane(s): ${archiveMerged} archive match(es), ${archiveUpdated} archive update(s), ${watchlistMerged} watchlist merge(s), ${watchlistAdded} watchlist addition(s), ${watchlistRemoved} archive duplicate watchlist removal(s).`,
-      );
-      window.recomputeWatchlistOrder?.();
-      state.watchlistOrderVersion = 1;
-    } else if (importType === "directors") {
-      let data = window.parseDirectorWatchlistSheet(raw, {
-        rows: options.directorRows || options.rows || options.tableRows,
-        sheetStartRow: options.sheetStartRow,
-      });
-      report.source = "Directors";
-      state.sourceConflicts = (state.sourceConflicts || []).filter(
-        (conflict) => conflict.source !== report.source,
-      );
-      report.filmsParsed = data.items.length;
-      report.skipped += data.diagnostics?.skippedRows || 0;
-      report.skippedDetails.push(...(data.diagnostics?.skippedDetails || []));
-      let archiveMatched = 0;
-      let archiveUpdated = 0;
-      let duplicateWatchlistRemoved = 0;
-      let watchlistAdded = 0;
-      let watchlistMerged = 0;
-      let watchedOtherAdded = 0;
-      let watchedOtherMerged = 0;
-      let untiered = [];
-      let unmatchedRated = [];
-      let ambiguousWatchlist = [];
-      data.items.forEach((entry) => {
-        // state.peopleById is fully derived on every load, so the URL needs
-        // its own persisted side-table - keyed through the same alias
-        // resolution addCredit() uses (src/domain/people/index.js) so this
-        // matches whatever canonical person id the derived object ends up
-        // with, even if an alias gets confirmed after this import runs.
-        if (entry.sourceUrl) {
-          state.directorLinks ||= {};
-          let variantId = window.normalizePersonName(entry.director);
-          let canonicalName =
-            state.peopleAliases?.[variantId] || entry.director;
-          state.directorLinks[window.normalizePersonName(canonicalName)] =
-            entry.sourceUrl;
-        }
-        let archiveResult = updateSourceFilmsForDirector(entry);
-        if (archiveResult.matched) {
-          archiveMatched += 1;
-          archiveUpdated += archiveResult.updated ? 1 : 0;
-          if (entry.ratingValue) recordArchiveRatingConflicts(entry);
-          duplicateWatchlistRemoved +=
-            removeWatchlistItemsForFranchiseEntry(entry);
-          return;
-        }
-        if (entry.ratingValue) {
-          unmatchedRated.push(entry);
-          let result = upsertWatchedOtherEntry(entry, {
-            director: entry.director,
-          });
-          if (result.added) watchedOtherAdded += 1;
-          else if (result.changed) watchedOtherMerged += 1;
-          return;
-        }
-        if (!entry.tier) untiered.push(entry);
-        let watchlistCandidates = watchlistCandidatesForFranchiseEntry(entry);
-        if (!entry.year && watchlistCandidates.length > 1) {
-          ambiguousWatchlist.push(entry);
-        }
-        let result = upsertWatchlistDirectorEntry(entry);
-        if (result.added) watchlistAdded += 1;
-        else if (result.changed) watchlistMerged += 1;
-      });
-      report.filmsAdded = watchlistAdded;
-      report.filmsMerged = archiveMatched + watchlistMerged;
-      if (report.skipped)
-        report.warnings.push(
-          `${report.skipped} Directors sheet row(s) had no usable film/director data.`,
-        );
-      if (untiered.length)
-        report.warnings.push(
-          `${untiered.length} Directors sheet row(s) had no recognized interest tier.`,
-        );
-      if (unmatchedRated.length) {
-        report.warnings.push(
-          `${unmatchedRated.length} Directors sheet row(s) had a star rating but did not match an archive film; they were stored as watched entries of unknown type instead of watchlist rows.`,
-        );
-      }
-      if (ambiguousWatchlist.length) {
-        report.warnings.push(
-          `${ambiguousWatchlist.length} Directors sheet row(s) had no year and matched multiple watchlist titles; a new watchlist row may have been added.`,
-        );
-      }
-      report.directorSummary = {
-        lanes: data.diagnostics?.lanes || 0,
-        headers: data.diagnostics?.headers || 0,
-        withYear: data.diagnostics?.itemsWithYear || 0,
-        withoutYear: data.diagnostics?.itemsWithoutYear || 0,
-        rated: data.diagnostics?.ratedItems || 0,
-        tiered: data.diagnostics?.tieredItems || 0,
-        untiered: data.diagnostics?.untieredItems || 0,
-        archiveMatched,
-        archiveUpdated,
-        watchlistMerged,
-        watchlistAdded,
-        duplicateWatchlistRemoved,
-        watchedOtherAdded,
-        watchedOtherMerged,
-        ambiguousWatchlist: ambiguousWatchlist.slice(0, 25).map((entry) => ({
-          rowNumber: entry.rowNumber,
-          title: entry.title,
-          director: entry.director,
-        })),
-        untieredRows: untiered.slice(0, 25).map((entry) => ({
-          rowNumber: entry.rowNumber,
-          title: entry.title,
-          year: entry.year,
-          director: entry.director,
-        })),
-        unmatchedRated: unmatchedRated.slice(0, 25).map((entry) => ({
-          rowNumber: entry.rowNumber,
-          title: entry.title,
-          year: entry.year,
-          director: entry.director,
-        })),
-      };
-      report.warnings.push(
-        `Directors sheet read ${data.diagnostics?.headers || 0} director header(s) across ${data.diagnostics?.lanes || 0} lane(s): ${archiveMatched} already-watched match(es), ${archiveUpdated} archive update(s), ${watchlistMerged} watchlist merge(s), ${watchlistAdded} watchlist addition(s), ${duplicateWatchlistRemoved} archive duplicate watchlist removal(s).`,
-      );
-      window.recomputeWatchlistOrder?.();
-      state.watchlistOrderVersion = 1;
     } else {
       alert("Unknown import type: " + importType);
       return;
     }
 
-    if (options.render !== false) window.render?.();
-    report.periods = [...report.periods];
+    report.periods = [...importedPeriods];
     if (report.awardsRejected)
       report.warnings.push(
         `${report.awardsRejected} award nomination(s) were rejected by data rules.`,

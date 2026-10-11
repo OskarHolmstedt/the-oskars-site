@@ -353,7 +353,7 @@
    * `rebuildAggregates()` runs. Pure; call sites own actually mutating
    * `window.state` and calling `rebuildAggregates()` afterward.
    * @param {Object} source Result of `window.loadSupabaseLegacyHydrationSource()`.
-   * @returns {{years: Object, watchedOther: Object[], watchlist: Object[], personPortraits: Record<string, PosterRecord>, publicProfileDisplayName: string}}
+   * @returns {{years: Object, watchedOther: Object[], watchlist: Object[], personPortraits: Record<string, PosterRecord>, personSupabaseIds: Record<string, string>, publicProfileDisplayName: string}}
    */
   window.buildLegacyStateFromSupabaseHydration = function (source) {
     let chains = buildFranchiseChains(source.franchises);

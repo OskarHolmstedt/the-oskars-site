@@ -7,7 +7,7 @@
  * visit. Keyed by user id so a different account signing in on the same
  * tab never sees a stale cache. A short TTL bounds staleness from another
  * tab/device; invalidateCachedSupabaseHydrationSource() below is also
- * called after every mutation function in supabase-workspace.js succeeds
+ * called after every mutation function in supabase/ area modules succeeds
  * (wrapped generically here rather than editing each function body), so a
  * same-session write-then-navigate flow always sees fresh data.
  */
@@ -286,7 +286,7 @@ window.addEventListener?.("storage", (event) => {
     window.invalidateCachedSupabaseHydrationSource(false);
 });
 
-// Every write-shaped Supabase function in supabase-workspace.js, wrapped
+// Every write-shaped Supabase function in supabase/ area modules, wrapped
 // from outside that file (rather than editing ~40 function bodies) so a
 // successful mutation always invalidates the cache and a thrown error
 // never does. Read-only functions (load*/get*/list*/search*/
@@ -358,9 +358,9 @@ window.OSKARS_HYDRATION_CACHE_INVALIDATING_MUTATIONS = [
 ];
 
 window.OSKARS_HYDRATION_CACHE_INVALIDATING_MUTATIONS.forEach((name) => {
-  let original = window[name];
+  let original = /** @type {any} */ (window)[name];
   if (typeof original !== "function") return;
-  window[name] = async function (...args) {
+  /** @type {any} */ (window)[name] = async function (...args) {
     let result = await original.apply(this, args);
     window.invalidateCachedSupabaseHydrationSource();
     return result;

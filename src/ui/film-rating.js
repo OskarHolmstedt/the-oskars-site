@@ -108,6 +108,7 @@ window.renderFilmRatingHtml = function (value, options = {}) {
  *   focusable, and readable by assistive tech - the star buttons
  *   themselves are pointer-only (tabindex="-1"), so this remains the
  *   only keyboard/screen-reader path to set a rating.
+ * @param {boolean} [options.starsOnly] Uses a keyboard-accessible star slider and hidden value field.
  * @returns {string} Rating input widget markup.
  */
 window.renderRatingInput = function (options = {}) {
@@ -128,13 +129,13 @@ window.renderRatingInput = function (options = {}) {
   ]
     .map(
       ([mod, glyph, label]) =>
-        `<button type="button" class="rating-input-mod" data-rating-mod="${mod}" tabindex="-1" aria-hidden="true" aria-label="${escape(label)}">${glyph}</button>`,
+        `<button type="button" class="rating-input-mod" data-rating-mod="${mod}" tabindex="${options.starsOnly ? "0" : "-1"}"${options.starsOnly ? "" : ' aria-hidden="true"'} aria-label="${escape(label)}">${glyph}</button>`,
     )
     .join("");
-  return `<div class="rating-input${options.compact ? " rating-input--compact" : ""}" data-rating-input>
-    <input type="text" name="${escape(name)}" id="${escape(id)}" class="rating-input-text" value="${escape(options.value || "")}" placeholder="★★★★ / 4.5-" autocomplete="off"${options.required ? " required" : ""}>
+  return `<div class="rating-input${options.compact ? " rating-input--compact" : ""}" data-rating-input${options.starsOnly ? ' data-rating-stars-only="true"' : ""}>
+    <input type="${options.starsOnly ? "hidden" : "text"}" name="${escape(name)}" id="${escape(id)}" class="rating-input-text" value="${escape(options.value || "")}" placeholder="★★★★ / 4.5-" autocomplete="off"${options.required ? " required" : ""}>
     <div class="rating-input-controls">
-      <div class="rating-input-stars" role="presentation">${stars}</div>
+      <div class="rating-input-stars" ${options.starsOnly ? `role="slider" tabindex="0" aria-label="${escape(ui("Rating"))}" aria-valuemin="0" aria-valuemax="5"` : 'role="presentation"'}>${stars}</div>
       <div class="rating-input-mods" role="presentation">${modifiers}</div>
     </div>
   </div>`;
@@ -147,10 +148,12 @@ window.renderRatingInput = function (options = {}) {
  * @param {Element} container Root element containing rendered rating-input widgets.
  */
 window.enhanceRatingInputs = function (container) {
+  let ui = window.uiText || ((text) => text);
   (container?.querySelectorAll?.("[data-rating-input]") || []).forEach(
     (widget) => {
       if (widget.dataset.ratingInputReady) return;
       widget.dataset.ratingInputReady = "1";
+      let starsOnly = widget.hasAttribute("data-rating-stars-only");
       let input = widget.querySelector(".rating-input-text");
       let starsRow = widget.querySelector(".rating-input-stars");
       let starButtons = Array.from(
@@ -183,6 +186,22 @@ window.enhanceRatingInputs = function (container) {
           if (mask) mask.style.width = `${fill * 100}%`;
           button.classList.toggle("is-preview", previewValue !== undefined);
         });
+        if (starsOnly) {
+          starsRow.setAttribute("aria-valuenow", String(parsed.value));
+          starsRow.setAttribute(
+            "aria-valuetext",
+            parsed.value
+              ? [
+                  ui("{value} stars", {
+                    value: parsed.value,
+                  }),
+                  parsed.modifier ? ui(parsed.modifier) : "",
+                ]
+                  .filter(Boolean)
+                  .join(", ")
+              : ui("No rating"),
+          );
+        }
         modButtons.forEach((button) => {
           let active =
             previewValue === undefined &&
@@ -203,14 +222,29 @@ window.enhanceRatingInputs = function (container) {
             })
           : "";
         input.dispatchEvent(new Event("input", { bubbles: true }));
-        input.focus();
+        (starsOnly ? starsRow : input).focus();
       }
 
+      if (starsOnly)
+        starsRow.addEventListener("keydown", (event) => {
+          if (input.disabled) return;
+          let value = currentParsed().value;
+          if (["ArrowRight", "ArrowUp"].includes(event.key))
+            value = Math.min(5, value + 0.5);
+          else if (["ArrowLeft", "ArrowDown"].includes(event.key))
+            value = Math.max(0, value - 0.5);
+          else if (event.key === "Home") value = 0;
+          else if (event.key === "End") value = 5;
+          else return;
+          event.preventDefault();
+          applyValue(value);
+        });
       starsRow.addEventListener("mousemove", (event) => {
         paint(rowValueFromEvent(event));
       });
       starsRow.addEventListener("mouseleave", () => paint());
       starsRow.addEventListener("click", (event) => {
+        if (input.disabled) return;
         let picked = rowValueFromEvent(event);
         let parsed = currentParsed();
         applyValue(picked === parsed.value ? 0 : picked);

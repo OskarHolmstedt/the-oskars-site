@@ -70,18 +70,25 @@ window.watchGoalProjectSource = function (sourceId) {
  * @param {Object} [options.state] Explicit state to read instead of
  *   window.state (issue #597's compact-read cutover) - every existing call
  *   site omits this and is unaffected.
- * @returns {{period: string, watchedCount: number, target: number}[]}
+ * @returns {{period: string, watchedCount: number, target: number, sourceId: string, projectCandidateCount: number, thresholdStats?: Object}[]}
  */
 window.watchGoalProgress = function (periodType, options = {}) {
   let stateRef = options.state || state;
   let target = window.WATCH_GOAL_TARGETS[periodType];
   let counts = new Map();
   let candidateCounts = new Map();
+  let filmsByPeriod = new Map();
   Object.values(stateRef.filmsById || {}).forEach((film) => {
     if (!film?.id || !film.title) return;
     let key = watchGoalPeriodKey(periodType, film.year);
     if (!key) return;
     counts.set(key, (counts.get(key) || 0) + 1);
+    let list = filmsByPeriod.get(key);
+    if (!list) {
+      list = [];
+      filmsByPeriod.set(key, list);
+    }
+    list.push(film);
   });
   (stateRef.watchlist || []).forEach((item) => {
     if (!item || window.findWatchlistArchiveFilm?.(item, stateRef)) return;
@@ -90,15 +97,40 @@ window.watchGoalProgress = function (periodType, options = {}) {
     candidateCounts.set(key, (candidateCounts.get(key) || 0) + 1);
   });
   return [...counts.entries()]
-    .map(([period, watchedCount]) => ({
-      period,
-      watchedCount,
-      target,
-      sourceId: window.watchGoalSourceId(periodType, period),
-      projectCandidateCount: Math.min(
-        Math.max(0, target - watchedCount),
-        candidateCounts.get(period) || 0,
-      ),
-    }))
+    .map(([period, watchedCount]) => {
+      let thresholdStats = window.periodThresholdStats
+        ? window.periodThresholdStats(
+            filmsByPeriod.get(period) || [],
+            periodType,
+          )
+        : null;
+      if (thresholdStats && target) {
+        thresholdStats = Object.assign({}, thresholdStats, {
+          thresholds: Object.assign({}, thresholdStats.thresholds, {
+            total: target,
+          }),
+          metrics: thresholdStats.metrics.map((m) =>
+            m.key === "total"
+              ? Object.assign({}, m, {
+                  threshold: target,
+                  met: m.count >= target,
+                })
+              : m,
+          ),
+        });
+        thresholdStats.allMet = thresholdStats.metrics.every((m) => m.met);
+      }
+      return {
+        period,
+        watchedCount,
+        target,
+        sourceId: window.watchGoalSourceId(periodType, period),
+        projectCandidateCount: Math.min(
+          Math.max(0, target - watchedCount),
+          candidateCounts.get(period) || 0,
+        ),
+        thresholdStats,
+      };
+    })
     .sort((left, right) => left.period.localeCompare(right.period));
 };

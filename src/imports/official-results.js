@@ -1,5 +1,6 @@
 /** @file Builds isolated, previewed official-results refresh proposals from bracket-shaped, historical long-form, or categoryless single-winner exports. */
 
+/** @type {[RegExp, string][]} */
 const OFFICIAL_LONG_FORM_CATEGORIES = [
   [/^BEST PICTURE$/, "Best Picture"],
   [/^DIRECTING(?: \(|$)/, "Best Director"],
@@ -48,7 +49,9 @@ function officialLongFormCategory(sourceCategory) {
 }
 
 function officialCleanCell(value) {
-  return String(value || "").replace(/\s+/g, " ").trim();
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function officialLongFormInput(rows) {
@@ -60,7 +63,9 @@ function officialLongFormInput(rows) {
 
 function officialParseLongForm(rows, report, blockError) {
   let headers = (rows[0] || []).map(officialCleanCell);
-  let column = Object.fromEntries(headers.map((header, index) => [header, index]));
+  let column = Object.fromEntries(
+    headers.map((header, index) => [header, index]),
+  );
   let required = ["Ceremony", "Year", "CanonicalCategory", "Film", "Winner"];
   let missing = required.filter((header) => column[header] === undefined);
   if (column.Nominees === undefined && column.Name === undefined)
@@ -143,7 +148,13 @@ function officialParseLongForm(rows, report, blockError) {
     }
     let period = periods.get(year);
     if (!period) {
-      period = { year, ceremony, periodType: "years", sourceUrl: "", nominations: [] };
+      period = {
+        year,
+        ceremony,
+        periodType: "years",
+        sourceUrl: "",
+        nominations: [],
+      };
       periods.set(year, period);
     } else if (ceremony && period.ceremony && period.ceremony !== ceremony) {
       let message = `Period ${year} has conflicting ceremony values.`;
@@ -173,7 +184,14 @@ function officialParseLongForm(rows, report, blockError) {
       ...(recipient ? { recipient } : {}),
       ...(detail ? { detail } : {}),
     };
-    let duplicateKey = [year, category, sourceCategory, sourceTitle, recipient, detail]
+    let duplicateKey = [
+      year,
+      category,
+      sourceCategory,
+      sourceTitle,
+      recipient,
+      detail,
+    ]
       .map((part) => part.toLowerCase())
       .join("\u001f");
     if (duplicateKeys.has(duplicateKey)) {
@@ -185,7 +203,12 @@ function officialParseLongForm(rows, report, blockError) {
         reason: message,
         values: [year, category, sourceTitle],
       });
-      officialResultsIssue(report, { period: year, category, title: sourceTitle, message });
+      officialResultsIssue(report, {
+        period: year,
+        category,
+        title: sourceTitle,
+        message,
+      });
       blockError(`$officialResults.rows[${rowNumber}]`, message);
       return;
     }
@@ -200,19 +223,31 @@ function officialParseLongForm(rows, report, blockError) {
   periods.forEach((period) => {
     let categories = new Set(period.nominations.map((entry) => entry.category));
     categories.forEach((category) => {
-      if (!period.nominations.some((entry) => entry.category === category && entry.winner)) {
+      if (
+        !period.nominations.some(
+          (entry) => entry.category === category && entry.winner,
+        )
+      ) {
         let message = "Category has nominees but no official winner.";
-        officialResultsIssue(report, { period: period.year, category, message });
-        blockError(`$officialResults.periods.${period.year}.winners`, `${category}: ${message}`);
+        officialResultsIssue(report, {
+          period: period.year,
+          category,
+          message,
+        });
+        blockError(
+          `$officialResults.periods.${period.year}.winners`,
+          `${category}: ${message}`,
+        );
       }
     });
-    period.nominations.sort((a, b) =>
-      a.category.localeCompare(b.category) ||
-      a.sourceCategory.localeCompare(b.sourceCategory) ||
-      Number(b.winner) - Number(a.winner) ||
-      a.sourceTitle.localeCompare(b.sourceTitle) ||
-      String(a.recipient || "").localeCompare(String(b.recipient || "")) ||
-      String(a.detail || "").localeCompare(String(b.detail || "")),
+    period.nominations.sort(
+      (a, b) =>
+        a.category.localeCompare(b.category) ||
+        a.sourceCategory.localeCompare(b.sourceCategory) ||
+        Number(b.winner) - Number(a.winner) ||
+        a.sourceTitle.localeCompare(b.sourceTitle) ||
+        String(a.recipient || "").localeCompare(String(b.recipient || "")) ||
+        String(a.detail || "").localeCompare(String(b.detail || "")),
     );
   });
   return [...periods.values()].sort((a, b) => a.year.localeCompare(b.year));
@@ -238,7 +273,9 @@ function officialSingleWinnerInput(rows) {
 // periods accumulate nominations rather than rejecting a repeated year.
 function officialParseSingleWinner(rows, report, blockError, category) {
   let headers = (rows[0] || []).map(officialCleanCell);
-  let column = Object.fromEntries(headers.map((header, index) => [header, index]));
+  let column = Object.fromEntries(
+    headers.map((header, index) => [header, index]),
+  );
   let required = ["Year", "Film", "Director", "Country", "SourceCategory"];
   let missing = required.filter((header) => column[header] === undefined);
   if (missing.length) {
@@ -258,7 +295,8 @@ function officialParseSingleWinner(rows, report, blockError, category) {
     let sourceCategory = value("SourceCategory");
     let sourceTitle = value("Film");
     if (!/^\d{4}(?:\/\d{2})?$/.test(year) || !sourceCategory || !sourceTitle) {
-      let message = "Row is missing a valid year, film title, or source category.";
+      let message =
+        "Row is missing a valid year, film title, or source category.";
       report.skipped += 1;
       report.skippedDetails.push({
         source: report.source,
@@ -271,7 +309,8 @@ function officialParseSingleWinner(rows, report, blockError, category) {
     }
     let recipient = value("Director");
     let country = value("Country");
-    let originalTitle = column.OriginalTitle !== undefined ? value("OriginalTitle") : "";
+    let originalTitle =
+      column.OriginalTitle !== undefined ? value("OriginalTitle") : "";
     let nomination = {
       category,
       sourceCategory,
@@ -293,7 +332,11 @@ function officialParseSingleWinner(rows, report, blockError, category) {
         reason: message,
         values: [year, sourceTitle],
       });
-      officialResultsIssue(report, { period: year, title: sourceTitle, message });
+      officialResultsIssue(report, {
+        period: year,
+        title: sourceTitle,
+        message,
+      });
       blockError(`$officialResults.rows[${rowNumber}]`, message);
       return;
     }
@@ -344,6 +387,7 @@ function officialResultsIssue(report, finding) {
  * @param {string} [options.sourceId] Stable source id, defaults to "academy-awards".
  * @param {string} [options.sourceName] Display name, defaults to "Academy Awards".
  * @param {string} [options.singleWinnerCategory] App category name every row shares in single-winner input (defaults to `sourceName`); ignored for the other two input shapes.
+ * @param {string} [options.fileName] Uploaded file name, recorded as the proposal's `sourceNameHint`.
  * @returns {ImportProposal} Reviewed canonical refresh proposal.
  */
 window.proposeOfficialResultsImport = function (raw, options = {}) {
@@ -397,8 +441,15 @@ window.proposeOfficialResultsImport = function (raw, options = {}) {
   if (officialLongFormInput(rows)) {
     parsedPeriods = officialParseLongForm(rows, report, blockError);
   } else if (officialSingleWinnerInput(rows)) {
-    let category = String(options.singleWinnerCategory || options.sourceName || "Winner").trim();
-    parsedPeriods = officialParseSingleWinner(rows, report, blockError, category);
+    let category = String(
+      options.singleWinnerCategory || options.sourceName || "Winner",
+    ).trim();
+    parsedPeriods = officialParseSingleWinner(
+      rows,
+      report,
+      blockError,
+      category,
+    );
   } else {
     let blocks = window.splitBracketSheetBlocks(rows, { sheetStartRow: 1 });
     if (!blocks.length) {
@@ -469,22 +520,44 @@ window.proposeOfficialResultsImport = function (raw, options = {}) {
           title: finding.title,
           message,
         });
-        blockError(`${blockPath}.nominations`, `${finding.category}: ${message}`);
+        blockError(
+          `${blockPath}.nominations`,
+          `${finding.category}: ${message}`,
+        );
       });
 
       parsedPeriods.push(parsed);
     });
   }
 
+  candidateState.officialResults ||= {};
+  let previousSource = candidateState.officialResults[sourceId] || {
+    id: sourceId,
+    name: sourceName,
+    periods: {},
+  };
+
   parsedPeriods.forEach((parsed) => {
+    // A nomination id hashes its category, title, recipient, and detail, so
+    // the previous nomination with the same id is the same nomination. Its
+    // film identity (resolved TMDB ids, owner-corrected links) is not in the
+    // source file and must survive the refresh.
+    let previousById = new Map(
+      (previousSource.periods?.[parsed.year]?.nominations || []).map(
+        (previous) => [previous.id, previous],
+      ),
+    );
     let nominations = parsed.nominations.map((nomination) => {
+      let id = officialNominationId(nomination);
+      let previous = previousById.get(id);
       let match = window.officialResultsFilmMatch(
         candidates,
         nomination,
         parsed.year,
       );
+      /** @type {OfficialNomination} */
       let record = {
-        id: officialNominationId(nomination),
+        id,
         category: nomination.category,
         winner: nomination.winner,
         sourceTitle: nomination.sourceTitle,
@@ -497,8 +570,16 @@ window.proposeOfficialResultsImport = function (raw, options = {}) {
         ...(nomination.originalTitle
           ? { originalTitle: nomination.originalTitle }
           : {}),
+        ...(previous?.tmdbId ? { tmdbId: previous.tmdbId } : {}),
+        ...(previous?.additionalFilms
+          ? { additionalFilms: previous.additionalFilms }
+          : {}),
       };
-      if (match.film) {
+      if (previous?.filmRef) {
+        record.filmRef = previous.filmRef;
+        report.filmsMerged += 1;
+        report.officialResultsSummary.matched += 1;
+      } else if (match.film) {
         record.filmRef = {
           id: match.film.id,
           title: match.film.title,
@@ -535,12 +616,6 @@ window.proposeOfficialResultsImport = function (raw, options = {}) {
     report.officialResultsSummary.refreshedPeriods += 1;
   });
 
-  candidateState.officialResults ||= {};
-  let previousSource = candidateState.officialResults[sourceId] || {
-    id: sourceId,
-    name: sourceName,
-    periods: {},
-  };
   let periods = {
     ...(previousSource.periods || {}),
     ...refreshedPeriods,

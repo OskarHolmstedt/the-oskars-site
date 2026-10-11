@@ -1,6 +1,6 @@
 /**
  * @file Builds annual and director/franchise Oskars ballots through one
- * category editor. Annual progress and mutations use supabase-workspace;
+ * category editor. Annual progress and mutations use supabase/awards.js;
  * collection membership, progress, and isolated persistence use
  * supabase-collection-ballots. Both paths require the signed-in account gate.
  *
@@ -34,6 +34,7 @@
 
 (function () {
   let escape = window.pageEscape;
+  let ui = window.uiText || ((text) => text);
   let container = document.getElementById("awardsYearPage");
   let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let year = String(window.pageQueryParam?.("year") || "").trim();
@@ -582,11 +583,18 @@
 
   function renderCeremonyHtml() {
     if (!progress) return "";
+    let unreviewedCount = progress.total - progress.reviewed;
+    let sealLabel =
+      unreviewedCount > 0
+        ? ui("Seal ceremony ({count} unreviewed as no award)", {
+            count: unreviewedCount,
+          })
+        : ui("Seal ceremony");
     return isCollection && progress.complete
       ? `<section class="setup-ceremony-summary"><h3>Your ${escape(ballotLabel)} ballot is complete</h3><a class="button-link" href="${escape(collectionReturnUrl)}">View collection awards</a></section>`
       : progress.complete
-        ? `<section class="setup-ceremony-summary"><span class="eyebrow">The envelope is sealed</span><h3>Your ${escape(year)} ceremony is ready</h3><div class="setup-ballot-actions"><a class="button-link" href="presentation.html?scope=period&amp;id=year:${escape(year)}">Run the ceremony →</a><a class="button-link" href="${escape(window.periodPageUrl?.("decade", window.getDecadeKey(year)) || "#")}&amp;view=awards">Continue to decade awards</a></div></section>`
-        : `<p class="setup-ballot-next">Next: ${escape(window.localizedCategoryName?.(progress.nextCategory) || progress.nextCategory)} · ${escape(progress.reviewed)} / ${escape(progress.total)} reviewed</p>`;
+        ? `<section class="setup-ceremony-summary"><span class="eyebrow">The envelope is sealed</span><h3>Your ${escape(year)} ceremony is ready</h3><div class="setup-ballot-actions"><a class="button-link" href="presentation.html?scope=period&amp;id=year:${escape(year)}">Run the ceremony →</a><a class="button-link" href="${escape(window.periodPageUrl?.("decade", window.getDecadeKey(year)) || "#")}&amp;view=awards">Continue to decade awards</a>${canEdit ? `<button type="button" class="button-secondary" data-setup-award-unseal>${escape(ui("Reopen ceremony"))}</button>` : ""}</div></section>`
+        : `<div class="setup-ceremony-incomplete"><p class="setup-ballot-next">Next: ${escape(window.localizedCategoryName?.(progress.nextCategory) || progress.nextCategory)} · ${escape(progress.reviewed)} / ${escape(progress.total)} reviewed</p>${canEdit ? `<button type="button" class="button-secondary" data-setup-award-seal>${escape(sealLabel)}</button>` : ""}</div>`;
   }
 
   function renderBracketSection() {
@@ -600,8 +608,9 @@
     let nav = progress.categories
       .map((entry) => renderNavItemHtml(entry))
       .join("");
-    let ceremony = `<div class="setup-ceremony-container" data-setup-ceremony-container>${renderCeremonyHtml()}</div>`;
-    return `<nav class="setup-ballot-nav" aria-label="Ballot categories">${nav}</nav><div class="setup-year-category-list">${rows}</div>${ceremony}`;
+    let ceremonyTop = `<div class="setup-ceremony-container setup-ceremony-container--top" data-setup-ceremony-container>${renderCeremonyHtml()}</div>`;
+    let ceremonyBottom = `<div class="setup-ceremony-container setup-ceremony-container--bottom" data-setup-ceremony-container>${renderCeremonyHtml()}</div>`;
+    return `${ceremonyTop}<nav class="setup-ballot-nav" aria-label="Ballot categories">${nav}</nav><div class="setup-year-category-list">${rows}</div>${ceremonyBottom}`;
   }
 
   function renderPendingNomineeStatus(films) {
@@ -1122,12 +1131,12 @@
       }
     }
 
-    let ceremonyEl = container.querySelector?.(
+    let ceremonyEls = container.querySelectorAll?.(
       "[data-setup-ceremony-container]",
     );
-    if (ceremonyEl) {
-      ceremonyEl.innerHTML = renderCeremonyHtml();
-    }
+    ceremonyEls?.forEach((el) => {
+      el.innerHTML = renderCeremonyHtml();
+    });
     finish?.(`${ballotLabel} · ${progress.reviewed} reviewed (targeted)`);
   }
 
@@ -1209,6 +1218,68 @@
           renderTargeted();
         } catch (error) {
           target.disabled = false;
+          alert(error.message || String(error));
+        }
+      })();
+      return;
+    }
+
+    let sealTarget = event.target.closest("[data-setup-award-seal]");
+    if (sealTarget) {
+      if (!canEdit || sealTarget.disabled || !progress) return;
+      sealTarget.disabled = true;
+      (async () => {
+        try {
+          let unreviewed = progress.categories.filter((c) => !c.reviewed);
+          if (isCollection) {
+            for (let entry of unreviewed) {
+              await window.changeSupabaseCollectionBallot(collectionSession, {
+                type: "review",
+                category: entry.category,
+                status: entry.nominations.length ? "complete" : "none",
+              });
+            }
+          } else {
+            let reviews = unreviewed.map((entry) => ({
+              year: Number(year),
+              category: entry.category,
+              status: entry.nominations.length ? "complete" : "none",
+              reviewed_at: new Date().toISOString(),
+            }));
+            await window.bulkSetSupabaseAwardReviews(reviews);
+          }
+          expandedCategory = undefined;
+          await refreshProgress();
+          renderTargeted();
+        } catch (error) {
+          sealTarget.disabled = false;
+          alert(error.message || String(error));
+        }
+      })();
+      return;
+    }
+
+    let unsealTarget = event.target.closest("[data-setup-award-unseal]");
+    if (unsealTarget) {
+      if (!canEdit || unsealTarget.disabled || !progress) return;
+      unsealTarget.disabled = true;
+      (async () => {
+        try {
+          if (isCollection) {
+            for (let entry of progress.categories) {
+              await window.changeSupabaseCollectionBallot(collectionSession, {
+                type: "reopen",
+                category: entry.category,
+              });
+            }
+          } else {
+            await window.reopenAllSupabaseAwardReviews(year);
+          }
+          expandedCategory = undefined;
+          await refreshProgress();
+          renderTargeted();
+        } catch (error) {
+          unsealTarget.disabled = false;
           alert(error.message || String(error));
         }
       })();

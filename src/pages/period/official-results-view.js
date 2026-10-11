@@ -20,6 +20,7 @@ window.officialResultsPeriod = function (
  * @param {Object} input Official period rendering context.
  * @param {OfficialResultsSource} input.source Official source metadata.
  * @param {OfficialResultsPeriod} input.period Official source period.
+ * @param {boolean} [input.canEdit] Whether to offer add-to-watchlist/watched actions for unseen nominees.
  * @param {OfficialAwardPeriodComparison|null} [input.personalComparison] Personal winner comparison.
  * @param {(value:*) => string} [input.escape] HTML escaper.
  * @returns {string} Official-results HTML.

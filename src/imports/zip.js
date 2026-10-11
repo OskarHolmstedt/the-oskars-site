@@ -211,8 +211,8 @@
   /**
    * Extracts selected files from a bounded ZIP and verifies size and CRC-32.
    * @param {File|Blob|ArrayBuffer|Uint8Array} input ZIP file or bytes.
-   * @param {Object} options Extraction controls.
-   * @param {string[]} options.selectedNames Case-insensitive basenames to extract.
+   * @param {Object} [options] Extraction controls.
+   * @param {string[]} [options.selectedNames] Case-insensitive basenames to extract.
    * @param {(bytes: Uint8Array) => Promise<Uint8Array>} [options.inflateRaw] Raw-DEFLATE decoder.
    * @param {(bytes: Uint8Array) => string} [options.decodeName] Filename decoder.
    * @returns {Promise<Record<string, {path: string, bytes: Uint8Array}>>} Extracted files keyed by lowercase basename.

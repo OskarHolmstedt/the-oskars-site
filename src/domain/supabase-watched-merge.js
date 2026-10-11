@@ -8,69 +8,6 @@
  */
 
 (function () {
-  let memoryStorage = new Map();
-  function getStorageItem(key) {
-    try {
-      return localStorage.getItem(key);
-    } catch {
-      return memoryStorage.get(key) ?? null;
-    }
-  }
-  function setStorageItem(key, val) {
-    try {
-      localStorage.setItem(key, val);
-    } catch {
-      memoryStorage.set(key, val);
-    }
-  }
-  function removeStorageItem(key) {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      memoryStorage.delete(key);
-    }
-  }
-
-  /**
-   * Formats an array of release years into a human-readable span or list.
-   * @param {number[]} years
-   * @returns {string} Formatted label.
-   */
-  window.formatWatchedMergeBlockLabel = function (years) {
-    if (typeof window.formatWatchlistMergeBlockLabel === "function") {
-      return window.formatWatchlistMergeBlockLabel(years);
-    }
-    if (!Array.isArray(years) || !years.length) return "";
-    let sorted = [...new Set(years.map(Number).filter(Number.isInteger))].sort(
-      (a, b) => a - b,
-    );
-    if (!sorted.length) return "";
-
-    let runs = [];
-    let current = [sorted[0]];
-    for (let i = 1; i < sorted.length; i++) {
-      let prev = sorted[i - 1];
-      let curr = sorted[i];
-      if (curr === prev + 1) {
-        current.push(curr);
-      } else {
-        runs.push(current);
-        current = [curr];
-      }
-    }
-    runs.push(current);
-
-    let parts = runs.map((run) => {
-      if (run.length === 1) return String(run[0]);
-      if (run.length === 10 && run[0] % 10 === 0 && window.getDecadeKey) {
-        return window.getDecadeKey(run[0]);
-      }
-      return `${run[0]}–${run[run.length - 1]}`;
-    });
-
-    return parts.join(", ");
-  };
-
   /**
    * Lists available period scopes for watched ranking merges.
    * @param {Object[]} [watchedRows] Optional explicit watched rows.
@@ -183,6 +120,26 @@
     return [...years].sort((a, b) => a - b);
   };
 
+  function blockStore(scopeType, scopeKey, watchedRows) {
+    return window.createShelfMergeBlockStore(
+      `oskars-watched-merge-blocks-${scopeType}-${scopeKey}`,
+      () =>
+        window.supabaseWatchedScopePopulatedYears(
+          scopeType,
+          scopeKey,
+          watchedRows,
+        ),
+      (years) =>
+        window.supabaseWatchedBlockItems(
+          scopeType,
+          scopeKey,
+          years,
+          null,
+          watchedRows,
+        ),
+    );
+  }
+
   /**
    * Loads candidate blocks for a watched period scope.
    * @param {string} scopeType
@@ -191,82 +148,7 @@
    * @returns {Object[]} Candidate blocks: {id, years, label, count, isSingle}.
    */
   window.loadWatchedMergeBlocks = function (scopeType, scopeKey, watchedRows) {
-    let populatedYears = window.supabaseWatchedScopePopulatedYears(
-      scopeType,
-      scopeKey,
-      watchedRows,
-    );
-    let populatedSet = new Set(populatedYears);
-    let storageKey = `oskars-watched-merge-blocks-${scopeType}-${scopeKey}`;
-    let savedRaw = getStorageItem(storageKey);
-    let rawBlocks = [];
-
-    if (savedRaw) {
-      try {
-        let parsed = JSON.parse(savedRaw);
-        if (Array.isArray(parsed)) {
-          let seenYears = new Set();
-          parsed.forEach((entry) => {
-            if (!Array.isArray(entry)) return;
-            let validYears = entry
-              .map(Number)
-              .filter((y) => populatedSet.has(y) && !seenYears.has(y));
-            if (validYears.length) {
-              validYears.forEach((y) => seenYears.add(y));
-              rawBlocks.push(validYears.sort((a, b) => a - b));
-            }
-          });
-          populatedYears.forEach((year) => {
-            if (!seenYears.has(year)) rawBlocks.push([year]);
-          });
-        }
-      } catch {
-        rawBlocks = [];
-      }
-    }
-
-    if (!rawBlocks.length) {
-      rawBlocks = populatedYears.map((year) => [year]);
-    }
-
-    rawBlocks.sort((left, right) => Math.min(...left) - Math.min(...right));
-
-    return rawBlocks.map((years) => {
-      let items = window.supabaseWatchedBlockItems(
-        scopeType,
-        scopeKey,
-        years,
-        null,
-        watchedRows,
-      );
-      return {
-        id: years.join(","),
-        years,
-        label: window.formatWatchedMergeBlockLabel(years),
-        count: items.length,
-        isSingle: years.length === 1,
-      };
-    });
-  };
-
-  /**
-   * Persists candidate blocks for a watched period scope.
-   * @param {string} scopeType
-   * @param {string} scopeKey
-   * @param {Array<Object|number[]>} blocks
-   */
-  window.saveWatchedMergeBlocks = function (scopeType, scopeKey, blocks) {
-    let yearArrays = (blocks || [])
-      .map((b) =>
-        (Array.isArray(b) ? b : b?.years || [])
-          .map(Number)
-          .sort((a, b) => a - b),
-      )
-      .filter((arr) => arr.length > 0);
-    setStorageItem(
-      `oskars-watched-merge-blocks-${scopeType}-${scopeKey}`,
-      JSON.stringify(yearArrays),
-    );
+    return blockStore(scopeType, scopeKey, watchedRows).load();
   };
 
   /**
@@ -283,24 +165,7 @@
     blockAId,
     blockBId,
   ) {
-    if (!blockAId || !blockBId || blockAId === blockBId) {
-      return window.loadWatchedMergeBlocks(scopeType, scopeKey);
-    }
-    let blocks = window.loadWatchedMergeBlocks(scopeType, scopeKey);
-    let blockA = blocks.find((b) => b.id === blockAId);
-    let blockB = blocks.find((b) => b.id === blockBId);
-    if (!blockA || !blockB) return blocks;
-
-    let unitedYears = [...new Set([...blockA.years, ...blockB.years])].sort(
-      (a, b) => a - b,
-    );
-    let remainingBlocks = blocks
-      .filter((b) => b.id !== blockAId && b.id !== blockBId)
-      .map((b) => b.years);
-    remainingBlocks.push(unitedYears);
-
-    window.saveWatchedMergeBlocks(scopeType, scopeKey, remainingBlocks);
-    return window.loadWatchedMergeBlocks(scopeType, scopeKey);
+    return blockStore(scopeType, scopeKey).unite(blockAId, blockBId);
   };
 
   /**
@@ -311,15 +176,7 @@
    * @returns {Object[]}
    */
   window.splitWatchedMergeBlock = function (scopeType, scopeKey, blockId) {
-    let blocks = window.loadWatchedMergeBlocks(scopeType, scopeKey);
-    let target = blocks.find((b) => b.id === blockId);
-    if (!target || target.isSingle) return blocks;
-
-    let remaining = blocks.filter((b) => b.id !== blockId).map((b) => b.years);
-    target.years.forEach((year) => remaining.push([year]));
-
-    window.saveWatchedMergeBlocks(scopeType, scopeKey, remaining);
-    return window.loadWatchedMergeBlocks(scopeType, scopeKey);
+    return blockStore(scopeType, scopeKey).split(blockId);
   };
 
   /**
@@ -329,8 +186,7 @@
    * @returns {Object[]}
    */
   window.resetWatchedMergeBlocks = function (scopeType, scopeKey) {
-    removeStorageItem(`oskars-watched-merge-blocks-${scopeType}-${scopeKey}`);
-    return window.loadWatchedMergeBlocks(scopeType, scopeKey);
+    return blockStore(scopeType, scopeKey).reset();
   };
 
   /**
@@ -340,21 +196,7 @@
    * @returns {Object[]}
    */
   window.groupWatchedMergeBlocksByDecade = function (scopeType, scopeKey) {
-    let populatedYears = window.supabaseWatchedScopePopulatedYears(
-      scopeType,
-      scopeKey,
-    );
-    let decadeGroups = new Map();
-    populatedYears.forEach((year) => {
-      let decade = window.getDecadeKey
-        ? window.getDecadeKey(year)
-        : `${Math.floor(year / 10) * 10}s`;
-      if (!decadeGroups.has(decade)) decadeGroups.set(decade, []);
-      decadeGroups.get(decade).push(year);
-    });
-    let yearArrays = [...decadeGroups.values()];
-    window.saveWatchedMergeBlocks(scopeType, scopeKey, yearArrays);
-    return window.loadWatchedMergeBlocks(scopeType, scopeKey);
+    return blockStore(scopeType, scopeKey).groupByDecade();
   };
 
   /**
@@ -444,52 +286,8 @@
     }
     let parts = String(key || "").split("|");
     let val = parts[0];
-    let mod = parts[1] === "plus" ? "＋" : parts[1] === "minus" ? "—" : "";
+    let mod = parts[1] === "plus" ? "＋" : parts[1] === "minus" ? "−" : "";
     return val ? `${val}★${mod}` : "Unrated";
-  }
-
-  function syncWatchedShelfSession(session) {
-    while (session.currentShelfIndex < session.shelves.length) {
-      let shelf = session.shelves[session.currentShelfIndex];
-      if (shelf.pointerA >= shelf.listA.length) {
-        if (shelf.pointerB < shelf.listB.length) {
-          let remainder = shelf.listB.slice(shelf.pointerB);
-          shelf.merged.push(...remainder);
-          session.merged.push(...remainder);
-          shelf.pointerB = shelf.listB.length;
-        }
-        session.currentShelfIndex += 1;
-        continue;
-      }
-      if (shelf.pointerB >= shelf.listB.length) {
-        if (shelf.pointerA < shelf.listA.length) {
-          let remainder = shelf.listA.slice(shelf.pointerA);
-          shelf.merged.push(...remainder);
-          session.merged.push(...remainder);
-          shelf.pointerA = shelf.listA.length;
-        }
-        session.currentShelfIndex += 1;
-        continue;
-      }
-      // Interactive shelf reached
-      session.currentShelf = shelf;
-      session.listA = shelf.listA;
-      session.listB = shelf.listB;
-      session.pointerA = shelf.pointerA;
-      session.pointerB = shelf.pointerB;
-      session.shelfLabel = shelf.label;
-      session.done = false;
-      return session;
-    }
-
-    session.currentShelf = null;
-    session.listA = [];
-    session.listB = [];
-    session.pointerA = 0;
-    session.pointerB = 0;
-    session.shelfLabel = "";
-    session.done = true;
-    return session;
   }
 
   /**
@@ -501,66 +299,18 @@
    * @returns {Object} Watched shelf merge session.
    */
   window.createWatchedShelfMergeSession = function (listA, listB) {
-    let mapA = new Map();
-    (listA || []).forEach((item) => {
-      let key = window.supabaseRankingRatingKey
-        ? window.supabaseRankingRatingKey(item)
-        : String(item.rating || "");
-      if (!mapA.has(key)) mapA.set(key, []);
-      mapA.get(key).push(item);
+    return window.createShelfMergeSession(listA, listB, {
+      gradeKey: (item) =>
+        window.supabaseRankingRatingKey
+          ? window.supabaseRankingRatingKey(item)
+          : String(item.rating || ""),
+      gradeValue: (key) =>
+        window.supabaseRankingRatingSortValueFromKey
+          ? window.supabaseRankingRatingSortValueFromKey(key)
+          : Number(key) || 0,
+      direction: -1,
+      formatLabel: formatShelfLabel,
     });
-
-    let mapB = new Map();
-    (listB || []).forEach((item) => {
-      let key = window.supabaseRankingRatingKey
-        ? window.supabaseRankingRatingKey(item)
-        : String(item.rating || "");
-      if (!mapB.has(key)) mapB.set(key, []);
-      mapB.get(key).push(item);
-    });
-
-    let allKeys = new Set([...mapA.keys(), ...mapB.keys()]);
-    let sortedKeys = [...allKeys].sort((a, b) => {
-      let valA = window.supabaseRankingRatingSortValueFromKey
-        ? window.supabaseRankingRatingSortValueFromKey(a)
-        : Number(a) || 0;
-      let valB = window.supabaseRankingRatingSortValueFromKey
-        ? window.supabaseRankingRatingSortValueFromKey(b)
-        : Number(b) || 0;
-      return valB - valA;
-    });
-
-    let shelves = sortedKeys.map((key) => {
-      let shelfA = mapA.get(key) || [];
-      let shelfB = mapB.get(key) || [];
-      let sample = shelfA[0] || shelfB[0];
-      return {
-        key,
-        label: formatShelfLabel(sample, key),
-        listA: shelfA,
-        listB: shelfB,
-        pointerA: 0,
-        pointerB: 0,
-        merged: [],
-      };
-    });
-
-    let session = {
-      shelves,
-      currentShelfIndex: 0,
-      merged: [],
-      history: [],
-      done: false,
-      listA: [],
-      listB: [],
-      pointerA: 0,
-      pointerB: 0,
-      currentShelf: null,
-      shelfLabel: "",
-    };
-
-    syncWatchedShelfSession(session);
-    return session;
   };
 
   /**
@@ -570,31 +320,7 @@
    * @returns {Object}
    */
   window.pickWatchedMergeSide = function (session, side) {
-    if (!session || session.done || !session.currentShelf) return session;
-
-    let shelf = session.currentShelf;
-    let historyEntry = {
-      shelfIndex: session.currentShelfIndex,
-      side,
-      mergedCountBefore: session.merged.length,
-      shelvesState: session.shelves.map((s) => ({
-        pointerA: s.pointerA,
-        pointerB: s.pointerB,
-        mergedLen: s.merged.length,
-      })),
-    };
-
-    let item =
-      side === "a" ? shelf.listA[shelf.pointerA] : shelf.listB[shelf.pointerB];
-    shelf.merged.push(item);
-    session.merged.push(item);
-
-    if (side === "a") shelf.pointerA += 1;
-    else shelf.pointerB += 1;
-
-    session.history.push(historyEntry);
-    syncWatchedShelfSession(session);
-    return session;
+    return window.pickShelfMergeSide(session, side);
   };
 
   /**
@@ -603,20 +329,7 @@
    * @returns {Object}
    */
   window.undoWatchedMergeChoice = function (session) {
-    if (!session || !session.history || !session.history.length) return session;
-
-    let entry = session.history.pop();
-    session.merged.length = entry.mergedCountBefore;
-    session.shelves.forEach((s, idx) => {
-      let saved = entry.shelvesState[idx];
-      s.pointerA = saved.pointerA;
-      s.pointerB = saved.pointerB;
-      s.merged.length = saved.mergedLen;
-    });
-
-    session.currentShelfIndex = entry.shelfIndex;
-    syncWatchedShelfSession(session);
-    return session;
+    return window.undoShelfMergeChoice(session);
   };
 
   /**

@@ -2,7 +2,7 @@
  * @file Profile page, backed by Supabase (issue #430),
  * continuing #420/#421/#422/#429's pattern: gate check ->
  * loadSupabaseProfile() -> render -> each action calls its
- * supabase-workspace.js function directly.
+ * supabase/profile.js function directly.
  *
  * Deliberately focused on the current Supabase profile model rather than the
  * previous implementation's workspace-sync conflict resolution, "load complete archive
@@ -38,6 +38,28 @@
 
   let downloadJson = window.downloadJson;
   let stampedFilename = window.stampedFilename;
+
+  // Removes what the retired IndexedDB/localStorage workspace may have left
+  // in this browser - its "oskars" database and its "oskars" and
+  // "oskars-recovery" keys - plus this tab's remembered public-profile slug.
+  async function clearBrowserStorage() {
+    localStorage.removeItem("oskars");
+    localStorage.removeItem("oskars-recovery");
+    sessionStorage.removeItem(
+      window.OSKARS_PROFILE_ACTIVE_SLUG_KEY || "oskars-active-profile",
+    );
+    if (!window.indexedDB) return;
+    await new Promise((resolve, reject) => {
+      let request = window.indexedDB.deleteDatabase("oskars");
+      request.onsuccess = resolve;
+      request.onerror = () =>
+        reject(request.error || new Error("Could not clear browser data."));
+      request.onblocked = () =>
+        reject(
+          new Error("Close other Oskars tabs before deleting the profile."),
+        );
+    });
+  }
 
   function authSectionHtml(user) {
     return `<section id="profileAuthSection" class="data-panel">
@@ -214,7 +236,7 @@
           );
           if (status) status.textContent = "Deleting account…";
           await window.deleteSupabaseAccount?.();
-          await window.clearAllStoredOskarsData?.();
+          await clearBrowserStorage();
           try {
             await window.signOutOfSupabase?.();
           } catch (error) {

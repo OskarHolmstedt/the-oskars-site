@@ -192,7 +192,7 @@
     };
     return window
       .buildSearchEntries({
-        locale: window.currentOskarsLocale?.(),
+        locale: window.oskarsLocale?.(),
         labels,
         cacheKeySuffix: "compare",
       })
@@ -493,7 +493,7 @@
     if (!form) return;
     event.preventDefault();
     let match = compareSearchMatches(
-      new FormData(form).get("targetSearch"),
+      new FormData(/** @type {HTMLFormElement} */ (form)).get("targetSearch"),
       ensureTargets(),
     )[0];
     addCompareTarget(match?.target);

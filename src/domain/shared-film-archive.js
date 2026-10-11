@@ -56,9 +56,13 @@ window.rebuildSharedFilmArchiveByIdIndex = function (map) {
  * correct - unlike window.watchlistItemsByDirector, which caches lazily
  * against the viewer's own constantly-changing local state.
  * @param {Object} map Raw pulled `sharedFilmMetadata` flat map.
+ * @param {Object} [options]
+ * @param {boolean} [options.merge] Whether to merge into existing entries instead of replacing.
  */
-window.applySharedFilmArchive = function (map) {
-  window.OSKARS_SHARED_FILM_ARCHIVE = map || {};
+window.applySharedFilmArchive = function (map, options = {}) {
+  window.OSKARS_SHARED_FILM_ARCHIVE = options.merge
+    ? { ...window.OSKARS_SHARED_FILM_ARCHIVE, ...(map || {}) }
+    : map || {};
   window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID =
     window.rebuildSharedFilmArchiveByIdIndex(window.OSKARS_SHARED_FILM_ARCHIVE);
   window.OSKARS_SHARED_FILM_ARCHIVE_VERSION += 1;
@@ -191,11 +195,8 @@ window.sharedArchiveFilmsOutsideCollection = function (
 
 /**
  * Builds one film's people credits from every official nomination it holds
- * across every source, plus its director(s) - the same
- * category-to-profession mapping `buildSharedFilmPeopleCredits`
- * (`src/core/shared-film-metadata-sync.js`) already uses for an organic
- * account's own award placements, applied here to objective nomination
- * facts (category/recipient) instead. A film nominated for both Best
+ * across every source, plus its director(s), mapping each category to a
+ * profession through `PERSON_AWARD_PROFESSIONS`. A film nominated for both Best
  * Picture and Best Cinematography, say, carries its cinematographer
  * alongside its director; Best Picture itself has no
  * `PERSON_AWARD_PROFESSIONS` entry, so it contributes nothing beyond the
@@ -389,6 +390,7 @@ window.addFilmRecordToWatchlist = function (record) {
       swedishTitle: record.swedishTitle,
       poster: record.poster,
       director,
+      supabaseFilmId: record.id || record.supabaseFilmId || "",
     },
     { save: false },
   );
@@ -440,86 +442,4 @@ window.sharedArchiveCandidateFilmById = function (filmId) {
   let id = String(filmId || "");
   if (!id) return null;
   return window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID?.[id] || null;
-};
-
-/**
- * Adds one Shared-archive card's film through the normal watchlist
- * persistence path. Looks up the combined candidate set (issue #371), not
- * just OSKARS_SHARED_FILM_ARCHIVE directly, since the card that triggered
- * this may be an official-results nominee with no entry there.
- * @param {string|number} tmdbId Shared film TMDB id.
- * @returns {Object} Normal addWatchlistItem result.
- */
-window.addSharedArchiveFilmToWatchlist = function (tmdbId) {
-  let film = window.sharedArchiveCandidateFilmByTmdbId(tmdbId);
-  if (!film) return { ok: false, reason: "Could not add this film." };
-  return window.addFilmRecordToWatchlist(film);
-};
-
-/**
- * Creates a fresh watched-film entry from an external record (shared
- * archive or official-results nominee), so the existing classify-and-route
- * logic (classifyTmdbFilmType/setFilmTmdbMetadata) places it correctly: a
- * real film lands unranked in the archive (shows under "Not yet ranked"),
- * anything else (TV/short/documentary) lands in Shorts, docs & TV.
- *
- * When `record.type` is already known (issue #372 - shared records pushed
- * after schema v2 carry it), that classification is applied directly from
- * the record via setFilmTmdbMetadata, the same application path a fresh
- * fetch result already uses - no TMDB round trip for data the shared
- * archive already paid for once. Falls back to a full forced fetch
- * (loadFilmMetadata with skipSharedArchive:true, bypassing the default
- * shared-metadata shortcut that would otherwise fire here and return the
- * same type-less cached shape) for an older shared doc or an
- * official-results nominee, neither of which carries `type` yet.
- * @param {Object} record `{title, year, tmdbId, type, country, primaryCountry, swedishTitle, runtimeMinutes, poster, director|people}`.
- * @returns {Promise<Object>} `{ok, filmId}` or `{ok:false, reason}`.
- */
-window.addFilmRecordToWatched = async function (record) {
-  let director = externalRecordDirector(record);
-  let plan = window.planFreshWatchedFilm({
-    title: record?.title,
-    year: record?.year,
-    tmdbId: record?.tmdbId,
-    director,
-    type: record?.type,
-  });
-  if (!plan.ok)
-    return {
-      ok: false,
-      reason: plan.errors?.[0] || "Could not add this film.",
-    };
-  let result = window.applyFreshWatchedFilm(plan, { save: false });
-  if (!result.ok)
-    return { ok: false, reason: result.reason || "Could not add this film." };
-  if (record?.type) {
-    window.setFilmTmdbMetadata(
-      result.film.id,
-      {
-        tmdbId: record.tmdbId,
-        type: record.type,
-        director,
-        country: record.country,
-        primaryCountry: record.primaryCountry,
-        swedishTitle: record.swedishTitle,
-        runtimeMinutes: record.runtimeMinutes,
-        poster: record.poster,
-      },
-      // planFreshWatchedFilm already stored record.tmdbId onto the film for
-      // exact-match dedup, ahead of this call - without this flag that
-      // makes setFilmTmdbMetadata's own !film.tmdbId check see this as a
-      // routine refresh instead of the film's real first classification,
-      // and it never moves out of watchedOther into the ranked archive
-      // (issue #373).
-      { save: false, log: false, assumeFirstResolution: true },
-    );
-    window.save();
-  } else {
-    await window.loadFilmMetadata?.(result.film.id, {
-      skipSharedArchive: true,
-      log: false,
-      assumeFirstResolution: true,
-    });
-  }
-  return { ok: true, filmId: result.film.id };
 };

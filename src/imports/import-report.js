@@ -260,10 +260,13 @@ window.showImportReport = function (report) {
   let missingAllTimeOverflow = overflowNote(
     missingAllTimeFilms.length,
     detailTotal("missingAllTimeFilms"),
-    ui("Showing {shown} of {total} bracket films missing from the all-time ranked list.", {
-      shown: missingAllTimeFilms.length,
-      total: detailTotal("missingAllTimeFilms"),
-    }),
+    ui(
+      "Showing {shown} of {total} bracket films missing from the all-time ranked list.",
+      {
+        shown: missingAllTimeFilms.length,
+        total: detailTotal("missingAllTimeFilms"),
+      },
+    ),
   );
   let newFilmRows = newFilmDetails
     .map(
@@ -591,10 +594,4 @@ window.showImportReport = function (report) {
   finishRenderTimer?.(
     `${report.filmsParsed || 0} parsed, ${body.querySelectorAll("table").length} table(s)`,
   );
-};
-
-/** Hides the import report panel when present. */
-window.hideImportReport = function () {
-  let panel = document.getElementById("importReport");
-  if (panel) panel.hidden = true;
 };

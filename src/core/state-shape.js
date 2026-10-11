@@ -72,6 +72,9 @@
  * @property {AwardRecipient[]} recipients Structured recipients.
  * @property {string} recipientText Original recipient cell text.
  * @property {string} detail Role name, song title, or other work context.
+ * @property {string} [supabaseNominationId] Personal nomination row id when hydrated from Supabase.
+ * @property {string} [recipient] Legacy recipient text; normalization moves it into `recipients`.
+ * @property {string} [role] Credit schema 1 role text; migration moves it into `detail`.
  */
 
 /**
@@ -130,7 +133,11 @@
  * @property {string} [primaryCountry] Single normalized country used for
  *   Best International Picture eligibility.
  * @property {'live-action'|'animation'|'unknown'} [medium]
+ * @property {string|boolean} [liveAction] Ranked-list Live Action cell;
+ *   normalizeFilmMetadata derives `medium` from it.
  * @property {'original'|'adapted'|'unknown'} [screenplayType]
+ * @property {string} [adaptation] Ranked-list Adaptation cell;
+ *   normalizeFilmMetadata derives `screenplayType` from it.
  * @property {string} [adaptationSource]
  * @property {string} [swedishTitle]
  * @property {string} [type] Ranked-list Type cell (usually "Film").
@@ -421,6 +428,8 @@
  * @property {string} [supabaseWatchlistPosition] Fractional lexicographical position string in Supabase `watchlist` table.
  * @property {string} [country]
  * @property {number|string} [runtimeMinutes]
+ * @property {'live-action'|'animation'|'unknown'} [medium]
+ * @property {'original'|'adapted'|'unknown'} [screenplayType]
  * @property {string} [adaptationSource]
  * @property {string} [platform]
  * @property {string[]} [tags]
@@ -441,7 +450,7 @@
  * @property {number} [ratingValue]
  * @property {string} director
  * @property {FranchiseMembership[]} franchises
- * @property {number} rowNumber Source sheet row.
+ * @property {number} [rowNumber] Source sheet row; absent on films an import reclassified from the archive.
  * @property {string} [normalizedTitle]
  * @property {string} [tmdbId]
  * @property {string} [letterboxdUrl]
@@ -563,8 +572,9 @@
 /**
  * One film reference inside a project's watch queue.
  * @typedef {Object} ProjectFilmRef
- * @property {'archive'|'watchlist'|'watched'|'official'} type Which store or official-results collection `id` points into.
- * @property {string} id Film or watchlist item id.
+ * @property {'archive'|'watchlist'|'watched'|'official'|'canonical'} type Which store, official-results collection, or canonical list `id` points into.
+ * @property {string} id Film or watchlist item id, or `listId::rank` for a canonical-list entry.
+ * @property {string} [title] Fallback title for a canonical-list entry the list no longer resolves.
  * @property {string} [sourceId] Official-results source id `id` resolves against (type "official" only; a project's official refs always come from one source). Missing on refs created before issue #343 - resolvers default those to "academy-awards".
  * @property {number} projectOrder Queue position local to this project.
  * @property {number|null} [rank] Optional rank within the project, set by domain code and read for sort order.
@@ -575,7 +585,7 @@
  * @typedef {Object} ProjectRecord
  * @property {string} id
  * @property {string} name
- * @property {'person'|'franchise'|'tag'|'watchlist-filter'|'watch-goal'|'official-results'|'custom'} sourceType
+ * @property {'person'|'franchise'|'tag'|'watchlist-filter'|'watch-goal'|'official-results'|'canonical-list'|'custom'} sourceType
  * @property {string} sourceId Source entity id; '' for custom projects.
  * @property {string} sourceLabel
  * @property {ProjectFilmRef[]} filmRefs
@@ -722,7 +732,7 @@
  * by `filmAxisSortValue` (src/ui/page-utils.js).
  * @typedef {Object} FilmAxisRecord
  * @property {FilmRecord} [film] Watched film, when the row is watched.
- * @property {WatchlistItem} [item] Watchlist item, when the row is unwatched.
+ * @property {WatchlistItem & {tier_modifier?: string}} [item] Watchlist item or Supabase watchlist row, when the row is unwatched.
  */
 
 /**
@@ -784,6 +794,7 @@
  * @property {Record<string, PeriodSourceRecord>} nextPeriods Planned source-period replacements.
  * @property {Record<string, string>} sourceSignatures Source snapshots used by the stale-plan guard.
  * @property {string} editType Edit-log type.
+ * @property {string} heading Preview heading, or '' to derive one from `operation`.
  * @property {string} summary Edit-log summary.
  * @property {string} sheetHint Sheet-oriented target hint.
  * @property {Object} context Edit-log context.
@@ -1019,6 +1030,28 @@
  * @property {string} [generatedAt] Snapshot generation time as an ISO timestamp.
  * @property {boolean} [preview] Whether the report represents a dry run.
  * @property {boolean|Promise<boolean>} [persisted] Replacement persistence result.
+ * @property {Object[]} [missingAllTimeFilms] Ranked films absent from the all-time list.
+ * @property {Object[]} [newFilmDetails] Films the import adds.
+ * @property {Object[]} [rankChanges] Ranking moves the import makes.
+ * @property {Object[]} [awardChanges] Award changes the import makes.
+ * @property {Object[]} [preservedFieldDetails] Local values kept over differing incoming ones.
+ * @property {Object[]} [sourceConflicts] Ratings or tiers that disagree across sources.
+ * @property {Object[]} [consistencyChecks] Range-tagged `consistency` entries in a combined Sheets summary.
+ * @property {Object} [franchiseSummary] Franchise-sheet summary in reports from the retired franchise import.
+ * @property {Object} [directorSummary] Director-sheet summary in reports from the retired director import.
+ * @property {Object[]} [franchiseSummaries] Range-tagged `franchiseSummary` entries.
+ * @property {Object[]} [directorSummaries] Range-tagged `directorSummary` entries.
+ * @property {Object[]} [officialResultIssues] Official-results rows that could not be applied.
+ * @property {Object} [officialResultsSummary] Official-results nomination and match counts.
+ * @property {string} [sourceKind] 'imdb' on IMDb imports; Letterboxd imports leave it unset.
+ * @property {number} [watchedArchiveMerged] Letterboxd/IMDb: archive films matched.
+ * @property {number} [archiveAdded] Letterboxd/IMDb: films added unranked to the archive.
+ * @property {Object[]} [freshArchiveFilms] Letterboxd/IMDb: identifying info for added archive films, for metadata enrichment.
+ * @property {number} [watchedOtherAdded] Letterboxd/IMDb: standalone watched films added.
+ * @property {number} [watchedOtherMerged] Letterboxd/IMDb: standalone watched films merged.
+ * @property {number} [watchlistAdded] Letterboxd/IMDb: watchlist items added.
+ * @property {number} [watchlistMerged] Letterboxd/IMDb: watchlist items merged.
+ * @property {number} [watchlistRemoved] Letterboxd/IMDb: watched watchlist items removed.
  */
 
 /**
@@ -1081,6 +1114,8 @@
  * @property {string[]} filmIds Watched archive film ids.
  * @property {string[]} watchedOtherIds Standalone watched entry ids.
  * @property {string[]} watchlistIds Known unwatched film ids.
+ * @property {Object[]} [watchlistPreview] Supabase watchlist rows for people
+ *   built from directory edges, where `watchlistIds` has no local items.
  * @property {AwardStats} stats Annual-award statistics.
  * @property {AwardScores} awardScores
  * @property {RatingStatistics} ratingStatistics Complete watched-filmography rating statistics.
@@ -1187,9 +1222,8 @@
  */
 
 /**
- * The global application state (`window.state`). Browser persistence separates
- * canonical draft data, draft metadata, device preferences, and local state;
- * everything under "Derived" is rebuilt after every load.
+ * Legacy Firestore-sync bookkeeping that older backups may carry in
+ * `draftMetadata.remoteSync`.
  * @typedef {Object} WorkspaceRemoteSync
  * @property {string} uid Firebase account that owns every stored baseline and conflict.
  * @property {Record<string, Record<string, string>>} shards Last-agreed shard revisions by section.
@@ -1499,7 +1533,6 @@ window.cloneRecord = function (value) {
 };
 
 // The legacy full snapshot remains the backward-compatible backup shape.
-// IndexedDB/localStorage use getBrowserPersistenceState below.
 /**
  * Snapshots the backward-compatible full browser backup shape.
  * @returns {Object} Plain persistable state (no derived indexes).
@@ -1570,65 +1603,11 @@ window.getSerializableState = function () {
  */
 window.restoreSerializableState = function (backup) {
   if (!backup || typeof backup !== "object" || !window.state) return null;
-  if (typeof window.hydrateState === "function") {
-    return window.hydrateState(backup);
-  }
   Object.assign(window.state, backup);
   if (window.rebuildAggregates) window.rebuildAggregates();
   else if (window.markAggregatesDirty)
     window.markAggregatesDirty("state backup restored");
   return window.state;
-};
-
-window.OSKARS_WORKSPACE_SCHEMA_VERSION = 1;
-
-/**
- * Returns device-local UI preferences separately from canonical domain data.
- * @param {OskarsState} [source] Runtime state.
- * @returns {Object} Preferences.
- */
-window.getDevicePreferences = function (source = window.state) {
-  return {
-    activeProjectId: source.activeProjectId || "",
-    publicProfileDisplayName: source.publicProfileDisplayName || "",
-    view: source.view,
-    leaderboardLimit: source.leaderboardLimit,
-    peopleSearch: source.peopleSearch,
-    peopleSort: source.peopleSort,
-    peopleProfession: source.peopleProfession,
-    yearFilmScope: source.yearFilmScope,
-    filmMediumFilter: source.filmMediumFilter,
-    filmScreenplayFilter: source.filmScreenplayFilter,
-    selectedPeriodType: source.selectedPeriodType,
-    selectedYears: source.selectedYears || [],
-  };
-};
-
-/**
- * Returns local migrations and diagnostics that never enter canonical JSON.
- * @param {OskarsState} [source] Runtime state.
- * @returns {Object} Local state.
- */
-window.getLocalWorkspaceState = function (source = window.state) {
-  return {
-    migrations: {
-      dataVersion: source.dataVersion || 0,
-      creditSchemaVersion: source.creditSchemaVersion || 3,
-      centuryRangeVersion: source.centuryRangeVersion || 0,
-      adaptationSourceVersion: source.adaptationSourceVersion || 0,
-      watchlistOrderVersion: source.watchlistOrderVersion || 0,
-      groupedRankProjectionVersion: source.groupedRankProjectionVersion || 0,
-      watchedDateVersion: source.watchedDateVersion || 0,
-      viewingFactsVersion: source.viewingFactsVersion || 0,
-    },
-    diagnostics: {
-      imageImportStats: source.imageImportStats || {},
-      sourceConflicts: source.sourceConflicts || [],
-      importConsistency: source.importConsistency || null,
-      lastImportReport: source.lastImportReport || null,
-      importFoundation: source.importFoundation || null,
-    },
-  };
 };
 
 /**
@@ -1680,132 +1659,6 @@ window.canonicalDataRevision = function (canonical) {
   }
   visit(canonical);
   return `fnv1a32:${(hash >>> 0).toString(16)}:${length}`;
-};
-
-/**
- * Tests whether canonical candidate data differs from its recorded base.
- * @param {Object} canonical Candidate.
- * @param {string} baseRevision Base revision.
- * @returns {boolean} Whether dirty.
- */
-window.canonicalDraftDiffersFromBase = function (canonical, baseRevision) {
-  return (
-    !baseRevision || window.canonicalDataRevision(canonical) !== baseRevision
-  );
-};
-
-/**
- * Builds a draftMetadata object from prior metadata, preserving every
- * optional field it carried and stamping a fresh local-save time. Shared by
- * `getBrowserPersistenceState` and the legacy branch of
- * `browserPersistenceToRuntimeState`.
- * @param {Object} existing Prior draft metadata, or {}.
- * @param {string} baseRevision Resolved base revision.
- * @param {string} [defaultReason] Reason to use when `existing.reason` is unset.
- * @returns {Object} Draft metadata.
- */
-function buildDraftMetadata(existing, baseRevision, defaultReason) {
-  let reason = existing.reason || defaultReason;
-  return {
-    baseRevision,
-    dirty: Boolean(existing.dirty),
-    lastLocalSaveAt: new Date().toISOString(),
-    ...(existing.changedAt ? { changedAt: existing.changedAt } : {}),
-    ...(reason ? { reason } : {}),
-    ...(existing.lastPublishedRevision
-      ? { lastPublishedRevision: existing.lastPublishedRevision }
-      : {}),
-    ...(existing.publishedRevision
-      ? { publishedRevision: existing.publishedRevision }
-      : {}),
-    ...(existing.reconciliationStatus
-      ? { reconciliationStatus: existing.reconciliationStatus }
-      : {}),
-    ...(existing.requiredAction
-      ? { requiredAction: existing.requiredAction }
-      : {}),
-    ...(existing.lastCanonicalCheckAt
-      ? { lastCanonicalCheckAt: existing.lastCanonicalCheckAt }
-      : {}),
-    ...(existing.publication
-      ? { publication: window.cloneRecord(existing.publication) }
-      : {}),
-    // Per-shard Firestore sync bookkeeping and observable bounded-backoff
-    // diagnostics, including the Firebase UID that owns every baseline
-    // (issues #248, #333, and #335). The reconciliation and Firestore-sync
-    // engines that wrote and consumed this field are retired along with
-    // Firebase itself - kept only so an old already-persisted workspace or
-    // JSON backup still hydrates without loss; no current code path reads
-    // or writes it.
-    ...(existing.remoteSync
-      ? { remoteSync: window.cloneRecord(existing.remoteSync) }
-      : {}),
-  };
-}
-
-/**
- * Builds the versioned IndexedDB/localStorage workspace envelope.
- * @param {OskarsState} [source] Runtime state.
- * @returns {Object} Workspace.
- */
-window.getBrowserPersistenceState = function (source = window.state) {
-  let canonical = window.getCanonicalData(source, { clone: false });
-  let existing = source.draftMetadata || {};
-  let baseRevision = String(
-    existing.baseRevision || window.canonicalDataRevision(canonical),
-  );
-  let metadata = buildDraftMetadata(existing, baseRevision);
-  source.draftMetadata = window.cloneRecord(metadata);
-  return {
-    workspaceSchemaVersion: window.OSKARS_WORKSPACE_SCHEMA_VERSION,
-    draft: { data: canonical, metadata },
-    preferences: window.getDevicePreferences(source),
-    local: window.getLocalWorkspaceState(source),
-  };
-};
-
-/**
- * Migrates a persisted workspace or legacy snapshot to runtime source state.
- * @param {Object} stored Stored value.
- * @returns {Object} Runtime source.
- */
-window.browserPersistenceToRuntimeState = function (stored) {
-  if (
-    stored?.workspaceSchemaVersion !== undefined &&
-    stored.workspaceSchemaVersion !== window.OSKARS_WORKSPACE_SCHEMA_VERSION
-  )
-    throw new Error(
-      `Workspace schema version ${stored.workspaceSchemaVersion} is not supported`,
-    );
-  if (
-    stored?.workspaceSchemaVersion === window.OSKARS_WORKSPACE_SCHEMA_VERSION &&
-    stored.draft?.data
-  ) {
-    let runtime = window.canonicalDataToRuntimeState(stored.draft.data);
-    let migrations = stored.local?.migrations || {};
-    let diagnostics = stored.local?.diagnostics || {};
-    return Object.assign(
-      runtime,
-      migrations,
-      stored.preferences || {},
-      diagnostics,
-      {
-        draftMetadata: window.cloneRecord(stored.draft.metadata || null),
-      },
-    );
-  }
-  let legacy = Object.assign({}, stored || {});
-  let existing = legacy.draftMetadata || {};
-  let canonical = window.getCanonicalData(legacy);
-  let baseRevision = String(
-    existing.baseRevision || window.canonicalDataRevision(canonical),
-  );
-  legacy.draftMetadata = buildDraftMetadata(
-    existing,
-    baseRevision,
-    "legacy-workspace-migration",
-  );
-  return legacy;
 };
 
 /**

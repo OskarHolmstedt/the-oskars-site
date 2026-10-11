@@ -248,6 +248,7 @@
         after: String(action?.after || ""),
       });
     }
+    /** @type {EditLogNominationUndoPayload} */
     let normalized = {
       version: 1,
       kind: "nomination-periods",
@@ -334,38 +335,10 @@
     );
   }
 
-  function comparableUndoValue(value) {
-    if (value === null || value === undefined) return "";
-    if (Array.isArray(value))
-      return value.map((item) => String(item ?? "").trim());
-    if (typeof value === "string") return value.trim();
-    return value;
-  }
-
-  function undoValuesEqual(left, right) {
-    return (
-      JSON.stringify(comparableUndoValue(left)) ===
-      JSON.stringify(comparableUndoValue(right))
-    );
-  }
-
-  function displayUndoValue(value) {
-    if (value === null || value === undefined) return "";
-    if (Array.isArray(value)) return value.filter(Boolean).join(", ");
-    return String(value).trim();
-  }
-
-  function noteStoreForUndo(scope) {
-    let notes = window.state.entityNotes;
-    return notes && typeof notes === "object" ? notes[scope] || {} : {};
-  }
-
   let EDIT_UNDO_KINDS = {
     "nomination-periods": {
       structural: true,
       normalize: normalizeNominationPeriodsUndo,
-      plan: planNominationPeriodsUndo,
-      apply: applyNominationPeriodsUndo,
     },
     "film-metadata": {
       targetKeys: ["filmId"],
@@ -395,33 +368,10 @@
               ],
         );
       },
-      resolve(target) {
-        return (
-          window.findFilmById?.(target.filmId) ||
-          window.findWatchedFilmById?.(target.filmId) ||
-          null
-        );
-      },
-      read(film, key) {
-        if (key === "wantToRewatch") return Boolean(film.wantToRewatch);
-        if (key === "tags") return [...(film.tags || [])];
-        if (key === "franchises")
-          return window.formatFranchiseMemberships(film.franchises);
-        return String(film[key] ?? "").trim();
-      },
-      apply(film, restores) {
-        let values = Object.assign(
-          window.filmMetadataFormValues(film),
-          restores,
-        );
-        return Boolean(
-          window.updateFilmMetadata(film.id, values, { log: false }),
-        );
-      },
     },
     "watchlist-metadata": {
       targetKeys: ["watchlistId"],
-      // Derived from WATCHLIST_UNDO_FIELD_LABELS (src/imports/watchlists.js,
+      // Derived from WATCHLIST_UNDO_FIELD_LABELS (src/domain/watchlists.js,
       // issue #503) so new reversible fields cannot drift or silently lose undo.
       get fieldKeys() {
         return new Set(
@@ -445,42 +395,10 @@
               ],
         );
       },
-      resolve(target) {
-        return window.findWatchlistItemById?.(target.watchlistId) || null;
-      },
-      read(item, key) {
-        if (key === "tags") return [...(item.tags || [])];
-        if (key === "franchises")
-          return window.formatFranchiseMemberships(item.franchises);
-        if (key === "runtimeMinutes") return item.runtimeMinutes ?? "";
-        return String(item[key] ?? "").trim();
-      },
-      apply(item, restores) {
-        return Boolean(
-          window.setWatchlistMetadata(item.id, restores, {
-            log: false,
-            save: false,
-          }),
-        );
-      },
     },
     "entity-note": {
       targetKeys: ["noteScope", "noteKey"],
       fieldKeys: new Set(["note"]),
-      resolve(target) {
-        return { scope: target.noteScope, key: target.noteKey };
-      },
-      read(note) {
-        return String(noteStoreForUndo(note.scope)[note.key] || "").trim();
-      },
-      apply(note, restores) {
-        let value = String(restores.note || "").trim();
-        window.state.entityNotes ||= {};
-        window.state.entityNotes[note.scope] ||= {};
-        if (value) window.state.entityNotes[note.scope][note.key] = value;
-        else delete window.state.entityNotes[note.scope][note.key];
-        return true;
-      },
     },
   };
 
@@ -523,220 +441,5 @@
       });
     }
     return { version: 1, kind: payload.kind, target, fields: normalized };
-  };
-
-  function structuralUndoPeriodState(snapshot) {
-    let current = window.state.years?.[snapshot.key];
-    let exists = current !== undefined;
-    return {
-      current,
-      stale:
-        exists !== snapshot.afterExists ||
-        nominationPeriodSignature(current) !== snapshot.afterSignature,
-    };
-  }
-
-  function planNominationPeriodsUndo(entry) {
-    let stalePeriods = new Set();
-    entry.undo.periods.forEach((snapshot) => {
-      if (structuralUndoPeriodState(snapshot).stale)
-        stalePeriods.add(snapshot.key);
-    });
-    let actions = entry.undo.actions.map((action, index) => ({
-      key: `${action.periodKey}:${index}`,
-      periodKey: action.periodKey,
-      category: action.category,
-      label: action.label,
-      current: action.after,
-      restore: action.before,
-      stale: stalePeriods.has(action.periodKey),
-    }));
-    entry.undo.periods.forEach((snapshot) => {
-      if (
-        actions.some((action) => action.periodKey === snapshot.key) ||
-        !stalePeriods.has(snapshot.key)
-      )
-        return;
-      actions.push({
-        key: `${snapshot.key}:period`,
-        periodKey: snapshot.key,
-        category: "",
-        label: `${snapshot.key} source period`,
-        current: "Changed after this edit",
-        restore: "Recorded previous source period",
-        stale: true,
-      });
-    });
-    return {
-      ok: stalePeriods.size === 0,
-      reason: stalePeriods.size ? "stale" : "",
-      entry,
-      actions,
-      affectedPeriods: entry.undo.periods.map((snapshot) => snapshot.key),
-    };
-  }
-
-  function restoreNominationPeriod(snapshot) {
-    if (!snapshot.beforeExists) return { ok: true, value: undefined };
-    let current = window.cloneRecord(window.state.years[snapshot.key]);
-    let films = [...(current?.films || [])];
-    let afterFilms = [...snapshot.afterFilms].sort(
-      (left, right) => right.index - left.index,
-    );
-    for (let entry of afterFilms) {
-      if (stableJson(films[entry.index] ?? null) !== stableJson(entry.record))
-        return { ok: false };
-      films.splice(entry.index, 1);
-    }
-    [...snapshot.beforeFilms]
-      .sort((left, right) => left.index - right.index)
-      .forEach((entry) => {
-        films.splice(entry.index, 0, window.cloneRecord(entry.record));
-      });
-    let value = Object.assign({}, window.cloneRecord(snapshot.beforeMetadata), {
-      films,
-    });
-    if (nominationPeriodSignature(value) !== snapshot.beforeSignature)
-      return { ok: false };
-    return { ok: true, value };
-  }
-
-  function applyNominationPeriodsUndo(payload) {
-    let replacements = new Map();
-    for (let snapshot of payload.periods) {
-      if (structuralUndoPeriodState(snapshot).stale) return false;
-      let restored = restoreNominationPeriod(snapshot);
-      if (!restored.ok) return false;
-      replacements.set(snapshot.key, restored.value);
-    }
-    let previous = new Map(
-      payload.periods.map((snapshot) => [
-        snapshot.key,
-        window.state.years?.[snapshot.key] === undefined
-          ? undefined
-          : window.cloneRecord(window.state.years[snapshot.key]),
-      ]),
-    );
-    try {
-      replacements.forEach((period, key) => {
-        if (period === undefined) delete window.state.years[key];
-        else window.state.years[key] = window.cloneRecord(period);
-      });
-      window.markAggregatesDirty?.("structural nomination undo applied");
-      window.ensureAggregatesFresh?.();
-      return true;
-    } catch (error) {
-      previous.forEach((period, key) => {
-        if (period === undefined) delete window.state.years[key];
-        else window.state.years[key] = period;
-      });
-      window.markAggregatesDirty?.("structural nomination undo rolled back");
-      window.ensureAggregatesFresh?.();
-      throw error;
-    }
-  }
-
-  /**
-   * Reports whether an edit-log entry is currently offered for undo.
-   * @param {EditLogEntry} entry Edit-log entry.
-   * @returns {{status: 'ready'|'undone'|'unsupported'}} Availability status.
-   */
-  window.editUndoState = function (entry) {
-    if (!entry || typeof entry !== "object") return { status: "unsupported" };
-    if (entry.undoneAt) return { status: "undone" };
-    if (!entry.undo || !EDIT_UNDO_KINDS[entry.undo.kind])
-      return { status: "unsupported" };
-    return { status: "ready" };
-  };
-
-  /**
-   * Plans an undo without mutating data or history: resolves the target,
-   * reads every current value, and validates it against the payload's
-   * `after` values so intervening edits surface as a stale plan.
-   * @param {string} entryId Edit-log entry id.
-   * @returns {Object} Plan with `ok`, `reason`, `entry`, and per-field `actions` (`key`, `label`, `current`, `restore`, `stale`).
-   */
-  window.planEditUndo = function (entryId) {
-    let entry = (window.state.editLog || []).find(
-      (candidate) => candidate.id === String(entryId || ""),
-    );
-    if (!entry) return { ok: false, reason: "missing-entry" };
-    let status = window.editUndoState(entry).status;
-    if (status === "undone")
-      return { ok: false, reason: "already-undone", entry };
-    if (status !== "ready") return { ok: false, reason: "unsupported", entry };
-    let kind = EDIT_UNDO_KINDS[entry.undo.kind];
-    if (kind.structural) return kind.plan(entry);
-    let record = kind.resolve(entry.undo.target);
-    if (!record) return { ok: false, reason: "missing-target", entry };
-    let stale = false;
-    let actions = entry.undo.fields.map((field) => {
-      let current = kind.read(record, field.key);
-      let fieldStale = !undoValuesEqual(current, field.after);
-      stale = stale || fieldStale;
-      return {
-        key: field.key,
-        label: field.label,
-        current: displayUndoValue(current),
-        restore: displayUndoValue(field.before),
-        stale: fieldStale,
-      };
-    });
-    if (stale) return { ok: false, reason: "stale", entry, actions };
-    return { ok: true, reason: "", entry, actions };
-  };
-
-  /**
-   * Applies a planned undo atomically: re-plans, routes every restored field
-   * through the owning domain setter in one pass, records a linked undo
-   * audit entry, and marks the original entry undone. Does not save; the
-   * caller persists once. A failed plan is returned unchanged and nothing is
-   * mutated.
-   * @param {string} entryId Edit-log entry id.
-   * @returns {Object} The plan, extended with `auditEntry` on success.
-   */
-  window.applyEditUndo = function (entryId) {
-    let plan = window.planEditUndo(entryId);
-    if (!plan.ok) return plan;
-    let entry = plan.entry;
-    let kind = EDIT_UNDO_KINDS[entry.undo.kind];
-    if (kind.structural) {
-      if (!kind.apply(entry.undo))
-        return {
-          ok: false,
-          reason: "apply-failed",
-          entry,
-          actions: plan.actions,
-        };
-    } else {
-      let record = kind.resolve(entry.undo.target);
-      let restores = {};
-      entry.undo.fields.forEach((field) => {
-        restores[field.key] = field.before;
-      });
-      if (!kind.apply(record, restores))
-        return {
-          ok: false,
-          reason: "apply-failed",
-          entry,
-          actions: plan.actions,
-        };
-    }
-    let auditEntry = window.recordEdit({
-      type: "undo",
-      summary: `Undo · ${entry.summary}`,
-      sheetHint: entry.sheetHint,
-      changes: plan.actions.map((action) => ({
-        field: action.label,
-        before: action.current,
-        after: action.restore,
-      })),
-      target: window.normalizeEditLogTarget(entry),
-      context: Object.assign({}, entry.context, { undoOf: entry.id }),
-    });
-    entry.undoneAt = auditEntry.timestamp;
-    entry.undoEntryId = auditEntry.id;
-    plan.auditEntry = auditEntry;
-    return plan;
   };
 })();

@@ -12,7 +12,7 @@
       <div class="data-workspace-heading">
         <div>
           <span class="eyebrow">Account data</span>
-          <h1>Data</h1>
+          <h1 data-i18n="Data">Data</h1>
           <p>
             Import, back up, restore, and inspect the archive saved to your
             account. Files stay in this browser; only reviewed changes are saved
@@ -29,9 +29,14 @@
         <div class="data-sources-heading">
           <div>
             <span class="eyebrow">Import sources</span>
-            <h2 id="dataSourcesHeading">Connected sources</h2>
+            <h2 id="dataSourcesHeading" data-i18n="Connected sources">
+              Connected sources
+            </h2>
           </div>
-          <p id="dataSourcesIntro">
+          <p
+            id="dataSourcesIntro"
+            data-i18n="Manage your active sync connections, add a new source, or disconnect a service. Previously imported archive data stays safe when disconnecting."
+          >
             Manage your active sync connections, add a new source, or disconnect
             a service. Previously imported archive data stays safe when
             disconnecting.
@@ -49,7 +54,7 @@
         <section class="data-tool-group" aria-labelledby="dataImportHeading">
           <div class="data-tool-group-heading">
             <span class="eyebrow">Bring data in</span>
-            <h2 id="dataImportHeading">Import</h2>
+            <h2 id="dataImportHeading" data-i18n="Import">Import</h2>
             <p>Review incoming records before anything is saved.</p>
           </div>
           <div
@@ -84,6 +89,7 @@
               id="tab-spreadsheetTemplates"
               aria-selected="false"
               aria-controls="spreadsheetTemplates"
+              data-i18n="Google Sheets"
             >
               Google Sheets
             </button>
@@ -114,7 +120,9 @@
                 /></label>
               </div>
               <details class="data-template-spec" style="margin-top: 12px">
-                <summary>How do I get my Letterboxd export?</summary>
+                <summary data-i18n="How do I get my Letterboxd export?">
+                  How do I get my Letterboxd export?
+                </summary>
                 <div class="data-template-spec-content">
                   <p>
                     1. Open
@@ -171,7 +179,9 @@
                 /></label>
               </div>
               <details class="data-template-spec" style="margin-top: 12px">
-                <summary>How do I get my IMDb export?</summary>
+                <summary data-i18n="How do I get my IMDb export?">
+                  How do I get my IMDb export?
+                </summary>
                 <div class="data-template-spec-content">
                   <p>
                     1. Open
@@ -201,7 +211,9 @@
                 id="imdbScalePreview"
                 style="margin-top: 12px"
               >
-                <summary>Rating scale conversion (1–10 → 0.5–5.0★)</summary>
+                <summary data-i18n="Rating scale conversion (1–10 → 0.5–5.0★)">
+                  Rating scale conversion (1–10 → 0.5–5.0★)
+                </summary>
                 <div class="imdb-scale-grid">
                   <div class="imdb-scale-item">
                     <strong>1</strong><span>½</span>
@@ -234,7 +246,11 @@
                     <strong>10</strong><span>★★★★★</span>
                   </div>
                 </div>
-                <p class="data-help-text" style="margin: 8px 0 0">
+                <p
+                  class="data-help-text"
+                  style="margin: 8px 0 0"
+                  data-i18n="Ratings convert linearly (IMDb score ÷ 2). You can adjust any rating in your archive after importing."
+                >
                   Ratings convert linearly (IMDb score ÷ 2). You can adjust any
                   rating in your archive after importing.
                 </p>
@@ -261,21 +277,34 @@
               aria-labelledby="tab-spreadsheetTemplates"
               hidden
             >
-              <span class="eyebrow">Import from Google Sheets</span>
-              <h3>Google Sheets</h3>
-              <p>
+              <span class="eyebrow" data-i18n="Import from Google Sheets"
+                >Import from Google Sheets</span
+              >
+              <h3 data-i18n="Google Sheets">Google Sheets</h3>
+              <p
+                data-i18n="Keep your archive in a Google Sheet. Create a formatted workbook on your Google Drive or connect an existing sheet, then sync changes in and push your archive back."
+              >
                 Keep your archive in a Google Sheet. Create a formatted workbook
                 on your Google Drive or connect an existing sheet, then sync
                 changes in and push your archive back.
               </p>
 
               <div class="data-field" style="margin-top: 14px">
-                <span class="data-label">Google Drive integration</span>
-                <p class="data-help-text">
+                <span class="data-label" data-i18n="Google Drive integration"
+                  >Google Drive integration</span
+                >
+                <p
+                  class="data-help-text"
+                  data-i18n="Instantiate a formatted workbook in your Google Drive with Watched, Watchlist, and Awards tabs."
+                >
                   Instantiate a formatted workbook in your Google Drive with
                   Watched, Watchlist, and Awards tabs.
                 </p>
-                <p class="data-help-text" style="margin-bottom: 8px">
+                <p
+                  class="data-help-text"
+                  style="margin-bottom: 8px"
+                  data-i18n="Clicking this will open a Google sign-in prompt."
+                >
                   Clicking this will open a Google sign-in prompt.
                 </p>
                 <div class="data-actions">
@@ -283,6 +312,7 @@
                     id="createGoogleSheetBtn"
                     type="button"
                     class="button-link"
+                    data-i18n="Create on Google Drive"
                   >
                     Create on Google Drive
                   </button>
@@ -300,7 +330,9 @@
                       id="populateFromArchiveCheckbox"
                       checked
                     />
-                    <span>Populate with current archive</span>
+                    <span data-i18n="Populate with current archive"
+                      >Populate with current archive</span
+                    >
                   </label>
                 </div>
                 <div
@@ -311,8 +343,13 @@
               </div>
 
               <div class="data-field" style="margin-top: 14px">
-                <label for="connectedSheetInput">Google Sheet link</label>
-                <p class="data-help-text">
+                <label for="connectedSheetInput" data-i18n="Google Sheet link"
+                  >Google Sheet link</label
+                >
+                <p
+                  class="data-help-text"
+                  data-i18n="Sync reads the Watched tab, plus the Watchlist and Awards tabs when present. Tab names must match exactly."
+                >
                   Sync reads the Watched tab, plus the Watchlist and Awards tabs
                   when present. Tab names must match exactly.
                 </p>
@@ -328,12 +365,14 @@
                     id="connectedSheetInput"
                     type="text"
                     placeholder="Paste your Google Sheets link"
+                    data-i18n-placeholder="Paste your Google Sheets link"
                     style="flex: 1; min-width: 240px"
                   />
                   <button
                     id="saveConnectedSheetBtn"
                     type="button"
                     class="button-link"
+                    data-i18n="Connect"
                   >
                     Connect
                   </button>
@@ -344,6 +383,7 @@
                     rel="noopener noreferrer"
                     class="button-link"
                     style="display: none"
+                    data-i18n="Open in Google Sheets ↗"
                   >
                     Open in Google Sheets ↗
                   </a>
@@ -352,6 +392,7 @@
                     type="button"
                     class="button-secondary button-danger-subtle"
                     style="display: none"
+                    data-i18n="Disconnect"
                   >
                     Disconnect
                   </button>
@@ -365,8 +406,12 @@
                     <div class="data-workflow-step">
                       <span class="data-workflow-step-num">1</span>
                       <div>
-                        <strong>Edit in Google Sheets</strong>
-                        <p>
+                        <strong data-i18n="Edit in Google Sheets"
+                          >Edit in Google Sheets</strong
+                        >
+                        <p
+                          data-i18n="Log films, ratings, and watchlist additions in your sheet."
+                        >
                           Log films, ratings, and watchlist additions in your
                           sheet.
                         </p>
@@ -375,15 +420,25 @@
                     <div class="data-workflow-step">
                       <span class="data-workflow-step-num">2</span>
                       <div>
-                        <strong>Sync to archive</strong>
-                        <p>Fetch updates and review additions before saving.</p>
+                        <strong data-i18n="Sync to archive"
+                          >Sync to archive</strong
+                        >
+                        <p
+                          data-i18n="Fetch updates and review additions before saving."
+                        >
+                          Fetch updates and review additions before saving.
+                        </p>
                       </div>
                     </div>
                     <div class="data-workflow-step">
                       <span class="data-workflow-step-num">3</span>
                       <div>
-                        <strong>Push archive back</strong>
-                        <p>
+                        <strong data-i18n="Push archive back"
+                          >Push archive back</strong
+                        >
+                        <p
+                          data-i18n="Review and push watched films, watchlist items, and Awards back to your connected workbook."
+                        >
                           Review and push watched films, watchlist items, and
                           Awards back to your connected workbook.
                         </p>
@@ -397,10 +452,16 @@
                     type="button"
                     class="button-link"
                     disabled
+                    data-i18n="Read Google Sheet"
                   >
                     Read Google Sheet
                   </button>
-                  <button id="syncGoogleSheetApplyBtn" type="button" disabled>
+                  <button
+                    id="syncGoogleSheetApplyBtn"
+                    type="button"
+                    disabled
+                    data-i18n="Confirm import"
+                  >
                     Confirm import
                   </button>
                   <button
@@ -408,10 +469,16 @@
                     type="button"
                     class="button-link"
                     disabled
+                    data-i18n="Review export"
                   >
                     Review export
                   </button>
-                  <button id="pushGoogleSheetApplyBtn" type="button" disabled>
+                  <button
+                    id="pushGoogleSheetApplyBtn"
+                    type="button"
+                    disabled
+                    data-i18n="Confirm export"
+                  >
                     Confirm export
                   </button>
                 </div>
@@ -428,14 +495,18 @@
                   style="display: none; white-space: pre-line"
                 ></div>
                 <details class="data-template-spec" style="margin-top: 12px">
-                  <summary>Which columns does each tab need?</summary>
+                  <summary data-i18n="Which columns does each tab need?">
+                    Which columns does each tab need?
+                  </summary>
                   <div class="data-template-spec-content">
-                    <p>
+                    <p
+                      data-i18n="A workbook made with Create on Google Drive already has these headers. Match them when connecting a sheet you set up yourself."
+                    >
                       A workbook made with Create on Google Drive already has
                       these headers. Match them when connecting a sheet you set
                       up yourself.
                     </p>
-                    <h4>Watched Columns</h4>
+                    <h4 data-i18n="Watched Columns">Watched Columns</h4>
                     <p>
                       <code
                         >Dynamic Rank, Rank, Year, Title, Director, Rating, Tag,
@@ -445,11 +516,11 @@
                     <p>
                       A Rank of <code>-</code> marks a film you haven't ranked.
                     </p>
-                    <h4>Watchlist Columns</h4>
+                    <h4 data-i18n="Watchlist Columns">Watchlist Columns</h4>
                     <p>
                       <code>Name, Year, Director, Tier, Tag</code>
                     </p>
-                    <h4>Awards Columns</h4>
+                    <h4 data-i18n="Awards Columns">Awards Columns</h4>
                     <p>
                       <code>Position</code> and <code>Period</code>, then one or
                       more columns per award category, such as
@@ -537,32 +608,6 @@
           </div>
         </section>
 
-        <section
-          class="data-tool-group"
-          id="dataSharingGroup"
-          aria-labelledby="dataSharingHeading"
-        >
-          <div class="data-tool-group-heading">
-            <span class="eyebrow">Owner deployment tooling</span>
-            <h2 id="dataSharingHeading">Sharing</h2>
-            <p>
-              Prepare a fixed archive snapshot for Community comparisons.
-              Public/private access itself is managed on the
-              <a href="profile.html">Profile page</a>.
-            </p>
-          </div>
-          <div class="data-panel-grid">
-            <section
-              class="data-panel"
-              id="publicProfilePublicationView"
-              hidden
-            >
-              <h3>Community snapshot</h3>
-              <p class="data-panel-status">Preparing snapshot tools…</p>
-            </section>
-          </div>
-        </section>
-
         <section class="data-tool-group" aria-labelledby="dataDangerHeading">
           <div class="data-tool-group-heading">
             <span class="eyebrow">Irreversible changes</span>
@@ -594,8 +639,10 @@
               <label class="data-delete-row">
                 <input type="checkbox" data-delete-category="watched" />
                 <span>
-                  <h4>Watched history</h4>
-                  <p>
+                  <h4 data-i18n="Watched history">Watched history</h4>
+                  <p
+                    data-i18n="Removes every watched film, along with its rating, review, and rewatch preference."
+                  >
                     Removes every watched film, along with its rating, review,
                     and rewatch preference.
                   </p>
@@ -604,8 +651,10 @@
               <label class="data-delete-row">
                 <input type="checkbox" data-delete-category="ratings" />
                 <span>
-                  <h4>Ratings and reviews</h4>
-                  <p>
+                  <h4 data-i18n="Ratings and reviews">Ratings and reviews</h4>
+                  <p
+                    data-i18n="Clears star ratings, music scores, and written reviews. Watch dates and history stay."
+                  >
                     Clears star ratings, music scores, and written reviews.
                     Watch dates and history stay.
                   </p>
@@ -614,7 +663,7 @@
               <label class="data-delete-row">
                 <input type="checkbox" data-delete-category="rewatch" />
                 <span>
-                  <h4>Rewatch preferences</h4>
+                  <h4 data-i18n="Rewatch preferences">Rewatch preferences</h4>
                   <p>
                     Clears &quot;want to rewatch&quot; flags and rewatch tiers.
                   </p>
@@ -623,8 +672,10 @@
               <label class="data-delete-row">
                 <input type="checkbox" data-delete-category="watchlist" />
                 <span>
-                  <h4>Watchlist</h4>
-                  <p>
+                  <h4 data-i18n="Watchlist">Watchlist</h4>
+                  <p
+                    data-i18n="Removes every film from your watchlist, including its tier and order."
+                  >
                     Removes every film from your watchlist, including its tier
                     and order.
                   </p>
@@ -633,8 +684,10 @@
               <label class="data-delete-row">
                 <input type="checkbox" data-delete-category="watchlist-tiers" />
                 <span>
-                  <h4>Watchlist tiers</h4>
-                  <p>
+                  <h4 data-i18n="Watchlist tiers">Watchlist tiers</h4>
+                  <p
+                    data-i18n="Clears interest tiers on watchlist entries. Membership and order stay."
+                  >
                     Clears interest tiers on watchlist entries. Membership and
                     order stay.
                   </p>
@@ -646,8 +699,10 @@
                   data-delete-category="watchlist-ranking"
                 />
                 <span>
-                  <h4>Watchlist ranking</h4>
-                  <p>
+                  <h4 data-i18n="Watchlist ranking">Watchlist ranking</h4>
+                  <p
+                    data-i18n="Clears your manual watchlist order. Membership and tiers stay."
+                  >
                     Clears your manual watchlist order. Membership and tiers
                     stay.
                   </p>
@@ -656,8 +711,12 @@
               <label class="data-delete-row">
                 <input type="checkbox" data-delete-category="rankings" />
                 <span>
-                  <h4>Rankings (watched films)</h4>
-                  <p>
+                  <h4 data-i18n="Rankings (watched films)">
+                    Rankings (watched films)
+                  </h4>
+                  <p
+                    data-i18n="Deletes every year/decade/century/all-time ranking, and saved ranking-review progress."
+                  >
                     Deletes every year/decade/century/all-time ranking, and
                     saved ranking-review progress.
                   </p>
@@ -666,7 +725,7 @@
               <label class="data-delete-row">
                 <input type="checkbox" data-delete-category="awards" />
                 <span>
-                  <h4>Awards</h4>
+                  <h4 data-i18n="Awards">Awards</h4>
                   <p>
                     Deletes every personal award ballot, its nominations,
                     reviewed status, and hidden annual candidate films.
@@ -676,8 +735,10 @@
               <label class="data-delete-row">
                 <input type="checkbox" data-delete-category="notes" />
                 <span>
-                  <h4>Notes</h4>
-                  <p>
+                  <h4 data-i18n="Notes">Notes</h4>
+                  <p
+                    data-i18n="Deletes notes left on people, periods, franchises, tags, categories, and projects."
+                  >
                     Deletes notes left on people, periods, franchises, tags,
                     categories, and projects.
                   </p>
@@ -686,8 +747,10 @@
               <label class="data-delete-row">
                 <input type="checkbox" data-delete-category="tags" />
                 <span>
-                  <h4>Tags</h4>
-                  <p>
+                  <h4 data-i18n="Tags">Tags</h4>
+                  <p
+                    data-i18n="Deletes your custom tags and removes them from every film."
+                  >
                     Deletes your custom tags and removes them from every film.
                   </p>
                 </span>
@@ -695,8 +758,12 @@
               <label class="data-delete-row">
                 <input type="checkbox" data-delete-category="projects" />
                 <span>
-                  <h4>Projects and collections</h4>
-                  <p>
+                  <h4 data-i18n="Projects and collections">
+                    Projects and collections
+                  </h4>
+                  <p
+                    data-i18n="Deletes every project and collection you've built, and any local film order inside them."
+                  >
                     Deletes every project and collection you've built, and any
                     local film order inside them.
                   </p>
@@ -717,6 +784,6 @@
         </section>
       </div>
     </main>
-    <script src="src/core/entry-loader.js?v=67e1462034ec" data-entry="data"></script>
+    <script src="src/core/entry-loader.js?v=7fba0d61158d" data-entry="data"></script>
   </body>
 </html>

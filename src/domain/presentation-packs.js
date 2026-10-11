@@ -5,17 +5,6 @@
  * without a second, unrelated presentation system.
  */
 
-/** Ordered presentation-pack scope types. @type {string[]} */
-window.PRESENTATION_PACK_SCOPE_TYPES = [
-  "project",
-  "franchise",
-  "person",
-  "tag",
-  "category",
-  "period",
-  "year-recap",
-];
-
 function resolveProjectPackScope(id) {
   let project = window.findProjectById?.(id);
   if (!project) return null;
@@ -177,9 +166,9 @@ function resolveYearRecapPackScope(id) {
  * a pack URL was shared, and a category/period/year is well-formed or not);
  * an existing-but-empty scope still resolves valid with empty arrays, since
  * "nothing watched yet" is informative content, not a broken reference.
- * @param {string} type Scope type (see `PRESENTATION_PACK_SCOPE_TYPES`).
+ * @param {'project'|'franchise'|'person'|'tag'|'category'|'period'|'year-recap'} type Scope type.
  * @param {string} id Scope-specific identifier.
- * @returns {{valid:boolean,name:(string|undefined),films:FilmRecord[],watchlist:WatchlistItem[],pageUrl:(string|undefined),targetYear:(string|null),periodType:(string|undefined),periodKey:(string|undefined),recapYear:(string|undefined),isYearRecap:boolean}} Resolved scope, or `{valid:false}`.
+ * @returns {{valid:false}|{valid:true,name?:string,films:FilmRecord[],watchlist:WatchlistItem[],pageUrl?:string,targetYear:(string|null),periodType?:string,periodKey?:string,recapYear?:string,isYearRecap:boolean}} Resolved scope, or `{valid:false}`.
  */
 window.resolvePresentationPackScope = function (type, id) {
   let resolver = {

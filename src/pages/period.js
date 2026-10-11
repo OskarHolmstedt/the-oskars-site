@@ -132,10 +132,10 @@
   }
 
   function titlesLikelyMatch(leftTitle, rightTitle) {
-    return window.titlesLikelyMatch
-      ? window.titlesLikelyMatch(leftTitle, rightTitle)
-      : String(leftTitle || "").toLowerCase() ===
-          String(rightTitle || "").toLowerCase();
+    return (
+      String(leftTitle || "").toLowerCase() ===
+      String(rightTitle || "").toLowerCase()
+    );
   }
 
   function mergePeriodAwards(first, second) {
@@ -581,6 +581,7 @@
   let initialViewState = periodUrlState.read();
   let scope = initialViewState.scope;
   let viewMode = initialViewState.viewMode;
+  /** @type {boolean} */
   let editMode =
     canEdit &&
     canEditBracket &&
@@ -668,15 +669,13 @@
   /**
    * Resolves once window.state holds the complete watchlist (issue #598).
    * A no-op once already hydrated (legacy mode, or a prior call already
-   * finished) - every write handler and edit-mode toggle below calls this
-   * first, so a click that lands before the eager background upgrade
-   * finishes still waits for real data instead of risking a partial-state
-   * write; #607's own reconcile() guard is the last-resort backstop this
-   * is meant to make normally unreachable, not depended on for
-   * correctness.
+   * finished). Write handlers and edit-mode toggles wait for complete data
+   * because their validation, shelf ordering, and bulk plans use the existing
+   * view model. Persistence itself targets the selected rows or scopes.
+   * @param {boolean} [renderAfterHydration=true] Whether to render the hydrated view immediately.
    * @returns {Promise<void>}
    */
-  function ensureWatchlistFullyHydrated() {
+  function ensureWatchlistFullyHydrated(renderAfterHydration = true) {
     if (!watchlistCompactActive) return Promise.resolve();
     if (watchlistHydrationPromise) return watchlistHydrationPromise;
     watchlistHydrationPromise = (
@@ -684,7 +683,7 @@
     )
       .then(() => {
         watchlistCompactActive = false;
-        render();
+        if (renderAfterHydration) render();
       })
       .catch((error) => {
         // Leaves watchlistCompactActive true so a later interaction (or
@@ -2017,18 +2016,8 @@
   window.onSharedFilmArchiveChange?.(() => {
     if (viewMode === "shared") render();
   });
-  // Compact mode's own render() drives its first fetch itself
-  // (ensureCompactWatchlistFresh()) - the bundled-watchlist-CSV fallback
-  // below exists for the local/offline (non-Supabase) mode and would
-  // otherwise run a pointless failing fetch here every time, since
-  // state.watchlist is never populated by this view.
-  if (
-    watchlistCompactActive ||
-    (state.watchlist || []).length ||
-    !window.ensureWatchlistData
-  )
-    render();
-  else window.ensureWatchlistData().then(render);
+  // Compact watchlists fetch through ensureCompactWatchlistFresh() in render().
+  render();
   // Only the year view reads official results.
   if (type === "year")
     window.hydrateOfficialResultsForPeriod?.(key).then(() => {
@@ -2066,6 +2055,39 @@
     }
   }
 
+  let periodWriteChain = Promise.resolve();
+  function commitPeriodWrite(action, reportError = true) {
+    let ownerId = window.getSupabaseCurrentUser?.()?.id;
+    let operation = periodWriteChain.then(async () => {
+      if (ownerId !== window.getSupabaseCurrentUser?.()?.id)
+        throw Object.assign(
+          new Error("Account changed while performing operation."),
+          { code: "OSKARS_ACCOUNT_CHANGED" },
+        );
+      let backup = window.cloneRecord(window.getSerializableState());
+      try {
+        await action();
+        await window.ensureOskarsData({ forceRefresh: true });
+      } catch (err) {
+        if (ownerId === window.getSupabaseCurrentUser?.()?.id) {
+          restoreStateBackup(backup);
+          await window.ensureOskarsData({ forceRefresh: true }).catch(() => {});
+        }
+        throw err;
+      }
+      rebuildPeriodViewModel();
+      filmPage = 1;
+      updateViewUrl();
+      render();
+    });
+    periodWriteChain = operation.catch((err) => {
+      if (reportError) window.alert?.(err.message || String(err));
+      rebuildPeriodViewModel();
+      render();
+    });
+    return operation;
+  }
+
   function clearAwardDropTargets() {
     container
       .querySelectorAll(
@@ -2078,23 +2100,23 @@
     if (!plan) return false;
     return !!window.reviewNominationPlacementPlan?.(
       plan,
-      () => {
+      async () => {
         try {
-          let outcome = window.applyNominationPlacementPlan?.(plan);
-          if (!outcome?.ok) {
-            if (outcome?.reason) window.alert?.(outcome.reason);
-            options.onCancel?.();
-            return;
-          }
-          rebuildPeriodViewModel();
-          if (!canEditBracket) editMode = false;
-          if (allFilms.some((film) => film.rankConfirmedByScope))
-            rankingEditMode = false;
-          options.beforeRender?.();
-          render();
-          window.save?.({ immediate: true, rebuild: false });
+          await commitPeriodWrite(async () => {
+            let outcome = window.applyNominationPlacementPlan?.(plan);
+            if (!outcome?.ok)
+              throw new Error(
+                outcome?.reason || "Placement plan is not applicable.",
+              );
+            rebuildPeriodViewModel();
+            if (!canEditBracket) editMode = false;
+            if (allFilms.some((film) => film.rankConfirmedByScope))
+              rankingEditMode = false;
+            options.beforeRender?.();
+            render();
+            await window.persistSupabaseNominationPlacementPlan(plan);
+          });
         } catch (err) {
-          window.alert?.(err?.message || String(err));
           options.onCancel?.();
         }
       },
@@ -2307,12 +2329,16 @@
     if (addSharedFilmButton) {
       let backup = window.cloneRecord(window.getSerializableState());
       try {
-        let result = window.addSharedArchiveFilmToWatchlist(
+        let candidate = window.sharedArchiveCandidateFilmByTmdbId(
           addSharedFilmButton.dataset.addSharedFilmTmdbId,
         );
-        if (!result?.ok)
-          throw new Error(result?.reason || ui("Could not add this film."));
-        await window.save();
+        if (!candidate) throw new Error(ui("Could not add this film."));
+        await window.addSupabaseWatchlistRecord({
+          ...candidate,
+          supabaseFilmId: candidate.supabaseFilmId || candidate.id,
+        });
+        await window.ensureOskarsData({ forceRefresh: true });
+        rebuildPeriodViewModel();
         filmPage = 1;
         render();
       } catch (err) {
@@ -2337,14 +2363,14 @@
       let backup = window.cloneRecord(window.getSerializableState());
       try {
         let candidate = window.sharedArchiveCandidateFilmByTmdbId?.(tmdbId);
-        let result = window.addFilmRecordToWatchlist({
+        await window.addSupabaseWatchlistRecord({
           ...candidate,
           tmdbId,
           year: key,
+          supabaseFilmId: candidate?.supabaseFilmId || candidate?.id,
         });
-        if (!result?.ok)
-          throw new Error(result?.reason || ui("Could not add this film."));
-        await window.save();
+        await window.ensureOskarsData({ forceRefresh: true });
+        rebuildPeriodViewModel();
         render();
       } catch (err) {
         restoreStateBackup(backup);
@@ -2367,7 +2393,7 @@
         busy: true,
       });
       window
-        .addFilmRecordToWatched({ ...candidate, tmdbId, year: key })
+        .addSupabaseCandidateToWatched({ ...candidate, tmdbId, year: key })
         .then((result) => {
           if (!result.ok)
             throw new Error(result.reason || ui("Could not add this film."));
@@ -2580,7 +2606,7 @@
       event.target.closest(".ranking-edit-card");
     if (card) card.classList.remove("drop-target");
   });
-  container.addEventListener("drop", (event) => {
+  container.addEventListener("drop", async (event) => {
     let isAwardDrop = editMode && event.target.closest(".nominee-card");
     let isRankingDrop =
       rankingEditMode && event.target.closest(".ranking-edit-card");
@@ -2611,21 +2637,26 @@
         Number(from.index) < Number(card.dataset.rankingIndex)
           ? "after"
           : "before";
-      let result = window.moveRankedFilmWithinRating?.(
-        from.filmId,
-        card.dataset.rankingFilmId,
-        position,
-      );
-      if (!result?.ok) {
-        if (result?.reason) window.alert?.(result.reason);
-        return;
-      }
-      rebuildPeriodViewModel();
-      if (!canEditBracket) editMode = false;
-      if (allFilms.some((film) => film.rankConfirmedByScope))
-        rankingEditMode = false;
-      render();
-      window.save?.({ immediate: true, rebuild: false });
+      try {
+        await commitPeriodWrite(async () => {
+          let result = window.moveRankedFilmWithinRating?.(
+            from.filmId,
+            card.dataset.rankingFilmId,
+            position,
+          );
+          if (!result?.ok) {
+            throw new Error(result?.reason || "Could not move this film.");
+          }
+          rebuildPeriodViewModel();
+          if (!canEditBracket) editMode = false;
+          if (allFilms.some((film) => film.rankConfirmedByScope))
+            rankingEditMode = false;
+          render();
+          await window.persistSupabaseFilmRankingMove(
+            window.findFilmById(from.filmId),
+          );
+        });
+      } catch (err) {}
       return;
     }
 
@@ -2663,19 +2694,15 @@
       // the file-level ensureWatchlistFullyHydrated() doc comment).
       await ensureWatchlistFullyHydrated().catch(() => {});
       if (watchlistCompactActive) return;
-      let result = window.setWatchlistMetadata(
-        id,
-        { tier, tierModifier },
-        { save: false },
-      );
-      if (!result) {
-        window.alert?.(ui("Could not update this item."));
-        return;
-      }
-      window.save?.({ immediate: true, rebuild: false });
-      filmPage = 1;
-      updateViewUrl();
-      render();
+      try {
+        await commitPeriodWrite(() =>
+          window.setSupabaseWatchlistTier(
+            id,
+            window.normalizeWatchlistTier(tier),
+            window.normalizeTierModifierValue(tierModifier),
+          ),
+        );
+      } catch (err) {}
     },
     setSubPeriod(level, value) {
       if (level === "century") {
@@ -2705,7 +2732,7 @@
       // wait for a full hydration before turning it on at all, so
       // moveItem/afterMove below are only ever reachable already hydrated.
       let next = !watchlistOrderEditMode;
-      if (next) await ensureWatchlistFullyHydrated().catch(() => {});
+      if (next) await ensureWatchlistFullyHydrated(false).catch(() => {});
       watchlistOrderEditMode = next && !watchlistCompactActive;
       if (watchlistOrderEditMode) tierEditMode = false;
       updateViewUrl();
@@ -2714,7 +2741,7 @@
     async toggleTierEdit() {
       if (!canEdit) return;
       let next = !tierEditMode;
-      if (next) await ensureWatchlistFullyHydrated().catch(() => {});
+      if (next) await ensureWatchlistFullyHydrated(false).catch(() => {});
       tierEditMode = next && !watchlistCompactActive;
       if (tierEditMode) watchlistOrderEditMode = false;
       updateViewUrl();
@@ -2758,15 +2785,14 @@
         );
         return;
       }
-      let result = window.addWatchlistItem(values, { save: false });
-      if (!result.ok) {
-        if (result.reason) window.alert?.(result.reason);
-        return;
-      }
-      window.save?.({ immediate: true, rebuild: false });
-      filmPage = 1;
-      updateViewUrl();
-      render();
+      try {
+        await commitPeriodWrite(async () => {
+          let result = window.addWatchlistItem(values, { save: false });
+          if (!result.ok)
+            throw new Error(result.reason || ui("Could not add this film."));
+          await window.addSupabaseWatchlistRecord(result.item);
+        });
+      } catch (err) {}
     },
     filteredEntries: () =>
       // Only reachable via bindWatchlistBulkTierControl's own synchronous
@@ -2777,7 +2803,29 @@
       watchlistCompactActive
         ? []
         : window.periodWatchlistEntries(currentWatchlistFilters()),
+    async persistBulkTier(before, after) {
+      let original = new Map(before.map((item) => [item.id, item]));
+      let rows = after
+        .filter(
+          (item) =>
+            original.has(item.id) && original.get(item.id).tier !== item.tier,
+        )
+        .map((item) => ({
+          id: item.id,
+          tier: item.tier,
+          tierModifier: item.tierModifier,
+          updatedAt: original.get(item.id).supabaseWatchlistUpdatedAt,
+        }));
+      await commitPeriodWrite(
+        () => window.setSupabaseWatchlistTierRows(rows),
+        false,
+      );
+    },
     applyBulkTier(outcome) {
+      if (!outcome.result.ok) {
+        render();
+        return;
+      }
       watchlistTierFilter = [outcome.tier || ""];
       watchlistOrderEditMode = false;
       filmPage = 1;
@@ -2788,14 +2836,19 @@
     orderRejectedMessage: ui(
       "Watchlist ordering moves are limited to the same interest tier.",
     ),
-    moveItem: (from, target, position) =>
-      window.moveWatchlistItemWithinTier?.(from.id, target.id, position, {
-        save: false,
-      }),
-    afterMove() {
-      render();
-      window.save?.({ immediate: true, rebuild: false });
+    async moveItem(from, target, position) {
+      let result;
+      await commitPeriodWrite(async () => {
+        result = await window.moveSupabasePeriodWatchlistItem(
+          from.id,
+          target.id,
+          position,
+        );
+        if (!result.ok) throw new Error(result.reason);
+      }, false);
+      return result;
     },
+    afterMove() {},
   }).bulkTierControl;
   container.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;

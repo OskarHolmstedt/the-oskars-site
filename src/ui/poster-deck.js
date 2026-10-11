@@ -1,7 +1,7 @@
 /** @file Renders the reusable layered poster deck used by creative journey surfaces. */
 
 (function () {
-  /** Renders up to five films as a compact layered deck. @param {(FilmRecord|SupabaseFilmRow)[]} films Poster source films. @param {{classes?: string, limit?: number, priority?: string, hero?: boolean}} [options] Presentation options. @returns {string} Poster deck HTML. */
+  /** Renders up to five films as a compact layered deck. @param {{title?: string, poster?: PosterRecord|null, poster_url?: string|null}[]} films Film records or Supabase film rows. @param {{classes?: string, limit?: number, priority?: string, hero?: boolean}} [options] Presentation options. @returns {string} Poster deck HTML. */
   window.renderPosterDeck = function (films, options = {}) {
     let escape = window.pageEscape || ((value) => String(value ?? ""));
     let limit = Number.isFinite(Number(options.limit))

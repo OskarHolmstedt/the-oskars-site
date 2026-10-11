@@ -5,7 +5,9 @@
  * src/pages/people.js and src/pages/compare.js; no-unused-vars can't see
  * those cross-file calls. */
 
-let escape = window.pageEscape;
+// Named apart from the global escape() builtin, which this top-level script
+// would otherwise shadow for every later script on the page.
+let compareEscape = window.pageEscape;
 let ui = window.uiText || ((text) => text);
 
 // --- Shared render helpers --------------------------------------------------
@@ -15,20 +17,20 @@ function valueCell(value, options = {}) {
     value === null || value === undefined || value === "" ? "—" : String(value);
   let content =
     options.href && text !== "—"
-      ? `<a href="${escape(options.href)}">${escape(text)}</a>`
-      : escape(text);
-  return `<td${options.className ? ` class="${escape(options.className)}"` : ""}>${content}</td>`;
+      ? `<a href="${compareEscape(options.href)}">${compareEscape(text)}</a>`
+      : compareEscape(text);
+  return `<td${options.className ? ` class="${compareEscape(options.className)}"` : ""}>${content}</td>`;
 }
 
 function metricRow(label, films, valueFn) {
-  return `<tr><th>${escape(label)}</th>${films.map((film) => valueFn(film)).join("")}</tr>`;
+  return `<tr><th>${compareEscape(label)}</th>${films.map((film) => valueFn(film)).join("")}</tr>`;
 }
 
 function comparePanel(title, bodyHtml, options = {}) {
   let classes = ["compare-panel", ...(options.classes || [])]
     .filter(Boolean)
     .join(" ");
-  return `<section class="${classes}"><h2>${escape(ui(title))}</h2>${options.introHtml || ""}${bodyHtml}</section>`;
+  return `<section class="${classes}"><h2>${compareEscape(ui(title))}</h2>${options.introHtml || ""}${bodyHtml}</section>`;
 }
 
 // Compare tables keep their own scaffold rather than the shared
@@ -45,7 +47,7 @@ function targetTypeLabel(target) {
 }
 
 function targetHeaderCell(target) {
-  return `<th><a href="${escape(target.url)}">${escape(target.displayName)}</a><span class="leaderboard-meta">${escape(targetTypeLabel(target))}</span></th>`;
+  return `<th><a href="${compareEscape(target.url)}">${compareEscape(target.displayName)}</a><span class="leaderboard-meta">${compareEscape(targetTypeLabel(target))}</span></th>`;
 }
 
 function filmLinkList(films) {
@@ -53,7 +55,7 @@ function filmLinkList(films) {
   return films
     .map(
       (film) =>
-        `<a class="table-film-link" href="${escape(window.filmPageUrl(film.id))}">${escape(window.localizedFilmTitle?.(film) || film.title)}</a>`,
+        `<a class="table-film-link" href="${compareEscape(window.filmPageUrl(film.id))}">${compareEscape(window.localizedFilmTitle?.(film) || film.title)}</a>`,
     )
     .join(", ");
 }
@@ -71,7 +73,7 @@ function watchlistItemLinkList(items) {
       ]
         .filter(Boolean)
         .join(" · ");
-      return `${href ? `<a class="table-film-link" href="${escape(href)}">${escape(title)}</a>` : escape(title)}${meta ? `<span class="leaderboard-meta"> ${escape(meta)}</span>` : ""}`;
+      return `${href ? `<a class="table-film-link" href="${compareEscape(href)}">${compareEscape(title)}</a>` : compareEscape(title)}${meta ? `<span class="leaderboard-meta"> ${compareEscape(meta)}</span>` : ""}`;
     })
     .join(", ");
 }
@@ -82,12 +84,12 @@ function linkedPersonList(people, limit = 5) {
     .slice(0, limit)
     .map(
       (person) =>
-        `<a class="table-film-link" href="${escape(window.personPageUrl(person.id))}">${escape(person.name)}</a>`,
+        `<a class="table-film-link" href="${compareEscape(window.personPageUrl(person.id))}">${compareEscape(person.name)}</a>`,
     )
     .join(", ");
   let overflow =
     people.length > limit
-      ? ` <span class="leaderboard-meta">+${escape(people.length - limit)}</span>`
+      ? ` <span class="leaderboard-meta">+${compareEscape(people.length - limit)}</span>`
       : "";
   return `${visible}${overflow}`;
 }
@@ -98,13 +100,13 @@ function facetEntryList(entries, limit = 5) {
     .slice(0, limit)
     .map((entry) =>
       entry.href
-        ? `<a class="table-film-link" href="${escape(entry.href)}">${escape(entry.label)}</a>`
-        : escape(entry.label),
+        ? `<a class="table-film-link" href="${compareEscape(entry.href)}">${compareEscape(entry.label)}</a>`
+        : compareEscape(entry.label),
     )
     .join(", ");
   let overflow =
     entries.length > limit
-      ? ` <span class="leaderboard-meta">+${escape(entries.length - limit)}</span>`
+      ? ` <span class="leaderboard-meta">+${compareEscape(entries.length - limit)}</span>`
       : "";
   return `${visible}${overflow}`;
 }
@@ -126,7 +128,7 @@ function countSummary(values, options = {}) {
     .slice(0, options.limit || 4)
     .map(
       ([label, count]) =>
-        `${escape(label)} <span class="leaderboard-meta">${escape(count)}</span>`,
+        `${compareEscape(label)} <span class="leaderboard-meta">${compareEscape(count)}</span>`,
     )
     .join(", ");
 }
@@ -137,7 +139,7 @@ function categoryCountList(counts, limit = 4) {
     .slice(0, limit)
     .map(
       ([category, count]) =>
-        `<a class="table-film-link" href="${escape(window.categoryPageUrl(category))}">${escape(window.localizedCategoryName?.(category) || category)}</a><span class="leaderboard-meta"> ${escape(count)}</span>`,
+        `<a class="table-film-link" href="${compareEscape(window.categoryPageUrl(category))}">${compareEscape(window.localizedCategoryName?.(category) || category)}</a><span class="leaderboard-meta"> ${compareEscape(count)}</span>`,
     )
     .join(", ");
 }
@@ -243,9 +245,9 @@ function sharedByKey(
 
 function traitChip(label, value, href) {
   let content = href
-    ? `<a href="${escape(href)}">${escape(value)}</a>`
-    : escape(value);
-  return `<span class="compare-trait"><b>${escape(ui(label))}</b>${content}</span>`;
+    ? `<a href="${compareEscape(href)}">${compareEscape(value)}</a>`
+    : compareEscape(value);
+  return `<span class="compare-trait"><b>${compareEscape(ui(label))}</b>${content}</span>`;
 }
 
 function sharedPeopleByProfession(films) {
@@ -403,7 +405,7 @@ window.compareRenderSharedTraitsPanel = function (films) {
 
   return comparePanel(
     "Shared traits",
-    `<div class="compare-trait-list">${traits.join("") || `<span class="compare-muted">${escape(ui("No obvious shared metadata."))}</span>`}</div>`,
+    `<div class="compare-trait-list">${traits.join("") || `<span class="compare-muted">${compareEscape(ui("No obvious shared metadata."))}</span>`}</div>`,
     { classes: ["compare-shared-panel"] },
   );
 };
@@ -489,9 +491,9 @@ window.compareRenderMetricsPanel = function (films) {
     ),
   ].join("");
   let headers = [
-    escape(ui("Measure")),
+    compareEscape(ui("Measure")),
     ...films.map((film) =>
-      escape(window.localizedFilmTitle?.(film) || film.title),
+      compareEscape(window.localizedFilmTitle?.(film) || film.title),
     ),
   ];
   return comparePanel("Metrics", compareTable(headers, rows));
@@ -537,7 +539,7 @@ function awardCell(film, category, competitionKeys) {
       let periodLabel = award.year === "alltime" ? "All-time" : award.year;
       let href = window.periodPageUrl(type, award.year);
       let isCompetition = competitionKeys.has(awardGroupKey(award));
-      return `<span class="${isCompetition ? "compare-direct-marker" : ""}"><a href="${escape(href)}">${window.pagePlacement(award.placement)}</a><span>${escape(periodLabel)}</span>${isCompetition ? `<b title="${escape(ui("Direct competition among compared films"))}">${escape(ui("Direct"))}</b>` : ""}</span>`;
+      return `<span class="${isCompetition ? "compare-direct-marker" : ""}"><a href="${compareEscape(href)}">${window.pagePlacement(award.placement)}</a><span>${compareEscape(periodLabel)}</span>${isCompetition ? `<b title="${compareEscape(ui("Direct competition among compared films"))}">${compareEscape(ui("Direct"))}</b>` : ""}</span>`;
     })
     .join("");
   return `<td class="compare-award-cell">${parts}</td>`;
@@ -561,13 +563,13 @@ window.compareRenderAwardsPanel = function (films) {
             competitionKeys.has(awardGroupKey(award)),
         ),
       );
-      return `<tr${hasCompetition ? ' class="compare-direct-competition"' : ""}><th><a href="${escape(window.categoryPageUrl(category))}">${escape(window.localizedCategoryName?.(category) || category)}</a></th>${films.map((film) => awardCell(film, category, competitionKeys)).join("")}</tr>`;
+      return `<tr${hasCompetition ? ' class="compare-direct-competition"' : ""}><th><a href="${compareEscape(window.categoryPageUrl(category))}">${compareEscape(window.localizedCategoryName?.(category) || category)}</a></th>${films.map((film) => awardCell(film, category, competitionKeys)).join("")}</tr>`;
     })
     .join("");
   let headers = [
-    escape(ui("Category")),
+    compareEscape(ui("Category")),
     ...films.map((film) =>
-      escape(window.localizedFilmTitle?.(film) || film.title),
+      compareEscape(window.localizedFilmTitle?.(film) || film.title),
     ),
   ];
   return comparePanel(
@@ -575,7 +577,7 @@ window.compareRenderAwardsPanel = function (films) {
     compareTable(
       headers,
       rows ||
-        `<tr><td colspan="${films.length + 1}">${escape(ui("No nominations"))}</td></tr>`,
+        `<tr><td colspan="${films.length + 1}">${compareEscape(ui("No nominations"))}</td></tr>`,
       "compare-awards-table",
     ),
   );
@@ -593,11 +595,11 @@ window.compareRenderOverviewPanel = function (targets) {
     ...new Set(targets.flatMap((target) => Object.keys(target.metrics || {}))),
   ];
   let rows = [
-    `<tr><th>${escape(ui("Type"))}</th>${targets.map((target) => valueCell(targetTypeLabel(target))).join("")}</tr>`,
-    `<tr><th>${escape(ui("Name"))}</th>${targets.map((target) => valueCell(target.displayName, { href: target.url })).join("")}</tr>`,
+    `<tr><th>${compareEscape(ui("Type"))}</th>${targets.map((target) => valueCell(targetTypeLabel(target))).join("")}</tr>`,
+    `<tr><th>${compareEscape(ui("Name"))}</th>${targets.map((target) => valueCell(target.displayName, { href: target.url })).join("")}</tr>`,
     ...metricKeys.map(
       (key) =>
-        `<tr><th>${escape(ui(key))}</th>${targets
+        `<tr><th>${compareEscape(ui(key))}</th>${targets
           .map((target) => {
             let value = targetMetricValue(target, key);
             return valueCell(value, {
@@ -608,8 +610,8 @@ window.compareRenderOverviewPanel = function (targets) {
     ),
   ].join("");
   let headers = [
-    escape(ui("Measure")),
-    ...targets.map((target) => escape(target.displayName)),
+    compareEscape(ui("Measure")),
+    ...targets.map((target) => compareEscape(target.displayName)),
   ];
   return comparePanel("Overview", compareTable(headers, rows));
 };
@@ -624,18 +626,18 @@ window.compareRenderRepresentedFilmsPanel = function (targets) {
     .map(
       (target) => `<tr>
       ${targetHeaderCell(target)}
-      <td class="compare-number-cell">${escape(target.filmIds.length)}</td>
-      <td class="compare-number-cell">${escape(target.watchlistIds.length)}</td>
-      <td class="compare-number-cell">${escape(window.formatAverageRating(target.ratingStatistics.mean))}</td>
-      <td class="compare-number-cell">${escape(window.formatRatingStatistic(target.ratingStatistics.standardDeviation))}</td>
-      <td class="compare-number-cell">${escape(`${target.ratingStatistics.ratedCount}/${target.ratingStatistics.totalCount} (${target.ratingStatistics.coveragePercent}%)`)}</td>
+      <td class="compare-number-cell">${compareEscape(target.filmIds.length)}</td>
+      <td class="compare-number-cell">${compareEscape(target.watchlistIds.length)}</td>
+      <td class="compare-number-cell">${compareEscape(window.formatAverageRating(target.ratingStatistics.mean))}</td>
+      <td class="compare-number-cell">${compareEscape(window.formatRatingStatistic(target.ratingStatistics.standardDeviation))}</td>
+      <td class="compare-number-cell">${compareEscape(`${target.ratingStatistics.ratedCount}/${target.ratingStatistics.totalCount} (${target.ratingStatistics.coveragePercent}%)`)}</td>
       <td>${filmLinkList(topRepresentedFilms(target.filmIds, 4))}</td>
     </tr>`,
     )
     .join("");
   let sharedHtml = sharedFilms.length
-    ? `<p class="compare-muted">${escape(ui("Shared films"))}: ${filmLinkList(sharedFilms)}</p>`
-    : `<p class="compare-muted">${escape(ui("No shared represented films."))}</p>`;
+    ? `<p class="compare-muted">${compareEscape(ui("Shared films"))}: ${filmLinkList(sharedFilms)}</p>`
+    : `<p class="compare-muted">${compareEscape(ui("No shared represented films."))}</p>`;
   return comparePanel(
     "Represented films",
     compareTable(
@@ -647,7 +649,7 @@ window.compareRenderRepresentedFilmsPanel = function (targets) {
         ui("Standard deviation"),
         ui("Rated coverage"),
         ui("Top films"),
-      ].map(escape),
+      ].map(compareEscape),
       rows,
     ),
     { introHtml: sharedHtml },
@@ -691,16 +693,16 @@ window.compareRenderAwardFootprintPanel = function (targets) {
       let stats = calculateAwardStats(entries.map(({ award }) => award));
       return `<tr>
       ${targetHeaderCell(target)}
-      <td class="compare-number-cell">${escape(stats.wins)}</td>
-      <td class="compare-number-cell">${escape(stats.nominations)}</td>
-      <td class="compare-number-cell">${escape(scoreText(stats))}</td>
+      <td class="compare-number-cell">${compareEscape(stats.wins)}</td>
+      <td class="compare-number-cell">${compareEscape(stats.nominations)}</td>
+      <td class="compare-number-cell">${compareEscape(scoreText(stats))}</td>
       <td>${categoryCountList(targetAwardCategoryCounts(entries))}</td>
     </tr>`;
     })
     .join("");
   let sharedHtml = sharedCategories.length
-    ? `<p class="compare-muted">${escape(ui("Shared categories"))}: ${categoryCountList(sharedCategories.map((category) => [category, categorySets.length]))}</p>`
-    : `<p class="compare-muted">${escape(ui("No shared award categories."))}</p>`;
+    ? `<p class="compare-muted">${compareEscape(ui("Shared categories"))}: ${categoryCountList(sharedCategories.map((category) => [category, categorySets.length]))}</p>`
+    : `<p class="compare-muted">${compareEscape(ui("No shared award categories."))}</p>`;
   return comparePanel(
     "Award footprint",
     compareTable(
@@ -710,7 +712,7 @@ window.compareRenderAwardFootprintPanel = function (targets) {
         ui("Nominations"),
         ui("Score"),
         ui("Categories"),
-      ].map(escape),
+      ].map(compareEscape),
       rows,
     ),
     { introHtml: sharedHtml },
@@ -734,13 +736,13 @@ window.compareRenderFacetOverlapPanel = function (targets) {
       let targetCells = targetFacetList
         .map((facets) => `<td>${facetEntryList(facets[key] || [])}</td>`)
         .join("");
-      return `<tr><th>${escape(ui(label))}</th><td>${facetEntryList(shared)}</td>${targetCells}</tr>`;
+      return `<tr><th>${compareEscape(ui(label))}</th><td>${facetEntryList(shared)}</td>${targetCells}</tr>`;
     })
     .join("");
   let headers = [
-    escape(ui("Facet")),
-    escape(ui("Shared")),
-    ...targets.map((target) => escape(target.displayName)),
+    compareEscape(ui("Facet")),
+    compareEscape(ui("Shared")),
+    ...targets.map((target) => compareEscape(target.displayName)),
   ];
   return comparePanel("Metadata overlap", compareTable(headers, rows));
 };
@@ -749,20 +751,21 @@ function targetProjectAction(target) {
   if (!["person", "franchise", "tag"].includes(target.type))
     return `<span class="compare-muted">—</span>`;
   return (
-    window.renderSourceProjectAction?.(target.type, target.id, { escape }) ||
-    `<span class="compare-muted">—</span>`
+    window.renderSourceProjectAction?.(target.type, target.id, {
+      escape: compareEscape,
+    }) || `<span class="compare-muted">—</span>`
   );
 }
 
 function targetSourceLinks(target) {
   let links = [
-    `<a class="button-link" href="${escape(target.url)}">${escape(ui("Open page"))}</a>`,
+    `<a class="button-link" href="${compareEscape(target.url)}">${compareEscape(ui("Open page"))}</a>`,
   ];
   if (target.type === "project") {
     let sourceHref = window.projectSourceHref?.(target.record);
     if (sourceHref)
       links.push(
-        `<a class="button-link" href="${escape(sourceHref)}">${escape(ui("Source"))}</a>`,
+        `<a class="button-link" href="${compareEscape(sourceHref)}">${compareEscape(ui("Source"))}</a>`,
       );
   }
   return links.join("");
@@ -778,11 +781,14 @@ window.compareRenderActionPanel = function (targets) {
   </tr>`,
     )
     .join("");
-  let introHtml = `<p class="compare-muted">${escape(ui("Open source pages, share this comparison, or continue collection-like targets as projects."))}</p>
-    <div class="compare-action-list"><a class="button-link" href="${escape(window.currentCompareUrl(targets))}">${escape(ui("Share URL"))}</a></div>`;
+  let introHtml = `<p class="compare-muted">${compareEscape(ui("Open source pages, share this comparison, or continue collection-like targets as projects."))}</p>
+    <div class="compare-action-list"><a class="button-link" href="${compareEscape(window.currentCompareUrl(targets))}">${compareEscape(ui("Share URL"))}</a></div>`;
   return comparePanel(
     "Actions",
-    compareTable([ui("Target"), ui("Links"), ui("Project")].map(escape), rows),
+    compareTable(
+      [ui("Target"), ui("Links"), ui("Project")].map(compareEscape),
+      rows,
+    ),
     { introHtml },
   );
 };
@@ -790,7 +796,7 @@ window.compareRenderActionPanel = function (targets) {
 // --- Mixed-target relationship panel --------------------------------------
 
 function targetPairLabel(left, right) {
-  return `<a href="${escape(left.url)}">${escape(left.displayName)}</a><span class="leaderboard-meta">${escape(targetTypeLabel(left))}</span> × <a href="${escape(right.url)}">${escape(right.displayName)}</a><span class="leaderboard-meta">${escape(targetTypeLabel(right))}</span>`;
+  return `<a href="${compareEscape(left.url)}">${compareEscape(left.displayName)}</a><span class="leaderboard-meta">${compareEscape(targetTypeLabel(left))}</span> × <a href="${compareEscape(right.url)}">${compareEscape(right.displayName)}</a><span class="leaderboard-meta">${compareEscape(targetTypeLabel(right))}</span>`;
 }
 
 function overlapFilms(ids) {
@@ -809,14 +815,14 @@ function relationshipItemCell(filmIds, watchlistIds) {
   let items = overlapWatchlistItems(watchlistIds);
   let total = films.length + items.length;
   if (!total)
-    return `<td><span class="compare-muted">${escape(ui("None"))}</span></td>`;
+    return `<td><span class="compare-muted">${compareEscape(ui("None"))}</span></td>`;
   let details = [
     films.length ? filmLinkList(films.slice(0, 4)) : "",
     items.length ? watchlistItemLinkList(items.slice(0, 4)) : "",
   ]
     .filter(Boolean)
     .join(" · ");
-  return `<td><b>${escape(total)}</b>${details ? ` · ${details}` : ""}</td>`;
+  return `<td><b>${compareEscape(total)}</b>${details ? ` · ${details}` : ""}</td>`;
 }
 
 function filmPersonRoles(filmTarget, personTarget) {
@@ -898,7 +904,7 @@ window.compareRenderRelationshipPanel = function (targets) {
       let overlap = window.compareTargetOverlap(left, right);
       rows.push(`<tr>
       <th>${targetPairLabel(left, right)}</th>
-      <td>${escape(relationshipContext(left, right, overlap))}</td>
+      <td>${compareEscape(relationshipContext(left, right, overlap))}</td>
       ${relationshipItemCell(overlap.sharedFilmIds, overlap.sharedWatchlistIds)}
       ${relationshipItemCell(overlap.leftOnlyFilmIds, overlap.leftOnlyWatchlistIds)}
       ${relationshipItemCell(overlap.rightOnlyFilmIds, overlap.rightOnlyWatchlistIds)}
@@ -914,11 +920,11 @@ window.compareRenderRelationshipPanel = function (targets) {
         ui("Shared"),
         ui("Only first"),
         ui("Only second"),
-      ].map(escape),
+      ].map(compareEscape),
       rows.join(""),
     ),
     {
-      introHtml: `<p class="compare-muted">${escape(ui("Each selected pair appears once; counts include watched films and watchlist items."))}</p>`,
+      introHtml: `<p class="compare-muted">${compareEscape(ui("Each selected pair appears once; counts include watched films and watchlist items."))}</p>`,
     },
   );
 };
@@ -941,9 +947,9 @@ window.compareRenderCollectionProfilePanel = function (targets) {
     .map(
       (target) => `<tr>
       ${targetHeaderCell(target)}
-      <td class="compare-number-cell">${escape(target.filmIds.length)}</td>
-      <td class="compare-number-cell">${escape(target.watchlistIds.length)}</td>
-      <td class="compare-number-cell">${escape(collectionCompletion(target))}</td>
+      <td class="compare-number-cell">${compareEscape(target.filmIds.length)}</td>
+      <td class="compare-number-cell">${compareEscape(target.watchlistIds.length)}</td>
+      <td class="compare-number-cell">${compareEscape(collectionCompletion(target))}</td>
       <td>${filmLinkList(topRepresentedFilms(target.filmIds, 3))}</td>
       <td>${watchlistItemLinkList(topWatchlistItems(target))}</td>
     </tr>`,
@@ -959,7 +965,7 @@ window.compareRenderCollectionProfilePanel = function (targets) {
         ui("Completion"),
         ui("Top films"),
         ui("Next unwatched"),
-      ].map(escape),
+      ].map(compareEscape),
       rows,
     ),
   );
@@ -975,8 +981,8 @@ window.compareRenderCollectionDistributionPanel = function (targets) {
       let top250 = ranked.filter((film) => Number(film.allTimeRank) <= 250);
       return `<tr>
       ${targetHeaderCell(target)}
-      <td class="compare-number-cell">${escape(ranked.length)}</td>
-      <td class="compare-number-cell">${escape(top250.length)}</td>
+      <td class="compare-number-cell">${compareEscape(ranked.length)}</td>
+      <td class="compare-number-cell">${compareEscape(top250.length)}</td>
       <td>${countSummary(films.map((film) => film.rating))}</td>
       <td>${countSummary(watchlistItems.map((item) => item.tier))}</td>
     </tr>`;
@@ -986,7 +992,7 @@ window.compareRenderCollectionDistributionPanel = function (targets) {
     "Collection distribution",
     compareTable(
       [ui("Target"), ui("Ranked"), ui("Top 250"), ui("Rating"), ui("Tier")].map(
-        escape,
+        compareEscape,
       ),
       rows,
     ),
@@ -1015,15 +1021,15 @@ window.compareRenderPeopleProfilePanel = function (targets) {
         .join(", ");
       return `<tr>
       ${targetHeaderCell(target)}
-      <td>${escape(professions || "—")}</td>
-      <td class="compare-number-cell">${escape(target.filmIds.length)}</td>
-      <td class="compare-number-cell">${escape(target.metrics?.wins || 0)}</td>
-      <td class="compare-number-cell">${escape(target.metrics?.nominations || 0)}</td>
+      <td>${compareEscape(professions || "—")}</td>
+      <td class="compare-number-cell">${compareEscape(target.filmIds.length)}</td>
+      <td class="compare-number-cell">${compareEscape(target.metrics?.wins || 0)}</td>
+      <td class="compare-number-cell">${compareEscape(target.metrics?.nominations || 0)}</td>
       <td>${linkedPersonList(collaborators)}</td>
     </tr>`;
     })
     .join("");
-  let introHtml = `<p class="compare-muted">${escape(ui("Shared films"))}: ${filmLinkList(sharedFilms)} · ${escape(ui("Shared collaborators"))}: ${linkedPersonList(sharedCollaborators)}</p>`;
+  let introHtml = `<p class="compare-muted">${compareEscape(ui("Shared films"))}: ${filmLinkList(sharedFilms)} · ${compareEscape(ui("Shared collaborators"))}: ${linkedPersonList(sharedCollaborators)}</p>`;
   return comparePanel(
     "People profile",
     compareTable(
@@ -1034,7 +1040,7 @@ window.compareRenderPeopleProfilePanel = function (targets) {
         ui("Wins"),
         ui("Nominations"),
         ui("Collaborators"),
-      ].map(escape),
+      ].map(compareEscape),
       rows,
     ),
     { introHtml },
@@ -1102,19 +1108,19 @@ window.compareRenderPeriodProfilePanel = function (targets) {
       let density = filmCount ? (stats.awardScore / filmCount).toFixed(1) : "—";
       return `<tr>
       ${targetHeaderCell(target)}
-      <td class="compare-number-cell">${escape(filmCount)}</td>
-      <td class="compare-number-cell">${escape(stats.wins)}</td>
-      <td class="compare-number-cell">${escape(stats.nominations)}</td>
-      <td class="compare-number-cell">${escape(scoreText(stats))}</td>
-      <td class="compare-number-cell">${escape(density)}</td>
+      <td class="compare-number-cell">${compareEscape(filmCount)}</td>
+      <td class="compare-number-cell">${compareEscape(stats.wins)}</td>
+      <td class="compare-number-cell">${compareEscape(stats.nominations)}</td>
+      <td class="compare-number-cell">${compareEscape(scoreText(stats))}</td>
+      <td class="compare-number-cell">${compareEscape(density)}</td>
       <td>${filmLinkList(periodTopFilms(target))}</td>
       <td>${categoryCountList(targetAwardCategoryCounts(entries))}</td>
     </tr>`;
     })
     .join("");
   let sharedHtml = sharedCategories.length
-    ? `<p class="compare-muted">${escape(ui("Shared categories"))}: ${categoryCountList(sharedCategories.map((category) => [category, categorySets.length]))}</p>`
-    : `<p class="compare-muted">${escape(ui("No shared award categories."))}</p>`;
+    ? `<p class="compare-muted">${compareEscape(ui("Shared categories"))}: ${categoryCountList(sharedCategories.map((category) => [category, categorySets.length]))}</p>`
+    : `<p class="compare-muted">${compareEscape(ui("No shared award categories."))}</p>`;
   return comparePanel(
     "Period profile",
     compareTable(
@@ -1127,7 +1133,7 @@ window.compareRenderPeriodProfilePanel = function (targets) {
         ui("Award density"),
         ui("Top films"),
         ui("Top categories"),
-      ].map(escape),
+      ].map(compareEscape),
       rows,
     ),
     { introHtml: sharedHtml },

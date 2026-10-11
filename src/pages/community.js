@@ -2,11 +2,8 @@
  * @file Renders the live published Community directory and its read-only,
  * live-fetched archive comparison and joint-ceremony views. Every view -
  * directory, compare, and ceremony - reads straight from Supabase through
- * the isolated anonymous public reader (issue #483); none of them depend on
- * the optional legacy static-snapshot pipeline
- * (`scripts/generate-profile-artifacts.jxa.js`, `publish-profiles.yml`)
- * any more, so results always reflect each archive's current public data
- * rather than a fixed revision.
+ * the isolated anonymous public reader (issue #483), so results always
+ * reflect each archive's current public data rather than a fixed revision.
  *
  * "Hold a joint ceremony" first lands on a spoiler-free picker
  * (renderCeremonyPicker) listing every year, decade, century, and
@@ -51,7 +48,7 @@
   let finishRender = window.startOskarsPerformance?.("community:render");
 
   function formatNumber(value) {
-    return Number(value || 0).toLocaleString(window.currentOskarsLocale?.());
+    return Number(value || 0).toLocaleString(window.oskarsLocale?.());
   }
 
   function safePosterUrl(value) {

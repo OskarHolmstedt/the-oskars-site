@@ -4,6 +4,7 @@
  */
 
 (function () {
+  /** @type {Promise<unknown>} */
   let saveChain = Promise.resolve();
 
   function positionFor(index) {
@@ -204,11 +205,10 @@
           let { data, error } = await query.select("id");
           if (error) throw error;
           if (!data?.length) {
-            let stale = new Error(
-              "Changed in another session — reload before editing.",
+            throw Object.assign(
+              new Error("Changed in another session — reload before editing."),
+              { code: "OSKARS_STALE_WRITE" },
             );
-            stale.code = "OSKARS_STALE_WRITE";
-            throw stale;
           }
           completed++;
           onProgress?.("Watched films", completed, totalOperations);
@@ -700,11 +700,10 @@
     // through the full hydration in bootstrap.js's ensureOskarsData(),
     // which sets this flag once its reshape actually completes.
     if (window.OSKARS_STATE_HYDRATION_COMPLETE !== true) {
-      let incomplete = new Error(
-        "Archive not fully loaded — reload before saving.",
+      throw Object.assign(
+        new Error("Archive not fully loaded — reload before saving."),
+        { code: "OSKARS_INCOMPLETE_STATE" },
       );
-      incomplete.code = "OSKARS_INCOMPLETE_STATE";
-      throw incomplete;
     }
     let source = window.OSKARS_SUPABASE_HYDRATION_SOURCE || {};
     window.ensureAggregatesFresh?.();
@@ -716,7 +715,10 @@
     let films = [];
     let notAdded = [];
     let peopleNotAdded = [];
-    let candidates = Object.values(window.state?.filmsById || {});
+    let archiveFilms = new Set(Object.values(window.state?.filmsById || {}));
+    let candidates = [
+      ...new Set([...archiveFilms, ...(window.state?.watchedOther || [])]),
+    ];
     let watchlistCandidates = window.state?.watchlist || [];
     let preparationTotal = candidates.length + watchlistCandidates.length;
     let prepared = 0;
@@ -797,6 +799,8 @@
       if (res.id) watchlist.push(res.item);
       else notAdded.push(window.catalogFilmLabel(res.item));
     }
+    let resolvedArchiveFilms = films.filter((film) => archiveFilms.has(film));
+    /** @type {[string, () => Promise<unknown>][]} */
     let stages = [
       [
         "Watched films",
@@ -810,8 +814,11 @@
         "Franchise additions",
         () => syncFranchiseAdditions(ready.client, source, films, onProgress),
       ],
-      ["Awards", () => syncAwards(ready.client, source, films)],
-      ["Rankings", () => syncRankings(ready.client, source, films)],
+      ["Awards", () => syncAwards(ready.client, source, resolvedArchiveFilms)],
+      [
+        "Rankings",
+        () => syncRankings(ready.client, source, resolvedArchiveFilms),
+      ],
       [
         "Watchlist",
         () => syncWatchlist(ready.client, source, watchlist, onProgress),
@@ -877,40 +884,4 @@
   // these routes this is deliberately a Supabase write boundary, not the
   // IndexedDB persistence implementation used by the retired backend path.
   window.save = window.saveSupabaseHydratedState;
-
-  /**
-   * Adds a shared-catalog candidate as watched and opens a real Supabase
-   * Intake workflow.
-   * @param {Object} record Shared film candidate.
-   * @returns {Promise<{ok: boolean, filmId?: string, intakeId?: string, reason?: string}>}
-   */
-  window.addSupabaseCandidateToWatched = async function (record) {
-    try {
-      let result = await window.createSupabaseFreshWatchedIntake({
-        title: record?.title,
-        year: record?.year,
-        tmdbId: record?.tmdbId,
-        director: record?.director || "",
-        medium: record?.medium,
-        type: record?.type,
-        runtimeMinutes: record?.runtimeMinutes,
-        country: record?.country,
-        primaryCountry: record?.primaryCountry,
-        posterUrl: record?.poster?.url,
-        swedishTitle: record?.swedishTitle,
-        screenplayType: record?.screenplayType,
-        adaptationSource: record?.adaptationSource,
-        letterboxdUrl: record?.letterboxdUrl,
-      });
-      return {
-        ok: true,
-        filmId: result.watched.film_id,
-        intakeId: result.id,
-      };
-    } catch (error) {
-      return { ok: false, reason: error.message || String(error) };
-    }
-  };
-
-  window.addFilmRecordToWatched = window.addSupabaseCandidateToWatched;
 })();

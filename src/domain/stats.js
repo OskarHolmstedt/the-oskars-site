@@ -25,7 +25,7 @@ function isAwardVisibleForPeriod(award, periodKey, periodType) {
 window.awardScorePeriodType = function (award) {
   let explicitType = window.normalizeAwardPeriodType(award?.periodType);
   if (explicitType) return explicitType;
-  let period = String(award?.year ?? award?.period ?? "");
+  let period = String(award?.year ?? "");
   if (/^\d{4}$/.test(period)) return "years";
   if (period === "alltime") return "allTime";
   return state.years?.[period]?.periodType || "";
@@ -85,7 +85,7 @@ window.calculateNormalizedAwardsScore = function (awards, periodType) {
   );
   if (!eligibleAwards.length) return 0;
   let periodKeys = new Set(
-    eligibleAwards.map((award) => String(award.year ?? award.period ?? "")),
+    eligibleAwards.map((award) => String(award.year ?? "")),
   );
   let effectiveType =
     periodType || window.awardScorePeriodType(eligibleAwards[0]);
@@ -689,7 +689,6 @@ window.overallFilmStatistics = function (
       // Distinct recipients in one category remain distinct nominations.
       let key =
         award.supabaseNominationId ||
-        award.id ||
         JSON.stringify([
           award.year,
           award.category,

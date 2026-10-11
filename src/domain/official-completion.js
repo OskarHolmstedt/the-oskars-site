@@ -21,7 +21,7 @@
     return years;
   };
 
-  // Moved from src/data/official-results.js (issue: shared official-results
+  // Moved from src/imports/official-results.js (issue: shared official-results
   // archive) so the shared-archive pull can re-attach a per-viewer filmRef
   // to canon-only (filmRef-stripped) shared nominations without loading
   // official-results.js's much heavier import-parsing code on every page -
@@ -159,6 +159,7 @@
       ]),
     );
     return titles.map((title, index) => {
+      /** @type {{tmdbId?: string|number, filmRef?: {id: string, title: string, year: string}}} */
       let link = index === 0 ? nomination : extras.get(index + 1) || {};
       let film = { title };
       if (link.tmdbId) film.tmdbId = String(link.tmdbId);
@@ -568,7 +569,7 @@
       : model.source?.name || sourceId;
   }
 
-  /** Adds every currently unambiguous unseen film in an official-results collection to the watchlist. @param {string} scopeId Scope id (source-prefixed, see officialCollectionProjectSource()). @param {string} tier Destination interest tier. @param {Object} [options] Persistence controls. @param {Set<string>|string[]} [options.excludeItemIds] Watchlist-item ids to skip even though the plan considers them ready - used by the shared official-results archive's automatic reconciliation to honor a user's earlier explicit removal; never set by the manual Completion-page button, so a manual re-add is never blocked by a prior decline. @returns {Object} Bulk-add result. */
+  /** Adds every currently unambiguous unseen film in an official-results collection to the watchlist. @param {string} scopeId Scope id (source-prefixed, see officialCollectionProjectSource()). @param {string} tier Destination interest tier. @param {Object} [options] Persistence controls. @param {Set<string>|string[]} [options.excludeItemIds] Watchlist-item ids to skip even though the plan considers them ready - used by the shared official-results archive's automatic reconciliation to honor a user's earlier explicit removal; never set by the manual Completion-page button, so a manual re-add is never blocked by a prior decline. @param {boolean} [options.save] Set to false to skip saving. @returns {Object} Bulk-add result. */
   window.applyOfficialCollectionWatchlistPlan = function (
     scopeId,
     tier,

@@ -341,6 +341,7 @@
           `<a href="${escape(window.franchisePageUrl(child.id))}">${escape(child.name)} <span>${child.films.length} ${escape(ui("films"))}</span></a>`,
       )
       .join("");
+    /** @param {{entry: Object, item: WatchlistItem}} record @param {{statusCell?: boolean, index?: number}} [options] */
     function franchiseWatchlistRow(
       { entry, item },
       { statusCell, index = 0 } = {},
@@ -383,6 +384,7 @@
         },
       )}<td class="film-people-cell">${directorHtml}</td>${window.renderRatingTierCell({ item }, { escape })}</tr>`;
     }
+    /** @param {{entry: Object, item: WatchlistItem}} record @param {{statusBody?: boolean, index?: number}} [options] */
     function franchiseWatchlistCard(
       { entry, item },
       { statusBody, index = 0 } = {},

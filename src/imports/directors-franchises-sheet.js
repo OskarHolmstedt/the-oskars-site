@@ -3,7 +3,7 @@
  * - one flat row per film, with a director name and a Franchise cell
  * that can hold multiple independent chains. Was previously duplicated
  * privately inside both scripts/import-owner-sheets-to-supabase.mjs and
- * src/data/google-sheets-supabase-import.js (issue #472).
+ * src/imports/google-sheets-supabase-import.js (issue #472).
  */
 
 window.assertSheetImportUtilsReady?.();

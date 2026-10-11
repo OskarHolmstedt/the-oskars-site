@@ -5,23 +5,101 @@
 
 (function () {
   /**
-   * Decodes basic XML and HTML character entities in feed text.
+   * Decodes basic XML and HTML character entities in feed text, supporting
+   * standard named entities, decimal/hex numeric references, supplementary
+   * Unicode code points, and nested escaped entities.
    * @param {string} text Raw text containing entities.
    * @returns {string} Unescaped text.
    */
   function decodeEntities(text) {
-    return String(text || "")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#039;/g, "'")
-      .replace(/&#39;/g, "'")
-      .replace(/&apos;/g, "'")
-      .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)))
-      .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
-        String.fromCharCode(parseInt(hex, 16)),
-      );
+    let current = String(text || "");
+    for (let pass = 0; pass < 5; pass++) {
+      let next = current
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'")
+        .replace(/&#39;/g, "'")
+        .replace(/&apos;/g, "'")
+        .replace(/&#([0-9]+);/g, (match, dec) => {
+          let code = parseInt(dec, 10);
+          if (
+            code >= 0 &&
+            code <= 0x10ffff &&
+            !(code >= 0xd800 && code <= 0xdfff)
+          ) {
+            return String.fromCodePoint(code);
+          }
+          return match;
+        })
+        .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => {
+          let code = parseInt(hex, 16);
+          if (
+            code >= 0 &&
+            code <= 0x10ffff &&
+            !(code >= 0xd800 && code <= 0xdfff)
+          ) {
+            return String.fromCodePoint(code);
+          }
+          return match;
+        });
+      if (next === current) break;
+      current = next;
+    }
+    return current;
+  }
+
+  /**
+   * Extracts and unescapes XML tag inner content, preserving CDATA blocks verbatim
+   * while decoding character entities in surrounding text.
+   * @param {string} rawContent Raw inner text of an XML tag.
+   * @returns {string} Cleaned and decoded text.
+   */
+  function parseTagContent(rawContent) {
+    let text = String(rawContent || "");
+    if (!text) return "";
+
+    if (text.includes("<![CDATA[")) {
+      let cdataBlocks = [];
+      let replaced = text.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_, cdata) => {
+        let index = cdataBlocks.length;
+        cdataBlocks.push(cdata);
+        return `\uE000CDATA_${index}\uE000`;
+      });
+      let decoded = decodeEntities(replaced);
+      return decoded
+        .replace(/\uE000CDATA_(\d+)\uE000/g, (_, index) => {
+          return cdataBlocks[Number(index)] || "";
+        })
+        .trim();
+    }
+
+    return decodeEntities(text).trim();
+  }
+
+  /**
+   * Parses a positive integer field (e.g. film year or TMDB ID), returning null
+   * for missing, non-numeric, or non-positive values.
+   * @param {string} val Raw string value.
+   * @returns {number|null} Parsed integer or null.
+   */
+  function parseNullableInt(val) {
+    if (!val) return null;
+    let n = parseInt(val, 10);
+    return Number.isInteger(n) && n > 0 ? n : null;
+  }
+
+  /**
+   * Parses a non-negative float field (e.g. member rating), returning null
+   * for missing, non-numeric, or negative values.
+   * @param {string} val Raw string value.
+   * @returns {number|null} Parsed float or null.
+   */
+  function parseNullableFloat(val) {
+    if (!val) return null;
+    let n = parseFloat(val);
+    return Number.isFinite(n) && n >= 0 ? n : null;
   }
 
   /**
@@ -31,7 +109,7 @@
    */
   window.parseLetterboxdRssXml = function (xmlText) {
     let items = [];
-    let itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+    let itemRegex = /<item\b[^>]*>([\s\S]*?)<\/item>/gi;
     let match;
     while ((match = itemRegex.exec(String(xmlText || ""))) !== null) {
       let block = match[1];
@@ -40,7 +118,7 @@
           `<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`,
           "i",
         ).exec(block);
-        return tagMatch ? decodeEntities(tagMatch[1].trim()) : "";
+        return tagMatch ? parseTagContent(tagMatch[1]) : "";
       };
 
       let rawYear = getTag("letterboxd:filmYear");
@@ -51,12 +129,12 @@
 
       items.push({
         title: filmTitle,
-        year: rawYear ? parseInt(rawYear, 10) : null,
+        year: parseNullableInt(rawYear),
         watchedDate: getTag("letterboxd:watchedDate") || null,
         pubDate: getTag("pubDate") || null,
         rewatch: rawRewatch.toLowerCase() === "yes",
-        rating: rawRating ? parseFloat(rawRating) : null,
-        tmdbId: rawTmdb ? parseInt(rawTmdb, 10) : null,
+        rating: parseNullableFloat(rawRating),
+        tmdbId: parseNullableInt(rawTmdb),
         link: getTag("link"),
         guid: getTag("guid"),
       });

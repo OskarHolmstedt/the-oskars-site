@@ -136,13 +136,4 @@
       .map((sourceId) => window.officialPersonRecord(person, sourceId))
       .filter((record) => record.nominations > 0);
   };
-
-  /**
-   * Derives the Academy Awards record retained for compatibility.
-   * @param {PersonRecord} person Existing derived person.
-   * @returns {OfficialPersonOscarRecord} Matched Academy Awards record.
-   */
-  window.officialPersonOscarRecord = function (person) {
-    return window.officialPersonRecord(person, ACADEMY_SOURCE_ID);
-  };
 })();

@@ -75,11 +75,10 @@ window.requestPosterJson = async function (
           ),
         );
         if (!response.ok) {
-          let error = new Error(
-            `${provider} request failed (${response.status})`,
+          throw Object.assign(
+            new Error(`${provider} request failed (${response.status})`),
+            { status: response.status },
           );
-          error.status = response.status;
-          throw error;
         }
         return await response.json();
       } catch (err) {
@@ -460,7 +459,7 @@ window.lookupTmdbMovieDetails = async function (tmdbId, fetchFn) {
  * @param {{mediaType: "tv", id: string, season: number|null, episode: number|null}} reference
  * @param {Function} fetchFn
  * @param {string[]} [requestedFields] Fields eligible for fetching; skips aggregate runtime requests when excluded.
- * @returns {Promise<{country: string|null, primaryCountry: string|null, runtimeMinutes: number|null, director: string|null, directors: {tmdbId: number|null, name: string, profilePath: string|null}[]}>}
+ * @returns {Promise<{country: string|null, primaryCountry: string|null, runtimeMinutes: number|null, director: string|null, directors: {tmdbId: number|null, name: string, profilePath: string|null}[], originalLanguage: string|null}>}
  */
 window.lookupTmdbTvMetadataFields = async function (
   reference,
@@ -643,7 +642,7 @@ window.lookupTmdbPersonIdentity = async function (person, fetchFn) {
   };
 };
 
-/** Finds a TMDB portrait for a person. @param {PersonRecord & {creditedFilmTmdbIds?: (number|string)[]}} person Person. @param {Function} fetchFn Fetch implementation. @returns {Promise<PosterRecord|null>} Portrait. */
+/** Finds a TMDB portrait for a person. @param {{name: string, tmdbId?: number|string|null, tmdb_id?: number|string|null, creditedFilmTmdbIds?: (number|string)[]}} person Person record or Supabase person row. @param {Function} fetchFn Fetch implementation. @returns {Promise<PosterRecord|null>} Portrait. */
 window.lookupTmdbPersonPortrait = async function (person, fetchFn) {
   let knownId = person.tmdbId || person.tmdb_id;
   if (/^[1-9][0-9]*$/.test(String(knownId || ""))) {

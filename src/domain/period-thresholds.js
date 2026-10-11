@@ -110,7 +110,7 @@
     let normalizedType = window.periodPageType
       ? window.periodPageType(periodType)
       : String(periodType || "year").toLowerCase();
-    let thresholds = window.PERIOD_CEREMONY_THRESHOLDS?.[normalizedType] ||
+    let rawThresholds = window.PERIOD_CEREMONY_THRESHOLDS?.[normalizedType] ||
       window.PERIOD_CEREMONY_THRESHOLDS?.year || {
         total: 10,
         animated: 5,
@@ -118,6 +118,7 @@
         adapted: 5,
         original: 5,
       };
+    let thresholds = Object.assign({}, rawThresholds);
     let counts = Array.isArray(filmsOrCounts)
       ? window.countPeriodThresholdFilms(filmsOrCounts)
       : {

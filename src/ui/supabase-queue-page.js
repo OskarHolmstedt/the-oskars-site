@@ -303,7 +303,9 @@
 
       let progress = container.querySelector(".queue-progress");
       if (progress) {
-        progress.querySelector("b").textContent = rows.length - openCount;
+        progress.querySelector("b").textContent = String(
+          rows.length - openCount,
+        );
         progress.querySelector("progress").value = rows.length - openCount;
       }
       let count = container.querySelector("[data-queue-open-count]");
@@ -345,7 +347,9 @@
     });
 
     container.addEventListener("submit", async (event) => {
-      let form = event.target.closest("[data-queue-row]");
+      let form = /** @type {HTMLFormElement} */ (
+        event.target.closest("[data-queue-row]")
+      );
       if (!form) return;
       event.preventDefault();
       let button = form.querySelector('button[type="submit"]');

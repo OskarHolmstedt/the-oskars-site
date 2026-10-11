@@ -21,6 +21,8 @@
  * @property {string} order Sort axis ("rank", "shuffle", or a `compareFilmAxisRecords` axis).
  * @property {string} direction Sort direction ("asc"|"desc").
  * @property {string} shuffleSeed Seed used when `order` is "shuffle".
+ * @property {Object[]} [_baseEntries] Memoized `periodWatchlistBaseEntries` result.
+ * @property {WatchlistItem[]} [_baseWatchlist] Watchlist array the memo was built from.
  */
 
 // Disposable-queue size (issue #163): matches period.js's own small,
@@ -819,7 +821,7 @@ window.renderWatchlistQueue = function (entries, options = {}) {
  * @param {(value:number) => void} handlers.setMaxRuntime Applies a raw maximum-runtime input value.
  * @param {(value:string) => void} handlers.setSearch Applies the search box's current value.
  * @param {() => void} handlers.commit Persists the debounced filter change to the URL and re-renders.
- * @param {(id:string, tier:string) => void} handlers.setItemTier Applies a per-item tier-editor change.
+ * @param {(id:string, tier:string, modifier:string) => void} handlers.setItemTier Applies a per-item tier-editor change.
  * @param {(level:'century'|'decade'|'year', value:string) => void} handlers.setSubPeriod Applies a sub-period cascade selection.
  * @param {() => void} handlers.toggleOrderEdit Toggles watchlist order-edit mode.
  * @param {() => void} handlers.toggleTierEdit Toggles watchlist tier-edit mode.
@@ -828,6 +830,7 @@ window.renderWatchlistQueue = function (entries, options = {}) {
  * @param {() => void} handlers.clearDirector Clears the director filter.
  * @param {(values:Object) => void} handlers.addItem Submits the add-to-watchlist form's values.
  * @param {() => Object[]} handlers.filteredEntries Returns the current filtered watchlist entries.
+ * @param {(before:Object[], after:Object[]) => Promise<void>} [handlers.persistBulkTier] Persists the selected bulk-tier rows.
  * @param {(outcome:{tier:string, result:Object}) => void} handlers.applyBulkTier Applies a bulk-tier change outcome.
  * @param {() => boolean} handlers.orderEditEnabled Reports whether order-edit mode is active.
  * @param {string} [handlers.orderRejectedMessage] Message shown when a cross-tier move is rejected.
@@ -913,7 +916,9 @@ window.wirePeriodWatchlistControls = function (container, handlers) {
     );
     if (subPeriodSelect) {
       handlers.setSubPeriod(
-        subPeriodSelect.dataset.periodWatchlistSubperiod,
+        /** @type {'century'|'decade'|'year'} */ (
+          subPeriodSelect.dataset.periodWatchlistSubperiod
+        ),
         subPeriodSelect.value,
       );
       return;
@@ -971,13 +976,18 @@ window.wirePeriodWatchlistControls = function (container, handlers) {
     let addForm = event.target.closest("[data-add-watchlist-form]");
     if (!addForm) return;
     event.preventDefault();
-    handlers.addItem(Object.fromEntries(new FormData(addForm).entries()));
+    handlers.addItem(
+      Object.fromEntries(
+        new FormData(/** @type {HTMLFormElement} */ (addForm)).entries(),
+      ),
+    );
   });
 
   let bulkTierControl = window.bindWatchlistBulkTierControl({
     container,
     entries: handlers.filteredEntries,
     rerender: handlers.applyBulkTier,
+    persist: handlers.persistBulkTier,
   });
 
   window.createOrderEditController({

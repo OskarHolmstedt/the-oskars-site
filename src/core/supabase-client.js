@@ -60,11 +60,10 @@ function supabaseResilientFetch(url, options) {
         response.status === 429 ||
         (response.status >= 502 && response.status <= 504)
       ) {
-        let err = new Error(
-          `Supabase request failed with status ${response.status}`,
+        throw Object.assign(
+          new Error(`Supabase request failed with status ${response.status}`),
+          { status: response.status },
         );
-        err.status = response.status;
-        throw err;
       }
       let text = await response.text();
       // The Response constructor rejects any body, even "", for these.

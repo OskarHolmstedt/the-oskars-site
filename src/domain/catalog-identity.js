@@ -121,9 +121,9 @@ async function withPostgrestRetry(operation) {
           result.error.message || "",
         )
       ) {
-        let err = new Error(result.error.message);
-        err.originalError = result.error;
-        throw err;
+        throw Object.assign(new Error(result.error.message), {
+          originalError: result.error,
+        });
       }
       return result;
     },
@@ -207,7 +207,7 @@ window.findSupabaseCatalogFilm = async function (client, title, year) {
  * the catalog, then looked up on TMDB. Without either match nothing is
  * created and `filmId` is null.
  * @param {Object} client Supabase client.
- * @param {{title: string, year?: number|string|null, type?: string, tmdbId?: string|number|null}} film Film to resolve.
+ * @param {{title: string, year?: number|string|null, type?: string, tmdbId?: string|number|null, letterboxdUrl?: string, url?: string}} film Film to resolve.
  * @param {Record<string, *>} [payload] Further `find_or_create_film` columns (p_medium, p_type, ...) for a new row.
  * @param {{fetchFn?: Function}} [options] Network controls for the TMDB lookup.
  * @returns {Promise<{filmId: string|null, tmdbId: string|null, via: 'tmdb-id'|'catalog'|'tmdb-search'|null}>} The resolved row and how it was found.
@@ -235,6 +235,7 @@ window.resolveSupabaseCatalogFilm = async function (
     if (cache.has(cacheKey)) {
       return cache.get(cacheKey);
     }
+    /** @type {Promise<{filmId: string|null, tmdbId: string|null, via: 'tmdb-id'|'catalog'|'tmdb-search'|null}>} */
     let resolutionPromise = (async () => {
       if (known) {
         return {
@@ -326,6 +327,7 @@ window.resolveSupabaseCatalogPerson = async function (
     return cache.get(cacheKey);
   }
 
+  /** @type {Promise<{personId: string|null, via: 'tmdb-id'|'catalog'|'tmdb-search'|null}>} */
   let resolutionPromise = (async () => {
     if (tmdbId) {
       let { personId, error } = await findOrCreatePersonRpc(

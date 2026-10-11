@@ -577,6 +577,10 @@ window.getAwardPeriodType = function (award, fallback) {
  * @param {AwardRecord} award Award.
  * @param {Object} [context] Validation context.
  * @param {boolean} [context.checkEligibility] Whether to check catalog metadata; defaults to true.
+ * @param {string} [context.periodType] Period type used when the award does not carry one.
+ * @param {Map<string, Set<string>>} [context.placementOwners] Film titles already holding each period/category/year/placement key.
+ * @param {boolean} [context.allowTie] Whether another film may share an owned placement.
+ * @param {boolean} [context.filmMetadataNormalized] Whether the caller already normalized the film's metadata.
  * @returns {{valid: boolean, errors: string[], warnings: string[]}} Validation result.
  */
 window.validateAward = function (film, award, context = {}) {
@@ -690,67 +694,6 @@ window.tryAddAward = function (film, award, context = {}) {
     result.added = false;
   }
   return result;
-};
-
-/**
- * Lists which of the given films are eligible for a category, without
- * requiring a real award record yet - for a "pick nominees" picker. Mirrors
- * watched-intake.js's per-film eligibility loop with the axes swapped (loop
- * films for one fixed category, instead of categories for one fixed film).
- * @param {FilmRecord[]} films Candidate films.
- * @param {string} category Category name.
- * @param {string} [periodType] Period type ("years" by default).
- * @returns {{film: FilmRecord, warnings: string[]}[]} Eligible films with any non-blocking warnings.
- */
-window.eligibleFilmsForCategory = function (
-  films,
-  category,
-  periodType = "years",
-) {
-  return (films || []).reduce((eligible, film) => {
-    let normalized = window.cloneRecord(film);
-    window.normalizeFilmMetadata?.(normalized);
-    let directorRecipient = (normalized.directors || []).join(", ");
-    let award = window.setAwardRecipients(
-      { category, placement: 1, year: normalized.year || "", periodType },
-      category === "Best Director" ? directorRecipient : "",
-    );
-    let validation = window.validateAward(normalized, award, {
-      periodType,
-      filmMetadataNormalized: true,
-    });
-    if (validation.valid)
-      eligible.push({ film, warnings: validation.warnings });
-    return eligible;
-  }, []);
-};
-
-/**
- * Lists a period's current nominees for one category, ordered by placement.
- * The same query is independently reimplemented per-caller elsewhere
- * (watched-intake.js, period.js, period/award-view.js) - this is a shared
- * version for new callers, existing call sites are left as-is.
- * @param {string} periodKey Period key, e.g. "2024".
- * @param {string} periodType Period type ("years", "decades", "centuries", "allTime").
- * @param {string} category Category name.
- * @returns {{film: FilmRecord, award: AwardRecord}[]}
- */
-window.nomineesForCategory = function (periodKey, periodType, category) {
-  return (window.state.years?.[periodKey]?.films || [])
-    .flatMap((film) =>
-      (film.awards || [])
-        .filter(
-          (award) =>
-            award.category === category &&
-            String(award.year || "") === String(periodKey) &&
-            window.getAwardPeriodType(award) === periodType,
-        )
-        .map((award) => ({ film, award })),
-    )
-    .sort(
-      (left, right) =>
-        Number(left.award.placement) - Number(right.award.placement),
-    );
 };
 
 /** Returns every personal award entry for a category across canonical watched films. @param {string} category Category name. @returns {{film: FilmRecord, award: AwardRecord}[]} Award entries. */

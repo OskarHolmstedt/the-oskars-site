@@ -145,7 +145,7 @@
     if (type === "person") {
       let person = (window.ensurePeopleIndex?.() || state.peopleById || {})[id];
       if (!person) return null;
-      let rawScope = options.scoreScope || options.scope || "year";
+      let rawScope = options.scoreScope || "year";
       let scoreScope = rawScope === "alltime" ? "allTime" : rawScope;
       return withRatingStatistics({
         type,

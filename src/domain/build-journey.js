@@ -121,7 +121,7 @@
           group.every((entry) => entry.rank_confirmed !== false),
         ).length;
         let reviewedCategories = reviewedCategoriesByYear.get(year)?.size || 0;
-        let rankingReady = ratedCount === yearRows.length;
+        let rankingReady = yearRows.length > 0;
         let rankedIds = new Set(
           yearRankingEntries
             .filter((entry) => entry.rank_confirmed !== false)
@@ -129,17 +129,23 @@
         );
         let rankingComplete =
           rankingReady && yearRows.every((row) => rankedIds.has(row.film_id));
+        let awardStarted = reviewedCategories > 0;
         let awardComplete =
           categoryNames.length > 0 &&
           reviewedCategories >= categoryNames.length;
+        /** @type {BuildYearProgress['stage']} */
         let stage =
-          ratedCount < yearRows.length
-            ? "rating"
-            : !rankingComplete
-              ? "ranking"
-              : !awardComplete
-                ? "awards"
-                : "complete";
+          awardComplete && rankingComplete && ratedCount === yearRows.length
+            ? "complete"
+            : awardStarted && !awardComplete
+              ? "awards"
+              : ratedCount < yearRows.length
+                ? "rating"
+                : !rankingComplete
+                  ? "ranking"
+                  : !awardComplete
+                    ? "awards"
+                    : "complete";
         return {
           year,
           archiveFilms: films,
@@ -235,6 +241,7 @@
         ),
       };
     }
+    /** @type {[string, (entry: BuildYearProgress) => unknown][]} */
     let stages = [
       ["ceremony", (entry) => entry.archiveFilms.length && entry.awardComplete],
       ["ranked", (entry) => entry.archiveFilms.length && entry.rankingComplete],

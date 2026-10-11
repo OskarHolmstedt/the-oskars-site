@@ -6,6 +6,7 @@
 
 (function () {
   let escape = window.pageEscape;
+  let ui = window.uiText || ((text) => text);
   let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let container = document.getElementById("rankYearPage");
   let year = String(window.pageQueryParam?.("year") || "").trim();
@@ -46,7 +47,12 @@
 
   function renderRatingBucket(key, bucketEntries) {
     let watched = watchedByFilmId.get(bucketEntries[0].film_id);
-    let label = watched?.rating ? window.renderFilmRating(watched) : key;
+    let label =
+      key === "unrated"
+        ? ui("Unrated")
+        : watched?.rating
+          ? window.renderFilmRating(watched)
+          : key;
     if (bucketEntries.length === 1) {
       return `<div class="setup-year-category-row setup-year-shelf is-settled">
         <div class="setup-year-category-header setup-year-shelf-header">
@@ -83,7 +89,7 @@
   function rankingSection() {
     let buckets = ratingBuckets();
     if (!buckets.size) {
-      return `<div class="setup-year-section-empty"><p>No rated films yet for ${escape(year)}.</p><a class="button-link" href="rate-watched.html?year=${escape(year)}">Rate this year</a></div>`;
+      return `<div class="setup-year-section-empty"><p>No watched films yet for ${escape(year)}.</p><a class="button-link" href="rate-watched.html?year=${escape(year)}">Rate this year</a></div>`;
     }
     let orderedKeys = [...buckets.keys()].sort(
       (left, right) =>

@@ -325,53 +325,6 @@ window.setFilmPoster = function (filmId, poster, options = {}) {
   return true;
 };
 
-/** Looks up and applies a poster for one film. @param {string} filmId Film id. @param {Object} [options] Provider controls. @returns {Promise<PosterRecord|null>} Applied poster. */
-window.loadFilmPoster = async function (filmId, options = {}) {
-  let film = storedWatchedFilm(filmId);
-  if (!film) throw new Error("Film not found.");
-  try {
-    let poster = await window.lookupFilmPoster(film, options);
-    if (!poster) {
-      window.recordImageImportFailure("poster");
-      window.save();
-      return null;
-    }
-    window.setFilmPoster(filmId, poster);
-    return poster;
-  } catch (err) {
-    window.recordImageImportFailure("poster");
-    window.save();
-    throw err;
-  }
-};
-
-/** Lists poster options for one watched film. @param {string} filmId Film id. @param {Object} [options] Provider controls. @returns {Promise<PosterRecord[]>} Posters. */
-window.loadFilmPosterOptions = async function (filmId, options = {}) {
-  let film = storedWatchedFilm(filmId);
-  if (!film) throw new Error("Film not found.");
-  let { fetchFn } = window.resolveProviderCall(options, {
-    fetchError: "Poster browsing requires browser network access.",
-  });
-  return window.lookupTmdbPosterOptions(film, fetchFn, options);
-};
-
-// Watchlist counterpart of loadFilmPosterOptions (issue #25): the same TMDB
-// poster browsing against the item's film-like record; selection persists
-// through setWatchlistPoster.
-/** Lists poster options for one watchlist film. @param {string} itemId Item id. @param {Object} [options] Provider controls. @returns {Promise<PosterRecord[]>} Posters. */
-window.loadWatchlistPosterOptions = async function (itemId, options = {}) {
-  let item = window.findWatchlistItemById?.(itemId);
-  if (!item) throw new Error("Watchlist film not found.");
-  let { fetchFn } = window.resolveProviderCall(options, {
-    fetchError: "Poster browsing requires browser network access.",
-  });
-  return window.lookupTmdbPosterOptions(
-    window.watchlistFilmLike(item),
-    fetchFn,
-    options,
-  );
-};
-
 /** Looks up a person portrait. @param {PersonRecord} person Person. @param {Object} [options] Provider controls. @returns {Promise<PosterRecord|null>} Portrait. */
 window.lookupPersonPortrait = async function (person, options = {}) {
   if (!person?.name)
@@ -402,27 +355,4 @@ window.setPersonPortrait = function (personId, portrait, options = {}) {
   person.portrait = normalized;
   if (options.save !== false) window.save();
   return true;
-};
-
-/** Looks up and applies a portrait for one person. @param {string} personId Person id. @param {Object} [options] Provider controls. @returns {Promise<PosterRecord|null>} Applied portrait. */
-window.loadPersonPortrait = async function (personId, options = {}) {
-  let normalizedId = window.normalizePersonName(personId);
-  let person = (window.ensurePeopleIndex?.() || state.peopleById || {})[
-    normalizedId
-  ];
-  if (!person) throw new Error("Person not found.");
-  try {
-    let portrait = await window.lookupPersonPortrait(person, options);
-    if (!portrait) {
-      window.recordImageImportFailure("portrait");
-      window.save();
-      return null;
-    }
-    window.setPersonPortrait(person.id, portrait);
-    return portrait;
-  } catch (err) {
-    window.recordImageImportFailure("portrait");
-    window.save();
-    throw err;
-  }
 };

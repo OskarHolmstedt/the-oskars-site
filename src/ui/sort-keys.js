@@ -169,8 +169,8 @@ window.defaultOrderForFilmAxis = function (axis) {
  * `order` so reversed views keep stable title runs.
  * @param {FilmAxisRecord} left Left row.
  * @param {FilmAxisRecord} right Right row.
- * @param {Object} options Comparison options.
- * @param {string} options.axis Any `filmAxisSortValue` axis, `title`, or `shuffle`.
+ * @param {Object} [options] Comparison options.
+ * @param {string} [options.axis] Any `filmAxisSortValue` axis, `title`, or `shuffle`.
  * @param {'asc'|'desc'} [options.order] Direction for the primary axis.
  * @param {string} [options.seed] Seed for the `shuffle` axis.
  * @returns {number} Negative when `left` sorts first.

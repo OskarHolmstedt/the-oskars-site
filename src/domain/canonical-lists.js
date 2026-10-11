@@ -1,5 +1,5 @@
 /**
- * @file Derives watched-film completion, project sources, and watchlist plans for canonical curated lists (IMDb Top 250, Letterboxd Top 250, Sight & Sound, TIME 100).
+ * @file Derives watched-film completion, project sources, and watchlist plans for canonical curated lists (IMDb Top 250, Letterboxd Top 250, Sight & Sound, NYT 100).
  */
 
 (function () {

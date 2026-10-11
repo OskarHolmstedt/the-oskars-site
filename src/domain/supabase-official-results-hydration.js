@@ -7,7 +7,7 @@
  * so the page controllers that render official-results content
  * (period/category/stats/completion/film/person) keep their existing,
  * already-tested rendering logic unmodified, just fed by live data instead
- * of the bundled snapshot (`src/core/bundled-official-results.js`). A
+ * of the bundled snapshot (`src/generated/bundled-official-results.js`). A
  * deliberate sibling to `supabase-legacy-hydration.js`, not an extension of
  * it: that file's reshapers run as part of every hydrated page's shared
  * bootstrap; this one is lazily invoked only by the pages that need it. The

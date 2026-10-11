@@ -106,6 +106,7 @@
         window.alert?.(reason);
         return { ok: false, reason };
       }
+      /** @type {'after'|'before'} */
       let position =
         Number(from.index) < Number(target.index) ? "after" : "before";
       function finish(result) {

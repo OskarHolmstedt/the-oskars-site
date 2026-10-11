@@ -12,9 +12,10 @@
     : "";
 
   function changedError() {
-    let error = new Error("The account or archive changed. Please try again.");
-    error.code = "OSKARS_SHELL_CHANGED";
-    return error;
+    return Object.assign(
+      new Error("The account or archive changed. Please try again."),
+      { code: "OSKARS_SHELL_CHANGED" },
+    );
   }
 
   function invalidate(clearIdentity = false) {

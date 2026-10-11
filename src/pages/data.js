@@ -2,6 +2,16 @@
 
 (function () {
   let ui = window.uiText || ((text) => text);
+  // Only marked leaf elements are replaced, preserving controls and links.
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = ui(element.getAttribute("data-i18n"));
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+    element.setAttribute(
+      "placeholder",
+      ui(element.getAttribute("data-i18n-placeholder")),
+    );
+  });
   let escape = window.pageEscape;
   let pendingLetterboxd = null;
   let pendingBackup = null;
@@ -174,7 +184,7 @@
 
   /**
    * Validates the structure and required row fields of a Supabase backup payload before restoration.
-   * @param {object} value - The parsed JSON backup payload.
+   * @param {Object} value - The parsed JSON backup payload.
    */
   function validateBackupPayload(value) {
     if (value?.format !== "the-oskars-supabase-backup" || value.version !== 1) {
@@ -939,7 +949,6 @@
           await window.buildSupabaseAccountBackup(),
           stampedFilename("the-oskars-before-delete"),
         );
-        window.noteBackupTaken?.();
         for (let category of categories) await category.run(client);
         await refreshSource();
         status.textContent = ui("Deleted: {labels}.", {
@@ -993,7 +1002,6 @@
             await backupValue(),
             stampedFilename("the-oskars-backup"),
           );
-          window.noteBackupTaken?.();
           status.textContent = ui("Backup downloaded.");
         } catch (error) {
           status.textContent = error.message || String(error);
@@ -1733,7 +1741,6 @@
             {
               spreadsheetId,
               sourceName: metadata.title,
-              mode: "merge",
             },
           );
 
@@ -1910,17 +1917,6 @@
         if (previewButton) previewButton.disabled = false;
       }
     });
-
-    document.getElementById("dataSharingGroup").hidden =
-      !window.oskarsCapabilities?.().canPublish;
-    let communitySnapshotView = document.getElementById(
-      "publicProfilePublicationView",
-    );
-    window.renderPublicProfilePublication(communitySnapshotView);
-    communitySnapshotView.addEventListener(
-      "click",
-      window.handlePublicProfilePublicationAction,
-    );
 
     initImportTabs();
   }

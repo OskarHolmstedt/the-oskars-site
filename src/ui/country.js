@@ -115,13 +115,6 @@ window.countryFlagEmoji = function (country) {
   );
 };
 
-/** Returns unique flag emoji for a country list. @param {*} value Country list value. @returns {string} */
-window.countryFlagList = function (value) {
-  let countries = window.countryListValues(value);
-  let flags = countries.map(window.countryFlagEmoji).filter(Boolean);
-  return [...new Set(flags)].join(" ");
-};
-
 /** Parses and deduplicates a country list. @param {*} value Country list value. @returns {string[]} */
 window.countryListValues = function (value) {
   let seen = new Set();

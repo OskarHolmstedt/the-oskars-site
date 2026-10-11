@@ -4,7 +4,7 @@
  * category.js, period.js, etc. needed the identical capability. Replaces the
  * legacy notes.js's synchronous renderEntityNote()/bindEntityNoteEditor() -
  * this reads/writes the generic entity_notes table via loadSupabaseEntityNote()/
- * setSupabaseEntityNote() (src/core/supabase-workspace.js) instead.
+ * setSupabaseEntityNote() (src/core/supabase/notes-tags.js) instead.
  *
  * Unlike bindEntityNoteEditor's own narrower per-section DOM patch, the
  * caller's `rerender` is expected to be its own full-page render() (every
@@ -17,7 +17,7 @@
 
   /**
    * Renders one entity note section, in either display or edit mode.
-   * @param {{entityKind: string, entityKey: string, note: string, editing: boolean, busy: boolean, draft?: string, label?: string, escape?: function}} options
+   * @param {{entityKind: string, entityKey: string, note: string, editing: boolean, busy: boolean, draft?: string, label?: string, escape?: function, canEdit?: boolean}} options
    * @returns {string}
    */
   window.renderSupabaseEntityNote = function (options) {
@@ -52,7 +52,7 @@
    * section. `noteState` is a small mutable box ({note, editing, busy}) the
    * caller owns and reads back in its own render(); this function updates
    * it directly and calls `rerender` after every change.
-   * @param {{container: Element, entityKind: string, entityKey: string|(() => string), state: {note: string, editing: boolean, busy: boolean}, canEdit?: boolean, rerender: () => void}} options
+   * @param {{container: Element, entityKind: string, entityKey: string|(() => string), state: {note: string, editing: boolean, busy: boolean, draft?: string}, canEdit?: boolean, rerender: () => void}} options
    *   `entityKey` may be a function, read at save time, for a page whose
    *   key is only known after it loads.
    */
@@ -84,7 +84,9 @@
       let form = event.target.closest("[data-supabase-entity-note-form]");
       if (!form) return;
       event.preventDefault();
-      let value = String(new FormData(form).get("note") || "").trim();
+      let value = String(
+        new FormData(/** @type {HTMLFormElement} */ (form)).get("note") || "",
+      ).trim();
       noteState.draft = value;
       noteState.busy = true;
       rerender();

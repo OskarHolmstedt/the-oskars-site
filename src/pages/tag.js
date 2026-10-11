@@ -214,6 +214,7 @@
       sortedWatchlistItems = [...sortedWatchlistItems].sort(
         window.compareWatchlistItems,
       );
+    /** @type {FilmAxisRecord[]} */
     let combinedRecords = combinedView
       ? [
           ...films.map((film) => ({ film })),

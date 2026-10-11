@@ -1,5 +1,6 @@
 /** @file Defines curated fixed filmographies and film collections, deriving trophy qualification from the active archive's watched records. */
 (function () {
+  /** @type {[string, string, number, string?][]} */
   const missionFilms = [
     ["ddd7fcef-c3e9-4522-ba77-200706403ec0", "Mission: Impossible", 1996],
     ["854bcfc3-61b2-4d2c-8903-bb9e14c18c8a", "Mission: Impossible II", 2000],
@@ -31,6 +32,7 @@
     ],
   ];
 
+  /** @type {[string, string, number, string?][]} */
   const nolanFilms = [
     ["9ee7de2a-2316-4554-abbd-780bb73d507b", "Following", 1998],
     ["c0d8e763-d62b-4cd4-88b5-b526f83cfc35", "Memento", 2000],
@@ -46,6 +48,7 @@
     ["c0ae2931-1220-4ef6-bbfc-728b1bbbc755", "Oppenheimer", 2023],
     ["985ce2ce-7abf-48b3-8749-f82117582c2c", "The Odyssey", 2026],
   ];
+  /** @type {[string, string, number, string?][]} */
   const weirFilms = [
     ["7a5c1578-737a-4916-a9f6-6dba3ae5044f", "The Cars That Ate Paris", 1974],
     ["eb435647-df25-44a2-a108-087afdbf1393", "Picnic at Hanging Rock", 1975],
@@ -69,10 +72,12 @@
     ],
     ["dfcb39ff-0337-403a-a784-91fd82354ca9", "The Way Back", 2010],
   ];
+  /** @type {[string, string, number, string?][]} */
   const weirExtras = [
     ["402d7225-bcce-498a-b794-10295b1fa4ad", "Homesdale", 1971],
     ["25c34a24-4663-4f2a-a0cf-62bf3f7eec07", "The Plumber", 1979],
   ];
+  /** @type {[string, string, number, string?][]} */
   const konWorks = [
     ["21eda3c1-3c66-46ba-8a51-c750903d87cd", "Perfect Blue", 1997],
     ["08011b46-828b-45e3-aba0-17fd6e4f364a", "Millennium Actress", 2001],
@@ -185,14 +190,5 @@
         earned: watchedCount === films.length,
       };
     });
-  };
-
-  /**
-   * Derives the fixed Mission: Impossible trophy without counting watchlist or shared-catalog entries.
-   * @param {Object} [archive] Active hydrated archive.
-   * @returns {CollectionTrophyProgress} The eight-film trophy with current qualification.
-   */
-  window.missionImpossibleTrophy = function (archive = window.state || {}) {
-    return window.trophyCabinetData(archive)[0];
   };
 })();

@@ -51,35 +51,18 @@ window.runtimeAccountAccessRequired = function (mode) {
  * boolean, but each is named for the one thing it gates so a future mode
  * (or #243's accounts work) can separate them without renaming call sites.
  * @param {string} mode One of window.OSKARS_RUNTIME_MODES.
- * @returns {{fetchPublishedSnapshot: boolean, allowOwnerPages: boolean, canEdit: boolean, canImport: boolean, canPublish: boolean, canPersistPrivateState: boolean}}
- *   fetchPublishedSnapshot gates the owner-snapshot fetch/reconciliation
- *   startup path. allowOwnerPages gates loading data/intake and other
+ * @returns {{allowOwnerPages: boolean, canEdit: boolean, canImport: boolean}}
+ *   allowOwnerPages gates loading data/intake and other
  *   owner-only mutation-workflow pages at all, below the page-
  *   controller layer. canEdit gates using any in-page mutation control.
  *   canImport gates replacing or merging in imported/recovered data.
- *   canPublish gates the owner-only public-profile publish workflow — only a
- *   true owner deployment has access to its repository-backed public output.
- *   canPersistPrivateState gates every write to IndexedDB/localStorage that
- *   still goes through `src/core/persistence.js`'s save()/
- *   replaceStoredState()/saveRecoveryWorkspace() - the remaining
- *   local-archive write path. It has no bearing on Supabase-cutover
- *   routes, which write straight to Postgres instead (or, for entries
- *   that skip legacy data load entirely, treat window.save() as a hard
- *   error) and hold no browser-stored app data this capability could gate.
  */
 window.runtimeModeCapabilities = function (mode) {
-  let isOwner = mode === "owner";
   let isViewer = mode === "viewer";
   return {
-    fetchPublishedSnapshot: isOwner,
     allowOwnerPages: !isViewer,
     canEdit: !isViewer,
     canImport: !isViewer,
-    canPublish: isOwner,
-    canPersistPrivateState: !isViewer,
-    skipsLegacyDataLoad: Boolean(
-      window.OSKARS_ENTRY_SKIPS_LEGACY_DATA_LOAD ?? window.OSKARS_ENTRY,
-    ),
   };
 };
 
@@ -102,18 +85,14 @@ window.getRuntimeMode = function () {
  * active public-profile view (issue #253) as a per-tab override to the same
  * "viewer" capability set, regardless of the deployment's baked mode. A
  * `local`-mode deployment (the only real one, `the-oskars-site`) otherwise
- * reports full owner-equivalent `canEdit`/`canImport`/`canPublish` even
- * while a visitor is viewing someone else's published profile - the
- * persistence layer's own separate `isPublicProfileView` check
- * (`persistence.js`'s `persistenceAllowed()`) already stops any of that
- * from actually writing anything, but every page-controller call site that
- * decides whether to *render* a mutation control from this function's
- * output was seeing stale, baked-mode-only capabilities, showing fully
- * interactive edit UI to anonymous profile visitors that would silently
- * no-op on save. Folding the override in here, once, fixes every current
- * and future `oskarsCapabilities()` call site instead of requiring each
- * page to separately remember to check `state.isPublicProfileView` too.
- * @returns {{fetchPublishedSnapshot: boolean, allowOwnerPages: boolean, canEdit: boolean, canImport: boolean, canPublish: boolean, canPersistPrivateState: boolean}}
+ * reports full owner-equivalent `canEdit`/`canImport` even
+ * while a visitor is viewing someone else's published profile. Every
+ * page-controller call site that decides whether to *render* a mutation
+ * control reads this function's output, so folding the override in here,
+ * once, keeps edit UI away from profile visitors on every current and
+ * future `oskarsCapabilities()` call site instead of requiring each page to
+ * separately remember to check `state.isPublicProfileView` too.
+ * @returns {{allowOwnerPages: boolean, canEdit: boolean, canImport: boolean}}
  *   See runtimeModeCapabilities() for what each capability gates.
  */
 window.oskarsCapabilities = function () {

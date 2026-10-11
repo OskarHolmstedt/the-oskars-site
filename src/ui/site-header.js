@@ -205,7 +205,7 @@
       projectArchived: headerText("search.meta.archived", "Archived"),
     };
     let entries = window.buildSearchEntries({
-      locale: window.currentOskarsLocale?.(),
+      locale: window.oskarsLocale?.(),
       labels,
       cacheKeySuffix: "site-header",
     });

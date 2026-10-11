@@ -16,7 +16,7 @@
 
   /**
    * Returns why this page view must not report, or null when it may.
-   * @param {Window} [env] Global object to inspect (tests pass a stand-in).
+   * @param {Window & typeof globalThis} [env] Global object to inspect (tests pass a stand-in).
    * @returns {'no-objection-check'|'gpc'|'dnt'|'opt-out'|'automation'|'local'|'preview'|'owner-mode'|'unconfigured'|null}
    */
   window.performanceReportingBlocker = function (env = window) {
@@ -24,7 +24,7 @@
       return "no-objection-check";
     let objection = env.performanceReportingObjection(env);
     if (objection) return objection;
-    let location = env.location || {};
+    let location = env.location || /** @type {Partial<Location>} */ ({});
     if (env.navigator?.webdriver) return "automation";
     if (
       location.protocol === "file:" ||

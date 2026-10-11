@@ -30,9 +30,9 @@ window.renderCollectionActionIcon = function (kind) {
  * Renders an accessible icon-only action for adding one film to a
  * collection, starting a watch project, or (with `active`) a pressed toggle
  * representing "already in this collection, click to remove."
- * @param {Object} options Action kind, label, attributes, and escaping.
- * @param {'watchlist'|'watched'|'rewatch'|'remove'|'project'} options.kind Destination collection, rewatch toggle, removal, or watch-project start.
- * @param {string} options.label Localized accessible action name.
+ * @param {Object} [options] Action kind, label, attributes, and escaping.
+ * @param {'watchlist'|'watched'|'rewatch'|'remove'|'project'} [options.kind] Destination collection, rewatch toggle, removal, or watch-project start.
+ * @param {string} [options.label] Localized accessible action name.
  * @param {boolean} [options.active] Renders a filled/pressed toggle state
  *   (`is-active` class, `aria-pressed="true"`) for a removal action, instead
  *   of the default "add" appearance.
@@ -76,8 +76,8 @@ window.renderCollectionActionButton = function (options = {}) {
 /**
  * Updates an existing collection action's accessible busy or ready state.
  * @param {HTMLElement|null} button Collection action button.
- * @param {Object} options State and localized label.
- * @param {string} options.label Localized accessible action name.
+ * @param {Object} [options] State and localized label.
+ * @param {string} [options.label] Localized accessible action name.
  * @param {boolean} [options.busy=false] Whether the action is in progress.
  */
 window.setCollectionActionButtonState = function (button, options = {}) {
@@ -112,7 +112,7 @@ window.renderCardRemoveButton = function (options = {}) {
 
 /**
  * Renders project memberships and their status and progress summaries.
- * @param {ProjectRecord[]} projects Projects containing the current film.
+ * @param {(ProjectRecord & {progress?: {watchedCount: number, total: number}})[]} projects Projects containing the current film; compact rows carry precomputed `progress`.
  * @param {Object} [options] Escaping and heading options.
  * @returns {string}
  */

@@ -370,20 +370,6 @@
       .join("\n");
   }
 
-  function rowsToPlainDelimited(values, delimiter) {
-    return (values || [])
-      .map((row) =>
-        (row || [])
-          .map((value) =>
-            String(value ?? "")
-              .replace(/\r\n/g, "\n")
-              .replace(/\r/g, "\n"),
-          )
-          .join(delimiter),
-      )
-      .join("\n");
-  }
-
   function normalizeHeaderCell(value) {
     return String(value || "")
       .trim()
@@ -394,143 +380,6 @@
   function rowHasHeader(row, requiredHeaders) {
     let normalized = (row || []).map(normalizeHeaderCell);
     return requiredHeaders.every((header) => normalized.includes(header));
-  }
-
-  function validateRankedListSchema(values, spec) {
-    let warnings = [];
-    let rows = values || [];
-    let header = rows.find(
-      (row) =>
-        rowHasHeader(row, ["rank", "year", "title"]) ||
-        rowHasHeader(row, ["fixed rank", "year", "title"]) ||
-        rowHasHeader(row, ["dynamic rank", "year", "title"]),
-    );
-    if (!header) {
-      warnings.push(
-        `${spec.key} has no recognizable ranked-list header. Headerless A:T imports are allowed, but shifted columns are harder to diagnose.`,
-      );
-      return warnings;
-    }
-    let normalized = header
-      .map(normalizeHeaderCell)
-      .filter((value) => value !== "country");
-    let hasRank = normalized.includes("rank");
-    let hasFixedRank = normalized.includes("fixed rank") || hasRank;
-    let hasDynamicRank = normalized.includes("dynamic rank");
-    let expected;
-    let aliases = {
-      rank: ["rank", "fixed rank"],
-      "fixed rank": ["rank", "fixed rank"],
-      tmdbid: ["tmdbid", "tmdb id"],
-      letterboxd: ["letterboxd", "letterboxd url", "letterboxd uri"],
-    };
-
-    if (hasFixedRank && hasDynamicRank) {
-      expected = [
-        "dynamic rank",
-        "fixed rank",
-        "year",
-        "title",
-        "director",
-        "rating",
-        "type",
-        "tag",
-        "medium",
-        "screenplay",
-        "source",
-        "views",
-        "date",
-        "score",
-        "franchise",
-        "platform",
-        "runtime",
-        "tmdbid",
-        "letterboxd",
-      ];
-    } else if (hasFixedRank) {
-      expected = [
-        "fixed rank",
-        "year",
-        "title",
-        "director",
-        "rating",
-        "type",
-        "tag",
-        "medium",
-        "screenplay",
-        "source",
-        "views",
-        "date watched",
-        "score",
-        "franchise",
-        "platform",
-        "runtime",
-        "global rank",
-        "tmdbid",
-        "letterboxd",
-      ];
-      aliases["fixed rank"] = ["fixed rank"];
-    } else if (hasDynamicRank) {
-      expected = [
-        "dynamic rank",
-        "year",
-        "title",
-        "director",
-        "rating",
-        "type",
-        "tag",
-        "medium",
-        "screenplay",
-        "source",
-        "views",
-        "date watched",
-        "score",
-        "franchise",
-        "platform",
-        "runtime",
-        "global rank",
-        "tmdbid",
-        "letterboxd",
-      ];
-      aliases["dynamic rank"] = ["dynamic rank"];
-    } else {
-      expected = [
-        "rank",
-        "year",
-        "title",
-        "director",
-        "rating",
-        "type",
-        "tag",
-        "medium",
-        "screenplay",
-        "source",
-        "views",
-        "date watched",
-        "score",
-        "franchise",
-        "platform",
-        "runtime",
-        "global rank",
-        "tmdbid",
-        "letterboxd",
-      ];
-      aliases.rank = ["rank", "fixed rank", "dynamic rank"];
-    }
-
-    expected.forEach((headerName, index) => {
-      let accepted = aliases[headerName] || [headerName];
-      let actualIndex = normalized.findIndex((value) =>
-        accepted.includes(value),
-      );
-      if (actualIndex < 0)
-        warnings.push(`${spec.key} header is missing "${expected[index]}".`);
-      else if (actualIndex !== index)
-        warnings.push(
-          `${spec.key} header "${expected[index]}" is in column ${actualIndex + 1}, expected ${index + 1}.`,
-        );
-    });
-    return warnings;
   }
 
   function validateWatchlistSchema(values, spec) {
@@ -549,68 +398,6 @@
     }
     if (!normalized.includes("year")) {
       warnings.push(`${spec.key} header is missing "Year".`);
-    }
-    return warnings;
-  }
-
-  function validateDiarySchema(values, spec) {
-    let warnings = [];
-    let rows = values || [];
-    let header = rows.find((row) =>
-      rowHasHeader(row, ["year", "title", "type"]),
-    );
-    if (!header) {
-      warnings.push(
-        `${spec.key} has no recognizable Diary header with Year, Title, and Type.`,
-      );
-      return warnings;
-    }
-    let normalized = header
-      .map(normalizeHeaderCell)
-      .filter((value) => value !== "country");
-    let expected = [
-      "year",
-      "title",
-      "director",
-      "rating",
-      "type",
-      "tag",
-      "medium",
-      "screenplay",
-      "source",
-      "views",
-      "date",
-      "score",
-      "franchise",
-      "platform",
-      "runtime",
-      "tmdbid",
-      "letterboxd",
-    ];
-    let aliases = {
-      date: ["date", "date watched", "watched date"],
-      tmdbid: ["tmdbid", "tmdb id"],
-      letterboxd: ["letterboxd", "letterboxd url", "letterboxd uri"],
-    };
-    expected.forEach((headerName, index) => {
-      let accepted = aliases[headerName] || [headerName];
-      let actualIndex = normalized.findIndex((value) =>
-        accepted.includes(value),
-      );
-      if (actualIndex < 0)
-        warnings.push(`${spec.key} header is missing "${headerName}".`);
-      else if (actualIndex !== index)
-        warnings.push(
-          `${spec.key} header "${headerName}" is in column ${actualIndex + 1}, expected ${index + 1}.`,
-        );
-    });
-    if (
-      normalized.includes("dynamic rank") ||
-      normalized.includes("fixed rank")
-    ) {
-      warnings.push(
-        `${spec.key} must omit the All-time Dynamic Rank and Fixed Rank columns.`,
-      );
     }
     return warnings;
   }
@@ -660,126 +447,6 @@
     return warnings;
   }
 
-  function validateCollectionAwardsSchema(values, spec) {
-    let warnings = validateBracketSchema(values, spec).filter(
-      (warning) => !warning.includes("period marker"),
-    );
-    let rows = values || [];
-    let header = rows.find((row) =>
-      (row || []).some((cell) => String(cell || "").trim() === "Period"),
-    );
-    let metaCol = (header || []).findIndex(
-      (cell) => String(cell || "").trim() === "Period",
-    );
-    let hasMarker = rows.some((row) =>
-      /^(?:Director|Franchise)$/i.test(String(row?.[metaCol] || "").trim()),
-    );
-    if (!hasMarker)
-      warnings.push(
-        `${spec.key} has no Director or Franchise marker in the "Period" column.`,
-      );
-    return warnings;
-  }
-
-  function isSheetLaneHeaderCell(value) {
-    return (
-      String(value || "")
-        .trim()
-        .toLowerCase() === "year"
-    );
-  }
-
-  function countSheetLaneHeaders(rows) {
-    let count = 0;
-    (rows || []).forEach((row) => {
-      for (let col = 0; col < (row || []).length; col += 3) {
-        if (isSheetLaneHeaderCell(row?.[col])) count += 1;
-      }
-    });
-    return count;
-  }
-
-  // Shared by validateFranchiseSchema/validateDirectorSheetSchema below -
-  // both check the same year/title/<lane> lane-of-3 structure and differ
-  // only in their wording, not their logic.
-  function validateLaneSheetSchema(values, spec, wording) {
-    let warnings = [];
-    let rows = values || [];
-    let widestRow = rows.reduce(
-      (max, row) => Math.max(max, (row || []).length),
-      0,
-    );
-    if (widestRow < 3) {
-      warnings.push(
-        `${spec.key} returned ${widestRow} visible column(s); ${wording.schemaLabel} schema expects at least one year/title/${wording.laneWord} lane.`,
-      );
-    } else if (widestRow % 3 !== 0) {
-      warnings.push(
-        `${spec.key} returned ${widestRow} visible column(s); ${wording.schemaLabel} lanes are read in year/title/${wording.laneWord} groups of 3, so trailing columns may be ignored.`,
-      );
-    }
-    let markerCount = countSheetLaneHeaders(rows);
-    if (!markerCount) {
-      warnings.push(
-        `${spec.key} has no "Year" ${wording.headerNoun} header cells; films cannot be assigned to ${wording.assignmentTarget}.`,
-      );
-    }
-    let filmLikeRows = rows.filter((row) => {
-      for (let col = 0; col < (row || []).length; col += 3) {
-        let title = String(row?.[col + 1] || "").trim();
-        if (title && !isSheetLaneHeaderCell(row?.[col])) return true;
-      }
-      return false;
-    }).length;
-    if (markerCount && !filmLikeRows) {
-      warnings.push(
-        `${spec.key} has ${wording.headerNoun} headers but no film rows in the expected title columns.`,
-      );
-    }
-    return warnings;
-  }
-
-  function validateFranchiseSchema(values, spec) {
-    return validateLaneSheetSchema(values, spec, {
-      schemaLabel: "franchise",
-      laneWord: "rating",
-      headerNoun: "franchise",
-      assignmentTarget: "franchise groups",
-    });
-  }
-
-  function validateDirectorSheetSchema(values, spec) {
-    return validateLaneSheetSchema(values, spec, {
-      schemaLabel: "Directors",
-      laneWord: "interest",
-      headerNoun: "director",
-      assignmentTarget: "directors",
-    });
-  }
-
-  /**
-   * Validates visible range structure for its configured importer.
-   * @param {Array<Array<*>>} values Raw Google Sheet rows.
-   * @param {GoogleSheetRangeSpec} spec Configured range specification.
-   * @returns {string[]} Non-fatal schema warnings.
-   */
-  window.validateGoogleSheetRangeForImport = function (values, spec) {
-    if (!spec?.importType) return [];
-    if (spec.importType === "list")
-      return validateRankedListSchema(values, spec);
-    if (spec.importType === "diary") return validateDiarySchema(values, spec);
-    if (spec.importType === "watchlist")
-      return validateWatchlistSchema(values, spec);
-    if (spec.importType === "table") return validateBracketSchema(values, spec);
-    if (spec.importType === "collection-awards")
-      return validateCollectionAwardsSchema(values, spec);
-    if (spec.importType === "franchises")
-      return validateFranchiseSchema(values, spec);
-    if (spec.importType === "directors")
-      return validateDirectorSheetSchema(values, spec);
-    return [];
-  };
-
   async function fetchSheetValues(
     spreadsheetId,
     ranges,
@@ -803,90 +470,6 @@
       let text = await response.text().catch(() => "");
       throw new Error(
         `Google Sheets request failed (${response.status}). ${text}`.trim(),
-      );
-    }
-    return response.json();
-  }
-
-  /**
-   * Writes values to a single Google Sheets range.
-   * @param {string} spreadsheetId Target spreadsheet ID.
-   * @param {string} range A1 notation range.
-   * @param {Array<Array<*>>} values Two-dimensional row values.
-   * @param {string} accessToken Active Google OAuth access token.
-   * @param {Object} [options] Write options including valueInputOption.
-   * @returns {Promise<Object>} API response object.
-   */
-  async function writeSheetValues(
-    spreadsheetId,
-    range,
-    values,
-    accessToken,
-    options = {},
-  ) {
-    let params = new URLSearchParams();
-    params.set("valueInputOption", options.valueInputOption || "USER_ENTERED");
-    let response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}?${params}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          range,
-          majorDimension: options.majorDimension || "ROWS",
-          values,
-        }),
-      },
-    );
-    if (!response.ok) {
-      let text = await response.text().catch(() => "");
-      throw new Error(
-        `Google Sheets write failed (${response.status}). ${text}`.trim(),
-      );
-    }
-    return response.json();
-  }
-
-  /**
-   * Batch updates multiple Google Sheets value ranges.
-   * @param {string} spreadsheetId Target spreadsheet ID.
-   * @param {Array<{range: string, values: Array<Array<*>>, majorDimension?: string}>} data Value ranges.
-   * @param {string} accessToken Active Google OAuth access token.
-   * @param {Object} [options] Write options including valueInputOption.
-   * @returns {Promise<Object>} API response object.
-   */
-  async function batchUpdateSheetValues(
-    spreadsheetId,
-    data,
-    accessToken,
-    options = {},
-  ) {
-    let payload = {
-      valueInputOption: options.valueInputOption || "USER_ENTERED",
-      data: (data || []).map((entry) => ({
-        range: entry.range,
-        majorDimension: entry.majorDimension || "ROWS",
-        values: entry.values,
-      })),
-    };
-    let response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values:batchUpdate`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      },
-    );
-    if (!response.ok) {
-      let text = await response.text().catch(() => "");
-      throw new Error(
-        `Google Sheets batch update failed (${response.status}). ${text}`.trim(),
       );
     }
     return response.json();
@@ -920,244 +503,11 @@
     return response.json();
   }
 
-  function hasMeaningfulValue(value) {
-    if (Array.isArray(value)) return value.length > 0;
-    if (value && typeof value === "object") return true;
-    let text = String(value || "").trim();
-    return text && text !== "unknown";
-  }
-
   function allSourceFilms(data) {
     return Object.values(data.years || {}).flatMap(
       (period) => period.films || [],
     );
   }
-
-  function buildFilmMatcher(localState) {
-    let films = [
-      ...Object.values(localState.filmsById || {}),
-      ...allSourceFilms(localState),
-    ];
-    let seen = new Set();
-    films = films.filter((film) => {
-      if (!film?.title) return false;
-      let key =
-        film.id || `${film.year || ""}::${window.normalizeTitle(film.title)}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    let byTmdb = new Map();
-    let byTitleYear = new Map();
-    let byTitle = new Map();
-    films.forEach((film) => {
-      if (film.tmdbId) byTmdb.set(String(film.tmdbId), film);
-      let title = window.normalizeTitle(film.title);
-      let year = String(film.year || "").trim();
-      if (title && year) byTitleYear.set(`${year}::${title}`, film);
-      if (title) {
-        let matches = byTitle.get(title) || [];
-        matches.push(film);
-        byTitle.set(title, matches);
-      }
-    });
-    return (film) => {
-      if (film?.tmdbId && byTmdb.has(String(film.tmdbId)))
-        return byTmdb.get(String(film.tmdbId));
-      let title = window.normalizeTitle(film?.title);
-      let year = String(film?.year || "").trim();
-      if (title && year && byTitleYear.has(`${year}::${title}`))
-        return byTitleYear.get(`${year}::${title}`);
-      let titleMatches = byTitle.get(title) || [];
-      return titleMatches.length === 1 ? titleMatches[0] : null;
-    };
-  }
-
-  function preserveFilmMetadata(incomingFilm, localFilm) {
-    if (!incomingFilm || !localFilm) return incomingFilm;
-    [
-      "tmdbId",
-      "director",
-      "country",
-      "medium",
-      "screenplayType",
-      "adaptationSource",
-      "review",
-    ].forEach((field) => {
-      if (hasMeaningfulValue(localFilm[field]))
-        incomingFilm[field] = window.cloneRecord(localFilm[field]);
-    });
-    ["directors", "tags", "franchises"].forEach((field) => {
-      if (hasMeaningfulValue(localFilm[field]))
-        incomingFilm[field] = window.cloneRecord(localFilm[field]);
-    });
-    if (hasMeaningfulValue(localFilm.poster))
-      incomingFilm.poster = window.cloneRecord(localFilm.poster);
-    if (
-      !hasMeaningfulValue(incomingFilm.url) &&
-      hasMeaningfulValue(localFilm.url)
-    )
-      incomingFilm.url = localFilm.url;
-    return incomingFilm;
-  }
-
-  function mergeWatchlistMetadata(incomingItems, localItems) {
-    let localById = new Map();
-    let localByTitleYear = new Map();
-    (localItems || []).forEach((item) => {
-      let id = item.id || window.watchlistItemId?.(item);
-      if (id) localById.set(id, item);
-      localByTitleYear.set(
-        `${item.year || ""}::${window.normalizeTitle(item.title)}`,
-        item,
-      );
-    });
-    return (incomingItems || []).map((item) => {
-      let id = item.id || window.watchlistItemId?.(item);
-      let local =
-        localById.get(id) ||
-        localByTitleYear.get(
-          `${item.year || ""}::${window.normalizeTitle(item.title)}`,
-        );
-      if (!local) return item;
-      ["tmdbId", "director"].forEach((field) => {
-        if (hasMeaningfulValue(local[field])) item[field] = local[field];
-      });
-      ["tags", "franchises"].forEach((field) => {
-        if (hasMeaningfulValue(local[field]))
-          item[field] = window.cloneRecord(local[field]);
-      });
-      if (hasMeaningfulValue(local.poster))
-        item.poster = window.cloneRecord(local.poster);
-      return item;
-    });
-  }
-
-  function mergeWatchedOtherEntries(incomingItems, localItems) {
-    let merged = (localItems || []).map((item) => window.cloneRecord(item));
-    let indexById = new Map(merged.map((item, index) => [item.id, index]));
-    (incomingItems || []).forEach((item) => {
-      let index = indexById.get(item.id);
-      if (index == null) {
-        indexById.set(item.id, merged.length);
-        merged.push(window.cloneRecord(item));
-      } else {
-        merged[index] = window.cloneRecord(item);
-      }
-    });
-    return merged;
-  }
-
-  function enrichGoogleImportedStateFromSharedArchive(importedState, reports) {
-    let importedPeriods = new Set(
-      reports.flatMap((report) => report.periods || []),
-    );
-    importedPeriods.forEach((period) => {
-      (importedState.years?.[period]?.films || []).forEach((film) =>
-        window.enrichPersonalRecordFromSharedArchive?.(film, "film"),
-      );
-    });
-    if (
-      reports.some(
-        (report) =>
-          ["watchlist", "franchises", "directors"].includes(report.rangeKey) &&
-          (report.filmsParsed || report.sheetRows),
-      )
-    ) {
-      (importedState.watchlist || []).forEach((item) =>
-        window.enrichPersonalRecordFromSharedArchive?.(item, "watchlist"),
-      );
-    }
-    if (
-      reports.some(
-        (report) =>
-          ["diary", "franchises", "directors"].includes(report.rangeKey) &&
-          (report.filmsParsed || report.sheetRows),
-      )
-    ) {
-      (importedState.watchedOther || []).forEach((item) =>
-        window.enrichPersonalRecordFromSharedArchive?.(item, "film"),
-      );
-    }
-    return importedState;
-  }
-
-  function mergeImportedGoogleState(localState, incomingState, reports) {
-    let merged = window.cloneRecord(localState);
-    incomingState = enrichGoogleImportedStateFromSharedArchive(
-      window.cloneRecord(incomingState),
-      reports,
-    );
-    let findLocalFilm = buildFilmMatcher(localState);
-    let importedPeriods = new Set(
-      reports.flatMap((report) => report.periods || []),
-    );
-
-    importedPeriods.forEach((period) => {
-      if (!incomingState.years?.[period]) return;
-      let incomingPeriod = window.cloneRecord(incomingState.years[period]);
-      (incomingPeriod.films || []).forEach((film) =>
-        preserveFilmMetadata(film, findLocalFilm(film)),
-      );
-      merged.years[period] = incomingPeriod;
-    });
-
-    let importedWatchlist = reports.some(
-      (report) =>
-        ["watchlist", "franchises", "directors"].includes(report.rangeKey) &&
-        (report.filmsParsed || report.sheetRows),
-    );
-    if (importedWatchlist) {
-      merged.watchlist = mergeWatchlistMetadata(
-        window.cloneRecord(incomingState.watchlist || []),
-        localState.watchlist || [],
-      );
-    }
-    // Deduplicate watchlist against watched films: any film
-    // present in watched years must not remain on the watchlist (issue #634).
-    if (merged.watchlist?.length) {
-      let isWatched = buildFilmMatcher(merged);
-      merged.watchlist = merged.watchlist.filter((item) => !isWatched(item));
-    }
-    let importedWatchedOther = reports.some(
-      (report) =>
-        ["diary", "franchises", "directors"].includes(report.rangeKey) &&
-        (report.filmsParsed || report.sheetRows),
-    );
-    if (importedWatchedOther) {
-      merged.watchedOther = mergeWatchedOtherEntries(
-        incomingState.watchedOther || [],
-        localState.watchedOther || [],
-      );
-    }
-    if (
-      reports.some(
-        (report) =>
-          report.rangeKey === "collectionAwards" &&
-          (report.awardsAdded || report.sheetRows),
-      )
-    )
-      merged.collectionAwards = window.cloneRecord(
-        incomingState.collectionAwards || { director: {}, franchise: {} },
-      );
-
-    // Cross-source conflicts are recorded on the import-time state (the
-    // cleared state every range was parsed into), so the merged result must
-    // take them from there or they'd silently vanish in merge mode.
-    merged.sourceConflicts = window.cloneRecord(
-      incomingState.sourceConflicts || [],
-    );
-
-    return merged;
-  }
-  /**
-   * Replaces imported periods while preserving local metadata and local-only sections.
-   * @param {OskarsState} localState State captured before the import.
-   * @param {OskarsState} incomingState State built from Google Sheet ranges.
-   * @param {ImportReport[]} reports Per-range import reports.
-   * @returns {OskarsState} Merged source state ready for aggregate rebuilding.
-   */
-  window.mergeImportedGoogleState = mergeImportedGoogleState;
 
   let DEFAULT_SHEET_ROW_COUNT = 1000;
   let AWARDS_SHEET_FIRST_YEAR = 1900;
@@ -1312,7 +662,7 @@
     });
     let rankOf = (film) => {
       let rank = watchedSheetRank(film);
-      return rank === "-" ? Infinity : rank;
+      return rank === "-" ? Infinity : Number(rank);
     };
     return films.sort(
       (left, right) =>
@@ -2044,6 +1394,7 @@
       );
       awardsSheet = {
         sheetId,
+        title: "Awards",
         rows: [],
         rowCount: 1,
         columnCount: AWARDS_SHEET_HEADERS.length,
@@ -2142,11 +1493,9 @@
    * @param {Object} [options] Proposal options.
    * @param {string} [options.spreadsheetId] Google Spreadsheet ID.
    * @param {string} [options.sourceName] Friendly name for report.
-   * @param {'merge'|'replace'} [options.mode] Merge mode (defaults to 'merge').
    * @returns {ImportProposal} The reviewed import proposal.
    */
   function proposeGoogleSpreadsheetSync(spreadsheetData, options = {}) {
-    let mode = options.mode === "replace" ? "replace" : "merge";
     let baseState = window.cloneRecord(window.state);
     let watchedRows = spreadsheetData.watchedRows || [];
     let watchlistRows = spreadsheetData.watchlistRows || [];
@@ -2163,10 +1512,7 @@
       (awardsRows.length ? rowsToDelimited(awardsRows, "\t") : "");
 
     try {
-      window.state =
-        mode === "replace"
-          ? window.createClearedLocalState()
-          : window.cloneRecord(baseState);
+      window.state = window.cloneRecord(baseState);
       window.rebuildAggregates?.();
 
       let combinedReport = {
@@ -2367,7 +1713,7 @@
 
       return window.createImportProposal({
         sourceKind: "google-sheets",
-        mode,
+        mode: "merge",
         baseState,
         candidateState: window.state,
         report: combinedReport,
@@ -2438,7 +1784,7 @@
     return raw;
   }
 
-  // Exposed for src/data/google-sheets-supabase-import.js (issue #469) -
+  // Exposed for src/imports/google-sheets-supabase-import.js (issue #469) -
   // that file reuses this OAuth/fetch plumbing directly rather than
   // duplicating it, but writes to Supabase instead of merging into
   // window.state (issue #565). No behavior change to any of these
@@ -2446,11 +1792,7 @@
   window.loadGoogleIdentity = loadGoogleIdentity;
   window.requestGoogleAccessToken = requestGoogleAccessToken;
   window.fetchGoogleSheetValues = fetchSheetValues;
-  window.writeGoogleSheetValues = writeSheetValues;
-  window.batchUpdateGoogleSheetValues = batchUpdateSheetValues;
-  window.batchUpdateGoogleSpreadsheet = batchUpdateSpreadsheet;
   window.rowsToDelimited = rowsToDelimited;
-  window.rowsToPlainDelimited = rowsToPlainDelimited;
   window.buildGoogleSheetsWorkbook = buildGoogleSheetsWorkbook;
   window.createGoogleSheetsDocument = createGoogleSheetsDocument;
   window.fetchGoogleSpreadsheetMetadata = fetchGoogleSpreadsheetMetadata;

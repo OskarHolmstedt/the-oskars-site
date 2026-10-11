@@ -305,7 +305,7 @@
       );
     if (!items.length && person.catalogIds?.length)
       items.push(
-        `<span class="people-hub-sparse-stat">${escape(ui(person.catalogIds.length === 1 ? "Known from 1 unseen film credit" : "Known from {count} unseen film credits", { count: person.catalogIds.length }))}</span>`,
+        `<span class="people-hub-sparse-stat">${escape(ui(person.catalogIds.length === 1 ? "Known from 1 other film credit" : "Known from {count} other film credits", { count: person.catalogIds.length }))}</span>`,
       );
     if (!items.length)
       items.push(

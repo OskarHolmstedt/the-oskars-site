@@ -78,9 +78,6 @@ window.publicProfileSlugify = function (name) {
     .replace(/^-+|-+$/g, "");
 };
 
-/** Compatibility alias for publicProfileSlugify. */
-window.slugify = window.publicProfileSlugify;
-
 /**
  * Builds the canonical year-and-title film identifier.
  * @param {string|number} year Film year or an empty value.

@@ -13,7 +13,7 @@
 
   /**
    * Creates a query-backed page view-state reader and URL builder.
-   * @param {{path:string, schema:Record<string, Object>, preserveUnknown?:boolean}} options View path and parameter schema.
+   * @param {{path?:string, schema?:Record<string, Object>, preserveUnknown?:boolean}} [options] View path and parameter schema.
    * @returns {{read:(search?:string) => Object, build:(current:Object, overrides?:Object) => string, replace:(current:Object, overrides?:Object) => string}} View-state operations.
    */
   window.createPageViewState = function (options = {}) {

@@ -656,8 +656,9 @@ window.createSharedCatalogEditor = function (options) {
     try {
       let patch = {};
       for (let [key, , type] of fields()) {
-        let value = String(edit.draft[key] ?? "").trim();
-        value = value === "" ? null : type === "number" ? Number(value) : value;
+        let text = String(edit.draft[key] ?? "").trim();
+        let value =
+          text === "" ? null : type === "number" ? Number(text) : text;
         if (type === "number" && value !== null && !Number.isSafeInteger(value))
           throw new Error("Numeric metadata must be a whole number.");
         if (value !== edit.expected[key]) patch[key] = value;
@@ -725,7 +726,7 @@ window.createSharedCatalogEditor = function (options) {
                 name: data.name,
                 tmdb_id: data.tmdb_id,
               });
-      window.invalidateSupabaseHydrationCache?.();
+      window.invalidateCachedSupabaseHydrationSource?.();
       edit = null;
       message = "Shared metadata saved.";
       try {

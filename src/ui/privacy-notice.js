@@ -87,29 +87,29 @@ window.renderPrivacyNoticeContentHtml = function () {
     <ul>
       <li><strong>While your account exists:</strong> Your account identity and archive data are kept for as long as your account exists, with no separate expiry - this is a personal archive you are expected to keep using indefinitely.</li>
       <li><strong>On deletion:</strong> Deleting your account (<code>delete_my_account</code>) removes your Supabase Auth identity and atomically cascades the deletion through every app-owned database row across all archive tables.</li>
-      <li><strong>Performance measurements:</strong> Kept for 90 days, then deleted automatically.</li>
-      <li><strong>Infrastructure-level retention:</strong> Like any managed hosting provider, Supabase, Cloudflare, and GitHub Pages may retain data briefly in automated operational backups, caches, or logs after deletion, for a limited window outside the app's direct control, before it is fully purged from their infrastructure.</li>
+      <li><strong>Performance measurements:</strong> Rows older than 90 days are deleted when the next performance report arrives. If reporting stops, older rows remain until another report triggers cleanup.</li>
+      <li><strong>Infrastructure-level retention:</strong> Like any managed hosting provider, Supabase, Cloudflare, and GitHub Pages may retain operational backups, caches, or logs after deletion under their own retention policies. The actual provider-specific retention periods have not yet been confirmed for this app; deleting an account does not immediately erase those copies.</li>
     </ul>
   </section>
 
   <section>
     <h3>Infrastructure &amp; Processors</h3>
-    <p>The app relies on the following infrastructure providers to operate. Each acts as a data processor for the personal data described next to it, except where noted:</p>
+    <p>The app relies on the following infrastructure providers to operate. Providers receive the data or connections described below. Supabase processes account and archive data on the app's behalf; other providers also handle connection data under their own terms:</p>
     <ul>
       <li><strong>Supabase:</strong> Managed database (PostgreSQL), authentication, and row-level security enforcement - processes your account identity and archive data, and stores the anonymous performance measurements.</li>
       <li><strong>esm.sh:</strong> Public content delivery network that serves the open-source code libraries the app loads in your browser (the Supabase client and Google's web-vitals measurement library). Like any web server it receives your browser's connection (e.g. IP address), but no account, archive, or measurement data.</li>
       <li><strong>Google Identity Services:</strong> OAuth authentication provider used to sign you in; Google also acts as an independent controller for its own sign-in service under its own privacy terms.</li>
       <li><strong>Cloudflare Workers:</strong> Reverse proxy relaying movie-metadata requests to TMDB. It receives your browser's connection (e.g. IP address as part of ordinary web traffic) but no film-archive or account data.</li>
-      <li><strong>GitHub Pages:</strong> Static hosting for the application's code and assets - serves the app but does not process your Supabase-stored data.</li>
-      <li><strong>The Movie Database (TMDB):</strong> Source of public film metadata, posters, and portrait images. TMDB does not receive your personal data - the proxy above only forwards film-lookup queries, never your identity or archive data.</li>
+      <li><strong>GitHub Pages:</strong> Static hosting for the application's code and assets - serves the app and logs visitor IP addresses for security; it does not receive your Supabase-stored archive data.</li>
+      <li><strong>The Movie Database (TMDB):</strong> Source of public film metadata, posters, and portrait images. Metadata queries go through the proxy without your account identity or archive data. Posters and portraits load directly from TMDB's image servers, which receive your IP address and ordinary browser request details.</li>
       <li><strong>Letterboxd:</strong> If you optionally configure a Letterboxd username, the app fetches your public Letterboxd diary RSS feed via a Supabase Edge Function to detect newly watched films and start an Intake for them. Letterboxd receives only standard HTTP requests for your public feed; no personal Oskars archive data is transmitted to Letterboxd.</li>
     </ul>
-    <p>Supabase, where your account identity and archive data live, is hosted in the EU (AWS <code>eu-west-1</code>, Ireland) - your personal data does not leave the European Economic Area through that processor. Cloudflare's global edge network relays film-metadata requests (no personal data) and may route through infrastructure outside the EEA as an ordinary part of how a global CDN works; Google Identity Services and GitHub Pages may likewise process limited connection-level data (such as your IP address as part of routine web traffic) outside the EEA under their own standard safeguards.</p>
+    <p>Supabase, where your account identity and archive data live, is hosted in the EU (AWS <code>eu-west-1</code>, Ireland) - this confirms the database location, but does not guarantee that every support, operational, or sub-processor activity stays within the European Economic Area. Supabase's <a href="https://supabase.com/legal/customer-resources/data-processing-addendum" target="_blank" rel="noopener noreferrer">Data Processing Addendum</a> describes its international-transfer safeguards, including Standard Contractual Clauses where applicable. Cloudflare's global edge network relays film-metadata requests (without account identity or archive data, but with connection details) and may route through infrastructure outside the EEA as an ordinary part of how a global CDN works; Google Identity Services, GitHub Pages, esm.sh, and TMDB image servers may likewise process connection-level data (such as your IP address as part of routine web traffic) outside the EEA under their own standard safeguards.</p>
   </section>
 
   <section>
     <h3>Cookies &amp; Local Storage</h3>
-    <p>The app uses only strictly necessary browser storage: Supabase session tokens to keep you signed in, and local preferences for display settings (such as theme, language, and poster backdrop), plus your choice if you turn performance reporting off. We do not use advertising, tracking, marketing, or third-party analytics cookies.</p>
+    <p>The app uses only strictly necessary browser storage: Supabase session tokens to keep you signed in, and local preferences for display settings (such as theme, language, and poster backdrop), plus your choice if you turn performance reporting off. Temporary archive and film-detail caches in sessionStorage speed up navigation within a tab; their five-minute freshness window limits reuse, rather than automatically deleting entries when it expires. Browser storage can be removed through your browser's site-data controls. We do not use advertising, tracking, marketing, or third-party analytics cookies.</p>
   </section>
 
   <section>
@@ -125,7 +125,7 @@ window.renderPrivacyNoticeContentHtml = function () {
       <li><strong>Rectification (Art. 16):</strong> Most fields (display name, ratings, notes, watch dates, and more) can be corrected directly in the app. Anything not editable in-app can be corrected on request.</li>
       <li><strong>Erasure (Art. 17):</strong> Permanently delete your account and all associated personal rows at any time from <code>profile.html</code> using the atomic account deletion control (<code>delete_my_account</code>).</li>
       <li><strong>Withdraw consent to public sharing (Art. 7(3), 21):</strong> Unpublish a public profile at any time from <code>profile.html</code> to withdraw that consent; it stops appearing in the live view and Community directory immediately.</li>
-      <li><strong>Restriction &amp; objection (Art. 18, 21):</strong> Because processing your archive data is necessary to provide the service you use, the practical way to restrict or object to that processing is to stop using the app and delete your account, or to unpublish a public profile to stop that specific disclosure. To object to anonymous performance measurement, turn it off under "Performance Reporting" above; stored measurements cannot be traced back to you, and expire after 90 days.</li>
+      <li><strong>Restriction &amp; objection (Art. 18, 21):</strong> Because processing your archive data is necessary to provide the service you use, the practical way to restrict or object to that processing is to stop using the app and delete your account, or to unpublish a public profile to stop that specific disclosure. To object to anonymous performance measurement, turn it off under "Performance Reporting" above; stored measurements cannot be traced back to you, and rows older than 90 days are removed when the next report arrives.</li>
       <li><strong>Lodge a complaint (Art. 77):</strong> You can complain to your local data protection supervisory authority at any time - in Sweden, that is <a href="https://www.imy.se/" target="_blank" rel="noopener noreferrer">IMY (Integritetsskyddsmyndigheten)</a>.</li>
     </ul>
   </section>
@@ -147,7 +147,9 @@ window.renderPrivacyNoticeContentHtml = function () {
  * @returns {HTMLDialogElement} The dialog element.
  */
 window.openPrivacyNoticeModal = function () {
-  let existing = document.getElementById("privacyNoticeDialog");
+  let existing = /** @type {HTMLDialogElement|null} */ (
+    document.getElementById("privacyNoticeDialog")
+  );
   if (existing) {
     if (!existing.open) existing.showModal();
     return existing;

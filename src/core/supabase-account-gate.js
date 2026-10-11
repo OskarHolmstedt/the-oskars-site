@@ -1,32 +1,16 @@
 /**
- * @file A scoped-down account gate for Supabase-backed pages (issue #414,
- * now backing the real rate-watched.html - issue #420), mirroring
- * src/core/account-access.js's planOskarsAccountAccess() pure-
- * function shape and renderOskarsAccountGate()'s general posture, but
- * deliberately much smaller: no bound-account-UID tracking, no navigation
- * handoff, no different-account detection. Those belonged to the previous
- * gate to protect against a *persistent local IndexedDB mirror* leaking a
- * previous account's data into a new session - supabase-workspace.js has
- * no such local persistence at all (its cache already clears itself on
- * account switch, issue #413), so there's nothing for that machinery to
- * guard here.
+ * @file The account gate every Supabase-backed entry passes before a private
+ * read. resolveSupabaseAccountGate() plans access from the resolved auth state
+ * (planSupabaseAccountGate()); renderSupabaseAccountGate() renders the
+ * signed-out Home welcome, a per-destination teaser (SIGNED_OUT_TEASERS,
+ * chosen by window.OSKARS_ENTRY), or the focused sign-in gate.
  *
- * Can only ever check "is someone signed in," never "is this account
- * eligible" - private.is_eligible() lives in a schema not in the exposed
- * API's schema list (supabase/config.toml), by deliberate design
- * (docs/supabase-backend-decision.md's "Auth and eligibility" section): a
- * client discovers ineligibility reactively, by a write/read coming back
- * empty, never by asking first. An ineligible signed-in user passes this
- * gate and then simply sees no films to rate.
- *
- * The signed-out landing content below (home welcome + seven per-destination
- * teasers, issues #340/#346) was carried over from the pre-Supabase
- * src/core/account-access.js, deleted alongside the rest of the dead
- * Firebase subsystem (epic #428 Phase 3, commit c44d485) once this file
- * became the one gate every entry reaches. window.OSKARS_ENTRY
- * (entry-loader.js) is what lets that decision happen here without
- * threading an extra parameter through either renderSupabaseAccountGate()
- * call site.
+ * It checks only that someone is signed in, never eligibility:
+ * private.is_eligible() lives outside the exposed API schemas
+ * (supabase/config.toml), so a client learns ineligibility from empty reads
+ * or refused writes (docs/supabase-backend-decision.md, "Auth and
+ * eligibility"). It tracks no bound account because the session cache in
+ * supabase/workspace.js clears itself on an account switch.
  */
 
 /**

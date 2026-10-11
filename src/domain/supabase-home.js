@@ -207,7 +207,7 @@
         isCurrent,
       ),
       identity.slug
-        ? Promise.resolve({ data: null })
+        ? Promise.resolve({ data: null, error: null })
         : read(
             ready.client,
             "read_home_actions",
@@ -216,7 +216,7 @@
             date,
             isCurrent,
           ).then(
-            (data) => ({ data }),
+            (data) => ({ data, error: null }),
             (error) => ({ data: null, error }),
           ),
     ]);

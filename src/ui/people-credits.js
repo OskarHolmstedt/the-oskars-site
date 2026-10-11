@@ -203,7 +203,7 @@ window.renderLinkedDirectors = function (filmOrNames, options = {}) {
   // the record itself masquerading as a name.
   let names = Array.isArray(filmOrNames)
     ? filmOrNames
-    : filmOrNames?.directors?.length
+    : typeof filmOrNames === "object" && filmOrNames?.directors?.length
       ? filmOrNames.directors
       : typeof filmOrNames === "object" && filmOrNames
         ? filmOrNames.director || ""

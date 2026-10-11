@@ -212,6 +212,9 @@ window.replaceFilmStoreId = function (
     delete store.filmsById[oldId];
     store.filmsById[newId] = film;
   }
+  (store.watchedOther || []).forEach((entry) => {
+    if (entry.id === oldId) entry.id = newId;
+  });
   Object.values(store.years || {}).forEach((period) => {
     (period.films || []).forEach((sourceFilm) => {
       if (sourceFilm.id === oldId) sourceFilm.id = newId;

@@ -384,17 +384,16 @@
   window.OSKARS_COMPLETION_COMPACT =
     entry === "completion" &&
     new URLSearchParams(window.location.search).get("legacyCompletion") !== "1";
-  // film.html compact-read cutover (issue #617): a bookmarked/direct
-  // film.html?id=<filmId> visit gets a fast initial paint from a
-  // one-film-scoped read instead of eager full archive hydration.
-  // Unlike stats/watchlist above, this only applies to the canonical
-  // Watched/Watchlist detail visit (`?id=`) - a `?tmdb=` Unseen-preview
-  // visit has no filmId at all and depends on the shared film-catalog
-  // archive regardless, so it's excluded here and keeps today's full
-  // hydration unconditionally. `&legacyFilm=1` is the manual escape hatch.
+  // film.html compact-read cutover (issues #617, #879): a bookmarked/direct
+  // film.html?id=<filmId> or ?tmdb=<tmdbId> visit gets a fast initial paint
+  // from a one-film-scoped read instead of eager full archive hydration.
+  // &legacyFilm=1 is the manual escape hatch.
   window.OSKARS_FILM_COMPACT =
     entry === "film" &&
-    Boolean(new URLSearchParams(window.location.search).get("id")) &&
+    Boolean(
+      new URLSearchParams(window.location.search).get("id") ||
+      new URLSearchParams(window.location.search).get("tmdb"),
+    ) &&
     new URLSearchParams(window.location.search).get("legacyFilm") !== "1";
   // person.html compact-read cutover (issue #633): a canonical
   // person.html?id=<people.id uuid> visit reads only that person's slice
@@ -517,6 +516,19 @@
   let focusedShellEntries = new Set([
     "profile",
     "home",
+    // Dedicated editors keep their scoped reads at startup; shared header
+    // interactions hydrate the complete account archive on demand.
+    "intake",
+    "build",
+    "rank-year",
+    "awards-year",
+    "ranking-review",
+    "rate-watched",
+    "tier-watchlist",
+    "watchlist-merge",
+    "local-rank-merge",
+    "merge",
+    "rankings",
     ...(entryHydrationDomains ? [entry] : []),
     ...(window.OSKARS_STATS_COMPACT ? ["stats"] : []),
     ...(window.OSKARS_WATCHLIST_COMPACT ? ["period"] : []),
@@ -542,7 +554,7 @@
     entry !== "category" &&
     entry !== "period"
       ? []
-      : ["src/core/bundled-official-results.js"]),
+      : ["src/generated/bundled-official-results.js"]),
     "src/core/state-shape.js",
     "src/core/performance.js",
     "src/domain/category-order.js",
@@ -566,7 +578,7 @@
     "src/domain/credits.js",
     "src/domain/tags.js",
     "src/domain/awards.js",
-    ...(["data", "completion"].includes(entry)
+    ...(entry === "completion"
       ? ["src/domain/award-bracket-completion.js"]
       : []),
     ...(entry === "completion"
@@ -582,7 +594,7 @@
     "src/domain/franchises.js",
     "src/domain/collection-awards.js",
     "src/domain/official-completion.js",
-    "src/data/canonical-lists.js",
+    "src/generated/canonical-lists.js",
     "src/domain/canonical-lists.js",
     ...(["period", "category", "stats"].includes(entry)
       ? ["src/domain/official-comparison.js"]
@@ -611,7 +623,6 @@
     "src/domain/local-rank.js",
     "src/domain/merge-order.js",
     "src/domain/watched-films.js",
-    "src/domain/watched-intake.js",
     "src/domain/letterboxd-intake.js",
     "src/domain/watched-ratings.js",
     "src/domain/posters.js",
@@ -671,18 +682,17 @@
     ...(entry === "presentation" ? ["src/domain/presentation-packs.js"] : []),
     "src/domain/people/index.js",
     "src/domain/shared-film-archive.js",
-    "src/domain/people/aliases.js",
     "src/domain/people/subjects.js",
     "src/core/aggregates.js",
     "src/imports/ranked-list.js",
-    "src/imports/diary.js",
-    "src/imports/watchlists.js",
+    "src/domain/watchlists.js",
     "src/imports/sheet-import-utils.js",
     "src/imports/brackets.js",
     "src/imports/bracket-sheet.js",
     "src/imports/franchise-sheet.js",
     "src/imports/director-sheet.js",
     "src/imports/directors-franchises-sheet.js",
+    "src/imports/watchlist-export.js",
     "src/imports/importer.js",
     "src/ui/country.js",
     "src/ui/film-rating.js",
@@ -705,9 +715,9 @@
     "src/ui/posters.js",
     "src/ui/backdrop.js",
     ...(entry === "data"
-      ? ["src/data/import-report.js", "src/data/import-summary.js"]
+      ? ["src/imports/import-report.js", "src/imports/import-summary.js"]
       : entry === "profile"
-        ? ["src/data/import-report.js", "src/data/import-summary.js"]
+        ? ["src/imports/import-report.js", "src/imports/import-summary.js"]
         : []),
     ...(entry === "period"
       ? [
@@ -722,18 +732,16 @@
     ...(entry === "compare" ? ["src/pages/compare/panels.js"] : []),
     ...(entry === "data"
       ? [
-          "src/data/public-profile-publication.js",
-          "src/data/import-proposals.js",
+          "src/imports/import-proposals.js",
           "src/imports/zip.js",
           "src/imports/letterboxd.js",
           "src/imports/imdb.js",
-          "src/data/google-sheets.js",
+          "src/imports/google-sheets.js",
         ]
       : entry === "profile"
-        ? ["src/data/import-proposals.js"]
+        ? ["src/imports/import-proposals.js"]
         : []),
-    "src/core/persistence.js",
-    "src/core/migrations.js",
+    "src/ui/storage-status.js",
     "src/core/bootstrap.js",
   ];
 
@@ -766,7 +774,7 @@
       "src/ui/backdrop.js",
       "src/domain/watch-queue.js",
       "src/domain/letterboxd-intake.js",
-      "src/imports/watchlists.js",
+      "src/domain/watchlists.js",
       "src/domain/supabase-home.js",
     ],
     "rate-watched": [
@@ -786,7 +794,7 @@
       "src/core/urls.js",
       "src/domain/tags.js",
       "src/domain/posters.js",
-      "src/imports/watchlists.js",
+      "src/domain/watchlists.js",
       "src/ui/film-table.js",
       "src/ui/posters.js",
       "src/ui/detail-scaffold.js",
@@ -799,7 +807,7 @@
       "src/domain/tags.js",
       "src/domain/merge-order.js",
       "src/ui/sort-keys.js",
-      "src/imports/watchlists.js",
+      "src/domain/watchlists.js",
       "src/ui/detail-scaffold.js",
       "src/ui/film-table.js",
       "src/ui/search.js",
@@ -819,7 +827,7 @@
       "src/domain/tags.js",
       "src/domain/merge-order.js",
       "src/ui/sort-keys.js",
-      "src/imports/watchlists.js",
+      "src/domain/watchlists.js",
       "src/ui/film-rating.js",
       "src/ui/detail-scaffold.js",
       "src/ui/film-table.js",
@@ -837,7 +845,7 @@
       "src/domain/tags.js",
       "src/domain/merge-order.js",
       "src/ui/sort-keys.js",
-      "src/imports/watchlists.js",
+      "src/domain/watchlists.js",
       "src/ui/film-rating.js",
       "src/ui/detail-scaffold.js",
       "src/ui/film-table.js",
@@ -863,7 +871,7 @@
     ],
     profile: [
       "src/core/state.js",
-      "src/core/persistence.js",
+      "src/ui/storage-status.js",
       "src/ui/scroll-affordance.js",
     ],
     "rank-year": [
@@ -904,30 +912,23 @@
     // Owner catalog ingestion shares film/person identity and lane parsers
     // with account import flows; metadata tools also use their domain helpers.
     // Keep the common dependency set and add this page's catalog tools.
-    "data-tools": dependencies
-      .filter(
-        (dependency) =>
-          !["src/core/persistence.js", "src/core/migrations.js"].includes(
-            dependency,
-          ),
-      )
-      .concat([
-        "src/domain/supabase-metadata-batch.js",
-        "src/domain/metadata-jobs.js",
-        "src/domain/tmdb-metadata-verification.js",
-        "src/domain/shared-catalog-editor.js",
-        "src/data/google-sheets.js",
-        "src/data/google-sheets-supabase-import.js",
-        // Only merge-check.js's own report needs window.state.years
-        // populated - it calls window.ensureOskarsData() itself, lazily,
-        // rather than this page paying that hydration cost on every visit
-        // just for its usual TMDB/duplicate tooling. Still needs
-        // supabase-legacy-hydration.js loaded up front since that's what
-        // defines buildLegacyStateFromSupabaseHydration/
-        // buildSharedFilmArchiveFromSupabase that ensureOskarsData() calls.
-        "src/domain/supabase-legacy-hydration.js",
-        "src/domain/merge-check.js",
-      ]),
+    "data-tools": dependencies.concat([
+      "src/domain/supabase-metadata-batch.js",
+      "src/domain/metadata-jobs.js",
+      "src/domain/tmdb-metadata-verification.js",
+      "src/domain/shared-catalog-editor.js",
+      "src/imports/google-sheets.js",
+      "src/imports/google-sheets-supabase-import.js",
+      // Only merge-check.js's own report needs window.state.years
+      // populated - it calls window.ensureOskarsData() itself, lazily,
+      // rather than this page paying that hydration cost on every visit
+      // just for its usual TMDB/duplicate tooling. Still needs
+      // supabase-legacy-hydration.js loaded up front since that's what
+      // defines buildLegacyStateFromSupabaseHydration/
+      // buildSharedFilmArchiveFromSupabase that ensureOskarsData() calls.
+      "src/domain/supabase-legacy-hydration.js",
+      "src/domain/merge-check.js",
+    ]),
   };
 
   function versionedAsset(path) {
@@ -938,10 +939,11 @@
   let loadedScripts = new Map();
   function loadScript(path, optional = false) {
     if (loadedScripts.has(path)) return loadedScripts.get(path);
+    /** @type {Promise<void>} */
     let pending = new Promise((resolve, reject) => {
       let script = document.createElement("script");
       script.src = versionedAsset(path);
-      script.onload = resolve;
+      script.onload = () => resolve();
       script.onerror = () => {
         script.remove();
         loadedScripts.delete(path);
@@ -1050,9 +1052,8 @@
   ]);
 
   // Entries that reuse the established window.state-derived view model while
-  // sourcing it exclusively from Supabase. The original read-only set came
-  // from #438; film/period/data join it in #440 and install a Supabase write
-  // boundary after their pure legacy dependencies load.
+  // sourcing it exclusively from Supabase. Data installs its reconcile boundary
+  // after the pure view-model dependencies; live edits use workspace actions.
   let supabaseHydratedEntries = new Set([
     "home",
     "collections",
@@ -1100,31 +1101,9 @@
     supabaseHydratedEntries.delete("stats");
     supabaseBackedEntries.add("stats");
   }
-  // Every one of these entries' own page controller (or a file it loads,
-  // e.g. src/pages/film.js's/period.js's error-rollback
-  // window.restoreSerializableState() calls) still calls into
-  // persistence.js's window.load()/window.save() (issue #438's finding) -
-  // persistence.js checks this flag directly so a real IndexedDB read/write
-  // can't silently race with Supabase-sourced state.
-  // Every one of these entries across all sets is Supabase-backed. Derive
-  // the legacy-skip flag comprehensively so no entry or Set can drift
-  // (issue #508).
-  window.OSKARS_ENTRY_SKIPS_LEGACY_DATA_LOAD =
-    pageEntries.has(entry) ||
-    supabaseHydratedEntries.has(entry) ||
-    supabaseFullDependencyEntries.has(entry) ||
-    supabaseBackedEntries.has(entry);
-
-  let pageDependencies = supabaseHydratedEntries.has(entry)
-    ? dependencies.filter(
-        (dependency) =>
-          !["src/core/persistence.js", "src/core/migrations.js"].includes(
-            dependency,
-          ),
-      )
-    : supabaseBackedEntries.has(entry)
-      ? supabaseEntryDependencies[entry] || []
-      : dependencies;
+  let pageDependencies = supabaseBackedEntries.has(entry)
+    ? supabaseEntryDependencies[entry] || []
+    : dependencies;
 
   function useLegacyStats() {
     if (!window.OSKARS_STATS_COMPACT) return;
@@ -1135,12 +1114,331 @@
     headerDependencies = headerDependencies.filter(
       (path) => path !== "src/core/focused-shell.js",
     );
-    headerDependencies.unshift("src/core/bundled-official-results.js");
-    pageDependencies = dependencies.filter(
-      (path) =>
-        !["src/core/persistence.js", "src/core/migrations.js"].includes(path),
-    );
+    headerDependencies.unshift("src/generated/bundled-official-results.js");
+    pageDependencies = dependencies;
   }
+
+  // Data-access areas execute before cache wrappers are installed. Workspace
+  // owns shared account/query context; each entry includes its interaction paths.
+  let supabaseAreasByEntry = {
+    home: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    data: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    profile: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    intake: ["workspace", "intake", "catalog", "rankings", "awards", "profile"],
+    build: ["workspace", "catalog", "rankings", "awards", "profile"],
+    "rate-watched": [
+      "workspace",
+      "watched",
+      "catalog",
+      "rankings",
+      "awards",
+      "profile",
+      "notes-tags",
+    ],
+    "tier-watchlist": [
+      "workspace",
+      "watchlist",
+      "catalog",
+      "rankings",
+      "profile",
+      "notes-tags",
+    ],
+    film: [
+      "workspace",
+      "intake",
+      "watched",
+      "watchlist",
+      "catalog",
+      "rankings",
+      "awards",
+      "profile",
+      "official-results",
+      "projects",
+      "notes-tags",
+    ],
+    person: [
+      "workspace",
+      "intake",
+      "watchlist",
+      "catalog",
+      "rankings",
+      "profile",
+      "official-results",
+      "projects",
+      "notes-tags",
+    ],
+    people: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    directors: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    subject: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    category: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "official-results",
+      "projects",
+      "notes-tags",
+    ],
+    categories: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    period: [
+      "workspace",
+      "intake",
+      "watchlist",
+      "catalog",
+      "rankings",
+      "awards",
+      "profile",
+      "official-results",
+      "projects",
+      "notes-tags",
+    ],
+    periods: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    tags: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    tag: [
+      "workspace",
+      "intake",
+      "watchlist",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    discover: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    franchises: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    franchise: [
+      "workspace",
+      "intake",
+      "watchlist",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    "watchlist-merge": ["workspace", "watchlist", "profile", "notes-tags"],
+    "local-rank-merge": ["workspace", "catalog", "rankings", "profile"],
+    "ranking-review": ["workspace", "rankings", "profile"],
+    merge: [
+      "workspace",
+      "watchlist",
+      "catalog",
+      "rankings",
+      "profile",
+      "notes-tags",
+    ],
+    rankings: ["workspace", "rankings", "profile"],
+    "rank-year": ["workspace", "rankings", "profile"],
+    "awards-year": ["workspace", "catalog", "rankings", "awards", "profile"],
+    compare: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    presentation: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    community: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    completion: [
+      "workspace",
+      "intake",
+      "watchlist",
+      "catalog",
+      "rankings",
+      "profile",
+      "official-results",
+      "projects",
+      "notes-tags",
+      "catalog-metadata",
+    ],
+    stats: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "official-results",
+      "projects",
+      "notes-tags",
+    ],
+    projects: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    project: [
+      "workspace",
+      "intake",
+      "watched",
+      "catalog",
+      "rankings",
+      "awards",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    collections: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    "custom-collections": [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    collection: [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+    ],
+    films: [
+      "workspace",
+      "intake",
+      "watched",
+      "catalog",
+      "rankings",
+      "awards",
+      "profile",
+      "official-results",
+      "projects",
+      "notes-tags",
+    ],
+    "data-tools": [
+      "workspace",
+      "intake",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
+      "catalog-admin",
+      "catalog-metadata",
+    ],
+  };
 
   // Fetch dependency scripts concurrently while retaining serial execution.
   // The two early startup scripts load directly before the dependency walk;
@@ -1149,7 +1447,15 @@
     "src/core/performance.js",
     "src/ui/page-utils.js",
   ]);
-  [...new Set([...headerDependencies, ...pageDependencies])]
+  [
+    ...new Set([
+      ...supabaseAreasByEntry[entry].map(
+        (area) => `src/core/supabase/${area}.js`,
+      ),
+      ...headerDependencies,
+      ...pageDependencies,
+    ]),
+  ]
     .filter((path) => !earlyScripts.has(path))
     .forEach((path) => {
       let link = document.createElement("link");
@@ -1230,7 +1536,8 @@
     await loadScript("src/ui/page-utils.js");
     await loadScript("supabase.config.js", true);
     await loadScript("src/core/supabase-client.js");
-    await loadScript("src/core/supabase-workspace.js");
+    for (let area of supabaseAreasByEntry[entry])
+      await loadScript(`src/core/supabase/${area}.js`);
     /**
      * Loads the catalog identity resolvers and the TMDB lookups they use, for
      * any page about to add a film or person to the shared catalog.
@@ -1267,6 +1574,8 @@
       // calculator over a {rating, rating_modifier}-shaped row.
       await loadScript("src/domain/supabase-watched-intake.js");
     }
+    if (["watchlist-merge", "merge", "rankings"].includes(entry))
+      await loadScript("src/domain/shelf-merge.js");
     if (entry === "watchlist-merge")
       await loadScript("src/domain/supabase-watchlist-merge.js");
     if (entry === "local-rank-merge")
@@ -1318,7 +1627,7 @@
     // projects.html/custom-collections.html (the list/create-dialog pages) need
     // neither - they only ever call createSupabaseProject/
     // listSupabaseProjects or createSupabaseCollection/
-    // listSupabaseCollections, all plain supabase-workspace.js functions.
+    // listSupabaseCollections, all owned by supabase/projects.js.
     if (entry === "project" || entry === "collection") {
       await loadScript("src/domain/fractional-position.js");
       await loadScript("src/ui/supabase-entity-note.js");
@@ -1372,7 +1681,6 @@
         );
         return;
       }
-      window.OSKARS_ACCOUNT_ACCESS_BLOCKED = false;
       // Clears the "loading" overlay renderSupabaseAccountGate() prepended
       // above - some pages (data.html) have real static <main> content the
       // controller below needs intact, so nothing may have replaced it, but
@@ -1392,33 +1700,25 @@
       await loadScript(dependency);
     if (focusedShellEntries.has(entry)) {
       window.configureFocusedShell(async () => {
-        await loadScript("src/core/bundled-official-results.js");
+        await loadScript("src/generated/bundled-official-results.js");
         await loadScript("src/domain/supabase-legacy-hydration.js");
-        for (let dependency of dependencies) {
-          if (
-            !["src/core/persistence.js", "src/core/migrations.js"].includes(
-              dependency,
-            )
-          )
-            await loadScript(dependency);
-        }
+        for (let dependency of dependencies) await loadScript(dependency);
       });
     }
     if (window.OSKARS_STATS_COMPACT) {
       /** Loads bundled Academy results only when the compact read has no live Academy source. @returns {Promise<void>} Resolves when bundled defaults are available. */
       window.loadStatsOfficialFallback = () =>
-        loadScript("src/core/bundled-official-results.js");
+        loadScript("src/generated/bundled-official-results.js");
     }
     window.renderSiteHeader?.();
     if (supabaseBackedEntries.has(entry)) {
       for (let dependency of pageDependencies) await loadScript(dependency);
     } else {
       for (let dependency of pageDependencies) await loadScript(dependency);
-      // Every entry here writes through window.save(); an entry missing
-      // from this list leaves it undefined, and optional-chained calls
-      // such as Completion's official watchlist-add silently skip the
-      // Supabase write (issue #613).
       if (["film", "period", "data", "completion"].includes(entry))
+        await loadScript("src/ui/storage-status.js");
+      // Data imports retain the serialized full-account apply boundary.
+      if (entry === "data")
         await loadScript("src/core/supabase-legacy-writes.js");
     }
     let pageLoadsOwnData =

@@ -4,7 +4,7 @@
  * mode is — a `local`-mode deployment that normally supports its own
  * editable archive becomes read-only for the duration of an active profile
  * view, exactly like a `viewer`-mode deployment, via the enforcement points
- * in persistence.js/entry-loader.js/bootstrap.js that consult
+ * in runtime-mode.js/entry-loader.js/bootstrap.js that consult
  * `resolveActiveProfileSlug()`/`state.isPublicProfileView`. Direct profile
  * views, and Community's live comparison/ceremony views, both hydrate/fetch
  * from Supabase in public-profile-supabase.js (issue #483) — this file no
@@ -21,9 +21,8 @@ window.OSKARS_PROFILE_ACTIVE_SLUG_KEY = "oskars-active-profile";
  * period.html, ...) still resolves the same profile on reload. Falls back
  * to a previously remembered slug when the parameter is absent, and to ""
  * when neither exists — the only shared state this needs is per-tab, not a
- * persisted mutation, so sessionStorage (not localStorage/IndexedDB) is the
- * right store and is exempt from the viewer-mode persistence boundary
- * (issue #256), which only ever governs private canonical/workspace data.
+ * persisted mutation, so sessionStorage (not localStorage) is the right
+ * store.
  * @returns {string} Resolved profile slug, or "" when none is active.
  */
 window.resolveActiveProfileSlug = function () {
@@ -87,7 +86,7 @@ window.renderPublicProfileExit = function (container) {
  * Shows public-profile attribution or a recoverable load failure independently of private persistence.
  * @param {string} message Public status message.
  * @param {string} status Status kind, including error for load failures.
- * @param {{label: string, run: Function}[]} [actions] Available status actions.
+ * @param {{label: string, run: () => void}[]} [actions] Available status actions.
  */
 window.showPublicProfileStatus = function (message, status, actions = []) {
   if (!document?.body || !document?.createElement) return;

@@ -566,6 +566,7 @@
       );
     }
 
+    /** @type {FilmAxisRecord[]} */
     let combinedRecords = combinedView
       ? [
           ...films.map((film) => ({ film })),
@@ -956,7 +957,7 @@
               label: ui("View watchlist"),
             }
           : unseenFilms.length
-            ? { href: "#person-filmography", label: ui("View unseen films") }
+            ? { href: "#person-filmography", label: ui("View other films") }
             : null;
     // Sparse state (issue #204 acceptance criteria): nothing personal to
     // lead with at all - no relationship signal, no watched films, no

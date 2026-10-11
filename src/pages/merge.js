@@ -459,6 +459,34 @@
     </section>`;
   }
 
+  async function chooseCollection(kind, id) {
+    try {
+      let rankKind = kind === "director" ? "person" : "tag";
+      let loaded = await window.loadSupabaseLocalRankCollectionFilms(
+        rankKind,
+        id,
+      );
+      if (!loaded) throw new Error("Collection not found.");
+      let films = [...loaded.films].sort((left, right) =>
+        String(left.title).localeCompare(String(right.title)),
+      );
+      let storedOrder = await window.loadSupabaseLocalRankOrder(rankKind, id);
+      let filmById = new Map(films.map((film) => [film.id, film]));
+      collectionState.orderedFilmIds = window
+        .mergeSupabaseLocalRankOrder(
+          storedOrder,
+          films.map((film) => film.id),
+        )
+        .map((filmId) => filmById.get(filmId));
+      collectionState.collection = { kind, id, name: loaded.name };
+      step = "setup";
+      session = null;
+      render();
+    } catch (error) {
+      alert(error.message || String(error));
+    }
+  }
+
   function renderCollectionsSetup() {
     let col = collectionState.collection;
     if (!col) {
@@ -821,16 +849,12 @@
         // Collections
         let ids = session.merged.map((r) => r.film_id || r.id);
         let col = collectionState.collection;
-        let result =
-          col.kind === "director"
-            ? await window.applySupabasePersonLocalRankOrder(col.id, ids)
-            : await window.applySupabaseTagLocalRankOrder(col.id, ids);
-        if (!result.ok) {
-          alert(result.reason);
-          if (applyButton) applyButton.disabled = false;
-          return;
-        }
-        applyResult = result;
+        await window.setSupabaseLocalRankOrder(
+          col.kind === "director" ? "person" : "tag",
+          col.id,
+          ids,
+        );
+        applyResult = { changed: ids.length };
       }
 
       step = "done";
@@ -952,14 +976,7 @@
       let id = pickDirector.dataset.pickDirector;
       let person = collectionState.searchResults.find((p) => p.id === id);
       if (person) {
-        collectionState.collection = {
-          kind: "director",
-          id: person.id,
-          name: person.name,
-        };
-        collectionState.orderedFilmIds =
-          window.supabasePersonFilmsInLocalRankOrder(person.id);
-        render();
+        await chooseCollection("director", person.id);
       }
       return;
     }
@@ -968,14 +985,7 @@
       let id = pickTag.dataset.pickTag;
       let tag = collectionState.tagOptions.find((t) => t.id === id);
       if (tag) {
-        collectionState.collection = {
-          kind: "tag",
-          id: tag.id,
-          name: tag.name,
-        };
-        collectionState.orderedFilmIds =
-          window.supabaseTagFilmsInLocalRankOrder(tag.id);
-        render();
+        await chooseCollection("tag", tag.id);
       }
       return;
     }
@@ -1049,7 +1059,9 @@
   });
 
   container.addEventListener("submit", async (event) => {
-    let form = event.target.closest("[data-director-search]");
+    let form = /** @type {HTMLFormElement} */ (
+      event.target.closest("[data-director-search]")
+    );
     if (!form) return;
     event.preventDefault();
     let query = form.query?.value?.trim();
@@ -1057,7 +1069,7 @@
     collectionState.searchStatus = "Searching...";
     render();
     try {
-      let results = await window.searchSupabaseDirectors(query);
+      let results = await window.searchSupabaseDirectorsByName(query);
       collectionState.searchResults = results;
       collectionState.searchStatus = results.length
         ? ""

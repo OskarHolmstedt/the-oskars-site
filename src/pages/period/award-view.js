@@ -207,7 +207,10 @@ window.renderPeriodAwardStories = function (
  * Renders all category boards and award summaries for a period.
  * @param {Object} options Awards, period identity, edit mode, and escaping options.
  * @param {PeriodAwardEntry[]} options.awards Personal award entries.
+ * @param {string} [options.key] Period key.
+ * @param {boolean} [options.editMode] Whether the bracket is in edit mode.
  * @param {OfficialAwardPeriodComparison|null} [options.officialComparison] Annual official comparison.
+ * @param {(value:*) => string} [options.escape] HTML escaper.
  * @returns {string}
  */
 window.renderPeriodAwardView = function ({

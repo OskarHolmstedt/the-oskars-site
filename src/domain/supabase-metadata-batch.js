@@ -112,6 +112,7 @@ window.extractTmdbFilmClassification = function (details) {
 
   // Medium: animation if genre 16 is present, otherwise live-action.
   let genres = details.genres || [];
+  /** @type {'animation'|'live-action'} */
   let medium = genres.some((g) => g?.id === TMDB_ANIMATION_GENRE_ID)
     ? "animation"
     : "live-action";
@@ -132,6 +133,7 @@ window.extractTmdbFilmClassification = function (details) {
           .trim(),
       ),
   );
+  /** @type {'original'|'adapted'|null} */
   let screenplayType = null;
   if (
     window.tmdbSourceMaterialJobs(writingCrew).length ||
@@ -145,54 +147,6 @@ window.extractTmdbFilmClassification = function (details) {
     : null;
 
   return { medium, screenplayType, originalLanguage };
-};
-
-/**
- * Runs a small bounded-concurrency worker pool over a candidate list,
- * calling `lookup` then `apply` for each, tolerating individual failures
- * without aborting the batch.
- * @param {Object[]} items Candidate items.
- * @param {{lookup: (item:Object) => Promise<*>, apply: (item:Object, value:*) => Promise<void>, concurrency?: number, onProgress?: (done:number, total:number, item:Object) => void}} config
- * @returns {Promise<{attempted: number, found: number, failed: number, failures: {item: Object, reason: string}[]}>}
- */
-window.runSupabaseMetadataBatch = async function (items, config) {
-  let candidates = items || [];
-  let result = {
-    attempted: candidates.length,
-    found: 0,
-    failed: 0,
-    failures: [],
-  };
-  let cursor = 0;
-  async function worker() {
-    while (cursor < candidates.length) {
-      let item = candidates[cursor++];
-      try {
-        let value = await config.lookup(item);
-        if (value) {
-          await config.apply(item, value);
-          result.found += 1;
-        } else {
-          result.failed += 1;
-          result.failures.push({ item, reason: "No match found." });
-        }
-      } catch (err) {
-        result.failed += 1;
-        result.failures.push({ item, reason: String(err?.message || err) });
-      }
-      config.onProgress?.(
-        result.found + result.failed,
-        candidates.length,
-        item,
-      );
-    }
-  }
-  let concurrency = Math.min(
-    candidates.length,
-    Math.max(1, Number(config.concurrency) || 3),
-  );
-  await Promise.all(Array.from({ length: concurrency }, worker));
-  return result;
 };
 
 /**
@@ -345,9 +299,9 @@ async function isExactTitleMatch(title, providerId, fetchFn) {
  * lookupTmdbTvSearch (src/domain/image-providers.js) returns the raw
  * TMDB result, not a normalized PosterRecord like the movie path - built
  * here the same way lookupTmdbPoster's own movie branch does.
- * @param {{tmdb_id: number|null, title: string, year: number|null}} film
+ * @param {{tmdb_id: number|null, title: string, year: number|null, tmdb_tv_ref?: string|null}} film
  * @param {Function} fetchFn
- * @returns {Promise<{poster: PosterRecord, correctedYear: number|null}|null>}
+ * @returns {Promise<{poster: PosterRecord, correctedYear: number|null, mediaType?: string}|null>}
  */
 window.lookupTmdbFilmPoster = async function (film, fetchFn) {
   if (film.tmdb_tv_ref) {
@@ -451,7 +405,7 @@ window.lookupTmdbFilmPoster = async function (film, fetchFn) {
  *
  * TV matches return tvTmdbRef separately from the movie-only tmdbId.
  * The explicit reference persists even when no poster is available.
- * @param {{tmdb_id: number|null, title: string, year: number|null}} film
+ * @param {{tmdb_id: number|null, title: string, year: number|null, tmdb_tv_ref?: string|null}} film
  * @param {Function} fetchFn
  * @returns {Promise<{poster: PosterRecord, correctedYear: number|null, country: string|null, primaryCountry: string|null, runtimeMinutes: number|null, director: string|null, directors: {tmdbId: number|null, name: string, profilePath: string|null}[], tmdbId: string|null, tvTmdbRef?: string, medium: 'animation'|'live-action'|null, screenplayType: 'original'|'adapted'|null, originalLanguage: string|null}|null>}
  */
@@ -605,7 +559,7 @@ window.groupSupabasePersonDuplicates = function (people) {
  * is stored/looked-up under - matches the ordering the
  * dismissed_duplicate_pairs table's own `id_a < id_b` check constraint
  * requires, so a key built here always matches what
- * dismissSupabaseDuplicateGroup (src/core/supabase-workspace.js) writes.
+ * dismissSupabaseDuplicateGroup (src/core/supabase/catalog-admin.js) writes.
  * @param {string} idA
  * @param {string} idB
  * @returns {string}

@@ -23,7 +23,7 @@
 
 (function () {
   /** Renders a detail header around caller-owned content and actions.
-   * @param {DetailHeaderOptions} options Header content and optional classes.
+   * @param {Partial<DetailHeaderOptions>} [options] Header content and optional classes.
    * @returns {string} Detail-header HTML.
    */
   window.renderDetailHeader = function (options = {}) {
@@ -38,7 +38,7 @@
   };
 
   /** Renders the standard flex-row detail-stat summary wrapper.
-   * @param {DetailStatsOptions} options Metric HTML and optional classes.
+   * @param {Partial<DetailStatsOptions>} [options] Metric HTML and optional classes.
    * @returns {string} Detail-stat summary HTML.
    */
   window.renderDetailStats = function (options = {}) {

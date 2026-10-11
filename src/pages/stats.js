@@ -587,10 +587,7 @@
       yearly.topRatedFilms.slice(0, 15).map((film) => {
         let link = `<a href="${escape(window.filmPageUrl(film.id))}">${escape(window.localizedFilmTitle?.(film) || film.title)}</a> <small>${escape(film.year || "")}</small>`;
         let ratingStr = window.renderFilmRating?.(film) || "—";
-        let dateStr =
-          window.formatWatchedDate?.(film.dateWatched) ||
-          film.dateWatched ||
-          "—";
+        let dateStr = film.dateWatched || "—";
         return `<tr><th scope="row">${link}</th><td>${escape(ratingStr)}</td><td>${escape(dateStr)}</td></tr>`;
       }),
       ui("No rated films yet."),

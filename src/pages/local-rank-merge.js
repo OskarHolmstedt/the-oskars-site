@@ -219,7 +219,9 @@
     let form = event.target.closest("[data-director-search]");
     if (!form) return;
     event.preventDefault();
-    let query = String(new FormData(form).get("query") || "").trim();
+    let query = String(
+      new FormData(/** @type {HTMLFormElement} */ (form)).get("query") || "",
+    ).trim();
     if (!query) return;
     searchStatus = "Searching…";
     render();

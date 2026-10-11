@@ -906,7 +906,7 @@ ${advancedOpen ? (fullReady || !collectionExpression.groups.length ? collectionB
     ${paginationHtml}`;
 
     container.querySelectorAll(".films-status-pill").forEach((pill) =>
-      pill.addEventListener("click", (event) => {
+      pill.addEventListener("click", (/** @type {MouseEvent} */ event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
           return;
         event.preventDefault();
@@ -917,7 +917,7 @@ ${advancedOpen ? (fullReady || !collectionExpression.groups.length ? collectionB
       }),
     );
     container.querySelectorAll(".films-view-toggle a").forEach((toggle) =>
-      toggle.addEventListener("click", (event) => {
+      toggle.addEventListener("click", (/** @type {MouseEvent} */ event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
           return;
         event.preventDefault();
@@ -1032,7 +1032,9 @@ ${advancedOpen ? (fullReady || !collectionExpression.groups.length ? collectionB
       currentState = Object.assign(
         {},
         currentState,
-        Object.fromEntries(new FormData(toolbar).entries()),
+        Object.fromEntries(
+          new FormData(/** @type {HTMLFormElement} */ (toolbar)).entries(),
+        ),
         { page: 1 },
       );
       if (

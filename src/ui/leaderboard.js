@@ -10,7 +10,7 @@
 
 (function () {
   /** Renders the standard leaderboard wrapper, header row, and body.
-   * @param {LeaderboardTableOptions} options Pre-rendered table content and optional classes.
+   * @param {Partial<LeaderboardTableOptions>} [options] Pre-rendered table content and optional classes.
    * @returns {string} Leaderboard table HTML.
    */
   window.renderLeaderboardTable = function (options = {}) {

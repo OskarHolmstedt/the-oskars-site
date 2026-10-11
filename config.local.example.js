@@ -1,17 +1,15 @@
 /** @file Documents the optional browser-local Google Sheets and data-tools configuration shape. */
 
 window.OSKARS_LOCAL_CONFIG = {
-  // Enables data-tools.html - a hidden, unlinked owner page (missing-
-  // metadata fetch + duplicate film/person detection and merge) that only
-  // ever does anything when this flag is set, so it's silently inert on
-  // the deployed site (which never has this gitignored file at all).
+  // Enables local catalog ingestion, metadata repair, and duplicate merges.
+  // Account and catalog-owner checks still apply.
   ownerDataTools: true,
   googleClientId: "your-google-oauth-client-id.apps.googleusercontent.com",
   googleSheets: {
     spreadsheetId: "your-private-google-sheet-id",
-    signInMode: "oneTap", // 'oneTap': silent token first, popup consent only if needed. 'redirect'/'popup': see below.
-    redirectSignIn: false, // legacy fallback for redirect mode
-    // redirectUri: 'https://localhost:1234/data-tools.html',
+    signInMode: "oneTap", // 'oneTap': silent token first, popup consent only if needed. also supports 'redirect'/'popup'.
+    // For redirect mode, use an authorized URI on the OAuth client.
+    // redirectUri: 'http://127.0.0.1:5500/data-tools.html',
     // Owner catalog ingestion only. Connect personal archive Sheets on data.html.
     ranges: {
       franchises: "'Franchises'!A:ZZ",

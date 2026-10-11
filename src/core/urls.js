@@ -33,7 +33,7 @@ window.intakePageUrl = function (workflowId) {
     : "intake.html";
 };
 
-/** Retries an idempotent request after transient network, 429, or 5xx failures with bounded exponential backoff. @template T @param {() => Promise<T>} operation Request to retry. @param {{maxAttempts?: number, baseDelayMs?: number, maxDelayMs?: number, jitter?: number, sleep?: (duration: number) => Promise<void>, random?: () => number, shouldRetry?: (error: Error) => boolean}} [options] Retry controls. @returns {Promise<T>} The first successful result. */
+/** Retries an idempotent request after transient network, 429, or 5xx failures with bounded exponential backoff. @template T @param {() => Promise<T>} operation Request to retry. @param {{maxAttempts?: number, baseDelayMs?: number, maxDelayMs?: number, jitter?: number, sleep?: (duration: number) => Promise<void>, random?: () => number, shouldRetry?: (error: any) => boolean}} [options] Retry controls. @returns {Promise<T>} The first successful result. */
 window.withRetry = async function (operation, options = {}) {
   let maxAttempts = Math.max(1, Math.floor(Number(options.maxAttempts) || 3));
   let baseDelayMs = Math.max(0, Number(options.baseDelayMs) || 250);
@@ -115,11 +115,11 @@ window.isUuid = function (value) {
  * @returns {string} Relative person URL.
  */
 window.personPageUrl = function (personOrId) {
-  let key =
-    personOrId && typeof personOrId === "object"
+  let key = String(
+    (personOrId && typeof personOrId === "object"
       ? personOrId.supabasePersonId || personOrId.id
-      : personOrId;
-  key = String(key || "");
+      : personOrId) || "",
+  );
   if (key && !window.isUuid(key))
     key = window.state?.peopleById?.[key]?.supabasePersonId || key;
   return `person.html?id=${encodeURIComponent(key)}`;
@@ -284,7 +284,9 @@ window.decodeCompareTarget = function (value) {
     if (separator <= 0) return null;
     let type = decodeURIComponent(text.slice(0, separator)).trim();
     let id = decodeURIComponent(text.slice(separator + 1)).trim();
-    return type && id ? { type, id } : null;
+    return type && id
+      ? { type: /** @type {CompareTargetReference['type']} */ (type), id }
+      : null;
   } catch {
     return null;
   }

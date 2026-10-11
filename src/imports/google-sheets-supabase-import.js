@@ -641,7 +641,7 @@
     });
     // Same authenticated-grant gap as credits above (select+insert only,
     // no update) - insert and tolerate the unique violation instead of
-    // upserting, matching supabase-workspace.js's existing film_franchises
+    // upserting, matching supabase/catalog.js's existing film_franchises
     // writer. The pre-check above handles the common "already recorded"
     // case locally without a round trip; this still covers a row created
     // moments earlier elsewhere in the same run and not yet in the set.
@@ -684,7 +684,7 @@
     // CONFLICT DO UPDATE plan is rejected outright even when no row
     // actually conflicts. A plain insert plus tolerating the unique
     // violation gets the same "create if missing" result and matches
-    // how supabase-workspace.js already treats film_franchises. The
+    // how supabase/catalog.js already treats film_franchises. The
     // pre-check above handles the common "already recorded" case locally
     // without a round trip; this still covers a row created moments
     // earlier elsewhere in the same run and not yet in the set.

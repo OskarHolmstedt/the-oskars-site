@@ -134,13 +134,11 @@
 
   /** Returns watched-film project refs for a tag source. @param {string} tag Tag label. @returns {ProjectFilmRef[]} References. */
   window.watchedFilmRefsForTag = function (tag) {
-    let normalized = window.normalizeTag?.(tag) || window.normalizeTitle(tag);
+    let normalized = window.normalizeTitle(tag);
     return (window.state.watchedOther || [])
       .filter((film) =>
         (film.tags || []).some(
-          (value) =>
-            (window.normalizeTag?.(value) || window.normalizeTitle(value)) ===
-            normalized,
+          (value) => window.normalizeTitle(value) === normalized,
         ),
       )
       .map((film) => window.projectFilmRef("watched", film.id));

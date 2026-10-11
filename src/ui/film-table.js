@@ -37,6 +37,7 @@ window.renderFilmAllTimeRank = function (film, options = {}) {
  * @param {string} tier Raw tier value.
  * @param {Object} [options] Escaping options.
  * @param {'minus'|'plus'|''} [options.modifier] Fine-grained tier refinement.
+ * @param {(value: *) => string} [options.escape] HTML escaper (defaults to `pageEscape`).
  * @returns {string} Badge HTML, or "" for an unset or unknown tier.
  */
 window.renderWatchlistTierBadge = function (tier, options = {}) {
@@ -46,38 +47,6 @@ window.renderWatchlistTierBadge = function (tier, options = {}) {
   let label =
     window.renderTierWithModifier?.(tier, options.modifier) || normalized;
   return `<span class="watchlist-tier tier-${escape(normalized.toLowerCase())}">${escape(label)}</span>`;
-};
-
-/**
- * Renders a minus/plus toggle for a tier's fine-grained refinement -
- * default null/unmodified, matching the rating widget's minus/plus
- * modifier toggle exactly (reuses its .rating-input-mod/.is-active CSS,
- * there being no "dot"/third state here either). The current value
- * lives in a hidden `<input name="{name}">`, so a plain FormData read
- * of the surrounding form already picks it up with no extra wiring -
- * call window.enhanceTierModifierToggles() on the containing element
- * after inserting this markup to make the buttons interactive.
- * @param {string} name Hidden input name (e.g. "tierModifier", "rewatchTierModifier").
- * @param {*} modifier Current modifier value.
- * @param {Object} [options] Rendering options.
- * @param {Function} [options.escape] HTML-escaping function.
- * @param {Function} [options.ui] Localized-text function.
- * @returns {string} Toggle widget HTML.
- */
-window.renderTierModifierToggle = function (name, modifier, options = {}) {
-  let escape = options.escape || window.pageEscape;
-  let ui = options.ui || window.uiText || ((text) => text);
-  let normalized = window.normalizeTierModifierValue?.(modifier) || "";
-  let buttons = [
-    ["minus", "−", ui("Slightly lower priority")],
-    ["plus", "＋", ui("Slightly higher priority")],
-  ]
-    .map(
-      ([mod, glyph, label]) =>
-        `<button type="button" class="rating-input-mod${normalized === mod ? " is-active" : ""}" data-tier-modifier-toggle="${mod}" aria-pressed="${normalized === mod ? "true" : "false"}" aria-label="${escape(label)}" tabindex="-1">${glyph}</button>`,
-    )
-    .join("");
-  return `<span class="rating-input-mods tier-modifier-toggle" data-tier-modifier-input><input type="hidden" name="${escape(name)}" value="${escape(normalized)}">${buttons}</span>`;
 };
 
 /**
@@ -312,10 +281,11 @@ window.renderFilmIdentityCell = function (film, options = {}) {
  * state. The cell never repeats the all-time rank or Top 250 marker - those
  * belong to the Film identity cell. An `editHtml` override carries edit-mode
  * controls (for example the watchlist tier editor) in the same cell.
- * @param {{film: FilmRecord}|{item: WatchlistItem}} record Watched or watchlist row wrapper.
+ * @param {{film?: FilmRecord, item?: WatchlistItem}} [record] Watched or watchlist row wrapper.
  * @param {Object} [options] Escaping and edit-control options.
  * @param {Function} [options.escape] HTML escaper (defaults to `pageEscape`).
  * @param {string} [options.editHtml] Already-safe edit-mode control HTML replacing the value.
+ * @param {boolean} [options.showRewatchTier] Whether a watched row marked for rewatch shows its rewatch tier.
  * @returns {string} `<td class="rating-tier-cell">` HTML.
  */
 window.renderRatingTierCell = function (record = {}, options = {}) {

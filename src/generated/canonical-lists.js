@@ -1,5 +1,5 @@
 /**
- * @file Bundled canonical film list definitions (IMDb Top 250, Letterboxd Top 250, Sight & Sound 2022, TIME 100).
+ * @file Bundled canonical film list definitions (IMDb Top 250, Letterboxd Top 250, Sight & Sound 2022, NYT 100).
  */
 
 (function () {
@@ -4834,711 +4834,913 @@
     ]
   },
   {
-    "id": "time-100-21st-century",
-    "name": "TIME's 100 Best Movies of the 21st Century",
-    "description": "TIME Magazine's definitive list of the 100 best movies released since 2000.",
-    "sourceUrl": "https://time.com/collection/100-best-movies-21st-century/",
-    "snapshotDate": "2024-01-01",
+    "id": "nyt-100-21st-century",
+    "name": "The New York Times' 100 Best Movies of the 21st Century",
+    "description": "The New York Times’ June 2025 poll of more than 500 filmmakers, actors, and other industry figures, covering films released since 2000.",
+    "sourceUrl": "https://www.nytimes.com/interactive/2025/movies/best-movies-21st-century.html",
+    "provenanceUrl": "https://www.spokesman.com/stories/2025/jul/08/the-100-best-movies-of-the-21st-century/",
+    "snapshotDate": "2025-06-27",
+    "retrievedDate": "2026-10-08",
     "items": [
       {
         "rank": 1,
-        "title": "Mulholland Drive",
-        "year": "2001",
-        "director": "David Lynch",
-        "tmdbId": "1018"
+        "title": "Parasite",
+        "year": "2019",
+        "director": "Bong Joon Ho",
+        "tmdbId": "496243",
+        "sourceYear": "2019",
+        "identityUrl": "https://www.themoviedb.org/movie/496243"
       },
       {
         "rank": 2,
-        "title": "In the Mood for Love",
-        "year": "2000",
-        "director": "Wong Kar-wai",
-        "tmdbId": "843"
+        "title": "Mulholland Drive",
+        "year": "2001",
+        "director": "David Lynch",
+        "tmdbId": "1018",
+        "sourceYear": "2001",
+        "identityUrl": "https://www.themoviedb.org/movie/1018"
       },
       {
         "rank": 3,
         "title": "There Will Be Blood",
         "year": "2007",
         "director": "Paul Thomas Anderson",
-        "tmdbId": "7345"
+        "tmdbId": "7345",
+        "sourceYear": "2007",
+        "identityUrl": "https://www.themoviedb.org/movie/7345"
       },
       {
         "rank": 4,
-        "title": "Spirited Away",
-        "year": "2001",
-        "director": "Hayao Miyazaki",
-        "tmdbId": "129"
+        "title": "In the Mood for Love",
+        "year": "2000",
+        "director": "Wong Kar-wai",
+        "tmdbId": "843",
+        "sourceYear": "2001",
+        "identityUrl": "https://www.themoviedb.org/movie/843"
       },
       {
         "rank": 5,
-        "title": "Boyhood",
-        "year": "2014",
-        "director": "Richard Linklater",
-        "tmdbId": "85350"
+        "title": "Moonlight",
+        "year": "2016",
+        "director": "Barry Jenkins",
+        "tmdbId": "376867",
+        "sourceYear": "2016",
+        "identityUrl": "https://www.themoviedb.org/movie/376867"
       },
       {
         "rank": 6,
-        "title": "Parasite",
-        "year": "2019",
-        "director": "Bong Joon-ho",
-        "tmdbId": "496243"
+        "title": "No Country for Old Men",
+        "year": "2007",
+        "director": "Ethan Coen and Joel Coen",
+        "tmdbId": "6977",
+        "sourceYear": "2007",
+        "identityUrl": "https://www.themoviedb.org/movie/6977"
       },
       {
         "rank": 7,
         "title": "Eternal Sunshine of the Spotless Mind",
         "year": "2004",
         "director": "Michel Gondry",
-        "tmdbId": "38"
+        "tmdbId": "38",
+        "sourceYear": "2004",
+        "identityUrl": "https://www.themoviedb.org/movie/38"
       },
       {
         "rank": 8,
-        "title": "The Social Network",
-        "year": "2010",
-        "director": "David Fincher",
-        "tmdbId": "37799"
-      },
-      {
-        "rank": 9,
-        "title": "Moonlight",
-        "year": "2016",
-        "director": "Barry Jenkins",
-        "tmdbId": "376867"
-      },
-      {
-        "rank": 10,
-        "title": "Portrait of a Lady on Fire",
-        "year": "2019",
-        "director": "Céline Sciamma",
-        "tmdbId": "531428"
-      },
-      {
-        "rank": 11,
-        "title": "Pan's Labyrinth",
-        "year": "2006",
-        "director": "Guillermo del Toro",
-        "tmdbId": "1417"
-      },
-      {
-        "rank": 12,
-        "title": "Mad Max: Fury Road",
-        "year": "2015",
-        "director": "George Miller",
-        "tmdbId": "76341"
-      },
-      {
-        "rank": 13,
-        "title": "Zodiac",
-        "year": "2007",
-        "director": "David Fincher",
-        "tmdbId": "1949"
-      },
-      {
-        "rank": 14,
-        "title": "Yi Yi",
-        "year": "2000",
-        "director": "Edward Yang",
-        "tmdbId": "25538"
-      },
-      {
-        "rank": 15,
-        "title": "No Country for Old Men",
-        "year": "2007",
-        "director": "Joel Coen, Ethan Coen",
-        "tmdbId": "6977"
-      },
-      {
-        "rank": 16,
-        "title": "The Tree of Life",
-        "year": "2011",
-        "director": "Terrence Malick",
-        "tmdbId": "8967"
-      },
-      {
-        "rank": 17,
-        "title": "Children of Men",
-        "year": "2006",
-        "director": "Alfonso Cuarón",
-        "tmdbId": "9693"
-      },
-      {
-        "rank": 18,
-        "title": "The Act of Killing",
-        "year": "2012",
-        "director": "Joshua Oppenheimer",
-        "tmdbId": "123678"
-      },
-      {
-        "rank": 19,
-        "title": "WALL·E",
-        "year": "2008",
-        "director": "Andrew Stanton",
-        "tmdbId": "10681"
-      },
-      {
-        "rank": 20,
-        "title": "Crouching Tiger, Hidden Dragon",
-        "year": "2000",
-        "director": "Ang Lee",
-        "tmdbId": "146"
-      },
-      {
-        "rank": 21,
-        "title": "Amélie",
-        "year": "2001",
-        "director": "Jean-Pierre Jeunet",
-        "tmdbId": "194"
-      },
-      {
-        "rank": 22,
-        "title": "Almost Famous",
-        "year": "2000",
-        "director": "Cameron Crowe",
-        "tmdbId": "786"
-      },
-      {
-        "rank": 23,
-        "title": "Memento",
-        "year": "2000",
-        "director": "Christopher Nolan",
-        "tmdbId": "77"
-      },
-      {
-        "rank": 24,
-        "title": "Lost in Translation",
-        "year": "2003",
-        "director": "Sofia Coppola",
-        "tmdbId": "153"
-      },
-      {
-        "rank": 25,
-        "title": "City of God",
-        "year": "2002",
-        "director": "Fernando Meirelles, Kátia Lund",
-        "tmdbId": "598"
-      },
-      {
-        "rank": 26,
-        "title": "Talk to Her",
-        "year": "2002",
-        "director": "Pedro Almodóvar",
-        "tmdbId": "64"
-      },
-      {
-        "rank": 27,
-        "title": "The Lord of the Rings: The Fellowship of the Ring",
-        "year": "2001",
-        "director": "Peter Jackson",
-        "tmdbId": "120"
-      },
-      {
-        "rank": 28,
-        "title": "Brokeback Mountain",
-        "year": "2005",
-        "director": "Ang Lee",
-        "tmdbId": "142"
-      },
-      {
-        "rank": 29,
-        "title": "4 Months, 3 Weeks and 2 Days",
-        "year": "2007",
-        "director": "Cristian Mungiu",
-        "tmdbId": "2009"
-      },
-      {
-        "rank": 30,
-        "title": "The Hurt Locker",
-        "year": "2008",
-        "director": "Kathryn Bigelow",
-        "tmdbId": "12162"
-      },
-      {
-        "rank": 31,
-        "title": "A Separation",
-        "year": "2011",
-        "director": "Asghar Farhadi",
-        "tmdbId": "60243"
-      },
-      {
-        "rank": 32,
-        "title": "The Master",
-        "year": "2012",
-        "director": "Paul Thomas Anderson",
-        "tmdbId": "68722"
-      },
-      {
-        "rank": 33,
-        "title": "Her",
-        "year": "2013",
-        "director": "Spike Jonze",
-        "tmdbId": "152601"
-      },
-      {
-        "rank": 34,
-        "title": "Inside Llewyn Davis",
-        "year": "2013",
-        "director": "Joel Coen, Ethan Coen",
-        "tmdbId": "86829"
-      },
-      {
-        "rank": 35,
-        "title": "The Grand Budapest Hotel",
-        "year": "2014",
-        "director": "Wes Anderson",
-        "tmdbId": "120467"
-      },
-      {
-        "rank": 36,
-        "title": "Carol",
-        "year": "2015",
-        "director": "Todd Haynes",
-        "tmdbId": "258480"
-      },
-      {
-        "rank": 37,
         "title": "Get Out",
         "year": "2017",
         "director": "Jordan Peele",
-        "tmdbId": "419430"
+        "tmdbId": "419430",
+        "sourceYear": "2017",
+        "identityUrl": "https://www.themoviedb.org/movie/419430"
       },
       {
-        "rank": 38,
-        "title": "Phantom Thread",
-        "year": "2017",
-        "director": "Paul Thomas Anderson",
-        "tmdbId": "400617"
+        "rank": 9,
+        "title": "Spirited Away",
+        "year": "2001",
+        "director": "Hayao Miyazaki",
+        "tmdbId": "129",
+        "sourceYear": "2002",
+        "identityUrl": "https://www.themoviedb.org/movie/129"
       },
       {
-        "rank": 39,
-        "title": "Roma",
-        "year": "2018",
-        "director": "Alfonso Cuarón",
-        "tmdbId": "426426"
+        "rank": 10,
+        "title": "The Social Network",
+        "year": "2010",
+        "director": "David Fincher",
+        "tmdbId": "37799",
+        "sourceYear": "2010",
+        "identityUrl": "https://www.themoviedb.org/movie/37799"
       },
       {
-        "rank": 40,
-        "title": "Drive My Car",
-        "year": "2021",
-        "director": "Ryusuke Hamaguchi",
-        "tmdbId": "758866"
+        "rank": 11,
+        "title": "Mad Max: Fury Road",
+        "year": "2015",
+        "director": "George Miller",
+        "tmdbId": "76341",
+        "sourceYear": "2015",
+        "identityUrl": "https://www.themoviedb.org/movie/76341"
       },
       {
-        "rank": 41,
-        "title": "TÁR",
-        "year": "2022",
-        "director": "Todd Field",
-        "tmdbId": "817758"
-      },
-      {
-        "rank": 42,
+        "rank": 12,
         "title": "The Zone of Interest",
         "year": "2023",
         "director": "Jonathan Glazer",
-        "tmdbId": "467244"
+        "tmdbId": "467244",
+        "sourceYear": "2023",
+        "identityUrl": "https://www.themoviedb.org/movie/467244"
       },
       {
-        "rank": 43,
-        "title": "Anatomy of a Fall",
-        "year": "2023",
-        "director": "Justine Triet",
-        "tmdbId": "915935"
-      },
-      {
-        "rank": 44,
-        "title": "Past Lives",
-        "year": "2023",
-        "director": "Celine Song",
-        "tmdbId": "666277"
-      },
-      {
-        "rank": 45,
-        "title": "Oppenheimer",
-        "year": "2023",
-        "director": "Christopher Nolan",
-        "tmdbId": "872585"
-      },
-      {
-        "rank": 46,
-        "title": "Caché",
-        "year": "2005",
-        "director": "Michael Haneke",
-        "tmdbId": "445"
-      },
-      {
-        "rank": 47,
-        "title": "The Gleaners and I",
-        "year": "2000",
-        "director": "Agnès Varda",
-        "tmdbId": "44379"
-      },
-      {
-        "rank": 48,
-        "title": "Tropical Malady",
-        "year": "2004",
-        "director": "Apichatpong Weerasethakul",
-        "tmdbId": "11534"
-      },
-      {
-        "rank": 49,
-        "title": "The Headless Woman",
-        "year": "2008",
-        "director": "Lucrecia Martel",
-        "tmdbId": "8898"
-      },
-      {
-        "rank": 50,
-        "title": "Holy Motors",
-        "year": "2012",
-        "director": "Leos Carax",
-        "tmdbId": "103328"
-      },
-      {
-        "rank": 51,
-        "title": "Toni Erdmann",
-        "year": "2016",
-        "director": "Maren Ade",
-        "tmdbId": "374475"
-      },
-      {
-        "rank": 52,
-        "title": "The Florida Project",
-        "year": "2017",
-        "director": "Sean Baker",
-        "tmdbId": "394117"
-      },
-      {
-        "rank": 53,
-        "title": "First Reformed",
-        "year": "2017",
-        "director": "Paul Schrader",
-        "tmdbId": "458737"
-      },
-      {
-        "rank": 54,
-        "title": "Burning",
-        "year": "2018",
-        "director": "Lee Chang-dong",
-        "tmdbId": "491584"
-      },
-      {
-        "rank": 55,
-        "title": "The Souvenir",
-        "year": "2019",
-        "director": "Joanna Hogg",
-        "tmdbId": "473019"
-      },
-      {
-        "rank": 56,
-        "title": "Uncut Gems",
-        "year": "2019",
-        "director": "Josh Safdie, Benny Safdie",
-        "tmdbId": "473033"
-      },
-      {
-        "rank": 57,
-        "title": "The Power of the Dog",
-        "year": "2021",
-        "director": "Jane Campion",
-        "tmdbId": "600583"
-      },
-      {
-        "rank": 58,
-        "title": "Aftersun",
-        "year": "2022",
-        "director": "Charlotte Wells",
-        "tmdbId": "965150"
-      },
-      {
-        "rank": 59,
-        "title": "The Banshees of Inisherin",
-        "year": "2022",
-        "director": "Martin McDonagh",
-        "tmdbId": "674324"
-      },
-      {
-        "rank": 60,
-        "title": "Everything Everywhere All at Once",
-        "year": "2022",
-        "director": "Daniel Kwan, Daniel Scheinert",
-        "tmdbId": "545611"
-      },
-      {
-        "rank": 61,
-        "title": "Memories of Murder",
-        "year": "2003",
-        "director": "Bong Joon-ho",
-        "tmdbId": "11423"
-      },
-      {
-        "rank": 62,
-        "title": "Before Sunset",
-        "year": "2004",
-        "director": "Richard Linklater",
-        "tmdbId": "80"
-      },
-      {
-        "rank": 63,
-        "title": "Oldboy",
-        "year": "2003",
-        "director": "Park Chan-wook",
-        "tmdbId": "670"
-      },
-      {
-        "rank": 64,
-        "title": "The Incredibles",
-        "year": "2004",
-        "director": "Brad Bird",
-        "tmdbId": "9806"
-      },
-      {
-        "rank": 65,
-        "title": "The Departed",
+        "rank": 13,
+        "title": "Children of Men",
         "year": "2006",
-        "director": "Martin Scorsese",
-        "tmdbId": "1422"
+        "director": "Alfonso Cuarón",
+        "tmdbId": "9693",
+        "sourceYear": "2006",
+        "identityUrl": "https://www.themoviedb.org/movie/9693"
       },
       {
-        "rank": 66,
-        "title": "The Prestige",
-        "year": "2006",
-        "director": "Christopher Nolan",
-        "tmdbId": "1124"
-      },
-      {
-        "rank": 67,
-        "title": "The Lives of Others",
-        "year": "2006",
-        "director": "Florian Henckel von Donnersmarck",
-        "tmdbId": "582"
-      },
-      {
-        "rank": 68,
-        "title": "Ratatouille",
-        "year": "2007",
-        "director": "Brad Bird, Jan Pinkava",
-        "tmdbId": "2062"
-      },
-      {
-        "rank": 69,
-        "title": "The Dark Knight",
-        "year": "2008",
-        "director": "Christopher Nolan",
-        "tmdbId": "155"
-      },
-      {
-        "rank": 70,
+        "rank": 14,
         "title": "Inglourious Basterds",
         "year": "2009",
         "director": "Quentin Tarantino",
-        "tmdbId": "16869"
+        "tmdbId": "16869",
+        "sourceYear": "2009",
+        "identityUrl": "https://www.themoviedb.org/movie/16869"
       },
       {
-        "rank": 71,
-        "title": "Fantastic Mr. Fox",
-        "year": "2009",
-        "director": "Wes Anderson",
-        "tmdbId": "10315"
+        "rank": 15,
+        "title": "City of God",
+        "year": "2002",
+        "director": "Fernando Meirelles",
+        "tmdbId": "598",
+        "sourceYear": "2003",
+        "identityUrl": "https://www.themoviedb.org/movie/598"
       },
       {
-        "rank": 72,
-        "title": "Toy Story 3",
-        "year": "2010",
-        "director": "Lee Unkrich",
-        "tmdbId": "10193"
+        "rank": 16,
+        "title": "Crouching Tiger, Hidden Dragon",
+        "year": "2000",
+        "director": "Ang Lee",
+        "tmdbId": "146",
+        "sourceYear": "2000",
+        "identityUrl": "https://www.themoviedb.org/movie/146"
       },
       {
-        "rank": 73,
-        "title": "Uncle Boonmee Who Can Recall His Past Lives",
-        "year": "2010",
-        "director": "Apichatpong Weerasethakul",
-        "tmdbId": "38368"
+        "rank": 17,
+        "title": "Brokeback Mountain",
+        "year": "2005",
+        "director": "Ang Lee",
+        "tmdbId": "142",
+        "sourceYear": "2005",
+        "identityUrl": "https://www.themoviedb.org/movie/142"
       },
       {
-        "rank": 74,
-        "title": "Melancholia",
-        "year": "2011",
-        "director": "Lars von Trier",
-        "tmdbId": "62215"
+        "rank": 18,
+        "title": "Y Tu Mamá También",
+        "year": "2001",
+        "director": "Alfonso Cuarón",
+        "tmdbId": "1391",
+        "sourceYear": "2002",
+        "identityUrl": "https://www.themoviedb.org/movie/1391"
       },
       {
-        "rank": 75,
+        "rank": 19,
+        "title": "Zodiac",
+        "year": "2007",
+        "director": "David Fincher",
+        "tmdbId": "1949",
+        "sourceYear": "2007",
+        "identityUrl": "https://www.themoviedb.org/movie/1949"
+      },
+      {
+        "rank": 20,
         "title": "The Wolf of Wall Street",
         "year": "2013",
         "director": "Martin Scorsese",
-        "tmdbId": "106646"
+        "tmdbId": "106646",
+        "sourceYear": "2013",
+        "identityUrl": "https://www.themoviedb.org/movie/106646"
       },
       {
-        "rank": 76,
-        "title": "Whiplash",
+        "rank": 21,
+        "title": "The Royal Tenenbaums",
+        "year": "2001",
+        "director": "Wes Anderson",
+        "tmdbId": "9428",
+        "sourceYear": "2001",
+        "identityUrl": "https://www.themoviedb.org/movie/9428"
+      },
+      {
+        "rank": 22,
+        "title": "The Grand Budapest Hotel",
         "year": "2014",
-        "director": "Damien Chazelle",
-        "tmdbId": "244786"
+        "director": "Wes Anderson",
+        "tmdbId": "120467",
+        "sourceYear": "2014",
+        "identityUrl": "https://www.themoviedb.org/movie/120467"
       },
       {
-        "rank": 77,
-        "title": "Under the Skin",
+        "rank": 23,
+        "title": "Boyhood",
+        "year": "2014",
+        "director": "Richard Linklater",
+        "tmdbId": "85350",
+        "sourceYear": "2014",
+        "identityUrl": "https://www.themoviedb.org/movie/85350"
+      },
+      {
+        "rank": 24,
+        "title": "Her",
         "year": "2013",
-        "director": "Jonathan Glazer",
-        "tmdbId": "97370"
+        "director": "Spike Jonze",
+        "tmdbId": "152601",
+        "sourceYear": "2013",
+        "identityUrl": "https://www.themoviedb.org/movie/152601"
       },
       {
-        "rank": 78,
-        "title": "Birdman",
-        "year": "2014",
-        "director": "Alejandro G. Iñárritu",
-        "tmdbId": "194662"
+        "rank": 25,
+        "title": "Phantom Thread",
+        "year": "2017",
+        "director": "Paul Thomas Anderson",
+        "tmdbId": "400617",
+        "sourceYear": "2017",
+        "identityUrl": "https://www.themoviedb.org/movie/400617"
       },
       {
-        "rank": 79,
-        "title": "Leviathan",
-        "year": "2014",
-        "director": "Andrey Zvyagintsev",
-        "tmdbId": "265180"
+        "rank": 26,
+        "title": "Anatomy of a Fall",
+        "year": "2023",
+        "director": "Justine Triet",
+        "tmdbId": "915935",
+        "sourceYear": "2023",
+        "identityUrl": "https://www.themoviedb.org/movie/915935"
       },
       {
-        "rank": 80,
-        "title": "Spotlight",
-        "year": "2015",
-        "director": "Tom McCarthy",
-        "tmdbId": "314365"
+        "rank": 27,
+        "title": "Adaptation",
+        "year": "2002",
+        "director": "Spike Jonze",
+        "tmdbId": "2757",
+        "sourceYear": "2002",
+        "identityUrl": "https://www.themoviedb.org/movie/2757"
       },
       {
-        "rank": 81,
-        "title": "The Handmaiden",
+        "rank": 28,
+        "title": "The Dark Knight",
+        "year": "2008",
+        "director": "Christopher Nolan",
+        "tmdbId": "155",
+        "sourceYear": "2008",
+        "identityUrl": "https://www.themoviedb.org/movie/155"
+      },
+      {
+        "rank": 29,
+        "title": "Arrival",
         "year": "2016",
-        "director": "Park Chan-wook",
-        "tmdbId": "290098"
+        "director": "Denis Villeneuve",
+        "tmdbId": "329865",
+        "sourceYear": "2016",
+        "identityUrl": "https://www.themoviedb.org/movie/329865"
       },
       {
-        "rank": 82,
-        "title": "La La Land",
-        "year": "2016",
-        "director": "Damien Chazelle",
-        "tmdbId": "313369"
+        "rank": 30,
+        "title": "Lost in Translation",
+        "year": "2003",
+        "director": "Sofia Coppola",
+        "tmdbId": "153",
+        "sourceYear": "2003",
+        "identityUrl": "https://www.themoviedb.org/movie/153"
       },
       {
-        "rank": 83,
-        "title": "Manchester by the Sea",
-        "year": "2016",
-        "director": "Kenneth Lonergan",
-        "tmdbId": "334541"
+        "rank": 31,
+        "title": "The Departed",
+        "year": "2006",
+        "director": "Martin Scorsese",
+        "tmdbId": "1422",
+        "sourceYear": "2006",
+        "identityUrl": "https://www.themoviedb.org/movie/1422"
       },
       {
-        "rank": 84,
+        "rank": 32,
+        "title": "Bridesmaids",
+        "year": "2011",
+        "director": "Paul Feig",
+        "tmdbId": "55721",
+        "sourceYear": "2011",
+        "identityUrl": "https://www.themoviedb.org/movie/55721"
+      },
+      {
+        "rank": 33,
+        "title": "A Separation",
+        "year": "2011",
+        "director": "Asghar Farhadi",
+        "tmdbId": "60243",
+        "sourceYear": "2011",
+        "identityUrl": "https://www.themoviedb.org/movie/60243"
+      },
+      {
+        "rank": 34,
+        "title": "Wall-E",
+        "year": "2008",
+        "director": "Andrew Stanton",
+        "tmdbId": "10681",
+        "sourceYear": "2008",
+        "identityUrl": "https://www.themoviedb.org/movie/10681"
+      },
+      {
+        "rank": 35,
+        "title": "A Prophet",
+        "year": "2009",
+        "director": "Jacques Audiard",
+        "tmdbId": "21575",
+        "sourceYear": "2010",
+        "identityUrl": "https://www.themoviedb.org/movie/21575"
+      },
+      {
+        "rank": 36,
+        "title": "A Serious Man",
+        "year": "2009",
+        "director": "Ethan Coen and Joel Coen",
+        "tmdbId": "12573",
+        "sourceYear": "2009",
+        "identityUrl": "https://www.themoviedb.org/movie/12573"
+      },
+      {
+        "rank": 37,
         "title": "Call Me by Your Name",
         "year": "2017",
         "director": "Luca Guadagnino",
-        "tmdbId": "398818"
+        "tmdbId": "398818",
+        "sourceYear": "2017",
+        "identityUrl": "https://www.themoviedb.org/movie/398818"
       },
       {
-        "rank": 85,
+        "rank": 38,
+        "title": "Portrait of a Lady on Fire",
+        "year": "2019",
+        "director": "Céline Sciamma",
+        "tmdbId": "531428",
+        "sourceYear": "2019",
+        "identityUrl": "https://www.themoviedb.org/movie/531428"
+      },
+      {
+        "rank": 39,
         "title": "Lady Bird",
         "year": "2017",
         "director": "Greta Gerwig",
-        "tmdbId": "391713"
+        "tmdbId": "391713",
+        "sourceYear": "2017",
+        "identityUrl": "https://www.themoviedb.org/movie/391713"
+      },
+      {
+        "rank": 40,
+        "title": "Yi Yi",
+        "year": "2000",
+        "director": "Edward Yang",
+        "tmdbId": "25538",
+        "sourceYear": "2000",
+        "identityUrl": "https://www.themoviedb.org/movie/25538"
+      },
+      {
+        "rank": 41,
+        "title": "Amélie",
+        "year": "2001",
+        "director": "Jean-Pierre Jeunet",
+        "tmdbId": "194",
+        "sourceYear": "2001",
+        "identityUrl": "https://www.themoviedb.org/movie/194"
+      },
+      {
+        "rank": 42,
+        "title": "The Master",
+        "year": "2012",
+        "director": "Paul Thomas Anderson",
+        "tmdbId": "68722",
+        "sourceYear": "2012",
+        "identityUrl": "https://www.themoviedb.org/movie/68722"
+      },
+      {
+        "rank": 43,
+        "title": "Oldboy",
+        "year": "2003",
+        "director": "Park Chan-wook",
+        "tmdbId": "670",
+        "sourceYear": "2005",
+        "identityUrl": "https://www.themoviedb.org/movie/670"
+      },
+      {
+        "rank": 44,
+        "title": "Once Upon a Time … in Hollywood",
+        "year": "2019",
+        "director": "Quentin Tarantino",
+        "tmdbId": "466272",
+        "sourceYear": "2019",
+        "identityUrl": "https://www.themoviedb.org/movie/466272"
+      },
+      {
+        "rank": 45,
+        "title": "Moneyball",
+        "year": "2011",
+        "director": "Bennett Miller",
+        "tmdbId": "60308",
+        "sourceYear": "2011",
+        "identityUrl": "https://www.themoviedb.org/movie/60308"
+      },
+      {
+        "rank": 46,
+        "title": "Roma",
+        "year": "2018",
+        "director": "Alfonso Cuarón",
+        "tmdbId": "426426",
+        "sourceYear": "2018",
+        "identityUrl": "https://www.themoviedb.org/movie/426426"
+      },
+      {
+        "rank": 47,
+        "title": "Almost Famous",
+        "year": "2000",
+        "director": "Cameron Crowe",
+        "tmdbId": "786",
+        "sourceYear": "2000",
+        "identityUrl": "https://www.themoviedb.org/movie/786"
+      },
+      {
+        "rank": 48,
+        "title": "The Lives of Others",
+        "year": "2006",
+        "director": "Florian Henckel von Donnersmarck",
+        "tmdbId": "582",
+        "sourceYear": "2007",
+        "identityUrl": "https://www.themoviedb.org/movie/582"
+      },
+      {
+        "rank": 49,
+        "title": "Before Sunset",
+        "year": "2004",
+        "director": "Richard Linklater",
+        "tmdbId": "80",
+        "sourceYear": "2004",
+        "identityUrl": "https://www.themoviedb.org/movie/80"
+      },
+      {
+        "rank": 50,
+        "title": "Up",
+        "year": "2009",
+        "director": "Pete Docter",
+        "tmdbId": "14160",
+        "sourceYear": "2009",
+        "identityUrl": "https://www.themoviedb.org/movie/14160"
+      },
+      {
+        "rank": 51,
+        "title": "12 Years a Slave",
+        "year": "2013",
+        "director": "Steve McQueen",
+        "tmdbId": "76203",
+        "sourceYear": "2013",
+        "identityUrl": "https://www.themoviedb.org/movie/76203"
+      },
+      {
+        "rank": 52,
+        "title": "The Favourite",
+        "year": "2018",
+        "director": "Yorgos Lanthimos",
+        "tmdbId": "375262",
+        "sourceYear": "2018",
+        "identityUrl": "https://www.themoviedb.org/movie/375262"
+      },
+      {
+        "rank": 53,
+        "title": "Borat: Cultural Learnings of America for Make Benefit Glorious Nation of Kazakhstan",
+        "year": "2006",
+        "director": "Larry Charles",
+        "tmdbId": "496",
+        "sourceYear": "2006",
+        "identityUrl": "https://www.themoviedb.org/movie/496"
+      },
+      {
+        "rank": 54,
+        "title": "Pan’s Labyrinth",
+        "year": "2006",
+        "director": "Guillermo del Toro",
+        "tmdbId": "1417",
+        "sourceYear": "2006",
+        "identityUrl": "https://www.themoviedb.org/movie/1417"
+      },
+      {
+        "rank": 55,
+        "title": "Inception",
+        "year": "2010",
+        "director": "Christopher Nolan",
+        "tmdbId": "27205",
+        "sourceYear": "2010",
+        "identityUrl": "https://www.themoviedb.org/movie/27205"
+      },
+      {
+        "rank": 56,
+        "title": "Punch-Drunk Love",
+        "year": "2002",
+        "director": "Paul Thomas Anderson",
+        "tmdbId": "8051",
+        "sourceYear": "2002",
+        "identityUrl": "https://www.themoviedb.org/movie/8051"
+      },
+      {
+        "rank": 57,
+        "title": "Best in Show",
+        "year": "2000",
+        "director": "Christopher Guest",
+        "tmdbId": "13785",
+        "sourceYear": "2000",
+        "identityUrl": "https://www.themoviedb.org/movie/13785"
+      },
+      {
+        "rank": 58,
+        "title": "Uncut Gems",
+        "year": "2019",
+        "director": "Benny Safdie and Josh Safdie",
+        "tmdbId": "473033",
+        "sourceYear": "2019",
+        "identityUrl": "https://www.themoviedb.org/movie/473033"
+      },
+      {
+        "rank": 59,
+        "title": "Toni Erdmann",
+        "year": "2016",
+        "director": "Maren Ade",
+        "tmdbId": "374475",
+        "sourceYear": "2016",
+        "identityUrl": "https://www.themoviedb.org/movie/374475"
+      },
+      {
+        "rank": 60,
+        "title": "Whiplash",
+        "year": "2014",
+        "director": "Damien Chazelle",
+        "tmdbId": "244786",
+        "sourceYear": "2014",
+        "identityUrl": "https://www.themoviedb.org/movie/244786"
+      },
+      {
+        "rank": 61,
+        "title": "Kill Bill: Vol. 1",
+        "year": "2003",
+        "director": "Quentin Tarantino",
+        "tmdbId": "24",
+        "sourceYear": "2003",
+        "identityUrl": "https://www.themoviedb.org/movie/24"
+      },
+      {
+        "rank": 62,
+        "title": "Memento",
+        "year": "2000",
+        "director": "Christopher Nolan",
+        "tmdbId": "77",
+        "sourceYear": "2001",
+        "identityUrl": "https://www.themoviedb.org/movie/77"
+      },
+      {
+        "rank": 63,
+        "title": "Little Miss Sunshine",
+        "year": "2006",
+        "director": "Jonathan Dayton and Valerie Faris",
+        "tmdbId": "773",
+        "sourceYear": "2006",
+        "identityUrl": "https://www.themoviedb.org/movie/773"
+      },
+      {
+        "rank": 64,
+        "title": "Gone Girl",
+        "year": "2014",
+        "director": "David Fincher",
+        "tmdbId": "210577",
+        "sourceYear": "2014",
+        "identityUrl": "https://www.themoviedb.org/movie/210577"
+      },
+      {
+        "rank": 65,
+        "title": "Oppenheimer",
+        "year": "2023",
+        "director": "Christopher Nolan",
+        "tmdbId": "872585",
+        "sourceYear": "2023",
+        "identityUrl": "https://www.themoviedb.org/movie/872585"
+      },
+      {
+        "rank": 66,
+        "title": "Spotlight",
+        "year": "2015",
+        "director": "Tom McCarthy",
+        "tmdbId": "314365",
+        "sourceYear": "2015",
+        "identityUrl": "https://www.themoviedb.org/movie/314365"
+      },
+      {
+        "rank": 67,
+        "title": "Tár",
+        "year": "2022",
+        "director": "Todd Field",
+        "tmdbId": "817758",
+        "sourceYear": "2022",
+        "identityUrl": "https://www.themoviedb.org/movie/817758"
+      },
+      {
+        "rank": 68,
+        "title": "The Hurt Locker",
+        "year": "2008",
+        "director": "Kathryn Bigelow",
+        "tmdbId": "12162",
+        "sourceYear": "2009",
+        "identityUrl": "https://www.themoviedb.org/movie/12162"
+      },
+      {
+        "rank": 69,
+        "title": "Under the Skin",
+        "year": "2013",
+        "director": "Jonathan Glazer",
+        "tmdbId": "97370",
+        "sourceYear": "2014",
+        "identityUrl": "https://www.themoviedb.org/movie/97370"
+      },
+      {
+        "rank": 70,
+        "title": "Let the Right One In",
+        "year": "2008",
+        "director": "Tomas Alfredson",
+        "tmdbId": "13310",
+        "sourceYear": "2008",
+        "identityUrl": "https://www.themoviedb.org/movie/13310"
+      },
+      {
+        "rank": 71,
+        "title": "Ocean’s Eleven",
+        "year": "2001",
+        "director": "Steven Soderbergh",
+        "tmdbId": "161",
+        "sourceYear": "2001",
+        "identityUrl": "https://www.themoviedb.org/movie/161"
+      },
+      {
+        "rank": 72,
+        "title": "Carol",
+        "year": "2015",
+        "director": "Todd Haynes",
+        "tmdbId": "258480",
+        "sourceYear": "2015",
+        "identityUrl": "https://www.themoviedb.org/movie/258480"
+      },
+      {
+        "rank": 73,
+        "title": "Ratatouille",
+        "year": "2007",
+        "director": "Brad Bird",
+        "tmdbId": "2062",
+        "sourceYear": "2007",
+        "identityUrl": "https://www.themoviedb.org/movie/2062"
+      },
+      {
+        "rank": 74,
+        "title": "The Florida Project",
+        "year": "2017",
+        "director": "Sean Baker",
+        "tmdbId": "394117",
+        "sourceYear": "2017",
+        "identityUrl": "https://www.themoviedb.org/movie/394117"
+      },
+      {
+        "rank": 75,
+        "title": "Amour",
+        "year": "2012",
+        "director": "Michael Haneke",
+        "tmdbId": "86837",
+        "sourceYear": "2012",
+        "identityUrl": "https://www.themoviedb.org/movie/86837"
+      },
+      {
+        "rank": 76,
+        "title": "O Brother, Where Art Thou?",
+        "year": "2000",
+        "director": "Ethan Coen and Joel Coen",
+        "tmdbId": "134",
+        "sourceYear": "2000",
+        "identityUrl": "https://www.themoviedb.org/movie/134"
+      },
+      {
+        "rank": 77,
+        "title": "Everything Everywhere All at Once",
+        "year": "2022",
+        "director": "Daniel Kwan and Daniel Scheinert",
+        "tmdbId": "545611",
+        "sourceYear": "2022",
+        "identityUrl": "https://www.themoviedb.org/movie/545611"
+      },
+      {
+        "rank": 78,
+        "title": "Aftersun",
+        "year": "2022",
+        "director": "Charlotte Wells",
+        "tmdbId": "965150",
+        "sourceYear": "2022",
+        "identityUrl": "https://www.themoviedb.org/movie/965150"
+      },
+      {
+        "rank": 79,
+        "title": "The Tree of Life",
+        "year": "2011",
+        "director": "Terrence Malick",
+        "tmdbId": "8967",
+        "sourceYear": "2011",
+        "identityUrl": "https://www.themoviedb.org/movie/8967"
+      },
+      {
+        "rank": 80,
+        "title": "Volver",
+        "year": "2006",
+        "director": "Pedro Almodóvar",
+        "tmdbId": "219",
+        "sourceYear": "2006",
+        "identityUrl": "https://www.themoviedb.org/movie/219"
+      },
+      {
+        "rank": 81,
+        "title": "Black Swan",
+        "year": "2010",
+        "director": "Darren Aronofsky",
+        "tmdbId": "44214",
+        "sourceYear": "2010",
+        "identityUrl": "https://www.themoviedb.org/movie/44214"
+      },
+      {
+        "rank": 82,
+        "title": "The Act of Killing",
+        "year": "2012",
+        "director": "Joshua Oppenheimer and Anonymous",
+        "tmdbId": "123678",
+        "sourceYear": "2013",
+        "identityUrl": "https://www.themoviedb.org/movie/123678"
+      },
+      {
+        "rank": 83,
+        "title": "Inside Llewyn Davis",
+        "year": "2013",
+        "director": "Ethan Coen and Joel Coen",
+        "tmdbId": "86829",
+        "sourceYear": "2013",
+        "identityUrl": "https://www.themoviedb.org/movie/86829"
+      },
+      {
+        "rank": 84,
+        "title": "Melancholia",
+        "year": "2011",
+        "director": "Lars von Trier",
+        "tmdbId": "62215",
+        "sourceYear": "2011",
+        "identityUrl": "https://www.themoviedb.org/movie/62215"
+      },
+      {
+        "rank": 85,
+        "title": "Anchorman: The Legend of Ron Burgundy",
+        "year": "2004",
+        "director": "Adam McKay",
+        "tmdbId": "8699",
+        "sourceYear": "2004",
+        "identityUrl": "https://www.themoviedb.org/movie/8699"
       },
       {
         "rank": 86,
-        "title": "Cold War",
-        "year": "2018",
-        "director": "Paweł Pawlikowski",
-        "tmdbId": "440298"
+        "title": "Past Lives",
+        "year": "2023",
+        "director": "Celine Song",
+        "tmdbId": "666277",
+        "sourceYear": "2023",
+        "identityUrl": "https://www.themoviedb.org/movie/666277"
       },
       {
         "rank": 87,
-        "title": "Spider-Man: Into the Spider-Verse",
-        "year": "2018",
-        "director": "Bob Persichetti, Peter Ramsey, Rodney Rothman",
-        "tmdbId": "324857"
+        "title": "The Lord of the Rings: The Fellowship of the Ring",
+        "year": "2001",
+        "director": "Peter Jackson",
+        "tmdbId": "120",
+        "sourceYear": "2001",
+        "identityUrl": "https://www.themoviedb.org/movie/120"
       },
       {
         "rank": 88,
-        "title": "The Irishman",
-        "year": "2019",
-        "director": "Martin Scorsese",
-        "tmdbId": "398978"
+        "title": "The Gleaners & I",
+        "year": "2000",
+        "director": "Agnès Varda",
+        "tmdbId": "44379",
+        "sourceYear": "2001",
+        "identityUrl": "https://www.themoviedb.org/movie/44379"
       },
       {
         "rank": 89,
-        "title": "1917",
-        "year": "2019",
-        "director": "Sam Mendes",
-        "tmdbId": "530915"
+        "title": "Interstellar",
+        "year": "2014",
+        "director": "Christopher Nolan",
+        "tmdbId": "157336",
+        "sourceYear": "2014",
+        "identityUrl": "https://www.themoviedb.org/movie/157336"
       },
       {
         "rank": 90,
-        "title": "Lovers Rock",
-        "year": "2020",
-        "director": "Steve McQueen",
-        "tmdbId": "TV:90705/S1E2"
+        "title": "Frances Ha",
+        "year": "2012",
+        "director": "Noah Baumbach",
+        "tmdbId": "121986",
+        "sourceYear": "2013",
+        "identityUrl": "https://www.themoviedb.org/movie/121986"
       },
       {
         "rank": 91,
-        "title": "The Worst Person in the World",
-        "year": "2021",
-        "director": "Joachim Trier",
-        "tmdbId": "660120"
+        "title": "Fish Tank",
+        "year": "2009",
+        "director": "Andrea Arnold",
+        "tmdbId": "24469",
+        "sourceYear": "2010",
+        "identityUrl": "https://www.themoviedb.org/movie/24469"
       },
       {
         "rank": 92,
-        "title": "Licorice Pizza",
-        "year": "2021",
-        "director": "Paul Thomas Anderson",
-        "tmdbId": "718032"
+        "title": "Gladiator",
+        "year": "2000",
+        "director": "Ridley Scott",
+        "tmdbId": "98",
+        "sourceYear": "2000",
+        "identityUrl": "https://www.themoviedb.org/movie/98"
       },
       {
         "rank": 93,
-        "title": "Dune",
-        "year": "2021",
-        "director": "Denis Villeneuve",
-        "tmdbId": "438631"
+        "title": "Michael Clayton",
+        "year": "2007",
+        "director": "Tony Gilroy",
+        "tmdbId": "4566",
+        "sourceYear": "2007",
+        "identityUrl": "https://www.themoviedb.org/movie/4566"
       },
       {
         "rank": 94,
-        "title": "Decision to Leave",
-        "year": "2022",
-        "director": "Park Chan-wook",
-        "tmdbId": "705996"
+        "title": "Minority Report",
+        "year": "2002",
+        "director": "Steven Spielberg",
+        "tmdbId": "180",
+        "sourceYear": "2002",
+        "identityUrl": "https://www.themoviedb.org/movie/180"
       },
       {
         "rank": 95,
-        "title": "Killers of the Flower Moon",
-        "year": "2023",
-        "director": "Martin Scorsese",
-        "tmdbId": "466420"
+        "title": "The Worst Person in the World",
+        "year": "2021",
+        "director": "Joachim Trier",
+        "tmdbId": "660120",
+        "sourceYear": "2021",
+        "identityUrl": "https://www.themoviedb.org/movie/660120"
       },
       {
         "rank": 96,
-        "title": "Spider-Man: Across the Spider-Verse",
-        "year": "2023",
-        "director": "Joaquim Dos Santos, Kemp Powers, Justin K. Thompson",
-        "tmdbId": "569094"
+        "title": "Black Panther",
+        "year": "2018",
+        "director": "Ryan Coogler",
+        "tmdbId": "284054",
+        "sourceYear": "2018",
+        "identityUrl": "https://www.themoviedb.org/movie/284054"
       },
       {
         "rank": 97,
-        "title": "Poor Things",
-        "year": "2023",
-        "director": "Yorgos Lanthimos",
-        "tmdbId": "792307"
+        "title": "Gravity",
+        "year": "2013",
+        "director": "Alfonso Cuarón",
+        "tmdbId": "49047",
+        "sourceYear": "2013",
+        "identityUrl": "https://www.themoviedb.org/movie/49047"
       },
       {
         "rank": 98,
-        "title": "Dune: Part Two",
-        "year": "2024",
-        "director": "Denis Villeneuve",
-        "tmdbId": "693134"
+        "title": "Grizzly Man",
+        "year": "2005",
+        "director": "Werner Herzog",
+        "tmdbId": "501",
+        "sourceYear": "2005",
+        "identityUrl": "https://www.themoviedb.org/movie/501"
       },
       {
         "rank": 99,
-        "title": "Challengers",
-        "year": "2024",
-        "director": "Luca Guadagnino",
-        "tmdbId": "937287"
+        "title": "Memories of Murder",
+        "year": "2003",
+        "director": "Bong Joon Ho",
+        "tmdbId": "11423",
+        "sourceYear": "2005",
+        "identityUrl": "https://www.themoviedb.org/movie/11423"
       },
       {
         "rank": 100,
-        "title": "Furiosa: A Mad Max Saga",
-        "year": "2024",
-        "director": "George Miller",
-        "tmdbId": "786892"
+        "title": "Superbad",
+        "year": "2007",
+        "director": "Greg Mottola",
+        "tmdbId": "8363",
+        "sourceYear": "2007",
+        "identityUrl": "https://www.themoviedb.org/movie/8363"
       }
     ]
   }
