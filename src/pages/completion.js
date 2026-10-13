@@ -19,6 +19,7 @@
   // write action) runs completely unmodified from that point on.
   let completionCompactActive = Boolean(window.OSKARS_COMPLETION_COMPACT);
   let compactCompletionSource = null;
+  let compactWatchedState = null;
   let compactCompletionError = null;
   let officialResultsHydrated = false;
   let completionHydrationPromise = null;
@@ -118,6 +119,7 @@
     officialCompletions = window.buildSupabaseCompletionOfficialModel(
       compactCompletionSource,
       window.state?.officialResults || {},
+      compactWatchedState,
     );
     officialSourceIds = [...officialCompletions.keys()];
     ensureOfficialSortState();
@@ -161,6 +163,8 @@
     )
       .then(() => {
         completionCompactActive = false;
+        compactCompletionSource = null;
+        compactWatchedState = null;
         refreshOfficialCompletions();
         refreshCanonicalLists();
         hub = window.completionHubData();
@@ -169,6 +173,7 @@
         watchGoalYears = window.watchGoalProgress("year");
         watchGoalDecades = window.watchGoalProgress("decade");
         watchGoalCenturies = window.watchGoalProgress("century");
+        watchGoalAllTime = window.watchGoalProgress("alltime")?.[0] || null;
         ensureOfficialSortState();
         render();
       })
@@ -191,14 +196,25 @@
       .loadSupabaseCompletionWatchedProjection()
       .then((source) => {
         compactCompletionSource = source;
-        let bracketModel = window.buildSupabaseCompletionBracketModel(source);
+        let watchedState = window.buildSupabaseCompletionWatchedState(source);
+        compactWatchedState = watchedState;
+        let bracketModel = window.buildSupabaseCompletionBracketModel(
+          source,
+          watchedState,
+        );
         bracketCompletion = bracketModel.bracketCompletion;
         bracketCategoryCompletion = bracketModel.bracketCategoryCompletion;
-        let goalModel = window.buildSupabaseCompletionWatchGoalModel(source);
+        let goalModel = window.buildSupabaseCompletionWatchGoalModel(
+          source,
+          watchedState,
+        );
         watchGoalYears = goalModel.watchGoalYears;
         watchGoalDecades = goalModel.watchGoalDecades;
         watchGoalCenturies = goalModel.watchGoalCenturies;
-        let watchedState = window.buildSupabaseCompletionWatchedState(source);
+        watchGoalAllTime =
+          goalModel.watchGoalAllTime ||
+          window.watchGoalProgress("alltime", { state: watchedState })?.[0] ||
+          null;
         refreshCanonicalLists(watchedState);
         applyCompactOfficialModel();
         render();
@@ -251,6 +267,9 @@
   let watchGoalCenturies = completionCompactActive
     ? []
     : window.watchGoalProgress("century");
+  let watchGoalAllTime = completionCompactActive
+    ? null
+    : window.watchGoalProgress("alltime")?.[0] || null;
   finishCollectTimer?.(
     `${hub.directors.length} directors, ${hub.franchises.length} franchises, ${hub.projects.length} projects, ${officialSourceIds.map((sourceId) => officialCompletions.get(sourceId).films.length).join("/")} official film(s) by source, ${bracketCompletion.length} bracket period(s), ${watchGoalYears.length}/${watchGoalDecades.length}/${watchGoalCenturies.length} year/decade/century goal(s)`,
   );
@@ -269,10 +288,6 @@
     directors: { key: "percent", dir: -1 },
     franchises: { key: "percent", dir: -1 },
     projects: { key: "percent", dir: -1 },
-    brackets: { key: "percent", dir: -1 },
-    watchGoalYears: { key: "percent", dir: -1 },
-    watchGoalDecades: { key: "percent", dir: -1 },
-    watchGoalCenturies: { key: "percent", dir: -1 },
   };
   // Backfill only - never overwrite an existing entry, since a user's
   // in-session sort change must survive a later call (the post-hydration
@@ -529,76 +544,6 @@
     return `${ranking}${page.controls}${completeNote}`;
   }
 
-  function bracketRowValue(row, key) {
-    if (key === "period") return row.period || "";
-    if (key === "filledSlots") return row.filledSlots || 0;
-    if (key === "completeCategories") return row.completeCategories || 0;
-    return row.totalSlots ? row.filledSlots / row.totalSlots : 0;
-  }
-
-  function bracketCompletionTable(periods) {
-    if (!periods.length) {
-      return `<p class="completion-empty" role="status">${escape(completionCompactActive && !compactCompletionSource ? ui("Loading…") : ui("No award bracket data imported yet."))}</p>`;
-    }
-    let incomplete = periods.filter(
-      (period) => period.filledSlots < period.totalSlots,
-    );
-    let completeCount = periods.length - incomplete.length;
-    let sorted = sortRows(incomplete, "brackets", bracketRowValue);
-    let page = paginateRows(sorted, "brackets", ui("periods"));
-    let body = page.rows
-      .map((period) => {
-        let percent = period.totalSlots
-          ? Math.round((period.filledSlots / period.totalSlots) * 100)
-          : 0;
-        return `<tr>
-    <td><a class="period-link" href="${escape(`${window.periodPageUrl(period.periodType, period.period)}&view=awards`)}"><strong>${escape(period.period)}</strong></a></td>
-    <td>${period.filledSlots} / ${period.totalSlots}</td>
-    <td>${period.completeCategories} / ${period.categoryCount}</td>
-    <td class="completion-cell">${meterHtml(percent)}</td>
-  </tr>`;
-      })
-      .join("");
-    let completeNote = completeCount
-      ? `<p class="completion-note">${escape(ui("{count} more already fully filled.", { count: completeCount }))}</p>`
-      : "";
-    let content = page.rows.length
-      ? layout === "grid"
-        ? `${periodGridControls("brackets", [
-            { value: "period", label: ui("Period") },
-            { value: "filledSlots", label: ui("Slots filled") },
-            { value: "completeCategories", label: ui("Categories complete") },
-            { value: "percent", label: ui("Progress") },
-          ])}${periodGrid(
-            page.rows
-              .map((period) => {
-                let percent = period.totalSlots
-                  ? Math.round((period.filledSlots / period.totalSlots) * 100)
-                  : 0;
-                return `<article class="completion-period-card"><h4><a href="${escape(`${window.periodPageUrl(period.periodType, period.period)}&view=awards`)}">${escape(period.period)}</a></h4><div class="completion-period-card-stats"><span><b>${period.filledSlots} / ${period.totalSlots}</b> ${escape(ui("Slots filled"))}</span><span><b>${period.completeCategories} / ${period.categoryCount}</b> ${escape(ui("Categories complete"))}</span></div>${meterHtml(percent)}</article>`;
-              })
-              .join(""),
-            "completion-bracket-period-grid",
-            page.rows.length,
-          )}`
-        : window.renderLeaderboardTable({
-            headers: [
-              sortHeader("brackets", "period", ui("Period")),
-              sortHeader("brackets", "filledSlots", ui("Slots filled")),
-              sortHeader(
-                "brackets",
-                "completeCategories",
-                ui("Categories complete"),
-              ),
-              sortHeader("brackets", "percent", ui("Progress")),
-            ],
-            rows: body,
-            classes: "completion-table",
-          })
-      : `<p class="completion-empty">${escape(ui("All imported brackets are fully filled."))}</p>`;
-    return `${content}${page.controls}${completeNote}`;
-  }
-
   function fixedCategoryGrid(categories, renderCard, classes) {
     let rowsByCategory = new Map(categories.map((row) => [row.category, row]));
     let slots = window.getCategoryPresentationSlots();
@@ -632,85 +577,6 @@
   </article>`,
       "completion-bracket-category-grid",
     );
-  }
-
-  function watchGoalRowValue(row, key) {
-    if (key === "period") return row.period || "";
-    if (key === "watchedCount") return row.watchedCount || 0;
-    return row.target ? row.watchedCount / row.target : 0;
-  }
-
-  function watchGoalTable(section, rows, periodType) {
-    if (!rows.length) {
-      return `<p class="completion-empty" role="status">${escape(completionCompactActive && !compactCompletionSource ? ui("Loading…") : ui("No watched films yet."))}</p>`;
-    }
-    let incomplete = rows.filter((row) => row.watchedCount < row.target);
-    let completeCount = rows.length - incomplete.length;
-    let sorted = sortRows(incomplete, section, watchGoalRowValue);
-    let page = paginateRows(sorted, section, ui("periods"));
-    let body = page.rows
-      .map((row) => {
-        let percent = Math.round((row.watchedCount / row.target) * 100);
-        let project = window.projectForSource?.("watch-goal", row.sourceId);
-        let projectAction =
-          project || row.projectCandidateCount
-            ? minimalSourceProjectAction(
-                "watch-goal",
-                row.sourceId,
-                projectColumnActionOptions(),
-              )
-            : "";
-        return `<tr>
-    <td><a class="period-link" href="${escape(`${window.periodPageUrl(periodType, row.period)}&view=films`)}"><strong>${escape(row.period)}</strong></a></td>
-    <td>${row.watchedCount} / ${row.target}</td>
-    <td class="completion-cell">${meterHtml(percent)}</td>
-    <td>${projectAction}</td>
-  </tr>`;
-      })
-      .join("");
-    let completeNote = completeCount
-      ? `<p class="completion-note">${escape(ui("{count} more already at or past the goal.", { count: completeCount }))}</p>`
-      : "";
-    let content = page.rows.length
-      ? layout === "grid"
-        ? `${periodGridControls(section, [
-            { value: "period", label: ui("Period") },
-            { value: "watchedCount", label: ui("Watched") },
-            { value: "percent", label: ui("Progress") },
-          ])}${periodGrid(
-            page.rows
-              .map((row) => {
-                let percent = Math.round((row.watchedCount / row.target) * 100);
-                let project = window.projectForSource?.(
-                  "watch-goal",
-                  row.sourceId,
-                );
-                let projectAction =
-                  project || row.projectCandidateCount
-                    ? minimalSourceProjectAction("watch-goal", row.sourceId)
-                    : "";
-                return `<article class="completion-period-card"><header><h4><a href="${escape(`${window.periodPageUrl(periodType, row.period)}&view=films`)}">${escape(row.period)}</a></h4>${projectAction}</header><div class="completion-period-card-stats"><span><b>${row.watchedCount} / ${row.target}</b> ${escape(ui("Watched"))}</span></div>${meterHtml(percent)}</article>`;
-              })
-              .join(""),
-            "completion-watch-goal-grid",
-            page.rows.length,
-          )}`
-        : window.renderLeaderboardTable({
-            headers: [
-              sortHeader(section, "period", ui("Period")),
-              sortHeader(section, "watchedCount", ui("Watched")),
-              sortHeader(section, "percent", ui("Progress")),
-              escape(ui("Project")),
-            ],
-            rows: body,
-            classes: "completion-table",
-          })
-      : `<p class="completion-empty">${escape(ui("Every period has reached its goal."))}</p>`;
-    return `${content}${page.controls}${completeNote}`;
-  }
-
-  function watchGoalSubsection(section, label, rows, periodType) {
-    return `<div class="completion-subsection"><h3>${escape(label)}</h3>${watchGoalTable(section, rows, periodType)}</div>`;
   }
 
   function completionPeriodMatrixDecades() {
@@ -752,7 +618,38 @@
 
         let allTimeCell =
           previousCentury === ""
-            ? `<th class="period-alltime-cell completion-matrix-alltime-cell" scope="rowgroup"><a class="completion-matrix-cell completion-matrix-cell--alltime" href="${escape(`${window.periodPageUrl("alltime", "alltime")}&view=films`)}" title="${escape(ui("All-time"))}" aria-label="${escape(ui("All-time"))}"><span class="completion-matrix-alltime-label">${escape(ui("All-time"))}</span></a></th>`
+            ? (() => {
+                let atGoal = watchGoalAllTime;
+                let atWatched = atGoal ? atGoal.watchedCount : 0;
+                let atTarget = atGoal
+                  ? atGoal.target
+                  : window.WATCH_GOAL_TARGETS?.alltime || 10;
+                let atStats = atGoal?.thresholdStats;
+                let atMetrics = atStats?.metrics || [];
+                let atMet = (key) =>
+                  Boolean(atMetrics.find((m) => m.key === key)?.met);
+                let atIsAllMet = Boolean(atStats?.allMet);
+                let atIsGoalMet = atWatched >= atTarget;
+                let atIsInProgress = atWatched > 0 && !atIsGoalMet;
+                let atClass = atIsAllMet
+                  ? "is-all-met"
+                  : atIsGoalMet
+                    ? "is-goal-met"
+                    : atIsInProgress
+                      ? "is-in-progress"
+                      : "is-empty";
+                let atTooltip =
+                  `${ui("All-time")}: ${atWatched}/${atTarget} ${ui("total")}` +
+                  (atStats?.counts
+                    ? `, ${atStats.counts.foreign}/${atStats.thresholds.foreign} ${ui("foreign")}, ${atStats.counts.animated}/${atStats.thresholds.animated} ${ui("animated")}, ${atStats.counts.adapted}/${atStats.thresholds.adapted} ${ui("adapted")}, ${atStats.counts.original}/${atStats.thresholds.original} ${ui("original")}`
+                    : "") +
+                  (atIsAllMet
+                    ? ` (${ui("all thresholds met")})`
+                    : atIsGoalMet
+                      ? ` (${ui("goal reached")})`
+                      : "");
+                return `<th class="period-alltime-cell completion-matrix-alltime-cell" scope="rowgroup"><a class="completion-matrix-cell completion-matrix-cell--alltime ${atClass}" href="${escape(`${window.periodPageUrl("alltime", "alltime")}&view=films`)}" title="${escape(atTooltip)}" aria-label="${escape(atTooltip)}"><span class="completion-matrix-alltime-label">${escape(ui("All-time"))}</span><span class="completion-matrix-count">${atWatched}/${atTarget}</span><span class="completion-matrix-pips" aria-hidden="true"><i class="pip pip--total${atIsGoalMet ? " is-met" : ""}"></i><i class="pip pip--foreign${atMet("foreign") ? " is-met" : ""}"></i><i class="pip pip--animated${atMet("animated") ? " is-met" : ""}"></i><i class="pip pip--adapted${atMet("adapted") ? " is-met" : ""}"></i><i class="pip pip--original${atMet("original") ? " is-met" : ""}"></i></span></a></th>`;
+              })()
             : '<td class="period-alltime-gap" aria-hidden="true"></td>';
 
         let centuryCell;
@@ -763,6 +660,8 @@
             ? cGoal.target
             : window.WATCH_GOAL_TARGETS?.century || 40;
           let cStats = cGoal?.thresholdStats;
+          let cMetrics = cStats?.metrics || [];
+          let cMet = (key) => Boolean(cMetrics.find((m) => m.key === key)?.met);
           let cIsAllMet = Boolean(cStats?.allMet);
           let cIsGoalMet = cWatched >= cTarget;
           let cIsInProgress = cWatched > 0 && !cIsGoalMet;
@@ -775,12 +674,15 @@
                 : "is-empty";
           let cTooltip =
             `${century}: ${cWatched}/${cTarget} ${ui("total")}` +
+            (cStats?.counts
+              ? `, ${cStats.counts.foreign}/${cStats.thresholds.foreign} ${ui("foreign")}, ${cStats.counts.animated}/${cStats.thresholds.animated} ${ui("animated")}, ${cStats.counts.adapted}/${cStats.thresholds.adapted} ${ui("adapted")}, ${cStats.counts.original}/${cStats.thresholds.original} ${ui("original")}`
+              : "") +
             (cIsAllMet
               ? ` (${ui("all thresholds met")})`
               : cIsGoalMet
                 ? ` (${ui("goal reached")})`
                 : "");
-          centuryCell = `<th class="period-century-cell completion-matrix-century-cell" scope="rowgroup"><a class="completion-matrix-cell completion-matrix-cell--century ${cClass}" href="${escape(`${window.periodPageUrl("century", century)}&view=films`)}" title="${escape(cTooltip)}" aria-label="${escape(cTooltip)}"><span class="completion-matrix-century-label">${escape(century)}</span><span class="completion-matrix-count">${cWatched}/${cTarget}</span></a></th>`;
+          centuryCell = `<th class="period-century-cell completion-matrix-century-cell" scope="rowgroup"><a class="completion-matrix-cell completion-matrix-cell--century ${cClass}" href="${escape(`${window.periodPageUrl("century", century)}&view=films`)}" title="${escape(cTooltip)}" aria-label="${escape(cTooltip)}"><span class="completion-matrix-century-label">${escape(century)}</span><span class="completion-matrix-count">${cWatched}/${cTarget}</span><span class="completion-matrix-pips" aria-hidden="true"><i class="pip pip--total${cIsGoalMet ? " is-met" : ""}"></i><i class="pip pip--foreign${cMet("foreign") ? " is-met" : ""}"></i><i class="pip pip--animated${cMet("animated") ? " is-met" : ""}"></i><i class="pip pip--adapted${cMet("adapted") ? " is-met" : ""}"></i><i class="pip pip--original${cMet("original") ? " is-met" : ""}"></i></span></a></th>`;
         } else {
           centuryCell =
             '<td class="period-century-gap" aria-hidden="true"></td>';
@@ -1678,7 +1580,7 @@ ${completionSection(
       centuryGoal: window.WATCH_GOAL_TARGETS.century,
     },
   ),
-  `${watchGoalsPeriodMatrixHtml()}${watchGoalSubsection("watchGoalYears", ui("Years"), watchGoalYears, "year")}${watchGoalSubsection("watchGoalDecades", ui("Decades"), watchGoalDecades, "decade")}${watchGoalSubsection("watchGoalCenturies", ui("Centuries"), watchGoalCenturies, "century")}`,
+  watchGoalsPeriodMatrixHtml(),
 )}
 </div>
 <div class="completion-section-wrap${!isTabMatch(activeTab, "canonical-lists") ? " is-hidden" : ""}">
@@ -1737,7 +1639,7 @@ ${completionSection(
   ui(
     "How much of each imported award period's category slots are filled in — data entry, not watch progress.",
   ),
-  `${awardBracketsPeriodMatrixHtml()}${bracketCompletionTable(bracketCompletion)}<div class="completion-subsection completion-bracket-categories"><h3>${escape(ui("By category"))}</h3><p>${escape(ui("Annual award slots across years with at least one watched film."))}</p>${bracketCategoryCompletionGrid(bracketCategoryCompletion)}</div>`,
+  `${awardBracketsPeriodMatrixHtml()}<div class="completion-subsection completion-bracket-categories"><h3>${escape(ui("By category"))}</h3><p>${escape(ui("Annual award slots across years with at least one watched film."))}</p>${bracketCategoryCompletionGrid(bracketCategoryCompletion)}</div>`,
 )}
 </div>
 ${completionCompactActive || inProgressTotal || anyOfficialNomineesTotal() ? "" : `<div class="detail-empty"><h2>${escape(ui("Nothing in progress."))}</h2><p>${escape(ui("Import a watchlist or start a project to track completion."))}</p></div>`}

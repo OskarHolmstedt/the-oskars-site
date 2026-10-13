@@ -180,7 +180,7 @@
       description = ui(
         "Connect your Letterboxd username to detect new diary entries via RSS and start an Intake for them.",
       );
-      actions = `<a class="button-link" href="profile.html#letterboxdProfilePanel">${homeEscape(ui("Connect Letterboxd"))}</a><a class="button-link button-secondary" href="data.html#letterboxdImport">${homeEscape(ui("Import ZIP"))}</a>`;
+      actions = `<a class="button-link" href="data.html#dataSourceCardLetterboxd">${homeEscape(ui("Connect Letterboxd"))}</a><a class="button-link button-secondary" href="data.html#letterboxdImport">${homeEscape(ui("Import ZIP"))}</a>`;
     } else if (!sheetsConnected) {
       eyebrow = ui("Path 4 · Google Sheets");
       heading = ui("Track your archive in Google Sheets");

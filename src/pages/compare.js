@@ -181,7 +181,13 @@
 
   // --- Target search --------------------------------------------------------
 
+  // Reused until buildSearchEntries() returns a different index or the locale
+  // changes. Film, person, and tag metadata change only through aggregate
+  // rebuilds, which also replace that index.
+  let searchCandidateCache = { source: null, locale: "", candidates: [] };
+
   function compareSearchCandidates() {
+    let locale = window.oskarsLocale?.();
     let labels = {
       films: ui("films"),
       allTime: ui("All-time"),
@@ -190,12 +196,17 @@
       projectComplete: ui("Complete"),
       projectArchived: ui("Archived"),
     };
-    return window
-      .buildSearchEntries({
-        locale: window.oskarsLocale?.(),
-        labels,
-        cacheKeySuffix: "compare",
-      })
+    let source = window.buildSearchEntries({
+      locale,
+      labels,
+      cacheKeySuffix: "compare",
+    });
+    if (
+      searchCandidateCache.source === source &&
+      searchCandidateCache.locale === locale
+    )
+      return searchCandidateCache.candidates;
+    let candidates = source
       .filter((entry) => TARGET_TYPE_LABELS[entry.target?.type])
       .map((entry) => {
         let type = entry.target.type;
@@ -247,6 +258,8 @@
           film,
         };
       });
+    searchCandidateCache = { source, locale, candidates };
+    return candidates;
   }
 
   function compareSearchMatches(query, targets) {

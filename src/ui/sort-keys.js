@@ -52,26 +52,21 @@ window.englishTitleSortKey = function (value) {
   return `${articleMatch[2]}, ${articleMatch[1]}`;
 };
 
+const englishTitleCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
+
 /** Compares English titles while ignoring leading articles. @param {*} left Left title. @param {*} right Right title. @returns {number} */
 window.compareEnglishTitles = function (left, right) {
   return (
-    String(window.englishTitleSortKey(left)).localeCompare(
+    englishTitleCollator.compare(
+      String(window.englishTitleSortKey(left)),
       String(window.englishTitleSortKey(right)),
-      undefined,
-      {
-        numeric: true,
-        sensitivity: "base",
-      },
     ) ||
-    String(
-      left && typeof left === "object" ? left.title : left || "",
-    ).localeCompare(
+    englishTitleCollator.compare(
+      String(left && typeof left === "object" ? left.title : left || ""),
       String(right && typeof right === "object" ? right.title : right || ""),
-      undefined,
-      {
-        numeric: true,
-        sensitivity: "base",
-      },
     )
   );
 };

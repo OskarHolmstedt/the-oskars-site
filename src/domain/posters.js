@@ -76,8 +76,7 @@ window.lookupTmdbMovieMetadata = async function (film, options = {}) {
         id: film.tmdbId,
         poster_path: film.poster?.providerId === String(film.tmdbId) ? "" : "",
       }
-    : (await window.lookupTmdbMovieSearch(film, fetchFn)) ||
-      (await window.lookupTmdbTvSearch(film, fetchFn));
+    : await window.lookupTmdbTitleMatch(film, fetchFn);
   if (!match?.id) return null;
   let reference = window.parseTmdbReference(match.id);
   let details =

@@ -316,3 +316,25 @@ window.filmRatingScore = function (value) {
 window.filmRatingSortValue = function (value) {
   return window.filmRatingGrade(value);
 };
+
+/**
+ * Renders the ten ascending half-star options with localized rating range labels.
+ * @param {'minimum'|'maximum'} kind Rating bound to label.
+ * @param {(value: number, label: string) => string} renderOption Page-owned option renderer, including escaping and selection.
+ * @returns {string} Rating range option HTML.
+ */
+window.renderRatingFilterOptions = function (kind, renderOption) {
+  let ui =
+    window.uiText ||
+    ((text, values = {}) =>
+      text.replace(/\{(\w+)\}/g, (_, key) => values[key] ?? ""));
+  return Array.from({ length: 10 }, (_, index) => {
+    let value = (index + 1) / 2;
+    let rating = window.formatStarRating(value);
+    let label = ui(
+      kind === "minimum" ? "At least {rating}" : "At most {rating}",
+      { rating },
+    );
+    return renderOption(value, label);
+  }).join("");
+};

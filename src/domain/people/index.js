@@ -137,9 +137,27 @@ window.isMultiNomineeCategory = function (category) {
   );
 };
 
+const personNameNormalizationCache = new Map();
+const PERSON_NAME_NORMALIZATION_CACHE_LIMIT = 20000;
+
 /** Normalizes a person name to its canonical id. @param {*} value Name. @returns {string} Person id. */
 window.normalizePersonName = function (value) {
-  return window.normalizeTitle(window.stripPersonDisambiguator(value));
+  let cacheable = typeof value === "string" && value.length <= 1024;
+  if (cacheable && personNameNormalizationCache.has(value))
+    return personNameNormalizationCache.get(value);
+  let normalized = window.normalizeTitle(
+    window.stripPersonDisambiguator(value),
+  );
+  if (cacheable) {
+    if (
+      personNameNormalizationCache.size >= PERSON_NAME_NORMALIZATION_CACHE_LIMIT
+    )
+      personNameNormalizationCache.delete(
+        personNameNormalizationCache.keys().next().value,
+      );
+    personNameNormalizationCache.set(value, normalized);
+  }
+  return normalized;
 };
 
 /** Parses credited names and reports ambiguous separators. @param {*} value Credit text. @returns {{names: string[], ambiguous: boolean}} Parsed credit. */
@@ -245,6 +263,121 @@ window.loadPeopleDirectoryEdges = async function (options = {}) {
     );
     await window.ensureFocusedShellData?.().catch(() => {});
   }
+};
+
+// The recipient identity projection follows the index's first-seen order,
+// without building credits, statistics, profession groups or subjects.
+let awardRecipientIdentityCache = null;
+
+function awardRecipientIdentities() {
+  let key = [
+    state,
+    state.aggregateVersion,
+    state.filmsById,
+    Object.keys(state.filmsById || {}).length,
+    state.watchlist,
+    state.watchlist?.length,
+    state.watchedOther,
+    state.watchedOther?.length,
+    state.peopleAliases,
+    state.peopleDirectoryEdges,
+    window.OSKARS_STATE_HYDRATION_COMPLETE,
+    state.isPublicProfileView,
+    state.personSupabaseIds,
+    window.OSKARS_SHARED_FILM_ARCHIVE_VERSION,
+    window.OSKARS_SHARED_FILM_ARCHIVE,
+    state.officialResults,
+  ];
+  if (
+    awardRecipientIdentityCache?.key.every(
+      (value, index) => value === key[index],
+    )
+  )
+    return awardRecipientIdentityCache.people;
+  let people = {};
+  let ids = new Map();
+  function note(name, supabasePersonId = null) {
+    let variantId = window.normalizePersonName(name);
+    if (!variantId) return;
+    let canonicalName = state.peopleAliases?.[variantId] || String(name).trim();
+    let id = window.normalizePersonName(canonicalName);
+    if (!id) return;
+    people[id] ||= { id, name: canonicalName, supabasePersonId: null };
+    if (!ids.has(id)) ids.set(id, new Set());
+    if (supabasePersonId) ids.get(id).add(supabasePersonId);
+    if (state.personSupabaseIds?.[id])
+      ids.get(id).add(state.personSupabaseIds[id]);
+  }
+  function directorId(record, name) {
+    let id = window.normalizePersonName(name);
+    let index = (record.directors || []).findIndex(
+      (candidate) => window.normalizePersonName(candidate) === id,
+    );
+    return index >= 0 ? record.directorIds?.[index] || null : null;
+  }
+  function directors(record) {
+    return record.directors?.length
+      ? record.directors
+      : window.parsePersonCredit(record.director).names;
+  }
+  Object.values(state.filmsById || {}).forEach((film) => {
+    directors(film).forEach((name) => note(name, directorId(film, name)));
+    (film.awards || []).forEach((award) => {
+      if (!window.PERSON_AWARD_PROFESSIONS[award.category]) return;
+      window
+        .awardRecipients(award)
+        .forEach((recipient) =>
+          note(recipient.name, recipient.supabasePersonId),
+        );
+    });
+  });
+  let edges = peopleDirectoryEdges();
+  if (!edges)
+    (state.watchlist || []).forEach((item) =>
+      window
+        .parsePersonCredit(item.director)
+        .names.forEach((name) => note(name, directorId(item, name))),
+    );
+  (state.watchedOther || []).forEach((film) =>
+    directors(film).forEach((name) => note(name, directorId(film, name))),
+  );
+  if (edges) edges.forEach((row) => note(row.name, row.person_id));
+  else
+    (window.sharedArchiveCandidateFilms?.() || []).forEach((film) => {
+      if (!film.id) return;
+      Object.values(film.people || {}).forEach((credit) =>
+        note(
+          credit.name,
+          credit.supabasePersonIds?.length === 1
+            ? credit.supabasePersonIds[0]
+            : null,
+        ),
+      );
+    });
+  Object.entries(people).forEach(([id, person]) => {
+    let candidates = ids.get(id);
+    person.supabasePersonId = candidates.size === 1 ? [...candidates][0] : null;
+  });
+  awardRecipientIdentityCache = { key, people };
+  return people;
+}
+
+/** Looks up a canonical recipient's first-seen display name, identity and portrait without rebuilding the people index. @param {string} canonicalId Canonical normalized person ID. @returns {RecipientPerson|null} Recipient summary, or null if the index would not contain this person. */
+window.awardRecipientPerson = function (canonicalId) {
+  let id = window.normalizePersonName(canonicalId);
+  if (
+    state.peopleIndexVersion === (Number(state.aggregateVersion) || 0) &&
+    state.peopleById
+  )
+    return state.peopleById[id] || null;
+  let person = awardRecipientIdentities()[id];
+  return person
+    ? {
+        ...person,
+        portrait:
+          window.normalizePosterRecord?.(state.personPortraits?.[id]) || null,
+      }
+    : null;
 };
 
 /** Rebuilds people, film-profession, and credit-subject indexes. @returns {Record<string, PersonRecord>} People index. */
@@ -481,7 +614,10 @@ window.rebuildPeopleIndex = function () {
         .parsePersonCredit(item.director)
         .names.forEach((name) => addWatchlistDirector(name, item));
     });
+  let watchedOtherById = new Map();
   (state.watchedOther || []).forEach((film) => {
+    // Preserve the first-match behavior of the rating lookup for duplicate IDs.
+    if (!watchedOtherById.has(film.id)) watchedOtherById.set(film.id, film);
     let directors = film.directors?.length
       ? film.directors
       : window.parsePersonCredit(film.director).names;
@@ -526,6 +662,7 @@ window.rebuildPeopleIndex = function () {
   let doneFinalize = window.startOskarsPerformance?.(
     "rebuildPeopleIndex:finalizePeople",
   );
+  let periodCollator = new Intl.Collator(undefined, { numeric: true });
   Object.values(peopleById).forEach((person) => {
     person.aliases.sort((a, b) => a.localeCompare(b));
     person.professions.sort((a, b) => a.localeCompare(b));
@@ -534,10 +671,9 @@ window.rebuildPeopleIndex = function () {
     // to do here.
     person.credits.sort(
       (a, b) =>
-        String(b.period || "").localeCompare(
+        periodCollator.compare(
+          String(b.period || ""),
           String(a.period || ""),
-          undefined,
-          { numeric: true },
         ) ||
         window.compareEnglishTitles(a.filmTitle, b.filmTitle) ||
         String(a.category).localeCompare(String(b.category)),
@@ -556,9 +692,7 @@ window.rebuildPeopleIndex = function () {
         .map((filmId) => state.filmsById?.[filmId])
         .concat(
           person.watchedOtherIds
-            .map((filmId) =>
-              (state.watchedOther || []).find((film) => film.id === filmId),
-            )
+            .map((filmId) => watchedOtherById.get(filmId))
             .filter(Boolean),
         )
         .filter(Boolean),
@@ -607,6 +741,9 @@ window.personStorageKey = function (person) {
   return person?.supabasePersonId || person?.id || "";
 };
 
+let personUuidIndexSource = null;
+let peopleByUuid = new Map();
+
 /**
  * Finds a people-index record by either key form - a people.id uuid or a
  * legacy name slug.
@@ -617,10 +754,17 @@ window.findPersonByKey = function (key) {
   let people = window.ensurePeopleIndex?.() || state.peopleById || {};
   if (!key) return null;
   if (!window.isUuid?.(key)) return people[key] || null;
-  return (
-    Object.values(people).find((person) => person.supabasePersonId === key) ||
-    null
-  );
+  // Rebuilds and directory-edge invalidation replace the people index.
+  // Keep UUID lookup alongside that index rather than scanning it per person.
+  if (personUuidIndexSource !== people) {
+    peopleByUuid = new Map();
+    Object.values(people).forEach((person) => {
+      if (person.supabasePersonId && !peopleByUuid.has(person.supabasePersonId))
+        peopleByUuid.set(person.supabasePersonId, person);
+    });
+    personUuidIndexSource = people;
+  }
+  return peopleByUuid.get(key) || null;
 };
 
 /** Returns the current people index, rebuilding stale indexes. @returns {Record<string, PersonRecord>} People index. */

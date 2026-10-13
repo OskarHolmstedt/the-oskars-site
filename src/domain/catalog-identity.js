@@ -49,11 +49,29 @@ window.filmTmdbIdentity = function (value) {
   return positiveInteger(text) ? text : null;
 };
 
+// Letterboxd can still link a TMDB entry that TMDB has since deleted (merged
+// into a series season, for example); only a definite 404 rejects it.
+async function tmdbReferenceExists(identity, fetchFn) {
+  try {
+    await window.requestPosterJson(
+      fetchFn,
+      `${window.TMDB_API_BASE}/${window.tmdbResourcePath(window.parseTmdbReference(identity))}`,
+      { headers: { accept: "application/json" } },
+      "TMDB",
+      2,
+    );
+    return true;
+  } catch (error) {
+    return Number(error?.status) !== 404;
+  }
+}
+
 /**
- * Looks a film up on TMDB by Letterboxd URL, or by title and year: a movie first, then a TV series.
+ * Looks a film up on TMDB by Letterboxd URL, or by title and year: a movie
+ * first, then a TV series, then one season of a series.
  * @param {{title?: string, year?: number|string|null, type?: string, letterboxdUrl?: string, url?: string}} film Film to identify.
  * @param {{fetchFn?: Function}} [options] Network controls.
- * @returns {Promise<string|null>} The movie ID or "TV:<id>" reference, or null without a confident match.
+ * @returns {Promise<string|null>} The movie ID or "TV:<id>[/S<season>]" reference, or null without a confident match.
  */
 window.lookupTmdbFilmIdentity = async function (film, options = {}) {
   let fetchFn = identityFetch(options);
@@ -63,7 +81,8 @@ window.lookupTmdbFilmIdentity = async function (film, options = {}) {
       lbUrl,
       fetchFn,
     );
-    if (directTmdbId) return String(directTmdbId);
+    if (directTmdbId && (await tmdbReferenceExists(directTmdbId, fetchFn)))
+      return String(directTmdbId);
   }
 
   let title = String(film?.title || "").trim();
@@ -74,18 +93,15 @@ window.lookupTmdbFilmIdentity = async function (film, options = {}) {
   }
   if (!String(searchFilm?.title || "").trim()) return null;
 
-  let match =
-    (await window.lookupTmdbMovieSearch(searchFilm, fetchFn)) ||
-    (await window.lookupTmdbTvSearch(searchFilm, fetchFn));
+  let match = await window.lookupTmdbTitleMatch(searchFilm, fetchFn);
 
   if (!match && lbUrl && title) {
     let slugTitle = window.extractLetterboxdSlugTitle?.(lbUrl);
-    if (slugTitle && slugTitle.toLowerCase() !== title.toLowerCase()) {
-      let slugFilm = { ...film, title: slugTitle };
-      match =
-        (await window.lookupTmdbMovieSearch(slugFilm, fetchFn)) ||
-        (await window.lookupTmdbTvSearch(slugFilm, fetchFn));
-    }
+    if (slugTitle && slugTitle.toLowerCase() !== title.toLowerCase())
+      match = await window.lookupTmdbTitleMatch(
+        { ...film, title: slugTitle },
+        fetchFn,
+      );
   }
 
   return match?.id ? String(match.id) : null;

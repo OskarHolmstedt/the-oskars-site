@@ -571,16 +571,19 @@
                 "Public RSS sync is not connected. Enter your username to auto-sync future watches.",
               ),
         )}</p>
-        <div class="data-actions">
-          ${
-            lbUsername
-              ? `<button id="disconnectLetterboxdSourceBtn" type="button" class="button-secondary button-danger-subtle">${escape(ui("Disconnect RSS"))}</button>
-                 <a href="profile.html#letterboxdProfilePanel" class="button-link button-secondary">${escape(ui("Profile settings"))}</a>
-                 <a href="#letterboxdImport" class="button-link">${escape(ui("Re-import ZIP"))}</a>`
-              : `<a href="profile.html#letterboxdProfilePanel" class="button-link button-secondary">${escape(ui("Connect username"))}</a>
-                 <a href="#letterboxdImport" class="button-link">${escape(ui("Import ZIP"))}</a>`
-          }
-        </div>
+        ${
+          lbUsername
+            ? `<div class="data-actions">
+                 <button id="syncNowLetterboxdSourceBtn" type="button" class="button-link">${escape(ui("Sync now"))}</button>
+                 <button id="disconnectLetterboxdSourceBtn" type="button" class="button-secondary button-danger-subtle">${escape(ui("Disconnect RSS"))}</button>
+                 <a href="#letterboxdImport" class="button-link button-secondary">${escape(ui("Re-import ZIP"))}</a>
+               </div>`
+            : `<form id="connectLetterboxdForm" class="data-source-connect-form">
+                 <input type="text" id="letterboxdUsernameInput" placeholder="Letterboxd username" autocomplete="off" spellcheck="false" required>
+                 <button type="submit" class="button-link">${escape(ui("Connect"))}</button>
+                 <a href="#letterboxdImport" class="button-link button-secondary">${escape(ui("Import ZIP"))}</a>
+               </form>`
+        }
       </article>
 
       <article class="data-source-card" id="dataSourceCardImdb">
@@ -635,6 +638,70 @@
       </article>
     `;
 
+    document
+      .getElementById("connectLetterboxdForm")
+      ?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        let input = document.getElementById("letterboxdUsernameInput");
+        let username = (input?.value || "").trim();
+        if (!username) return;
+        let status = document.getElementById("dataSourcesStatus");
+        if (status) {
+          status.style.display = "block";
+          status.textContent = ui("Connecting Letterboxd RSS sync…");
+        }
+        try {
+          dataSourcesProfile =
+            await window.setSupabaseProfileLetterboxd(username);
+          renderDataSources(dataSourcesProfile);
+          if (status) {
+            status.textContent = ui(
+              "Letterboxd username connected. RSS sync will detect future watches.",
+            );
+          }
+        } catch (err) {
+          if (status) status.textContent = err.message || String(err);
+        }
+      });
+    document
+      .getElementById("syncNowLetterboxdSourceBtn")
+      ?.addEventListener("click", async (event) => {
+        let button = event.currentTarget;
+        let status = document.getElementById("dataSourcesStatus");
+        button.disabled = true;
+        if (status) {
+          status.style.display = "block";
+          status.textContent = ui("Syncing from Letterboxd…");
+        }
+        try {
+          let result = await window.syncLetterboxdIntakes?.({ force: true });
+          if (result?.status === "synced") {
+            if (status) {
+              status.textContent =
+                result.createdCount > 0
+                  ? ui("Synced {count} new watch(es) into Intake.", {
+                      count: result.createdCount,
+                    })
+                  : ui("All caught up — no new Letterboxd watches found.");
+            }
+            dataSourcesProfile = await window.loadSupabaseProfile();
+            renderDataSources(dataSourcesProfile);
+          } else if (result?.status === "fetch_failed") {
+            if (status) {
+              status.textContent = ui(
+                "Could not fetch Letterboxd feed (check username or profile privacy).",
+              );
+            }
+          } else {
+            if (status)
+              status.textContent = result?.reason || ui("Sync finished.");
+          }
+        } catch (error) {
+          if (status) status.textContent = error.message || String(error);
+        } finally {
+          button.disabled = false;
+        }
+      });
     document
       .getElementById("disconnectLetterboxdSourceBtn")
       ?.addEventListener("click", handleLetterboxdDisconnect);
@@ -1008,6 +1075,20 @@
         }
       });
     document
+      .getElementById("downloadAccountBackupBtn")
+      ?.addEventListener("click", async () => {
+        let status = document.getElementById("downloadStatus");
+        try {
+          if (status) status.textContent = ui("Building full account backup…");
+          let backup = await window.buildSupabaseAccountBackup();
+          downloadJson(backup, stampedFilename("the-oskars-account-backup"));
+          if (status)
+            status.textContent = ui("Full account backup downloaded.");
+        } catch (error) {
+          if (status) status.textContent = error.message || String(error);
+        }
+      });
+    document
       .getElementById("uploadInput")
       .addEventListener("change", async (event) => {
         let status = document.getElementById("restoreStatus");
@@ -1316,7 +1397,7 @@
                   )
                 : ui("Letterboxd import saved to your account.");
             let connectCta = !profile?.letterboxd_username
-              ? `<a class="button-link button-secondary" href="profile.html#letterboxdProfilePanel">${escape(ui("Connect username for RSS sync"))}</a>`
+              ? `<a class="button-link button-secondary" href="#dataSourceCardLetterboxd">${escape(ui("Connect username for RSS sync"))}</a>`
               : "";
             status.innerHTML = `<div class="data-import-success"><strong>${escape(celebrationText)}</strong><div class="data-actions" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;"><a class="button-link" href="periods.html">${escape(ui("Explore your decades →"))}</a><a class="button-link button-secondary" href="index.html">${escape(ui("Go to Home"))}</a>${connectCta}</div></div>`;
             pendingLetterboxd = null;

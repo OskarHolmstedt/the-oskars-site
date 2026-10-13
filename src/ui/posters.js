@@ -84,7 +84,7 @@ function stablePortraitPlaceholder(personId) {
 /**
  * Renders a person portrait from the record or portrait store, falling back
  * to a stable placeholder sketch when the person has none.
- * @param {PersonRecord} person Person to render.
+ * @param {RecipientPerson} person Person to render.
  * @param {string} [variant] Presentation variant.
  * @param {{priority?: string, hero?: boolean}} [options] Priority and presentation options.
  * @returns {string}
@@ -110,13 +110,13 @@ window.renderPersonPortrait = function (
     let figureClass = `person-portrait person-portrait--${escape(variant)} person-portrait--placeholder-sketch`;
     if (variant !== "detail")
       return `<figure class="${figureClass}">${image}</figure>`;
-    let personLink = window.personPageUrl?.(person.id) || "";
+    let personLink = window.personPageUrl?.(person) || "";
     return `<figure class="${figureClass}">${personLink ? `<a href="${escape(personLink)}">${image}</a>` : image}</figure>`;
   }
   let image = `<img src="${escape(portrait.url)}" alt="Portrait of ${escape(person.name)}" ${imgAttrs}>`;
   if (variant !== "detail")
     return `<figure class="person-portrait person-portrait--${escape(variant)}">${image}</figure>`;
-  let personLink = window.personPageUrl?.(person.id) || "";
+  let personLink = window.personPageUrl?.(person) || "";
   return `<figure class="person-portrait person-portrait--${escape(variant)}">${
     personLink ? `<a href="${escape(personLink)}">${image}</a>` : image
   }${
@@ -129,17 +129,18 @@ window.renderPersonPortrait = function (
 /**
  * Resolves an award's unique recipients to canonical people.
  * @param {AwardRecord} award Award record.
- * @returns {PersonRecord[]}
+ * @returns {RecipientPerson[]}
  */
 window.awardRecipientPeople = function (award) {
   let seen = new Set();
-  let peopleById = window.ensurePeopleIndex?.() || state.peopleById || {};
   return window
     .awardRecipients(award)
     .map((recipient) => {
       let canonicalName =
         state.peopleAliases?.[recipient.personId] || recipient.name;
-      return peopleById[window.normalizePersonName(canonicalName)];
+      return window.awardRecipientPerson
+        ? window.awardRecipientPerson(window.normalizePersonName(canonicalName))
+        : state.peopleById?.[window.normalizePersonName(canonicalName)];
     })
     .filter((person) => person && !seen.has(person.id) && seen.add(person.id));
 };

@@ -108,13 +108,18 @@ window.renderPeriodHighlights = function (options) {
       right.nominations - left.nominations ||
       left.name.localeCompare(right.name),
   )[0];
+  function personUrl(record) {
+    return window.personPageUrl(
+      window.awardRecipientPerson?.(record.id) || record.id,
+    );
+  }
   let personSummary =
     [
       topDirector
-        ? `<div><b>${escape(window.uiText?.("Director") || "Director")}</b><a href="${escape(window.personPageUrl(topDirector.id))}">${escape(topDirector.name)}</a><span>${topDirector.wins} ${window.uiText?.("wins") || "wins"} · ${topDirector.films} ${window.uiText?.("films") || "films"}</span></div>`
+        ? `<div><b>${escape(window.uiText?.("Director") || "Director")}</b><a href="${escape(personUrl(topDirector))}">${escape(topDirector.name)}</a><span>${topDirector.wins} ${window.uiText?.("wins") || "wins"} · ${topDirector.films} ${window.uiText?.("films") || "films"}</span></div>`
         : "",
       topPerformer
-        ? `<div><b>${escape(window.uiText?.("Performer") || "Performer")}</b><a href="${escape(window.personPageUrl(topPerformer.id))}">${escape(topPerformer.name)}</a><span>${topPerformer.wins} ${window.uiText?.("wins") || "wins"} · ${topPerformer.nominations} ${window.uiText?.("noms") || "noms"}</span></div>`
+        ? `<div><b>${escape(window.uiText?.("Performer") || "Performer")}</b><a href="${escape(personUrl(topPerformer))}">${escape(topPerformer.name)}</a><span>${topPerformer.wins} ${window.uiText?.("wins") || "wins"} · ${topPerformer.nominations} ${window.uiText?.("noms") || "noms"}</span></div>`
         : "",
     ]
       .filter(Boolean)

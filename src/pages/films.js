@@ -328,17 +328,13 @@
   }
 
   function ratingOptions(kind) {
-    return Array.from({ length: 10 }, (_, index) => {
-      let value = (index + 1) / 2;
-      let label = `${value % 1 ? value : value.toFixed(0)}★`;
-      return option(
+    return window.renderRatingFilterOptions(kind, (value, label) =>
+      option(
         value,
-        kind === "minimum"
-          ? ui("At least {rating}", { rating: label })
-          : ui("At most {rating}", { rating: label }),
+        label,
         kind === "minimum" ? "minimumRating" : "maximumRating",
-      );
-    }).join("");
+      ),
+    );
   }
 
   function runtimeOptions(kind) {

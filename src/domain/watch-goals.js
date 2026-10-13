@@ -4,11 +4,12 @@
  * independent of award nominee coverage (see award-bracket-completion.js).
  */
 
-window.WATCH_GOAL_TARGETS = { year: 10, decade: 20, century: 40 };
+window.WATCH_GOAL_TARGETS = { year: 10, decade: 20, century: 40, alltime: 10 };
 
 function watchGoalPeriodKey(periodType, year) {
   let numericYear = Number(year);
   if (!Number.isFinite(numericYear)) return null;
+  if (periodType === "alltime") return "alltime";
   if (periodType === "year") return String(numericYear);
   if (periodType === "decade") return window.getDecadeKey(numericYear);
   return window.getCenturyKey(numericYear);
@@ -17,7 +18,7 @@ function watchGoalPeriodKey(periodType, year) {
 function watchGoalSourceParts(sourceId) {
   let [periodType, ...periodParts] = String(sourceId || "").split(":");
   let period = periodParts.join(":");
-  return ["year", "decade", "century"].includes(periodType) && period
+  return ["year", "decade", "century", "alltime"].includes(periodType) && period
     ? { periodType, period }
     : null;
 }
@@ -65,7 +66,7 @@ window.watchGoalProjectSource = function (sourceId) {
 /**
  * Watched-film counts per period against WATCH_GOAL_TARGETS, for every
  * period with at least one watched film.
- * @param {"year"|"decade"|"century"} periodType
+ * @param {"year"|"decade"|"century"|"alltime"} periodType
  * @param {Object} [options] Computation options.
  * @param {Object} [options.state] Explicit state to read instead of
  *   window.state (issue #597's compact-read cutover) - every existing call

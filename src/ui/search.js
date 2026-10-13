@@ -295,6 +295,7 @@
       target: { type: "period", id: "alltime:alltime" },
       href: window.periodPageUrl("alltime", "alltime"),
     });
+    entries.forEach(normalizedEntryFields);
     done?.(`${entries.length} entries`);
     window._oskarsSearchEntriesCache[cacheKey] = entries;
     return entries;
@@ -336,27 +337,74 @@
   // otherwise a person with many films can get buried under those films just
   // because "director" or a tag happens to contain the query too.
   let NAME_MATCH_BASE = 10;
+  // Weak ownership lets replaced Compare candidate lists be collected. Snapshot
+  // aliases because generic callers can edit their arrays in place.
+  let normalizedEntries = new WeakMap();
+  function normalizedEntryFields(entry) {
+    let aliases = entry.aliasNames || [];
+    let cached = normalizedEntries.get(entry);
+    if (
+      cached &&
+      cached.name === entry.name &&
+      cached.meta === entry.meta &&
+      cached.searchText === entry.searchText &&
+      cached.type === entry.type &&
+      cached.aliases.length === aliases.length &&
+      cached.aliases.every((alias, index) => alias === aliases[index])
+    )
+      return cached.fields;
+    let fields = {
+      name: window.normalizeSearchText(entry.name),
+      aliases: aliases.map((alias) => window.normalizeSearchText(alias)),
+      meta: window.normalizeSearchText(entry.meta),
+      searchText: window.normalizeSearchText(entry.searchText || ""),
+      type: window.normalizeSearchText(entry.type),
+    };
+    normalizedEntries.set(entry, {
+      name: entry.name,
+      meta: entry.meta,
+      searchText: entry.searchText,
+      type: entry.type,
+      aliases: aliases.slice(),
+      fields,
+    });
+    return fields;
+  }
+
   function entryMatchPriority(entry, normalizedQuery) {
-    let nameTier = fieldMatchTier(
-      window.normalizeSearchText(entry.name),
-      normalizedQuery,
-    );
-    (entry.aliasNames || []).forEach((alias) => {
-      nameTier = Math.max(
-        nameTier,
-        fieldMatchTier(window.normalizeSearchText(alias), normalizedQuery),
-      );
+    let fields = normalizedEntryFields(entry);
+    let nameTier = fieldMatchTier(fields.name, normalizedQuery);
+    fields.aliases.forEach((alias) => {
+      nameTier = Math.max(nameTier, fieldMatchTier(alias, normalizedQuery));
     });
     if (nameTier >= 0) return NAME_MATCH_BASE + nameTier;
-    let contextTier = Math.max(
-      fieldMatchTier(window.normalizeSearchText(entry.meta), normalizedQuery),
-      fieldMatchTier(
-        window.normalizeSearchText(entry.searchText || ""),
-        normalizedQuery,
-      ),
-      fieldMatchTier(window.normalizeSearchText(entry.type), normalizedQuery),
+    return Math.max(
+      fieldMatchTier(fields.meta, normalizedQuery),
+      fieldMatchTier(fields.searchText, normalizedQuery),
+      fieldMatchTier(fields.type, normalizedQuery),
     );
-    return contextTier;
+  }
+
+  // Returns the first `limit` items of a stable sort without sorting every
+  // item: equal items keep their input order, so an item that does not beat
+  // the last kept one is skipped.
+  function firstSorted(items, limit, compare) {
+    let kept = [];
+    if (!(limit > 0)) return kept;
+    items.forEach((item) => {
+      if (kept.length >= limit && compare(item, kept[kept.length - 1]) >= 0)
+        return;
+      let low = 0;
+      let high = kept.length;
+      while (low < high) {
+        let middle = (low + high) >> 1;
+        if (compare(item, kept[middle]) < 0) high = middle;
+        else low = middle + 1;
+      }
+      kept.splice(low, 0, item);
+      if (kept.length > limit) kept.pop();
+    });
+    return kept;
   }
 
   /** Ranks matching search entries by name, alias, and secondary context.
@@ -374,15 +422,14 @@
         priority: entryMatchPriority(entry, normalized),
       }))
       .filter((scoredEntry) => scoredEntry.priority >= MATCH_SUBSTRING);
-    scored.sort(
-      (left, right) =>
-        right.priority - left.priority ||
-        options.tieBreaker?.(left.entry, right.entry) ||
-        left.entry.name.localeCompare(right.entry.name),
-    );
-    let matches = scored.map((scoredEntry) => scoredEntry.entry);
-    if (typeof options.limit === "number")
-      return matches.slice(0, options.limit);
-    return matches;
+    let compare = (left, right) =>
+      right.priority - left.priority ||
+      options.tieBreaker?.(left.entry, right.entry) ||
+      left.entry.name.localeCompare(right.entry.name);
+    let ranked =
+      typeof options.limit === "number"
+        ? firstSorted(scored, options.limit, compare)
+        : scored.sort(compare);
+    return ranked.map((scoredEntry) => scoredEntry.entry);
   };
 })();

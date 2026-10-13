@@ -116,14 +116,56 @@ window.extractLetterboxdSlugTitle = function (url) {
 };
 
 /**
- * Resolves a TMDB ID directly from a Letterboxd film URL by fetching its HTML.
+ * Reads the TMDB reference a Letterboxd film page names: its body's
+ * data-tmdb-id, else its TMDB link. Placeholder ids such as `tv/0` (a page
+ * Letterboxd has not linked) are ignored. Kept in parity with
+ * supabase/functions/letterboxd-film/index.ts.
+ * @param {string} html Letterboxd film page HTML.
+ * @returns {string|null} The movie ID or "TV:<id>[/S<season>[E<episode>]]" reference, or null.
+ */
+window.parseLetterboxdTmdbReference = function (html) {
+  let text = String(html || "");
+  let dataId = text.match(/data-tmdb-id=["']([1-9]\d*)["']/i)?.[1];
+  if (dataId)
+    return /data-tmdb-type=["']tv["']/i.test(text) ? `TV:${dataId}` : dataId;
+  let link = text.match(
+    /themoviedb\.org\/(movie|tv)\/([1-9]\d*)(?:\/season\/(\d+)(?:\/episode\/([1-9]\d*))?)?/i,
+  );
+  if (!link) return null;
+  if (link[1].toLowerCase() === "movie") return link[2];
+  let reference = `TV:${link[2]}`;
+  if (link[3] !== undefined) reference += `/S${Number(link[3])}`;
+  if (link[4] !== undefined) reference += `E${Number(link[4])}`;
+  return reference;
+};
+
+/**
+ * Resolves the TMDB reference a Letterboxd film link names. letterboxd.com
+ * sends no CORS headers, so a page with a Supabase client asks the
+ * letterboxd-film Edge Function; only a context without one (such as the
+ * owner Sheets script under Node) fetches the page itself.
  * @param {string} url Letterboxd URL.
- * @param {Function} [fetchFn] Fetch implementation.
+ * @param {Function} [fetchFn] Fetch implementation for the direct page fetch.
  * @returns {Promise<string|null>} TMDB ID or TV reference string, or null.
  */
 window.lookupLetterboxdFilmTmdbId = async function (url, fetchFn) {
   let targetUrl = String(url || "").trim();
   if (!targetUrl || !/letterboxd\.com|boxd\.it/i.test(targetUrl)) return null;
+  let ready = await window.ensureSupabaseClient?.().catch(() => null);
+  if (ready?.client?.functions) {
+    try {
+      let { data } = await ready.client.functions.invoke("letterboxd-film", {
+        body: { url: targetUrl },
+      });
+      let reference = String(data?.tmdbId ?? "");
+      return data?.ok &&
+        /^(?:[1-9]\d*|TV:[1-9]\d*(?:\/S\d+(?:E[1-9]\d*)?)?)$/.test(reference)
+        ? reference
+        : null;
+    } catch (_err) {
+      return null;
+    }
+  }
   let fetcher =
     fetchFn ||
     (typeof window !== "undefined" && window.fetch) ||
@@ -135,24 +177,7 @@ window.lookupLetterboxdFilmTmdbId = async function (url, fetchFn) {
     });
     if (!response || !response.ok) return null;
     let html = typeof response.text === "function" ? await response.text() : "";
-    if (!html) return null;
-
-    let idMatch = html.match(/data-tmdb-id=["'](\d+)["']/i);
-    let typeMatch = html.match(/data-tmdb-type=["'](tv|movie)["']/i);
-    if (idMatch) {
-      let tmdbId = idMatch[1];
-      let isTv = typeMatch && typeMatch[1].toLowerCase() === "tv";
-      return isTv ? `TV:${tmdbId}` : tmdbId;
-    }
-
-    let linkMatch = html.match(
-      /https?:\/\/(?:www\.)?themoviedb\.org\/(movie|tv)\/(\d+)/i,
-    );
-    if (linkMatch) {
-      let isTv = linkMatch[1].toLowerCase() === "tv";
-      let tmdbId = linkMatch[2];
-      return isTv ? `TV:${tmdbId}` : tmdbId;
-    }
+    return window.parseLetterboxdTmdbReference(html);
   } catch (_err) {
     // Unsupported or unreachable network
   }
@@ -344,13 +369,19 @@ window.lookupTmdbMovieSearch = async function (film, fetchFn) {
       );
       let directMatch = window.selectTmdbMovie(scoringFilm, data.results);
       if (directMatch) return directMatch;
-      let candidates = (data.results || [])
-        .slice(0, 8)
-        .filter(
-          (result) =>
-            candidateYear == null ||
-            posterYear(result.release_date) === String(candidateYear),
-        );
+      // TMDB's year filter matches any release in that year, so a result
+      // whose primary release is later (a festival premiere years before
+      // its theatrical run) is still a candidate. It goes after the
+      // primary-year results, keeping their rank penalty unchanged, and
+      // without the year bonus only an exact title can select it.
+      let topResults = (data.results || []).slice(0, 8);
+      let primaryYear = (result) =>
+        candidateYear == null ||
+        posterYear(result.release_date) === String(candidateYear);
+      let candidates = [
+        ...topResults.filter(primaryYear),
+        ...topResults.filter((result) => !primaryYear(result)),
+      ];
       let detailsById = {};
       for (let result of candidates) {
         try {
@@ -384,9 +415,12 @@ window.lookupTmdbMovieSearch = async function (film, fetchFn) {
  * `id` already in the "TV:<seriesId>" notation parseTmdbReference expects,
  * so every downstream consumer (lookupTmdbMovieDetails, tmdbResourcePath)
  * works unchanged.
- * @param {FilmRecord} film Film. @param {Function} fetchFn Fetch implementation. @returns {Promise<Object|null>} TMDB result.
+ * @param {FilmRecord} film Film.
+ * @param {Function} fetchFn Fetch implementation.
+ * @param {{yearTolerance?: number}} [options] Years an exact-title series' first-air year may differ by (default 0).
+ * @returns {Promise<Object|null>} TMDB result.
  */
-window.lookupTmdbTvSearch = async function (film, fetchFn) {
+window.lookupTmdbTvSearch = async function (film, fetchFn, options = {}) {
   for (let queryTitle of window.tmdbMovieSearchTitleVariants(film.title)) {
     let params = new URLSearchParams({
       query: queryTitle || film.title,
@@ -400,10 +434,84 @@ window.lookupTmdbTvSearch = async function (film, fetchFn) {
       "TMDB",
       2,
     );
-    let match = window.selectTmdbTvShow(film, data.results);
+    let match = window.selectTmdbTvShow(
+      film,
+      data.results,
+      options.yearTolerance,
+    );
     if (match) return { ...match, id: `TV:${match.id}` };
   }
   return null;
+};
+
+/**
+ * Finds one season of a TMDB series catalogued under its own title, such as
+ * "Twin Peaks: The Return" (Twin Peaks season 3). Only a series whose name
+ * begins the title is fetched, and its "<series> <season name>" must equal
+ * the title. Returns a match with `id` in "TV:<seriesId>/S<season>" notation.
+ * @param {FilmRecord} film Film. @param {Function} fetchFn Fetch implementation. @returns {Promise<Object|null>} TMDB result.
+ */
+window.lookupTmdbTvSeasonSearch = async function (film, fetchFn) {
+  let title = String(film?.title || "").trim();
+  let queries = [title, title.split(":")[0].trim()].filter(
+    (query, index, all) => query && all.indexOf(query) === index,
+  );
+  let checked = new Set();
+  for (let query of queries) {
+    let params = new URLSearchParams({
+      query,
+      include_adult: "false",
+      language: "en-US",
+    });
+    let data = await window.requestPosterJson(
+      fetchFn,
+      `${window.TMDB_API_BASE}/search/tv?${params}`,
+      { headers: { accept: "application/json" } },
+      "TMDB",
+      2,
+    );
+    for (let series of (data.results || []).slice(0, 5)) {
+      if (checked.has(series.id)) continue;
+      checked.add(series.id);
+      if (!window.tmdbSeriesPrefixesTitle(film, series)) continue;
+      let details;
+      try {
+        details = await window.requestPosterJson(
+          fetchFn,
+          `${window.TMDB_API_BASE}/tv/${encodeURIComponent(series.id)}?language=en-US`,
+          { headers: { accept: "application/json" } },
+          "TMDB",
+          2,
+        );
+      } catch (err) {
+        console.warn(`TMDB season lookup failed for ${series.name}`, err);
+        continue;
+      }
+      let season = window.selectTmdbTvSeason(film, details);
+      if (season)
+        return {
+          ...series,
+          id: `TV:${series.id}/S${season.season_number}`,
+          poster_path: season.poster_path || series.poster_path,
+        };
+    }
+  }
+  return null;
+};
+
+/**
+ * Finds a film on TMDB by title and year: a movie first, then a whole TV
+ * series (an exact title may have first aired up to two years away, as
+ * Letterboxd often dates a series by its premiere), then one season of a
+ * series.
+ * @param {FilmRecord} film Film. @param {Function} fetchFn Fetch implementation. @returns {Promise<Object|null>} TMDB result, with a TV match's `id` in "TV:" notation.
+ */
+window.lookupTmdbTitleMatch = async function (film, fetchFn) {
+  return (
+    (await window.lookupTmdbMovieSearch(film, fetchFn)) ||
+    (await window.lookupTmdbTvSearch(film, fetchFn, { yearTolerance: 2 })) ||
+    (await window.lookupTmdbTvSeasonSearch(film, fetchFn))
+  );
 };
 
 /**

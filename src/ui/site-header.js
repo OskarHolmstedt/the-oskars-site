@@ -128,9 +128,6 @@
     return headerText(key, type || "");
   }
 
-  // The tiered, ordered watchlist view (period.html's Watchlist mode), not
-  // films.html's catalog status filter.
-  let WATCHLIST_HREF = "period.html?type=alltime&view=watchlist";
   let BUILD_PAGES = ["build.html", "rank-year.html", "awards-year.html"];
   let RANKING_PAGES = [
     "rankings.html",
@@ -167,12 +164,13 @@
 
   function currentSection() {
     let path = currentPage();
-    if (path === "period.html") {
-      let params = new URLSearchParams(window.location?.search || "");
-      return params.get("view") === "watchlist" ? "watchlist" : "browse";
-    }
+    if (path === "period.html") return "browse";
     if (BUILD_PAGES.includes(path)) return "build";
-    if (RANKING_PAGES.includes(path)) return "rankings";
+    if (
+      RANKING_PAGES.includes(path) ||
+      ["award.html", "rate-watched.html", "tier-watchlist.html"].includes(path)
+    )
+      return "build";
     if (BROWSE_PANE_BY_PAGE[path]) return "browse";
     if (path === "projects.html" || path === "project.html") return "projects";
     if (path === "compare.html") return "compare";
@@ -336,23 +334,7 @@
     let primaryItems = [
       ["home", headerText("nav.home", "Home"), "index.html"],
       ...(ownerItems
-        ? [
-            [
-              "build",
-              headerText("nav.buildOskars", "Build Oskars"),
-              "build.html",
-            ],
-          ]
-        : []),
-      ["watchlist", headerText("nav.watchlist", "Watchlist"), WATCHLIST_HREF],
-      ...(ownerItems
-        ? [
-            [
-              "rankings",
-              headerText("nav.rankings", "Rankings"),
-              "rankings.html",
-            ],
-          ]
+        ? [["build", headerText("nav.build", "Build"), "build.html"]]
         : []),
       ["projects", headerText("nav.projects", "Projects"), "projects.html"],
       ["browse", headerText("nav.browse", "Browse"), "films.html"],
@@ -361,6 +343,8 @@
       .map(([section, label, href]) => {
         let current = active === section;
         let link = `<a class="primary-nav-link${current ? " is-active" : ""}" href="${escape(href)}"${current ? ' aria-current="page"' : ""}>${escape(label)}</a>`;
+        if (section === "build")
+          return `<span class="primary-nav-item primary-nav-item--build">${link}<div class="primary-nav-preview primary-nav-preview--build"><div class="primary-nav-preview-panel build-preview"><div><strong>${escape(headerText("nav.rateTier", "Rate / Tier"))}</strong><a href="rate-watched.html">${escape(headerText("nav.rateWatched", "Rate watched"))}</a><a href="tier-watchlist.html">${escape(headerText("nav.tierWatchlist", "Set watchlist tier"))}</a></div><a href="rankings.html">${escape(headerText("nav.rankings", "Rank"))}</a><a href="award.html">${escape(headerText("nav.award", "Award"))}</a></div></div></span>`;
         return section === "browse"
           ? `<span class="primary-nav-item primary-nav-item--browse">${link}${browsePreviewHtml(escape)}</span>`
           : link;
@@ -398,9 +382,9 @@
     if (ownerPagesAllowed()) {
       sections.push(
         section(
-          headerText("menu.editors", "Editors"),
+          headerText("nav.build", "Build"),
           [
-            [headerText("nav.intake", "Intake"), "intake.html"],
+            [headerText("nav.overview", "Overview"), "build.html"],
             [
               headerText("nav.rateWatched", "Rate watched"),
               "rate-watched.html",
@@ -409,6 +393,8 @@
               headerText("nav.tierWatchlist", "Set watchlist tier"),
               "tier-watchlist.html",
             ],
+            [headerText("nav.rankings", "Rank"), "rankings.html"],
+            [headerText("nav.award", "Award"), "award.html"],
           ],
           true,
         ),
@@ -542,6 +528,11 @@
           "aria-label",
           posterBackdropToggleTitle(next),
         );
+      });
+    header
+      .querySelector("[data-quick-add-toggle]")
+      ?.addEventListener("click", () => {
+        window.openQuickAddModal?.(escape);
       });
     header
       .querySelector("[data-language-toggle]")
@@ -817,6 +808,371 @@
       });
   };
 
+  /** Displays a transient toast notification at the corner of the screen. @param {string} message */
+  window.showOskarsToast = function (message) {
+    let container = document.querySelector(".oskars-toast-container");
+    if (!container) {
+      container = document.createElement("div");
+      container.className = "oskars-toast-container";
+      container.setAttribute("role", "status");
+      container.setAttribute("aria-live", "polite");
+      document.body.appendChild(container);
+    }
+    let toast = document.createElement("div");
+    toast.className = "oskars-toast";
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add("is-fading");
+      setTimeout(() => toast.remove(), 400);
+    }, 3200);
+  };
+
+  function canQuickAdd() {
+    return (
+      ownerPagesAllowed() && window.oskarsCapabilities?.().canEdit !== false
+    );
+  }
+
+  function quickAddButtonHtml(escape) {
+    if (!canQuickAdd()) return "";
+    return `<button class="quick-add-toggle" type="button" data-quick-add-toggle title="${escape(headerText("quickAdd.title", "Add film or log watch"))}" aria-label="${escape(headerText("quickAdd.title", "Add film or log watch"))}">＋</button>`;
+  }
+
+  /** Opens the universal Quick Add popover modal to log a watch, add to watchlist, or explore catalog. @param {function} [escapeFn] Escape function. */
+  window.openQuickAddModal = function (escapeFn) {
+    let escape = escapeFn || window.pageEscape || defaultHeaderEscape;
+    let ui = window.uiText || ((text) => text);
+    let dialog = document.querySelector("[data-quick-add-dialog]");
+    if (!dialog) {
+      dialog = document.createElement("dialog");
+      dialog.className = "quick-add-dialog";
+      dialog.setAttribute("data-quick-add-dialog", "");
+      document.body.appendChild(dialog);
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) dialog.close();
+      });
+    }
+
+    let selectedFilm = null;
+    let selectedMode = "watched";
+    let searchTimer = null;
+    let busy = false;
+
+    function renderModal() {
+      if (!selectedFilm) {
+        dialog.innerHTML = `<div class="quick-add-panel">
+          <div class="quick-add-top">
+            <h2>${escape(headerText("quickAdd.heading", "Add a film"))}</h2>
+            <button type="button" class="quick-add-close" data-quick-add-close aria-label="${escape(headerText("action.close", "Close"))}">✕</button>
+          </div>
+          <div class="quick-add-body">
+            <input type="search" class="quick-add-search-input" data-quick-add-search-input placeholder="${escape(headerText("quickAdd.searchPlaceholder", "Search catalog or TMDB…"))}" autocomplete="off">
+            <div class="quick-add-results" data-quick-add-results>
+              <p class="quick-add-search-hint">${escape(headerText("quickAdd.searchPlaceholder", "Type a film title to search your catalog and TMDB."))}</p>
+            </div>
+          </div>
+        </div>`;
+        bindSearchStep();
+      } else {
+        renderFormStep();
+      }
+    }
+
+    function bindSearchStep() {
+      let input = dialog.querySelector("[data-quick-add-search-input]");
+      let resultsEl = dialog.querySelector("[data-quick-add-results]");
+      let closeBtn = dialog.querySelector("[data-quick-add-close]");
+      closeBtn?.addEventListener("click", () => dialog.close());
+
+      async function runSearch(query) {
+        if (!query || query.trim().length < 2) {
+          resultsEl.innerHTML = `<p class="quick-add-search-hint">${escape(headerText("quickAdd.searchPlaceholder", "Type a film title to search your catalog and TMDB."))}</p>`;
+          return;
+        }
+        resultsEl.innerHTML = `<p class="data-panel-status">${escape(headerText("search.loading", "Searching…"))}</p>`;
+        try {
+          await window.ensureCatalogIdentity?.();
+          let matches =
+            (await window.searchSupabaseFilmsByTitle?.(query.trim())) || [];
+          let cardsHtml = matches
+            .slice(0, 6)
+            .map((film) => {
+              let json = JSON.stringify({
+                id: film.id,
+                title: film.title,
+                year: film.year,
+                director: film.director || "",
+                posterUrl: film.poster_url || "",
+                tmdbId: film.tmdb_id || "",
+              });
+              return `<button type="button" class="quick-add-result-card" data-pick-film="${escape(json)}">
+              ${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" class="quick-add-result-thumb">` : `<span class="quick-add-result-thumb-placeholder">★</span>`}
+              <div class="quick-add-result-info">
+                <strong>${escape(film.title)}</strong>
+                <span>${escape(film.year || "")}</span>
+              </div>
+            </button>`;
+            })
+            .join("");
+          resultsEl.innerHTML = `${cardsHtml || `<p class="data-panel-status">No catalog matches for "${escape(query)}".</p>`}<div class="quick-add-tmdb-row"><button type="button" class="sort-order-button" data-quick-add-tmdb-search>${escape(headerText("quickAdd.searchTmdb", "Search TMDB instead"))}</button></div>`;
+        } catch (err) {
+          resultsEl.innerHTML = `<p class="data-panel-status">${escape(err.message || String(err))}</p>`;
+        }
+      }
+
+      async function runTmdbSearch(title) {
+        resultsEl.innerHTML = `<p class="data-panel-status">${escape(headerText("search.loading", "Searching TMDB…"))}</p>`;
+        try {
+          await window.ensureCatalogIdentity?.();
+          let match = await window.lookupTmdbMovieMetadata?.({ title });
+          if (!match) {
+            resultsEl.innerHTML = `<p class="data-panel-status">No TMDB match found for "${escape(title)}".</p>`;
+            return;
+          }
+          let json = JSON.stringify({
+            title: match.matchedTitle || title,
+            year: match.matchedYear || "",
+            director: match.director || "",
+            posterUrl: match.poster?.url || "",
+            tmdbId: match.tmdbId || "",
+          });
+          resultsEl.innerHTML = `<button type="button" class="quick-add-result-card" data-pick-film="${escape(json)}">
+            ${match.poster?.url ? `<img src="${escape(match.poster.url)}" alt="" class="quick-add-result-thumb">` : `<span class="quick-add-result-thumb-placeholder">★</span>`}
+            <div class="quick-add-result-info">
+              <strong>${escape(match.matchedTitle || title)}</strong>
+              <span>${escape(match.matchedYear || "")}${match.director ? ` · ${escape(match.director)}` : ""}</span>
+            </div>
+          </button>`;
+        } catch (err) {
+          resultsEl.innerHTML = `<p class="data-panel-status">${escape(err.message || String(err))}</p>`;
+        }
+      }
+
+      input?.addEventListener("input", () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => runSearch(input.value), 250);
+      });
+
+      resultsEl?.addEventListener("click", (event) => {
+        let pickBtn = event.target.closest("[data-pick-film]");
+        let tmdbBtn = event.target.closest("[data-quick-add-tmdb-search]");
+        if (pickBtn) {
+          try {
+            selectedFilm = JSON.parse(pickBtn.dataset.pickFilm);
+            renderModal();
+          } catch (_) {}
+        } else if (tmdbBtn) {
+          runTmdbSearch(input.value.trim());
+        }
+      });
+
+      input?.focus();
+    }
+
+    function renderFormStep() {
+      let ratingInputHtml = window.renderRatingInput
+        ? window.renderRatingInput({ value: "" })
+        : `<input name="rating" type="number" step="0.5" min="0.5" max="10" placeholder="Rating (e.g. 8)">`;
+      let today = new Date().toISOString().slice(0, 10);
+
+      dialog.innerHTML = `<div class="quick-add-panel">
+        <div class="quick-add-top">
+          <h2>${escape(headerText("quickAdd.heading", "Add a film"))}</h2>
+          <button type="button" class="quick-add-close" data-quick-add-close aria-label="${escape(headerText("action.close", "Close"))}">✕</button>
+        </div>
+        <div class="quick-add-body">
+          <div class="quick-add-selected-banner">
+            ${selectedFilm.posterUrl ? `<img src="${escape(selectedFilm.posterUrl)}" alt="" class="quick-add-result-thumb">` : `<span class="quick-add-result-thumb-placeholder">★</span>`}
+            <div class="quick-add-selected-info">
+              <strong>${escape(selectedFilm.title)}</strong>
+              <span>${escape(selectedFilm.year || "")}${selectedFilm.director ? ` · ${escape(selectedFilm.director)}` : ""}</span>
+            </div>
+            <button type="button" class="button-link" data-quick-add-change>${escape(headerText("quickAdd.changeFilm", "Change"))}</button>
+          </div>
+          <div class="quick-add-modes">
+            <button type="button" class="quick-add-mode-tab ${selectedMode === "watched" ? "is-active" : ""}" data-set-mode="watched">${escape(headerText("quickAdd.tabWatched", "Log watch"))}</button>
+            <button type="button" class="quick-add-mode-tab ${selectedMode === "watchlist" ? "is-active" : ""}" data-set-mode="watchlist">${escape(headerText("quickAdd.tabWatchlist", "Watchlist"))}</button>
+            <button type="button" class="quick-add-mode-tab ${selectedMode === "catalog" ? "is-active" : ""}" data-set-mode="catalog">${escape(headerText("quickAdd.tabCatalog", "Not seen"))}</button>
+          </div>
+          ${
+            selectedMode === "watched"
+              ? `
+            <form data-quick-add-watched-form>
+              <label class="quick-add-field">
+                <span>${escape(ui("Rating"))}</span>
+                ${ratingInputHtml}
+                <small class="field-hint">${escape(headerText("quickAdd.ratingOptional", "Optional — leave blank to sleep on it"))}</small>
+              </label>
+              <div class="quick-add-row">
+                <label class="quick-add-field">
+                  <span>${escape(ui("Date watched"))}</span>
+                  <input name="dateWatched" type="date" value="${today}">
+                </label>
+                <label class="quick-add-field">
+                  <span>${escape(ui("Platform"))}</span>
+                  <input name="platform" placeholder="${escape(ui("Cinema, Blu-ray, Netflix…"))}">
+                </label>
+              </div>
+              <div class="dialog-actions">
+                <button type="button" class="button-link" data-quick-add-cancel>${escape(ui("Cancel"))}</button>
+                <button type="submit" class="button-primary"${busy ? " disabled" : ""}>${escape(headerText("quickAdd.logWatch", "Log watch"))}</button>
+              </div>
+            </form>
+          `
+              : selectedMode === "watchlist"
+                ? `
+            <form data-quick-add-watchlist-form>
+              <label class="quick-add-field">
+                <span>${escape(ui("Interest tier"))}</span>
+                <select name="tier">
+                  <option value="S">Tier S (Must watch)</option>
+                  <option value="A" selected>Tier A (High interest)</option>
+                  <option value="B">Tier B (Medium interest)</option>
+                  <option value="C">Tier C (Low interest)</option>
+                  <option value="D">Tier D (Casual)</option>
+                </select>
+              </label>
+              <label class="quick-add-field">
+                <span>${escape(ui("Tier modifier"))}</span>
+                <select name="tierModifier">
+                  <option value="" selected>None</option>
+                  <option value="plus">Plus (+)</option>
+                  <option value="minus">Minus (-)</option>
+                </select>
+              </label>
+              <label class="quick-add-field">
+                <span>${escape(ui("Note / Reason"))}</span>
+                <input name="reason" placeholder="${escape(ui("Optional note…"))}">
+              </label>
+              <div class="dialog-actions">
+                <button type="button" class="button-link" data-quick-add-cancel>${escape(ui("Cancel"))}</button>
+                <button type="submit" class="button-primary"${busy ? " disabled" : ""}>${escape(headerText("quickAdd.addToWatchlist", "Add to watchlist"))}</button>
+              </div>
+            </form>
+          `
+                : `
+            <div class="quick-add-catalog-view">
+              <p>${escape(ui("Explore this film in the catalog:"))}</p>
+              <div class="dialog-actions">
+                <button type="button" class="button-link" data-quick-add-cancel>${escape(ui("Cancel"))}</button>
+                <a href="${selectedFilm.id ? `film.html?id=${encodeURIComponent(selectedFilm.id)}` : `films.html`}" class="button-link">${escape(headerText("quickAdd.viewFilm", "View film details →"))}</a>
+              </div>
+            </div>
+          `
+          }
+        </div>
+      </div>`;
+
+      dialog
+        .querySelector("[data-quick-add-close]")
+        ?.addEventListener("click", () => dialog.close());
+      dialog
+        .querySelector("[data-quick-add-cancel]")
+        ?.addEventListener("click", () => dialog.close());
+      dialog
+        .querySelector("[data-quick-add-change]")
+        ?.addEventListener("click", () => {
+          selectedFilm = null;
+          renderModal();
+        });
+
+      dialog.querySelectorAll("[data-set-mode]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          selectedMode = btn.dataset.setMode;
+          renderFormStep();
+        });
+      });
+
+      let watchedForm = /** @type {HTMLFormElement|null} */ (
+        dialog.querySelector("[data-quick-add-watched-form]")
+      );
+      watchedForm?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (busy) return;
+        busy = true;
+        renderFormStep();
+        try {
+          let formData = new FormData(watchedForm);
+          let rawRating = formData.get("rating");
+          let parsedRating = window.parseFilmRating
+            ? window.parseFilmRating(rawRating)
+            : { value: rawRating ? Number(rawRating) : null, modifier: null };
+          let values = {
+            title: selectedFilm.title,
+            year: selectedFilm.year,
+            tmdbId: selectedFilm.tmdbId,
+            director: selectedFilm.director,
+            rating: parsedRating.value || null,
+            ratingModifier: parsedRating.modifier || null,
+            dateWatched: formData.get("dateWatched") || null,
+            platform: formData.get("platform") || null,
+            views: 1,
+          };
+          await window.createSupabaseFreshWatchedIntake?.(values, {
+            refreshWorkspace: true,
+          });
+          dialog.close();
+          window.showOskarsToast?.(
+            headerText("quickAdd.loggedSuccess", "Logged {title}", {
+              title: selectedFilm.title,
+            }),
+          );
+          window.dispatchEvent(
+            new CustomEvent("oskars:collectionchange", {
+              detail: { action: "watched", film: selectedFilm },
+            }),
+          );
+        } catch (err) {
+          alert(err.message || String(err));
+          busy = false;
+          renderFormStep();
+        }
+      });
+
+      let watchlistForm = /** @type {HTMLFormElement|null} */ (
+        dialog.querySelector("[data-quick-add-watchlist-form]")
+      );
+      watchlistForm?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (busy) return;
+        busy = true;
+        renderFormStep();
+        try {
+          let formData = new FormData(watchlistForm);
+          let values = {
+            ...selectedFilm,
+            supabaseFilmId: selectedFilm.id || selectedFilm.supabaseFilmId,
+            tier: formData.get("tier"),
+            tierModifier: formData.get("tierModifier") || null,
+            reason: formData.get("reason") || "",
+          };
+          await window.addSupabaseWatchlistRecord?.(values);
+          dialog.close();
+          window.showOskarsToast?.(
+            headerText(
+              "quickAdd.watchlistSuccess",
+              "Added {title} to watchlist",
+              { title: selectedFilm.title },
+            ),
+          );
+          window.dispatchEvent(
+            new CustomEvent("oskars:collectionchange", {
+              detail: { action: "watchlist", film: selectedFilm },
+            }),
+          );
+        } catch (err) {
+          alert(err.message || String(err));
+          busy = false;
+          renderFormStep();
+        }
+      });
+    }
+
+    renderModal();
+    dialog.showModal();
+  };
+
   /** Renders or refreshes the shared site header and binds its controls. */
   window.renderSiteHeader = function () {
     let done = window.startOskarsPerformance?.("siteHeader:render");
@@ -842,6 +1198,7 @@
         <div class="site-search-results" id="siteSearchResults" role="listbox" aria-label="${escape(headerText("search.aria", "Search The Oskars"))}" data-site-search-results hidden></div>
         <div class="site-search-results" role="status" data-site-search-status hidden></div>
       </form>
+      ${quickAddButtonHtml(escape)}
       <button class="language-toggle" type="button" data-language-toggle></button>
       <button class="theme-toggle" type="button" data-theme-toggle title="${escape(themeToggleTitle(nextOskarsTheme(preferredTheme())))}" aria-label="${escape(headerText("theme.switch", "Switch color theme"))}">${THEME_ICON[preferredTheme()] || "☾"}</button>
       <button class="poster-grid-toggle" type="button" data-poster-grid-toggle aria-pressed="${preferredPosterGrid() ? "true" : "false"}" title="${escape(posterGridToggleTitle(preferredPosterGrid()))}" aria-label="${escape(posterGridToggleTitle(preferredPosterGrid()))}">🖼️</button>
@@ -867,6 +1224,19 @@
           "aria-label",
           headerText("search.aria", "Search The Oskars"),
         );
+      }
+      let searchForm = header.querySelector("[data-site-search]");
+      if (
+        searchForm &&
+        !header.querySelector("[data-quick-add-toggle]") &&
+        canQuickAdd()
+      ) {
+        searchForm.insertAdjacentHTML("afterend", quickAddButtonHtml(escape));
+        header
+          .querySelector("[data-quick-add-toggle]")
+          ?.addEventListener("click", () => {
+            window.openQuickAddModal?.(escape);
+          });
       }
     }
     bindSiteHeader(header, escape);

@@ -1,10 +1,46 @@
-/** @file Renders the Supabase-backed owner-only Build your Oskars journey hub and visual year map. */
+/** @file Renders the Supabase-backed owner-only Build your Oskars journey hub, actionable inbox, and visual year map. */
 
 (function () {
   let escape = window.pageEscape;
   let ui = window.uiText || ((text) => text);
   let container = document.getElementById("buildPage");
   let journeyYears = [];
+  let currentWorkspace = null;
+  let currentRanking = [];
+  let currentAwardReviews = [];
+  let currentInbox = [];
+  let dismissedCeremonyFilmIds = new Set();
+  try {
+    for (let key in localStorage) {
+      if (key.startsWith("oskars-build-ceremony-dismissed:")) {
+        dismissedCeremonyFilmIds.add(
+          key.replace("oskars-build-ceremony-dismissed:", ""),
+        );
+      }
+    }
+  } catch (error) {}
+
+  function updateJourneyState() {
+    let categories = window.getOrderedCategories?.() || [];
+    journeyYears = window.buildJourneyYears(
+      currentWorkspace?.watched || [],
+      currentRanking
+        .filter((scope) => scope.scope_type === "years")
+        .flatMap((scope) => scope.ranking_entries),
+      currentAwardReviews,
+      categories,
+    );
+    currentInbox = window.deriveBuildInbox(
+      currentWorkspace?.watched || [],
+      currentRanking
+        .filter((scope) => scope.scope_type === "years")
+        .flatMap((scope) => scope.ranking_entries),
+      currentAwardReviews,
+      categories,
+      dismissedCeremonyFilmIds,
+    );
+  }
+
   // Director and franchise ceremonies load after the year map renders.
   /** @type {{loading?: boolean, model?: Object, error?: string}} */
   let collectionCeremonies = { loading: true };
@@ -272,6 +308,444 @@
     return `<aside class="build-milestone" data-build-milestone="${escape(milestone.id)}"><button type="button" class="build-milestone-dismiss" data-build-milestone-dismiss aria-label="${escape(ui("Dismiss milestone"))}">×</button><div><span class="eyebrow">${escape(copy.eyebrow)}</span><h2>${escape(copy.title)}</h2><p>${escape(copy.text)}</p><a class="button-link" href="${escape(copy.href)}">${escape(copy.action)} →</a></div>${window.renderPosterDeck(milestone.posterFilms, { classes: "poster-deck--featured", priority: "high" })}</aside>`;
   }
 
+  function renderInboxCard(item) {
+    let film = item.film || {};
+    let year = item.year;
+    let isRate = item.type === "rate";
+    let isRank = item.type === "rank";
+
+    let pillClass = isRate
+      ? "build-inbox-pill--unrated"
+      : isRank
+        ? "build-inbox-pill--ranking"
+        : "build-inbox-pill--awards";
+
+    let pillLabel = isRate
+      ? ui("Needs rating")
+      : isRank
+        ? ui("Slot into {year}", { year })
+        : ui("Ceremony candidate");
+
+    let ratingDisplay = item.watched.rating
+      ? window.renderFilmRating?.({
+          ratingValue: item.watched.rating,
+          ratingModifier: item.watched.rating_modifier,
+        }) || String(item.watched.rating)
+      : "";
+
+    let metaText = isRate
+      ? `${escape(year)}${item.watched.date_watched ? ` · ${escape(item.watched.date_watched)}` : ""}`
+      : `${escape(year)} · ${escape(ui("Rated"))} ${escape(ratingDisplay)}`;
+
+    let primaryAction = isRate
+      ? `<button type="button" class="button-link" data-inbox-rate="${escape(item.watched.id)}">${escape(ui("Rate"))}</button>`
+      : isRank
+        ? `<button type="button" class="button-link" data-inbox-rank="${escape(item.film.id)}" data-year="${escape(year)}">${escape(ui("Slot into ranking"))}</button>`
+        : `<button type="button" class="button-link" data-inbox-awards="${escape(item.film.id)}" data-year="${escape(year)}">${escape(ui("Ceremony check"))}</button>`;
+
+    let secondaryAction = isRate
+      ? `<a class="build-year-action-secondary" href="rate-watched.html?year=${encodeURIComponent(year)}">${escape(ui("Rate year"))} →</a>`
+      : isRank
+        ? `<a class="build-year-action-secondary" href="${escape(window.yearRankingPageUrl(year))}">${escape(ui("Rank year"))} →</a>`
+        : `<a class="build-year-action-secondary" href="${escape(window.yearAwardsPageUrl(year))}">${escape(ui("Ceremony"))} →</a>`;
+
+    let posterHtml = film.poster_url
+      ? `<img src="${escape(film.poster_url)}" alt="" class="build-inbox-card-thumb" loading="lazy" decoding="async">`
+      : `<div class="build-inbox-card-thumb-placeholder" aria-hidden="true">★</div>`;
+
+    return `<article class="build-inbox-card" data-inbox-film="${escape(item.film.id)}">
+      ${posterHtml}
+      <div class="build-inbox-card-info">
+        <div class="build-inbox-card-title" title="${escape(film.title || "")}">${escape(film.title || ui("Untitled"))}</div>
+        <div class="build-inbox-card-meta">${metaText}</div>
+        <span class="build-inbox-pill ${pillClass}">${escape(pillLabel)}</span>
+        <div class="build-inbox-card-actions">
+          ${primaryAction}
+          ${secondaryAction}
+        </div>
+      </div>
+    </article>`;
+  }
+
+  function renderInboxHtml(inbox) {
+    if (!inbox.length) {
+      return `<section class="build-inbox" aria-label="${escape(ui("Recent watches inbox"))}">
+        <div class="build-inbox-heading">
+          <h2>${escape(ui("Recent watches"))}</h2>
+          <span class="build-inbox-badge-done">${escape(ui("All caught up ✓"))}</span>
+        </div>
+        <p class="build-inbox-empty-note">${escape(ui("All logged watches are rated and arranged."))}</p>
+      </section>`;
+    }
+    return `<section class="build-inbox" aria-label="${escape(ui("Recent watches inbox"))}">
+      <div class="build-inbox-heading">
+        <h2>${escape(ui("Recent watches"))}</h2>
+        <span class="build-inbox-count">${escape(ui("{count} to review", { count: inbox.length }))}</span>
+      </div>
+      <div class="build-inbox-grid">
+        ${inbox.slice(0, 8).map(renderInboxCard).join("")}
+      </div>
+      ${inbox.length > 8 ? `<p class="build-inbox-empty-note" style="margin-top:10px;"><a href="rate-watched.html">${escape(ui("View all {count} unrated films →", { count: inbox.length }))}</a></p>` : ""}
+    </section>`;
+  }
+
+  function openRateModal(watchedId) {
+    let watchedRow = currentWorkspace?.watched?.find((r) => r.id === watchedId);
+    if (!watchedRow) return;
+    let film = watchedRow.films || {};
+    let dialog = document.createElement("dialog");
+    dialog.className = "quick-add-dialog build-action-dialog";
+    dialog.innerHTML = `<div class="quick-add-panel">
+      <div class="quick-add-header">
+        <h3>${escape(ui("Rate {title}", { title: film.title || ui("film") }))}${film.year ? ` (${escape(film.year)})` : ""}</h3>
+        <button type="button" class="quick-add-close" data-dialog-close aria-label="${escape(ui("Close"))}">✕</button>
+      </div>
+      <form class="data-form" data-inbox-rate-form>
+        <label class="data-field">
+          ${escape(ui("Rating"))}
+          ${window.renderRatingInput({ name: "rating", required: true, compact: false })}
+        </label>
+        <div class="quick-add-submit-row">
+          <button type="submit" class="quick-add-submit-btn">${escape(ui("Save rating"))}</button>
+        </div>
+      </form>
+    </div>`;
+    document.body.appendChild(dialog);
+    window.enhanceRatingInputs?.(dialog);
+    dialog.showModal();
+
+    dialog
+      .querySelector("[data-dialog-close]")
+      .addEventListener("click", () => {
+        dialog.close();
+        dialog.remove();
+      });
+    dialog.addEventListener("cancel", () => dialog.remove());
+
+    let form = /** @type {HTMLFormElement} */ (
+      dialog.querySelector("[data-inbox-rate-form]")
+    );
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      let submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      try {
+        let parsed = window.parseFilmRating(new FormData(form).get("rating"));
+        if (!parsed.value)
+          throw new Error(ui("Choose a rating before saving."));
+        await window.setSupabaseWatchedRating(
+          watchedRow.id,
+          parsed.value,
+          parsed.modifier,
+        );
+        watchedRow.rating = parsed.value;
+        watchedRow.rating_modifier = parsed.modifier;
+        updateJourneyState();
+        render();
+        window.showOskarsToast?.(
+          ui("Saved rating for {title}", { title: film.title || "" }),
+        );
+        dialog.close();
+        dialog.remove();
+      } catch (err) {
+        submitBtn.disabled = false;
+        alert(err.message || String(err));
+      }
+    });
+  }
+
+  async function openRankInsertionModal(filmId, year) {
+    let watchedRow = currentWorkspace?.watched?.find(
+      (r) => r.film_id === filmId,
+    );
+    if (!watchedRow) return;
+    let film = watchedRow.films || {};
+    let yearScope = String(year);
+    let stored = currentRanking.find(
+      (s) => s.scope_type === "years" && String(s.scope_value) === yearScope,
+    );
+    let rankingData = stored
+      ? { rankingId: stored.id, entries: stored.ranking_entries }
+      : await window.loadSupabaseRanking(yearScope, "years");
+
+    let candidates = window.supabaseIntakeRankingCandidates(
+      { watched: watchedRow },
+      rankingData.entries,
+      currentWorkspace?.watched,
+      "year",
+    );
+    let gaps = window.supabaseIntakeRankingGaps(candidates, null);
+
+    let dialog = document.createElement("dialog");
+    dialog.className = "quick-add-dialog build-action-dialog";
+
+    let candidateById = new Map(candidates.map((c) => [c.film_id, c]));
+    let optionsHtml = gaps
+      .map((gap) => {
+        if (!gap.targetFilmId)
+          return `<option value="|after">${escape(ui("First film at this rating"))}</option>`;
+        let target = candidateById.get(gap.targetFilmId)?.films || {};
+        return `<option value="${escape(`${gap.targetFilmId}|${gap.position}`)}">${escape(gap.position === "before" ? ui("Before") : ui("After"))} ${escape(target.title || ui("comparison film"))}</option>`;
+      })
+      .join("");
+
+    let comparisonStrip = candidates.length
+      ? `<div class="intake-comparison-strip" style="display:flex;gap:8px;overflow-x:auto;padding:8px 0;margin-bottom:12px;">${candidates
+          .map(
+            (
+              c,
+            ) => `<article class="film-card intake-ranking-card" style="width:70px;text-align:center;">
+            ${c.films?.poster_url ? `<img src="${escape(c.films.poster_url)}" alt="" style="width:60px;height:90px;object-fit:cover;border-radius:4px;" loading="lazy">` : ""}
+            <span style="font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escape(c.films?.title || "")}</span>
+          </article>`,
+          )
+          .join("")}</div>`
+      : `<p class="data-panel-status" style="margin-bottom:12px;">${escape(ui("No other films in {year} share this rating. Slot directly into ranking order.", { year }))}</p>`;
+
+    dialog.innerHTML = `<div class="quick-add-panel">
+      <div class="quick-add-header">
+        <h3>${escape(ui("Slot {title} into {year} ranking", { title: film.title || ui("film"), year }))}</h3>
+        <button type="button" class="quick-add-close" data-dialog-close aria-label="${escape(ui("Close"))}">✕</button>
+      </div>
+      <form class="data-form" data-inbox-rank-form>
+        ${comparisonStrip}
+        ${candidates.length ? `<label class="data-field">${escape(ui("Placement"))}<select name="placement">${optionsHtml}</select></label>` : ""}
+        <div class="quick-add-submit-row">
+          <button type="submit" class="quick-add-submit-btn">${escape(ui("Insert into ranking"))}</button>
+        </div>
+      </form>
+    </div>`;
+    document.body.appendChild(dialog);
+    dialog.showModal();
+
+    dialog
+      .querySelector("[data-dialog-close]")
+      .addEventListener("click", () => {
+        dialog.close();
+        dialog.remove();
+      });
+    dialog.addEventListener("cancel", () => dialog.remove());
+
+    let form = /** @type {HTMLFormElement} */ (
+      dialog.querySelector("[data-inbox-rank-form]")
+    );
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      let submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      try {
+        let placementTargetFilmId = null;
+        let placementPosition = "after";
+        if (candidates.length) {
+          let [targetId, pos] = String(
+            new FormData(form).get("placement") || "",
+          ).split("|");
+          placementTargetFilmId = targetId || null;
+          placementPosition = pos || "after";
+        } else {
+          let watchedByFilm = new Map(
+            (currentWorkspace?.watched || []).map((r) => [r.film_id, r]),
+          );
+          let targetGrade = window.supabaseIntakeRatingGrade(watchedRow);
+          let firstLower = rankingData.entries.find(
+            (entry) =>
+              window.supabaseIntakeRatingGrade(
+                watchedByFilm.get(entry.film_id),
+              ) < targetGrade,
+          );
+          if (firstLower) {
+            placementTargetFilmId = firstLower.film_id;
+            placementPosition = "before";
+          } else if (rankingData.entries.length) {
+            placementTargetFilmId =
+              rankingData.entries[rankingData.entries.length - 1].film_id;
+            placementPosition = "after";
+          }
+        }
+        let newPos = await window.placeSupabaseIntakeRankingFilm(
+          rankingData.rankingId,
+          rankingData.entries,
+          filmId,
+          placementTargetFilmId,
+          placementPosition,
+        );
+        let existingEntry = rankingData.entries.find(
+          (entry) => entry.film_id === filmId,
+        );
+        if (existingEntry) {
+          existingEntry.position = newPos;
+          existingEntry.rank_confirmed = true;
+        } else {
+          let createdEntry = {
+            film_id: filmId,
+            position: newPos,
+            rank_confirmed: true,
+            ranking_id: rankingData.rankingId,
+            films: film,
+          };
+          rankingData.entries.push(createdEntry);
+          if (!stored) {
+            currentRanking.push({
+              id: rankingData.rankingId,
+              scope_type: "years",
+              scope_value: yearScope,
+              ranking_entries: rankingData.entries,
+            });
+          }
+        }
+        updateJourneyState();
+        render();
+        window.showOskarsToast?.(
+          ui("Placed {title} into {year} ranking", {
+            title: film.title || "",
+            year,
+          }),
+        );
+        dialog.close();
+        dialog.remove();
+      } catch (err) {
+        submitBtn.disabled = false;
+        alert(err.message || String(err));
+      }
+    });
+  }
+
+  async function openAwardsModal(filmId, year) {
+    let watchedRow = currentWorkspace?.watched?.find(
+      (r) => r.film_id === filmId,
+    );
+    if (!watchedRow) return;
+    let film = watchedRow.films || {};
+    let categories = window.getOrderedCategories?.() || ["Best Picture"];
+
+    let dialog = document.createElement("dialog");
+    dialog.className = "quick-add-dialog build-action-dialog";
+
+    let categoryOptions = categories
+      .map((cat) => `<option value="${escape(cat)}">${escape(cat)}</option>`)
+      .join("");
+
+    dialog.innerHTML = `<div class="quick-add-panel">
+      <div class="quick-add-header">
+        <h3>${escape(ui("Ceremony check: {title}", { title: film.title || ui("film") }))}</h3>
+        <button type="button" class="quick-add-close" data-dialog-close aria-label="${escape(ui("Close"))}">✕</button>
+      </div>
+      <form class="data-form" data-inbox-award-form>
+        <label class="data-field">
+          ${escape(ui("Category"))}
+          <select name="category">${categoryOptions}</select>
+        </label>
+        <label class="data-field">
+          ${escape(ui("Placement"))}
+          <select name="placement">
+            <option value="1">1 (Winner)</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5" selected>5</option>
+          </select>
+        </label>
+        <label class="data-field">
+          ${escape(ui("Recipient(s)"))}
+          <input name="recipients" placeholder="${escape(ui("Comma-separated (optional)"))}">
+        </label>
+        <label class="data-field">
+          ${escape(ui("Detail"))}
+          <input name="detail" placeholder="${escape(ui("Optional note"))}">
+        </label>
+        <div class="quick-add-submit-row" style="display:flex;gap:10px;justify-content:flex-end;">
+          <button type="button" class="button-link" data-inbox-award-skip>${escape(ui("No nominations needed"))}</button>
+          <button type="submit" class="quick-add-submit-btn">${escape(ui("Nominate"))}</button>
+        </div>
+      </form>
+    </div>`;
+    document.body.appendChild(dialog);
+    dialog.showModal();
+
+    dialog
+      .querySelector("[data-dialog-close]")
+      .addEventListener("click", () => {
+        dialog.close();
+        dialog.remove();
+      });
+    dialog.addEventListener("cancel", () => dialog.remove());
+
+    dialog
+      .querySelector("[data-inbox-award-skip]")
+      .addEventListener("click", () => {
+        dismissedCeremonyFilmIds.add(filmId);
+        try {
+          localStorage.setItem(
+            `oskars-build-ceremony-dismissed:${filmId}`,
+            "1",
+          );
+        } catch (error) {}
+        updateJourneyState();
+        render();
+        window.showOskarsToast?.(
+          ui("Marked {title} as reviewed for ceremony", {
+            title: film.title || "",
+          }),
+        );
+        dialog.close();
+        dialog.remove();
+      });
+
+    let form = /** @type {HTMLFormElement} */ (
+      dialog.querySelector("[data-inbox-award-form]")
+    );
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      let submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      try {
+        let data = new FormData(form);
+        let category = String(data.get("category"));
+        let placement = Number(data.get("placement")) || 1;
+        let detail = String(data.get("detail") || "").trim();
+        let recipients = String(data.get("recipients") || "")
+          .split(",")
+          .map((n) => n.trim())
+          .filter(Boolean);
+
+        let loaded = await window.loadSupabasePersonalNominations(
+          String(year),
+          category,
+          "years",
+        );
+        await window.insertSupabasePersonalNomination(
+          loaded.personalAwardId,
+          category,
+          placement,
+          category === "Best Picture" ? 10 : 5,
+          filmId,
+          detail,
+          recipients,
+        );
+        dismissedCeremonyFilmIds.add(filmId);
+        try {
+          localStorage.setItem(
+            `oskars-build-ceremony-dismissed:${filmId}`,
+            "1",
+          );
+        } catch (error) {}
+        updateJourneyState();
+        render();
+        window.showOskarsToast?.(
+          ui("Nominated {title} for {category}", {
+            title: film.title || "",
+            category,
+          }),
+        );
+        dialog.close();
+        dialog.remove();
+      } catch (err) {
+        submitBtn.disabled = false;
+        alert(err.message || String(err));
+      }
+    });
+  }
+
   function render() {
     let finish = window.startOskarsPerformance?.("build:render");
     let years = journeyYears;
@@ -359,6 +833,7 @@
       </section>
       ${renderMilestone(milestone)}
       ${recommendation ? `<section class="build-continue-card"><div><span class="eyebrow">${escape(ui("Continue your journey"))}</span><h2>${escape(recommendation.year)}</h2><p>${escape(stageLabel(recommendation.stage))} · ${escape(recommendation.ratedCount)} / ${escape(recommendation.totalCount)} ${escape(ui("rated"))}</p><div class="build-year-card-actions"><a class="button-link" href="${escape(recommendationAction.href)}">${escape(recommendationAction.label)} →</a>${recommendationSecondary ? `<a class="build-year-action-secondary" href="${escape(recommendationSecondary.href)}">${escape(recommendationSecondary.label)} →</a>` : ""}</div></div>${window.renderPosterDeck(recommendation.posterFilms, { classes: "poster-deck--featured", priority: "high" })}</section>` : ""}
+      ${renderInboxHtml(currentInbox)}
       <div data-build-collections>${collectionCeremoniesHtml()}</div>
       <section class="build-years" aria-labelledby="buildYearsHeading"><div class="build-section-heading"><h2 id="buildYearsHeading">${escape(ui("Annual ceremonies"))}</h2></div><div class="build-year-grid">${visible.map((year, index) => yearCard(year, index)).join("") || `<p class="detail-empty">${escape(ui("No years at this stage."))}</p>`}</div></section>`;
     finish?.(
@@ -367,6 +842,21 @@
   }
 
   container.addEventListener("click", (event) => {
+    let rateBtn = event.target.closest("[data-inbox-rate]");
+    if (rateBtn) {
+      openRateModal(rateBtn.dataset.inboxRate);
+      return;
+    }
+    let rankBtn = event.target.closest("[data-inbox-rank]");
+    if (rankBtn) {
+      openRankInsertionModal(rankBtn.dataset.inboxRank, rankBtn.dataset.year);
+      return;
+    }
+    let awardsBtn = event.target.closest("[data-inbox-awards]");
+    if (awardsBtn) {
+      openAwardsModal(awardsBtn.dataset.inboxAwards, awardsBtn.dataset.year);
+      return;
+    }
     if (event.target.closest("[data-build-collections-retry]")) {
       loadCollectionCeremonies();
       refreshCollectionCeremonies();
@@ -385,6 +875,9 @@
   });
 
   window.addEventListener?.("oskars:localechange", render);
+  window.addEventListener?.("oskars:collectionchange", () => {
+    boot();
+  });
 
   async function boot() {
     let access = await window.resolveSupabaseAccountGate();
@@ -398,14 +891,10 @@
         window.loadSupabaseStoredRankings(),
         window.loadSupabaseAwardReviews(),
       ]);
-      journeyYears = window.buildJourneyYears(
-        workspace.watched,
-        ranking
-          .filter((scope) => scope.scope_type === "years")
-          .flatMap((scope) => scope.ranking_entries),
-        awardReviews,
-        window.getOrderedCategories?.() || [],
-      );
+      currentWorkspace = workspace;
+      currentRanking = ranking;
+      currentAwardReviews = awardReviews;
+      updateJourneyState();
       render();
       loadCollectionCeremonies();
     } catch (error) {

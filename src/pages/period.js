@@ -1178,17 +1178,11 @@
   }
 
   function ratingFilterOptions(selected, prefix) {
-    return Array.from({ length: 10 }, (_, index) => {
-      let value = (index + 1) / 2;
-      let rating = window.formatStarRating(value);
-      let label =
-        prefix === "At least "
-          ? ui("At least {rating}", { rating })
-          : prefix === "At most "
-            ? ui("At most {rating}", { rating })
-            : `${prefix}${rating}`;
-      return `<option value="${value}" ${selected === value ? "selected" : ""}>${periodEscape(label)}</option>`;
-    }).join("");
+    return window.renderRatingFilterOptions(
+      prefix === "At least " ? "minimum" : "maximum",
+      (value, label) =>
+        `<option value="${value}" ${selected === value ? "selected" : ""}>${periodEscape(label)}</option>`,
+    );
   }
 
   function exactRatingOptions(selected) {

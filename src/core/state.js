@@ -3,6 +3,10 @@
  * and lightweight membership entries for derived periods.
  */
 
+// FIFO bounds entries and retained input length for long-lived search sessions.
+const titleNormalizationCache = new Map();
+const TITLE_NORMALIZATION_CACHE_LIMIT = 20000;
+
 /**
  * Normalizes a film title for matching and identifier construction.
  * @param {*} t Title-like value.
@@ -10,11 +14,21 @@
  */
 window.normalizeTitle = function (t) {
   if (!t) return "";
+  let cacheable = typeof t === "string" && t.length <= 1024;
+  if (cacheable && titleNormalizationCache.has(t))
+    return titleNormalizationCache.get(t);
   // remove common invisible/formatting characters
   let s = String(t)
     .normalize("NFKC")
     .replace(/[\u200E\u200F\u202A-\u202E]/g, "");
   s = s.replace(/\s+/g, " ").trim().toLowerCase();
+  if (cacheable) {
+    if (titleNormalizationCache.size >= TITLE_NORMALIZATION_CACHE_LIMIT)
+      titleNormalizationCache.delete(
+        titleNormalizationCache.keys().next().value,
+      );
+    titleNormalizationCache.set(t, s);
+  }
   return s;
 };
 
@@ -321,6 +335,10 @@ window.addFilmToStore = function (year, film, options = {}) {
         ? [...film.directors]
         : film.directors;
     existing.country = existing.country || film.country || "";
+    existing.primaryCountry =
+      existing.primaryCountry || film.primaryCountry || "";
+    existing.originalLanguage =
+      existing.originalLanguage || film.originalLanguage || "";
     existing.medium =
       existing.medium && existing.medium !== "unknown"
         ? existing.medium

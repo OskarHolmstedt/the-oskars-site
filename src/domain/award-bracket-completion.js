@@ -4,28 +4,54 @@
  */
 
 function getImportedBracketPeriods(stateRef = state) {
-  return Object.entries(stateRef.years || {})
-    .map(([key, source]) => {
-      let periodType =
-        source.periodType || (/^\d{4}$/.test(key) ? "years" : "");
-      if (!periodType) return null;
-      let capacities =
-        periodType === "years"
-          ? [10, 5]
-          : periodType === "decades"
-            ? [20, 10]
-            : periodType === "centuries"
-              ? [40, 20]
-              : periodType === "allTime"
-                ? [50, 25]
+  let periodMap = new Map();
+  Object.entries(stateRef.years || {}).forEach(([key, source]) => {
+    let periodType = source.periodType || (/^\d{4}$/.test(key) ? "years" : "");
+    if (!periodType && key === "alltime") periodType = "allTime";
+    if (periodType) {
+      periodMap.set(`${periodType}:${key}`, { key, periodType, source });
+    }
+  });
+
+  // Also discover periods possessing personal awards across watched films
+  // (e.g. decade, century, or all-time personal award brackets hydrated from Supabase)
+  Object.values(stateRef.filmsById || {}).forEach((film) => {
+    (film?.awards || []).forEach((award) => {
+      let periodType = window.getAwardPeriodType?.(award);
+      let key = String(award.year || "");
+      if (periodType && key) {
+        let id = `${periodType}:${key}`;
+        if (!periodMap.has(id)) {
+          periodMap.set(id, {
+            key,
+            periodType,
+            source: stateRef.years?.[key] || null,
+          });
+        }
+      }
+    });
+  });
+
+  return [...periodMap.values()]
+    .map((item) => {
+      let capacities = window.bracketCapacities
+        ? window.bracketCapacities(item.periodType)
+        : item.periodType === "years"
+          ? { picture: 10, category: 5 }
+          : item.periodType === "decades"
+            ? { picture: 20, category: 10 }
+            : item.periodType === "centuries"
+              ? { picture: 40, category: 20 }
+              : item.periodType === "allTime"
+                ? { picture: 50, category: 25 }
                 : null;
       return capacities
         ? {
-            key,
-            source,
-            periodType,
-            pictureCapacity: capacities[0],
-            categoryCapacity: capacities[1],
+            key: item.key,
+            source: item.source,
+            periodType: item.periodType,
+            pictureCapacity: capacities.picture,
+            categoryCapacity: capacities.category,
           }
         : null;
     })
@@ -41,7 +67,14 @@ function dataHealthBracketAwardIndex(periods, stateRef = state) {
   periods.forEach((period) => {
     let entries = [];
     let byCategory = new Map();
-    (period.source.films || []).forEach((sourceFilm) => {
+    let candidateFilms =
+      period.source &&
+      Array.isArray(period.source.films) &&
+      period.source.films.length
+        ? period.source.films
+        : Object.values(stateRef.filmsById || {});
+
+    candidateFilms.forEach((sourceFilm) => {
       let film = stateRef.filmsById[sourceFilm.id] || sourceFilm;
       (sourceFilm.awards || []).forEach((award) => {
         if (

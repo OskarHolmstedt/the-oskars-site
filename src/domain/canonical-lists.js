@@ -99,6 +99,8 @@
         href = window.filmPageUrl(
           watchlistMatch.supabaseFilmId || watchlistMatch.id,
         );
+      } else if (item.tmdbId && window.sharedFilmPreviewUrl) {
+        href = window.sharedFilmPreviewUrl(item.tmdbId);
       }
 
       return {

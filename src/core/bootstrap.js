@@ -190,21 +190,19 @@ window.ensureOskarsData = async function (options = {}) {
       requested.includes(domain) && !hydrationSourceHas(source, domain),
   );
   finishCacheRead?.(!source ? "miss" : missing.length ? "partial" : "hit");
+  let fetchedForCache = null;
   if (missing.length) {
     let finishSource = window.startOskarsPerformance?.("hydration:source");
     let fetched =
       missing.length === allDomains.length
         ? await window.loadSupabaseLegacyHydrationSource()
         : await window.loadSupabaseHydrationDomains(missing);
+    fetchedForCache = fetched;
     source = source ? mergeHydrationSources(source, fetched) : fetched;
     finishSource?.();
   }
   if (options.isCurrent && !options.isCurrent())
     throw new Error("Archive request is no longer current.");
-  // A full cache hit holds nothing new, and rewriting it would restart the
-  // TTL that bounds staleness from other tabs and devices.
-  if (hydrationUserId && missing.length)
-    window.writeCachedSupabaseHydrationSource?.(hydrationUserId, source);
   let complete = allDomains.every((domain) =>
     hydrationSourceDomains(source).includes(domain),
   );
@@ -232,6 +230,11 @@ window.ensureOskarsData = async function (options = {}) {
   // classifies each project item's film_id against them (issue #458).
   window.applyProjectSourceIndex?.(source.ownProjects);
   window.OSKARS_STATE_HYDRATION_COMPLETE = complete;
+  if (hydrationUserId && fetchedForCache)
+    window.queueCachedSupabaseHydrationSource?.(
+      hydrationUserId,
+      fetchedForCache,
+    );
   doneEnsure?.(`${Object.keys(window.state.filmsById || {}).length} films`);
   return window.state;
 };

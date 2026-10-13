@@ -261,4 +261,95 @@
     }
     return null;
   };
+
+  /**
+   * Derives actionable inbox items for recent watches that need ratings,
+   * pinpoint ranking insertion into an already-ranked year, or ceremony evaluation.
+   * @param {SupabaseWatchedRow[]} watchedRows Watched rows joined with films.
+   * @param {SupabaseRankingEntry[]} rankingEntries Entries from stored yearly rankings.
+   * @param {SupabaseAwardReview[]} awardReviews Annual category outcomes.
+   * @param {string[]} categoryNames Ordered annual award categories.
+   * @param {Set<string>} [dismissedCeremonyFilmIds] Film IDs dismissed from ceremony check.
+   * @returns {{watched: SupabaseWatchedRow, film: SupabaseFilmRow, year: string, type: 'rate'|'rank'|'awards', reason: string}[]}
+   */
+  window.deriveBuildInbox = function (
+    watchedRows = [],
+    rankingEntries = [],
+    awardReviews = [],
+    categoryNames = [],
+    dismissedCeremonyFilmIds = new Set(),
+  ) {
+    let rankedFilmIdsByYear = new Map();
+    let rankingCountsByYear = new Map();
+    rankingEntries.forEach((entry) => {
+      let year = String(entry.films?.year || "");
+      if (!year) return;
+      if (!rankedFilmIdsByYear.has(year)) {
+        rankedFilmIdsByYear.set(year, new Set());
+      }
+      if (entry.rank_confirmed !== false) {
+        rankedFilmIdsByYear.get(year).add(entry.film_id);
+      }
+      rankingCountsByYear.set(year, (rankingCountsByYear.get(year) || 0) + 1);
+    });
+
+    let reviewedCategoriesByYear = new Map();
+    let categories = new Set(categoryNames);
+    awardReviews.forEach((review) => {
+      let year = String(review.year || "");
+      if (!categories.size || categories.has(review.category)) {
+        let set = reviewedCategoriesByYear.get(year) || new Set();
+        set.add(review.category);
+        reviewedCategoriesByYear.set(year, set);
+      }
+    });
+
+    let sortedWatches = [...watchedRows].sort((left, right) => {
+      let dLeft = left.date_watched || left.updated_at || "";
+      let dRight = right.date_watched || right.updated_at || "";
+      return dRight.localeCompare(dLeft);
+    });
+
+    let inbox = [];
+    for (let row of sortedWatches) {
+      let film = row.films || {};
+      let year = concreteYear(row);
+      if (!year) continue;
+
+      if (!row.rating) {
+        inbox.push({
+          watched: row,
+          film,
+          year,
+          type: "rate",
+          reason: "Needs rating",
+        });
+      } else {
+        let yearRankingsExist = (rankingCountsByYear.get(year) || 0) > 0;
+        let isRanked = rankedFilmIdsByYear.get(year)?.has(row.film_id);
+        if (yearRankingsExist && !isRanked) {
+          inbox.push({
+            watched: row,
+            film,
+            year,
+            type: "rank",
+            reason: `Slot into ${year}`,
+          });
+        } else {
+          let ceremonyStarted =
+            (reviewedCategoriesByYear.get(year)?.size || 0) > 0;
+          if (ceremonyStarted && !dismissedCeremonyFilmIds.has(row.film_id)) {
+            inbox.push({
+              watched: row,
+              film,
+              year,
+              type: "awards",
+              reason: `Ceremony candidate (${year})`,
+            });
+          }
+        }
+      }
+    }
+    return inbox;
+  };
 })();

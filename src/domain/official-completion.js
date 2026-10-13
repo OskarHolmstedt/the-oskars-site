@@ -198,6 +198,39 @@
     return matches.length === 1 ? matches[0] : null;
   }
 
+  function matchingCandidateRecord(film, recordsList, byTitleMap, years) {
+    if (film?.filmRefId) {
+      let idMatches = recordsList.filter(
+        (record) =>
+          record.id === film.filmRefId ||
+          record.supabaseFilmId === film.filmRefId,
+      );
+      if (idMatches.length === 1) return idMatches[0];
+    }
+    if (film?.tmdbId) {
+      let tmdbMatches = recordsList.filter(
+        (record) => String(record.tmdbId || "") === String(film.tmdbId),
+      );
+      if (tmdbMatches.length === 1) return tmdbMatches[0];
+    }
+    let titleKey = window.normalizeTitle(film?.title || "");
+    let candidates = byTitleMap.get(titleKey) || [];
+    let exact = matchingRecord(candidates, years);
+    if (exact) return exact;
+    let numericYears = years.map(Number).filter(Number.isFinite);
+    if (numericYears.length) {
+      let toleranceMatches = candidates.filter((record) => {
+        let recYear = Number(record?.year);
+        return (
+          Number.isFinite(recYear) &&
+          numericYears.some((target) => Math.abs(recYear - target) <= 1)
+        );
+      });
+      if (toleranceMatches.length === 1) return toleranceMatches[0];
+    }
+    return null;
+  }
+
   function candidateHref(periodKey) {
     return `${window.periodPageUrl("year", periodKey)}&view=official`;
   }
@@ -238,8 +271,10 @@
   ) {
     let state = options.state || window.state;
     let source = state?.officialResults?.[sourceId];
-    let watchedByTitle = recordsByTitle(watchedRecords(state));
-    let watchlistByTitle = recordsByTitle(state?.watchlist || []);
+    let watchedRecordsList = watchedRecords(state);
+    let watchlistRecordsList = state?.watchlist || [];
+    let watchedByTitle = recordsByTitle(watchedRecordsList);
+    let watchlistByTitle = recordsByTitle(watchlistRecordsList);
     let filmsById = new Map();
     let periodKeys = [];
 
@@ -274,6 +309,8 @@
           }
           film.winner ||= Boolean(nomination.winner);
           film.tmdbId ||= entry.tmdbId || "";
+          if (entry.filmRef?.id && !film.filmRefId)
+            film.filmRefId = entry.filmRef.id;
           if (
             nomination.category &&
             !film.categories.includes(nomination.category)
@@ -281,7 +318,6 @@
             film.categories.push(nomination.category);
           if (
             nomination.winner &&
-            nomination.category &&
             !film.winnerCategories.includes(nomination.category)
           )
             film.winnerCategories.push(nomination.category);
@@ -292,14 +328,20 @@
     let films = [...filmsById.values()];
     films.forEach((film) => {
       let years = window.officialResultPeriodYears(film.periodKey);
-      let watched = matchingRecord(
-        watchedByTitle.get(window.normalizeTitle(film.title)),
+      let watched = matchingCandidateRecord(
+        film,
+        watchedRecordsList,
+        watchedByTitle,
         years,
       );
-      let watchlist = matchingRecord(
-        watchlistByTitle.get(window.normalizeTitle(film.title)),
-        years,
-      );
+      let watchlist = watched
+        ? null
+        : matchingCandidateRecord(
+            film,
+            watchlistRecordsList,
+            watchlistByTitle,
+            years,
+          );
       if (watched) {
         film.watched = true;
         film.watchedFilm = watched;
@@ -311,7 +353,9 @@
       } else if (watchlist) {
         film.watchlistItem = watchlist;
         film.year = String(watchlist.year || film.year);
-        film.href = window.filmPageUrl(watchlist.supabaseFilmId);
+        film.href = window.filmPageUrl(
+          watchlist.supabaseFilmId || watchlist.id,
+        );
       }
       film.categories.sort(
         (left, right) =>
@@ -481,12 +525,12 @@
     };
   }
 
-  /** Plans one official-results collection's unseen watchlist additions without mutating state. @param {string} scopeId Scope id (source-prefixed, see officialCollectionProjectSource()). @param {OfficialCollectionCompletion} [completion] Existing completion model for that same source. @returns {OfficialCollectionWatchlistPlan|null} Bulk-add plan. */
-  window.officialCollectionWatchlistPlan = function (scopeId, completion) {
-    let sourceId = String(scopeId || "").split(":")[0];
-    let model = completion || window.officialCollectionCompletion(sourceId);
-    let source = window.officialCollectionProjectSource(scopeId, model);
-    if (!source) return null;
+  // Completion models are immutable snapshots; keep model-only evidence weakly.
+  const officialTitleEvidence = new WeakMap();
+
+  function titleEvidenceForCompletion(model) {
+    let cached = officialTitleEvidence.get(model);
+    if (cached) return cached;
     let evidenceByTitle = new Map();
     model.films.forEach((film) => {
       let year = String(
@@ -500,6 +544,17 @@
       years.add(year);
       evidenceByTitle.set(key, years);
     });
+    officialTitleEvidence.set(model, evidenceByTitle);
+    return evidenceByTitle;
+  }
+
+  /** Plans one official-results collection's unseen watchlist additions without mutating state. @param {string} scopeId Scope id (source-prefixed, see officialCollectionProjectSource()). @param {OfficialCollectionCompletion} [completion] Existing completion model for that same source. @returns {OfficialCollectionWatchlistPlan|null} Bulk-add plan. */
+  window.officialCollectionWatchlistPlan = function (scopeId, completion) {
+    let sourceId = String(scopeId || "").split(":")[0];
+    let model = completion || window.officialCollectionCompletion(sourceId);
+    let source = window.officialCollectionProjectSource(scopeId, model);
+    if (!source) return null;
+    let evidenceByTitle = titleEvidenceForCompletion(model);
     let ready = new Map();
     let needsReview = new Map();
     let alreadyWatched = new Map();

@@ -2,7 +2,7 @@
  * @file Shared Supabase-backed watchlist bulk-tier control (issue #439),
  * generalized from tag.js's original page-specific control once
  * franchise.js needed the identical capability. Async parallel of
- * page-utils.js's renderWatchlistBulkTierControl()/
+ * watchlist-bulk-tier.js's renderWatchlistBulkTierControl()/
  * bindWatchlistBulkTierControl() (which mutate window.state/window.save()
  * through applyWatchlistBulkTierChange(), with an undo mechanism) - this
  * writes straight to Supabase via setSupabaseWatchlistTierForItems()
@@ -13,6 +13,7 @@
   let ui = window.uiText || ((text) => text);
 
   /**
+   * Renders the direct Supabase interest selector and apply button.
    * @param {{count: number, busy?: boolean, escape?: function}} options
    * @returns {string}
    */
@@ -31,6 +32,7 @@
   };
 
   /**
+   * Binds direct Supabase bulk interest writes to a page container.
    * Bound once per page load (delegated to `container`, which - unlike the
    * `innerHTML`-rebuilt elements inside it - survives every render(), so
    * binding again per render would stack duplicate listeners). `onStart`/

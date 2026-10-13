@@ -21,6 +21,44 @@
   let archiveFilms = [];
   let availableYears = [];
   let selectedWatchYear = "";
+  let sectionIds = [
+    "overall",
+    "yearly",
+    "ratings",
+    "coverage",
+    "habits",
+    "awards",
+  ];
+  let requestedTab = new URLSearchParams(window.location.search).get("tab");
+  let activeTab = sectionIds.includes(requestedTab) ? requestedTab : "overall";
+
+  let initialHashHandled = false;
+
+  function showSection(id) {
+    if (!sectionIds.includes(id)) return;
+    activeTab = id;
+    container.querySelectorAll(".stats-section").forEach((panel) => {
+      panel.hidden = panel.id !== `stats-${id}`;
+    });
+    container.querySelectorAll("[data-stats-tab]").forEach((tab) => {
+      let selected = tab.dataset.statsTab === id;
+      tab.classList.toggle("is-active", selected);
+      tab.setAttribute("aria-selected", String(selected));
+    });
+    if (window.location.href) {
+      let url = new URL(window.location.href);
+      url.searchParams.set("tab", id);
+      if (!url.hash.startsWith(`#stats-${id}`)) url.hash = "";
+      window.history.replaceState({}, "", url.toString());
+    }
+  }
+
+  function revealTarget(hash) {
+    let target = container.querySelector(hash);
+    let panel = target?.closest(".stats-section");
+    if (panel) showSection(panel.id.replace("stats-", ""));
+    if (target?.tagName === "DETAILS") target.open = true;
+  }
 
   function collectLegacyStatistics() {
     let finishStatistics = window.startOskarsPerformance?.("stats:statistics");
@@ -72,11 +110,12 @@
   function countTable(rows, options = {}) {
     let shown = options.limit ? rows.slice(0, options.limit) : rows;
     let total = options.total || shown.reduce((sum, row) => sum + row.count, 0);
+    // Formatters return safe HTML; plain keys are escaped here.
     return statsTable(
       [options.label || ui("Value"), ui("Films")],
       shown.map(
         (row) =>
-          `<tr><th scope="row">${escape(options.format?.(row.key) || row.key)}</th><td>${countBar(row.count, total)}</td></tr>`,
+          `<tr><th scope="row">${options.format ? options.format(row.key) : escape(row.key)}</th><td>${countBar(row.count, total)}</td></tr>`,
       ),
       options.emptyText,
     );
@@ -667,7 +706,7 @@
   ${viewingSummary}
 </header>
 ${overallContent()}
-<nav class="stats-navigation" aria-label="${escape(ui("Statistics sections"))}">${["overall", "yearly", "ratings", "coverage", "habits", "awards"].map((id) => `<a href="#stats-${id}">${escape(ui({ overall: "Overall statistics", yearly: "Year in review", ratings: "Ratings", coverage: "Coverage", habits: "Viewing habits", awards: "Awards" }[id]))}</a>`).join("")}</nav>
+<nav class="stats-navigation period-view-controls" role="tablist" aria-label="${escape(ui("Statistics sections"))}">${sectionIds.map((id) => `<a class="period-view-pill${activeTab === id ? " is-active" : ""}" role="tab" aria-selected="${activeTab === id}" aria-controls="stats-${id}" data-stats-tab="${id}" href="#stats-${id}">${escape(ui({ overall: "Overall statistics", yearly: "Year in review", ratings: "Ratings", coverage: "Coverage", habits: "Viewing habits", awards: "Awards" }[id]))}</a>`).join("")}</nav>
 ${section("overall", ui("Overall statistics"), ui("Ranked evidence behind the highlights. Small samples remain visible but cannot lead the strongest-year insight."), overallTables())}
 ${section("yearly", ui("Year in review"), ui("A yearly snapshot of viewing volume, tastes, and habits for any calendar year with recorded watch dates."), yearlyContent())}
 ${section(
@@ -681,8 +720,8 @@ ${section(
   ui("Coverage"),
   ui("What the watched archive spans, including explicit unknown values."),
   `<div class="stats-grid stats-grid--three">
-    ${split(ui("Medium"), countTable(stats.mediaRows, { label: ui("Medium"), total: stats.filmCount, format: mediumLabel }))}
-    ${split(ui("Screenplay"), countTable(stats.screenplayRows, { label: ui("Screenplay"), total: stats.filmCount, format: screenplayLabel }))}
+    ${split(ui("Medium"), countTable(stats.mediaRows, { label: ui("Medium"), total: stats.filmCount, format: (value) => escape(mediumLabel(value)) }))}
+    ${split(ui("Screenplay"), countTable(stats.screenplayRows, { label: ui("Screenplay"), total: stats.filmCount, format: (value) => escape(screenplayLabel(value)) }))}
     ${split(ui("Top countries"), countTable(stats.countryRows, { label: ui("Country"), limit: 20, total: stats.filmCount, emptyText: ui("No country data yet.") }))}
   </div>`,
 )}
@@ -715,6 +754,15 @@ ${section(
   awardsContent(),
 )} `;
 
+    let initialHash = initialHashHandled ? "" : window.location.hash || "";
+    initialHashHandled = true;
+    showSection(activeTab);
+    container.querySelectorAll("[data-stats-tab]").forEach((tab) => {
+      tab.addEventListener("click", (event) => {
+        event.preventDefault();
+        showSection(tab.dataset.statsTab);
+      });
+    });
     let detailsEl = container.querySelector("#statsAwardsInspector");
     detailsEl?.addEventListener("toggle", () => {
       inspectorExpanded = detailsEl.open;
@@ -736,7 +784,8 @@ ${section(
       link.addEventListener("click", (e) => {
         e.preventDefault();
         let year = e.currentTarget.dataset.watchYear;
-        if (year && year !== selectedWatchYear) {
+        if (year) {
+          activeTab = "yearly";
           selectedWatchYear = year;
           try {
             let url = new URL(window.location.href);
@@ -752,17 +801,16 @@ ${section(
 
     container.querySelectorAll(".stats-insight a").forEach((link) => {
       link.addEventListener("click", () => {
-        let target = container.querySelector(link.getAttribute("href"));
-        if (target?.tagName === "DETAILS") target.open = true;
+        revealTarget(link.getAttribute("href"));
       });
     });
     let hashTarget =
-      /^#stats-(overall-(years|directors|films)|yearly(-comparison)?)$/.test(
-        window.location?.hash || "",
+      /^#stats-(overall(-years|-directors|-films)?|yearly(-[a-z]+)?|ratings|coverage|habits|awards)$/.test(
+        initialHash,
       )
-        ? container.querySelector(window.location.hash)
+        ? container.querySelector(initialHash)
         : null;
-    if (hashTarget && hashTarget.tagName === "DETAILS") hashTarget.open = true;
+    if (hashTarget) revealTarget(initialHash);
     window.enhanceHorizontalScroll?.(container);
 
     finishRenderTimer?.(

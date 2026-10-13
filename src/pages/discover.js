@@ -131,22 +131,16 @@
   function option(value, label, name) {
     return `<option value="${escape(value)}"${name && currentFilters[name] === String(value) ? " selected" : ""}>${escape(label)}</option>`;
   }
-  function ratingLabel(kind, value) {
-    let rating = `${value % 1 ? value : value.toFixed(0)}★`;
-    if (kind === "minimum") return ui("At least {rating}", { rating });
-    if (kind === "maximum") return ui("At most {rating}", { rating });
-    return rating;
-  }
   function ratingOptions(kind) {
-    return Array.from({ length: 10 }, (_, index) => {
-      let value = (index + 1) / 2;
-      return option(
+    return window.renderRatingFilterOptions(kind, (value, label) =>
+      option(
         value,
-        ratingLabel(kind, value),
+        label,
         kind === "minimum" ? "minimumRating" : "maximumRating",
-      );
-    }).join("");
+      ),
+    );
   }
+
   function mediumLabel(value) {
     if (value === "live-action") return ui("Live action");
     if (value === "animation") return ui("Animation");
@@ -167,11 +161,7 @@
     ]
       .sort((left, right) => right - left)
       .map((value) =>
-        option(
-          value,
-          `${value % 1 ? value : value.toFixed(0)}★`,
-          "exactRating",
-        ),
+        option(value, window.formatStarRating(value), "exactRating"),
       )
       .join("");
   }

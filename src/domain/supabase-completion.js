@@ -24,9 +24,10 @@ window.buildSupabaseCompletionWatchedState = function (source) {
   };
 };
 
-/** Builds award-bracket completion models from the compact projection, reusing window.awardBracketCompletion()/awardBracketCategoryCompletion() unchanged over an isolated state. @param {Object} source Compact Completion projection. @returns {{bracketCompletion: Object[], bracketCategoryCompletion: Object[]}} */
-window.buildSupabaseCompletionBracketModel = function (source) {
-  let state = window.buildSupabaseCompletionWatchedState(source);
+/** Builds award-bracket completion models from the compact projection, reusing window.awardBracketCompletion()/awardBracketCategoryCompletion() unchanged over an isolated state. @param {Object} source Compact Completion projection. @param {Object} [watchedState] Already-built isolated watched state. @returns {{bracketCompletion: Object[], bracketCategoryCompletion: Object[]}} */
+window.buildSupabaseCompletionBracketModel = function (source, watchedState) {
+  let state =
+    watchedState || window.buildSupabaseCompletionWatchedState(source);
   return {
     bracketCompletion: window.awardBracketCompletion({ state }),
     bracketCategoryCompletion: window.awardBracketCategoryCompletion({
@@ -35,22 +36,29 @@ window.buildSupabaseCompletionBracketModel = function (source) {
   };
 };
 
-/** Builds watch-goal progress models from the compact projection, reusing window.watchGoalProgress() unchanged over an isolated state. @param {Object} source Compact Completion projection. @returns {{watchGoalYears: Object[], watchGoalDecades: Object[], watchGoalCenturies: Object[]}} */
-window.buildSupabaseCompletionWatchGoalModel = function (source) {
-  let state = window.buildSupabaseCompletionWatchedState(source);
+/** Builds watch-goal progress models from the compact projection, reusing window.watchGoalProgress() unchanged over an isolated state. @param {Object} source Compact Completion projection. @param {Object} [watchedState] Already-built isolated watched state. @returns {{watchGoalYears: Object[], watchGoalDecades: Object[], watchGoalCenturies: Object[], watchGoalAllTime: Object|null}} */
+window.buildSupabaseCompletionWatchGoalModel = function (source, watchedState) {
+  let state =
+    watchedState || window.buildSupabaseCompletionWatchedState(source);
   return {
     watchGoalYears: window.watchGoalProgress("year", { state }),
     watchGoalDecades: window.watchGoalProgress("decade", { state }),
     watchGoalCenturies: window.watchGoalProgress("century", { state }),
+    watchGoalAllTime:
+      window.watchGoalProgress("alltime", { state })?.[0] || null,
   };
 };
 
-/** Builds one official-results completion model per currently populated source, from the compact watched/watchlist projection plus an already-hydrated officialResults object. @param {Object} watchedSource Compact Completion watched/watchlist projection. @param {Object} officialResults Live official-results object (e.g. window.state.officialResults, or the result of hydrateOfficialResultsFromSupabase()/buildOfficialResultsFromSupabase()). @returns {Map<string, Object>} sourceId -> OfficialCollectionCompletion, in the same academy-awards-first order completion.js's own refreshOfficialCompletions() uses. */
+/** Builds one official-results completion model per currently populated source, from the compact watched/watchlist projection plus an already-hydrated officialResults object. @param {Object} watchedSource Compact Completion watched/watchlist projection. @param {Object} officialResults Live official-results object (e.g. window.state.officialResults, or the result of hydrateOfficialResultsFromSupabase()/buildOfficialResultsFromSupabase()). @param {Object} [watchedState] Already-built isolated watched state, kept free of official-results assignments. @returns {Map<string, Object>} sourceId -> OfficialCollectionCompletion, in the same academy-awards-first order completion.js's own refreshOfficialCompletions() uses. */
 window.buildSupabaseCompletionOfficialModel = function (
   watchedSource,
   officialResults,
+  watchedState,
 ) {
-  let state = window.buildSupabaseCompletionWatchedState(watchedSource);
+  let state = {
+    ...(watchedState ||
+      window.buildSupabaseCompletionWatchedState(watchedSource)),
+  };
   state.officialResults = officialResults || {};
   let sourceIds = Object.keys(state.officialResults).sort((a, b) =>
     a === "academy-awards" ? -1 : b === "academy-awards" ? 1 : 0,

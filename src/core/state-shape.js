@@ -132,6 +132,7 @@
  * @property {string} [country] Possibly multiple production countries.
  * @property {string} [primaryCountry] Single normalized country used for
  *   Best International Picture eligibility.
+ * @property {string} [originalLanguage] Primary spoken/original language code or name.
  * @property {'live-action'|'animation'|'unknown'} [medium]
  * @property {string|boolean} [liveAction] Ranked-list Live Action cell;
  *   normalizeFilmMetadata derives `medium` from it.
@@ -464,6 +465,7 @@
  * @property {string} [adaptationSource]
  * @property {string} [country]
  * @property {string} [primaryCountry]
+ * @property {string} [originalLanguage]
  * @property {string} [platform]
  * @property {string} [dateWatched]
  * @property {number} [views]
@@ -1119,6 +1121,15 @@
  * @property {AwardStats} stats Annual-award statistics.
  * @property {AwardScores} awardScores
  * @property {RatingStatistics} ratingStatistics Complete watched-filmography rating statistics.
+ */
+
+/**
+ * Minimal person identity consumed by portraits and award highlights.
+ * @typedef {Object} RecipientPerson
+ * @property {string} id Normalized canonical name.
+ * @property {string} name First-seen canonical display name.
+ * @property {PosterRecord|null} portrait
+ * @property {string|null} [supabasePersonId] Unambiguous database identity.
  */
 
 /**

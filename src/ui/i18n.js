@@ -4,6 +4,11 @@
   window.OSKARS_LOCALE_KEY = "oskars-locale";
 
   let translations = {
+    "nav.build": { sv: "Bygg" },
+    "nav.award": { sv: "Belöna" },
+    "nav.rateTier": { sv: "Betygsätt / Prioritera" },
+    "nav.overview": { sv: "Översikt" },
+
     "nav.home": { sv: "Hem" },
     "nav.franchises": { sv: "Franchises" },
     "nav.watchlist": { sv: "Watchlist" },
@@ -13,9 +18,26 @@
     "nav.data": { sv: "Data" },
     "nav.profile": { sv: "Profil" },
     "nav.intake": { sv: "Intag" },
+    "quickAdd.title": { sv: "Lägg till film eller logga sedd" },
+    "quickAdd.heading": { sv: "Lägg till film" },
+    "quickAdd.searchLabel": { sv: "Sök filmtitel" },
+    "quickAdd.searchPlaceholder": { sv: "Sök i katalogen eller TMDB…" },
+    "quickAdd.searchTmdb": { sv: "Sök på TMDB istället" },
+    "quickAdd.changeFilm": { sv: "Välj en annan film" },
+    "quickAdd.tabWatched": { sv: "Logga sedd" },
+    "quickAdd.tabWatchlist": { sv: "Watchlist" },
+    "quickAdd.tabCatalog": { sv: "Utforska" },
+    "quickAdd.logWatch": { sv: "Logga sedd film" },
+    "quickAdd.addToWatchlist": { sv: "Lägg till i watchlist" },
+    "quickAdd.viewFilm": { sv: "Visa filmdetaljer" },
+    "quickAdd.ratingOptional": {
+      sv: "Betyg (valfritt — lämna tomt för att sova på saken)",
+    },
+    "quickAdd.loggedSuccess": { sv: "Loggade {title}" },
+    "quickAdd.watchlistSuccess": { sv: "Lade till {title} i din watchlist" },
     "nav.rateWatched": { sv: "Betygsätt sedda" },
     "nav.tierWatchlist": { sv: "Sätt watchlist-tier" },
-    "nav.rankings": { sv: "Rangordning" },
+    "nav.rankings": { sv: "Rangordna" },
     "nav.buildOskars": { sv: "Bygg Oskars" },
     "nav.browse": { sv: "Bläddra" },
     "action.view": { sv: "Visa" },
@@ -85,6 +107,83 @@
   };
 
   let literalTranslations = {
+    Intake: { sv: "Intag" },
+    Build: { sv: "Bygg" },
+    Award: { sv: "Belöna" },
+    "Nominate your favourites and choose the winners.": {
+      sv: "Nominera dina favoriter och välj vinnarna.",
+    },
+    "Choose a period": { sv: "Välj en period" },
+    "Choose ceremony": { sv: "Välj ceremoni" },
+    "Open ceremony": { sv: "Öppna ceremoni" },
+    "Decade, century, and all-time ceremonies build on nominees from their smaller periods.":
+      {
+        sv: "Ceremonier för årtionden, århundraden och alla tider bygger på nomineringar från de mindre perioderna.",
+      },
+    "Start a ceremony": { sv: "Starta en ceremoni" },
+    "Completed ceremonies": { sv: "Färdiga ceremonier" },
+    "Add watched films to start your first ceremony.": {
+      sv: "Lägg till sedda filmer för att starta din första ceremoni.",
+    },
+    "Loading ceremonies…": { sv: "Laddar ceremonier…" },
+    "Could not load ceremonies.": { sv: "Kunde inte ladda ceremonier." },
+
+    "Cinema, Blu-ray, Netflix…": { sv: "Bio, Blu-ray, Netflix…" },
+    "Tier modifier": { sv: "Tier-modifierare" },
+    "Note / Reason": { sv: "Anteckning / Anledning" },
+    "Optional note…": { sv: "Valfri anteckning…" },
+    "Explore this film in the catalog:": {
+      sv: "Utforska denna film i katalogen:",
+    },
+
+    "Needs rating": { sv: "Behöver betyg" },
+    "Slot into {year}": { sv: "Placera i {year}" },
+    "Ceremony candidate": { sv: "Ceremonikandidat" },
+    "Slot into ranking": { sv: "Placera i rangordning" },
+    "Ceremony check": { sv: "Ceremonikoll" },
+    "Rate year": { sv: "Betygsätt år" },
+    "Rank year": { sv: "Rangordna år" },
+    Untitled: { sv: "Namnlös" },
+    "Recent watches inbox": { sv: "Inkorg för nyligen sedda" },
+    "Recent watches": { sv: "Nyligen sedda" },
+    "All caught up ✓": { sv: "Allt avklarat ✓" },
+    "All logged watches are rated and arranged.": {
+      sv: "Alla loggade filmer är betygsatta och ordnade.",
+    },
+    "{count} to review": { sv: "{count} att granska" },
+    "View all {count} unrated films →": {
+      sv: "Visa alla {count} obetygsatta filmer →",
+    },
+    "Rate {title}": { sv: "Betygsätt {title}" },
+    "Save rating": { sv: "Spara betyg" },
+    "Choose a rating before saving.": { sv: "Välj ett betyg innan du sparar." },
+    "Saved rating for {title}": { sv: "Sparade betyg för {title}" },
+    "First film at this rating": { sv: "Första filmen med detta betyg" },
+    "comparison film": { sv: "jämförelsefilm" },
+    "No other films in {year} share this rating. Slot directly into ranking order.":
+      {
+        sv: "Inga andra filmer under {year} delar detta betyg. Placera direkt i rangordning.",
+      },
+    "Slot {title} into {year} ranking": {
+      sv: "Placera {title} i {year} rangordning",
+    },
+    "Insert into ranking": { sv: "Infoga i rangordning" },
+    "Placed {title} into {year} ranking": {
+      sv: "Placerade {title} i {year} rangordning",
+    },
+    "Ceremony check: {title}": { sv: "Ceremonikoll: {title}" },
+    "Recipient(s)": { sv: "Mottagare" },
+    "Comma-separated (optional)": { sv: "Kommaseparerade (valfritt)" },
+    "Optional note": { sv: "Valfri anteckning" },
+    "No nominations needed": { sv: "Inga nomineringar behövs" },
+    Nominate: { sv: "Nominera" },
+    "Marked {title} as reviewed for ceremony": {
+      sv: "Markerade {title} som granskad för ceremoni",
+    },
+    "Nominated {title} for {category}": {
+      sv: "Nominerade {title} för {category}",
+    },
+
     Anthology: { sv: "Antologi" },
     Stage: { sv: "Scen" },
     Concert: { sv: "Konsert" },
@@ -321,9 +420,6 @@
     "This is not a supported backup.": {
       sv: "Det här är inte en säkerhetskopia som stöds.",
     },
-    "Private now. Only you can open this profile.": {
-      sv: "Privat nu. Bara du kan öppna den här profilen.",
-    },
     "Unsupported backup format.": { sv: "Säkerhetskopians format stöds inte." },
     "Backup from {date}: {watched} watched, {watchlist} watchlist, {rankings} ranking scope(s).":
       {
@@ -499,18 +595,28 @@
         sv: "Google-inloggningen eller förfrågan tog för lång tid. Kontrollera din nätverksanslutning och försök igen.",
       },
     "Letterboxd sync": { sv: "Letterboxd-synk" },
-    "Never synced yet. Enter your Letterboxd username to start.": {
-      sv: "Aldrig synkad än. Ange ditt Letterboxd-användarnamn för att starta.",
+    "Sync now": { sv: "Synka nu" },
+    "Connecting Letterboxd RSS sync…": {
+      sv: "Ansluter Letterboxd RSS-synk…",
+    },
+    "Letterboxd username connected. RSS sync will detect future watches.": {
+      sv: "Letterboxd-användarnamn anslutet. RSS-synk kommer upptäcka framtida sedda filmer.",
     },
     "Syncing from Letterboxd…": { sv: "Synkar från Letterboxd…" },
-    "Letterboxd settings saved.": {
-      sv: "Letterboxd-inställningarna sparades.",
-    },
-    "Letterboxd username cleared.": {
-      sv: "Letterboxd-användarnamnet rensades.",
-    },
     "All caught up — no new Letterboxd watches found.": {
       sv: "Helt ikapp — inga nya sedda filmer hittades på Letterboxd.",
+    },
+    "Synced {count} new watch(es) into Intake.": {
+      sv: "Synkade {count} ny(a) sedd(a) film(er) till Intag.",
+    },
+    "Sync finished.": {
+      sv: "Synkningen slutförd.",
+    },
+    "Building full account backup…": {
+      sv: "Skapar fullständig kontosäkerhetskopia…",
+    },
+    "Full account backup downloaded.": {
+      sv: "Fullständig säkerhetskopia nedladdad.",
     },
     "Synced {count} new watch(es)": {
       sv: "Synkade {count} ny(a) sedd(a) film(er)",
@@ -1276,7 +1382,6 @@
     },
     Cancel: { sv: "Avbryt" },
     Categories: { sv: "Kategorier" },
-    "Categories complete": { sv: "Kompletta kategorier" },
     Category: { sv: "Kategori" },
     "Category not found": { sv: "Kategorin hittades inte" },
     "Category note": { sv: "Kategorianteckning" },
@@ -1772,12 +1877,6 @@
     "No award bracket data imported yet.": {
       sv: "Ingen prisbracket-data importerad ännu.",
     },
-    "{count} more already fully filled.": {
-      sv: "{count} till redan helt ifyllda.",
-    },
-    "All imported brackets are fully filled.": {
-      sv: "Alla importerade brackets är helt ifyllda.",
-    },
     Data: { sv: "Data" },
     "Watch goals": { sv: "Titt-mål" },
     "Coverage targets per period — {yearGoal} films per year, {decadeGoal} per decade, {centuryGoal} per century — separate from award nominee coverage.":
@@ -1785,12 +1884,6 @@
         sv: "Täckningsmål per period — {yearGoal} filmer per år, {decadeGoal} per årtionde, {centuryGoal} per århundrade — separat från priskandidattäckning.",
       },
     "No watched films yet.": { sv: "Inga sedda filmer ännu." },
-    "{count} more already at or past the goal.": {
-      sv: "{count} till redan vid eller över målet.",
-    },
-    "Every period has reached its goal.": {
-      sv: "Alla perioder har nått sitt mål.",
-    },
     "Next up from the watchlist": { sv: "Näst på tur från watchlisten" },
     "Nothing to show yet": { sv: "Inget att visa ännu" },
     "Import some films first, then come back for the tour.": {
@@ -1906,7 +1999,6 @@
     "Primary country": { sv: "Primärt land" },
     "Progression table": { sv: "Progressionstabell" },
     Progression: { sv: "Progression" },
-    Progress: { sv: "Framsteg" },
     Project: { sv: "Projekt" },
     "Project note": { sv: "Projektanteckning" },
     Projects: { sv: "Projekt" },
@@ -2551,9 +2643,6 @@
     After: { sv: "Efter" },
     Changes: { sv: "Ändringar" },
     // Profile page: sign-in and profile data (src/pages/profile.js)
-    "Enter a name to see its URL slug.": {
-      sv: "Ange ett namn för att se dess URL-slug.",
-    },
     "Saved.": { sv: "Sparat." },
     "More columns": { sv: "Fler kolumner" },
     "Scroll left": { sv: "Rulla åt vänster" },
@@ -2620,9 +2709,7 @@
       },
     "Never synced yet.": { sv: "Aldrig synkad ännu." },
     "Disconnect RSS": { sv: "Koppla från RSS" },
-    "Profile settings": { sv: "Profilinställningar" },
     "Re-import ZIP": { sv: "Återimportera ZIP" },
-    "Connect username": { sv: "Anslut användarnamn" },
     "Import ZIP": { sv: "Importera ZIP" },
     "{count} IMDb-sourced film(s) and watchlist item(s) in your archive.": {
       sv: "{count} IMDb-baserade filmer och watchlist-objekt i ditt arkiv.",

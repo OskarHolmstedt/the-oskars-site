@@ -293,6 +293,8 @@ window.officialNomineeSharedFilmRecords = function () {
   });
 };
 
+let sharedArchiveCandidateCache = null;
+
 /**
  * Combined Shared archive candidates (issue #371): organic
  * `sharedFilmMetadata` records plus official-results nominees not already
@@ -303,6 +305,27 @@ window.officialNomineeSharedFilmRecords = function () {
  * @returns {Object[]}
  */
 window.sharedArchiveCandidateFilms = function () {
+  let state = window.state;
+  let key = [
+    state,
+    state?.aggregateVersion,
+    state?.filmsById,
+    Object.keys(state?.filmsById || {}).length,
+    state?.watchedOther,
+    state?.watchedOther?.length,
+    state?.watchlist,
+    state?.watchlist?.length,
+    state?.officialResults,
+    window.OSKARS_SHARED_FILM_ARCHIVE,
+    window.OSKARS_SHARED_FILM_ARCHIVE_VERSION,
+    window.OSKARS_BUNDLED_OFFICIAL_FILM_METADATA,
+  ];
+  if (
+    sharedArchiveCandidateCache?.key.every(
+      (value, index) => value === key[index],
+    )
+  )
+    return sharedArchiveCandidateCache.films;
   let organic = window.sharedArchiveFilmsOutsideCollection();
   let organicTmdbIds = new Set(
     organic.map((film) => String(film.tmdbId || "")).filter(Boolean),
@@ -312,7 +335,9 @@ window.sharedArchiveCandidateFilms = function () {
       window.officialNomineeSharedFilmRecords(),
     )
     .filter((film) => !organicTmdbIds.has(String(film.tmdbId || "")));
-  return [...organic, ...nominees];
+  let films = [...organic, ...nominees];
+  sharedArchiveCandidateCache = { key, films };
+  return films;
 };
 
 /**

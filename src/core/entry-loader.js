@@ -24,6 +24,7 @@
     "profile",
     "intake",
     "build",
+    "award",
     "rate-watched",
     "tier-watchlist",
     "film",
@@ -99,11 +100,18 @@
 
   // Mirrors src/ui/site-header.js's currentSection(), keyed by entry.
   function currentSection() {
-    if (entry === "period") {
-      let params = new URLSearchParams(window.location?.search || "");
-      return params.get("view") === "watchlist" ? "watchlist" : "browse";
-    }
-    if (["build", "rank-year", "awards-year"].includes(entry)) return "build";
+    if (entry === "period") return "browse";
+    if (
+      [
+        "build",
+        "award",
+        "rate-watched",
+        "tier-watchlist",
+        "rank-year",
+        "awards-year",
+      ].includes(entry)
+    )
+      return "build";
     if (
       [
         "rankings",
@@ -113,7 +121,7 @@
         "ranking-review",
       ].includes(entry)
     )
-      return "rankings";
+      return "build";
     if (
       [
         "films",
@@ -158,9 +166,9 @@
     let locale = initialLocale();
     let text = {
       home: locale === "sv" ? "Hem" : "Home",
-      buildOskars: locale === "sv" ? "Bygg Oskars" : "Build Oskars",
-      watchlist: "Watchlist",
-      rankings: locale === "sv" ? "Rangordning" : "Rankings",
+      buildOskars: locale === "sv" ? "Bygg" : "Build",
+      award: locale === "sv" ? "Belöna" : "Award",
+      rankings: locale === "sv" ? "Rangordna" : "Rank",
       projects: locale === "sv" ? "Projekt" : "Projects",
       browse: locale === "sv" ? "Bläddra" : "Browse",
       periods: locale === "sv" ? "Perioder" : "Periods",
@@ -181,7 +189,6 @@
         locale === "sv" ? "Dölj affischbakgrund" : "Hide poster backdrop",
       archiveProjections:
         locale === "sv" ? "Arkivprojektioner" : "Archive projections",
-      editors: locale === "sv" ? "Redigering" : "Editors",
       admin: "Admin",
       discover: locale === "sv" ? "Upptäck" : "Discover",
       compare: locale === "sv" ? "Jämför" : "Compare",
@@ -193,21 +200,19 @@
       data: "Data",
       profile: locale === "sv" ? "Profil" : "Profile",
       intake: locale === "sv" ? "Intag" : "Intake",
+      quickAddTitle:
+        locale === "sv"
+          ? "Lägg till film eller logga sedd"
+          : "Add film or log watch",
       rateWatched: locale === "sv" ? "Betygsätt sett" : "Rate watched",
       tierWatchlist:
         locale === "sv" ? "Sätt watchlist-tier" : "Set watchlist tier",
     };
-    // Build Oskars and Rankings are owner-only; the runtime-mode and
-    // public-profile gate below removes them once it resolves.
+    // Build is owner-only; the runtime-mode and
+    // public-profile gate below removes it once it resolves.
     let navItems = [
       ["home", text.home, "index.html"],
       ["build", text.buildOskars, "build.html"],
-      [
-        "watchlist",
-        text.watchlist,
-        "period.html?type=alltime&amp;view=watchlist",
-      ],
-      ["rankings", text.rankings, "rankings.html"],
       ["projects", text.projects, "projects.html"],
       ["browse", text.browse, "films.html"],
     ];
@@ -233,6 +238,7 @@
         <input type="search" autocomplete="off" placeholder="${text.search}" aria-label="${text.searchAria}" data-site-search-input>
         <div class="site-search-results" data-site-search-results hidden></div>
       </form>
+      <button class="quick-add-toggle" type="button" data-quick-add-toggle title="${text.quickAddTitle}" aria-label="${text.quickAddTitle}">＋</button>
       <button class="language-toggle" type="button" data-language-toggle aria-label="${text.languageAria}">${text.languageNext}</button>
       <button class="theme-toggle" type="button" data-theme-toggle title="Switch color theme" aria-label="Switch color theme">${THEME_ICON[theme] || "☾"}</button>
       <button class="poster-grid-toggle" type="button" data-poster-grid-toggle aria-pressed="${posterGrid ? "true" : "false"}" title="${text.posterGridAria}" aria-label="${text.posterGridAria}">🖼️</button>
@@ -243,7 +249,7 @@
         <div class="site-menu-panel">
           <section><h2>${text.browse}</h2><div class="site-menu-links"><a href="films.html">${text.films}</a><a href="periods.html">${text.periods}</a><a href="categories.html">${text.categories}</a><a href="collections.html">${text.collections}</a><a href="people.html">${text.people}</a></div></section>
           <section><h2>${text.archiveProjections}</h2><div class="site-menu-links"><a href="community.html">${text.community}</a><a href="discover.html">${text.discover}</a><a href="compare.html">${text.compare}</a><a href="presentation.html">${text.showcase}</a><a href="completion.html">${text.completion}</a><a href="stats.html">${text.statistics}</a></div></section>
-          <section data-site-menu-owner><h2>${text.editors}</h2><div class="site-menu-links"><a href="intake.html">${text.intake}</a><a href="rate-watched.html">${text.rateWatched}</a><a href="tier-watchlist.html">${text.tierWatchlist}</a></div></section>
+          <section data-site-menu-owner><h2>${text.buildOskars}</h2><div class="site-menu-links"><a href="build.html">${locale === "sv" ? "Översikt" : "Overview"}</a><a href="rate-watched.html">${text.rateWatched}</a><a href="tier-watchlist.html">${text.tierWatchlist}</a><a href="rankings.html">${text.rankings}</a><a href="award.html">${text.award}</a></div></section>
           <section data-site-menu-owner><h2>${text.admin}</h2><div class="site-menu-links"><a href="data.html">${text.data}</a><a href="profile.html">${text.profile}</a></div></section>
         </div>
       </details>
@@ -520,6 +526,7 @@
     // interactions hydrate the complete account archive on demand.
     "intake",
     "build",
+    "award",
     "rank-year",
     "awards-year",
     "ranking-review",
@@ -568,6 +575,9 @@
   ];
 
   let dependencies = [
+    ...(["data", "data-tools"].includes(entry)
+      ? ["src/ui/browser-downloads.js"]
+      : []),
     "src/core/canonical-data.js",
     "src/core/canonical-data-official.js",
     "src/core/edit-log.js",
@@ -628,6 +638,7 @@
     "src/domain/posters.js",
     ...([
       "build",
+      "award",
       "rate-watched",
       "tags",
       "franchises",
@@ -721,6 +732,7 @@
         : []),
     ...(entry === "period"
       ? [
+          "src/ui/watchlist-bulk-tier.js",
           "src/pages/period/navigation.js",
           "src/pages/period/highlights.js",
           "src/pages/period/award-view.js",
@@ -870,6 +882,7 @@
       "src/ui/scroll-affordance.js",
     ],
     profile: [
+      "src/ui/browser-downloads.js",
       "src/core/state.js",
       "src/ui/storage-status.js",
       "src/ui/scroll-affordance.js",
@@ -892,6 +905,14 @@
       "src/ui/award-credit.js",
       "src/ui/detail-scaffold.js",
       "src/ui/scroll-affordance.js",
+    ],
+    award: [
+      "src/core/state.js",
+      "src/domain/credits.js",
+      "src/domain/people/index.js",
+      "src/ui/poster-deck.js",
+      "src/ui/detail-scaffold.js",
+      "src/domain/award-hub.js",
     ],
     build: [
       "src/core/state.js",
@@ -992,6 +1013,7 @@
     "profile",
     "intake",
     "build",
+    "award",
     "rate-watched",
     "tier-watchlist",
     "rank-year",
@@ -1047,6 +1069,7 @@
     "rank-year",
     "awards-year",
     "build",
+    "award",
     "intake",
     "data-tools",
   ]);
@@ -1149,7 +1172,8 @@
       "notes-tags",
     ],
     intake: ["workspace", "intake", "catalog", "rankings", "awards", "profile"],
-    build: ["workspace", "catalog", "rankings", "awards", "profile"],
+    award: ["workspace", "catalog", "awards", "profile"],
+    build: ["workspace", "watched", "catalog", "rankings", "awards", "profile"],
     "rate-watched": [
       "workspace",
       "watched",
@@ -1505,7 +1529,7 @@
     if (!capabilities.allowOwnerPages || activeProfileSlug) {
       document
         .querySelectorAll(
-          '.site-menu-panel [data-site-menu-owner], .app-primary-nav a[href="build.html"], .app-primary-nav a[href="rankings.html"]',
+          '.site-menu-panel [data-site-menu-owner], .app-primary-nav a[href="build.html"], .app-primary-nav a[href="rankings.html"], [data-quick-add-toggle]',
         )
         .forEach((element) => element.remove());
     }
@@ -1554,7 +1578,11 @@
       ])
         await loadScript(path);
     };
-    if (["awards-year", "person", "franchise", "data", "build"].includes(entry))
+    if (
+      ["awards-year", "person", "franchise", "data", "build", "award"].includes(
+        entry,
+      )
+    )
       await loadScript("src/domain/supabase-collection-ballots.js");
     await loadScript("src/core/supabase-hydration-cache.js");
     await loadScript("src/ui/privacy-notice.js");
@@ -1603,6 +1631,8 @@
     }
     if (entry === "build") {
       await loadScript("src/ui/film-rating.js");
+      await loadScript("src/domain/fractional-position.js");
+      await loadScript("src/domain/supabase-watched-intake.js");
       await loadScript("src/domain/supabase-ranking-consistency.js");
       await loadScript("src/domain/build-journey.js");
     }
@@ -1767,5 +1797,6 @@
     window.refreshOskarsBackdrop?.();
     window.renderPosterAttribution?.();
     window.initNavigationPrefetch?.();
+    window.markHydrationCachePageReady?.();
   })().catch(renderLoadError);
 })();

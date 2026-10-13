@@ -1,92 +1,124 @@
 /**
- * @file Caches loadSupabaseHydrationDomains()'s raw payload in
- * sessionStorage so a same-tab page navigation - this is a multi-page app,
- * every nav is a full static-HTML reload - can skip re-fetching and
- * re-joining the entire watched/watchlist/rankings/personal-awards/
- * film-and-franchise-catalog dataset from Supabase on every single page
- * visit. Keyed by user id so a different account signing in on the same
- * tab never sees a stale cache. A short TTL bounds staleness from another
- * tab/device; invalidateCachedSupabaseHydrationSource() below is also
- * called after every mutation function in supabase/ area modules succeeds
- * (wrapped generically here rather than editing each function body), so a
- * same-session write-then-navigate flow always sees fresh data.
+ * @file Owns tab-scoped raw Supabase hydration domain caches, their five-minute
+ * freshness window, post-paint writes and mutation/account invalidation.
  */
 
-// Version the key whenever the raw hydration-source contract changes so a
-// payload written by older loader code cannot survive into an incompatible
-// reader after a reload.
-window.OSKARS_HYDRATION_CACHE_KEY = "oskars-supabase-hydration-cache:v5";
+window.OSKARS_HYDRATION_CACHE_KEY = "oskars-supabase-hydration-cache:v6";
 window.OSKARS_HYDRATION_CACHE_TTL_MS = 5 * 60 * 1000;
+window.OSKARS_HYDRATION_CACHE_MAX_DOMAIN_CHARS = 5_000_000;
+window.OSKARS_HYDRATION_CACHE_OVERFLOW_KEY =
+  "oskars-supabase-hydration-cache-overflow:v2";
 
-/**
- * Reads the cached hydration source for the given user, if any and still
- * fresh.
- * @param {string} [userId] The signed-in user's id.
- * @returns {Object|null} The cached raw source, or null on a miss.
- */
-window.readCachedSupabaseHydrationSource = function (userId) {
-  if (!userId) return null;
+const hydrationCacheDefaultDomains = [
+  "watched",
+  "watchlist",
+  "rankings",
+  "personalAwards",
+  "franchises",
+  "catalogFilms",
+  "people",
+  "ownProjects",
+  "profile",
+  "franchiseWatchlist",
+  "taggedWatchlist",
+];
+let hydrationCacheGeneration = 0;
+let hydrationCachePageReady = false;
+let hydrationCacheWriteScheduled = false;
+let pendingHydrationCacheDomains = new Map();
+
+function hydrationCacheKnownDomains() {
+  return [
+    ...new Set([
+      ...hydrationCacheDefaultDomains,
+      ...(window.SUPABASE_HYDRATION_DOMAINS || []),
+      ...Object.keys(window.SUPABASE_HYDRATION_SUBSET_DOMAINS || {}),
+    ]),
+  ];
+}
+function hydrationCacheDomainKey(domain) {
+  return `${window.OSKARS_HYDRATION_CACHE_KEY}:${domain}`;
+}
+function clearLegacyHydrationCacheEntries() {
   try {
-    let raw = sessionStorage.getItem(window.OSKARS_HYDRATION_CACHE_KEY);
+    for (let version = 1; version <= 5; version++)
+      sessionStorage.removeItem(`oskars-supabase-hydration-cache:v${version}`);
+    sessionStorage.removeItem("oskars-supabase-hydration-cache-overflow:v1");
+  } catch (_) {}
+}
+function freshHydrationCacheEntry(entry, userId) {
+  return (
+    entry?.userId === userId &&
+    typeof entry.savedAt === "number" &&
+    Date.now() - entry.savedAt <= window.OSKARS_HYDRATION_CACHE_TTL_MS
+  );
+}
+function hydrationCacheDomainEntry(domain) {
+  try {
+    let raw = sessionStorage.getItem(hydrationCacheDomainKey(domain));
     if (!raw) return null;
     let entry = JSON.parse(raw);
-    if (
-      entry?.userId !== userId ||
-      typeof entry?.savedAt !== "number" ||
-      Date.now() - entry.savedAt > window.OSKARS_HYDRATION_CACHE_TTL_MS
-    )
-      return null;
-    return entry.source || null;
-  } catch (err) {
+    return entry && Object.prototype.hasOwnProperty.call(entry, "value")
+      ? { entry, length: raw.length }
+      : null;
+  } catch (_) {
     return null;
   }
-};
-
-// Domain sets whose serialized source overflowed sessionStorage in this tab.
-// A source holding every domain of such a set is at least as large, so its
-// write is skipped instead of serialized only to fail again.
-window.OSKARS_HYDRATION_CACHE_OVERFLOW_KEY =
-  "oskars-supabase-hydration-cache-overflow:v1";
-
-function hydrationCacheDomains(source) {
-  return Array.isArray(source?.domains) ? source.domains : ["*"];
 }
 
-function readHydrationCacheOverflows(userId) {
+/** Reads fresh stored or pending hydration domains for one account. @param {string} [userId] Signed-in account ID. @returns {Object|null} Raw source with exactly its held domains, or null. */
+window.readCachedSupabaseHydrationSource = function (userId) {
+  if (!userId) return null;
+  clearLegacyHydrationCacheEntries();
+  let source = { domains: [] };
+  for (let domain of hydrationCacheKnownDomains()) {
+    let stored = hydrationCacheDomainEntry(domain);
+    let pending = pendingHydrationCacheDomains.get(domain);
+    let entry = freshHydrationCacheEntry(pending, userId)
+      ? pending
+      : stored?.entry;
+    if (!freshHydrationCacheEntry(entry, userId)) continue;
+    source[domain] = entry.value;
+    source.domains.push(domain);
+  }
+  return source.domains.length ? source : null;
+};
+
+function oversizedHydrationCacheDomains(userId) {
   try {
     let entry = JSON.parse(
       sessionStorage.getItem(window.OSKARS_HYDRATION_CACHE_OVERFLOW_KEY) ||
         "null",
     );
-    return entry?.userId === userId && Array.isArray(entry.domainSets)
-      ? entry.domainSets
-      : [];
-  } catch (err) {
-    return [];
+    if (
+      entry?.userId !== userId ||
+      !entry.domains ||
+      Array.isArray(entry.domains)
+    )
+      return {};
+    return Object.fromEntries(
+      Object.entries(entry.domains).filter(
+        ([, savedAt]) =>
+          typeof savedAt === "number" &&
+          Date.now() - savedAt <= window.OSKARS_HYDRATION_CACHE_TTL_MS,
+      ),
+    );
+  } catch (_) {
+    return {};
   }
 }
-
-function hydrationCacheKnownToOverflow(userId, domains) {
-  return readHydrationCacheOverflows(userId).some((overflowed) =>
-    overflowed.includes("*")
-      ? domains.includes("*")
-      : domains.includes("*") ||
-        overflowed.every((domain) => domains.includes(domain)),
-  );
-}
-
-function rememberHydrationCacheOverflow(userId, domains) {
+function rememberOversizedHydrationDomain(userId, domain, savedAt) {
   try {
+    let domains = {
+      ...oversizedHydrationCacheDomains(userId),
+      [domain]: savedAt,
+    };
     sessionStorage.setItem(
       window.OSKARS_HYDRATION_CACHE_OVERFLOW_KEY,
-      JSON.stringify({
-        userId,
-        domainSets: [...readHydrationCacheOverflows(userId), domains],
-      }),
+      JSON.stringify({ userId, domains }),
     );
-  } catch (err) {}
+  } catch (_) {}
 }
-
 function isStorageQuotaError(err) {
   return (
     err?.name === "QuotaExceededError" ||
@@ -95,35 +127,164 @@ function isStorageQuotaError(err) {
     err?.code === 1014
   );
 }
+function storeHydrationDomain(userId, domain, raw) {
+  let key = hydrationCacheDomainKey(domain);
+  try {
+    sessionStorage.setItem(key, raw);
+    return true;
+  } catch (err) {
+    if (!isStorageQuotaError(err)) return false;
+  }
+  // Prefer more smaller domains under the shared origin quota. Never evict
+  // unrelated storage, or a smaller domain to make room for a larger one.
+  let larger = hydrationCacheKnownDomains()
+    .filter((name) => name !== domain)
+    .map((name) => ({ name, ...hydrationCacheDomainEntry(name) }))
+    .filter(
+      (stored) =>
+        freshHydrationCacheEntry(stored.entry, userId) &&
+        stored.length > raw.length,
+    )
+    .sort((a, b) => b.length - a.length);
+  for (let stored of larger) {
+    try {
+      sessionStorage.removeItem(hydrationCacheDomainKey(stored.name));
+      sessionStorage.setItem(key, raw);
+      return true;
+    } catch (err) {
+      if (!isStorageQuotaError(err)) return false;
+    }
+  }
+  return false;
+}
 
-/**
- * Writes a freshly-loaded hydration source to the cache.
- * @param {string} userId The signed-in user's id.
- * @param {Object} source A raw source from loadSupabaseHydrationDomains(); its
- * `domains` says which parts of the archive it holds.
- */
-window.writeCachedSupabaseHydrationSource = function (userId, source) {
+/** Stores independently cacheable raw domains without refreshing unrelated entries. @param {string} userId Signed-in account ID. @param {Object} source Raw hydration domains. @param {number} [savedAt] Fetch time; defaults to now. */
+window.writeCachedSupabaseHydrationSource = function (
+  userId,
+  source,
+  savedAt = Date.now(),
+) {
   if (!userId) return;
-  let finishWrite = window.startOskarsPerformance?.("hydration:cacheWrite");
-  let domains = hydrationCacheDomains(source);
-  if (hydrationCacheKnownToOverflow(userId, domains)) {
-    finishWrite?.("skipped: too large");
+  clearLegacyHydrationCacheEntries();
+  let finish = window.startOskarsPerformance?.("hydration:cacheWrite");
+  let blocked = Object.keys(oversizedHydrationCacheDomains(userId));
+  let domains =
+    source?.domains ||
+    hydrationCacheKnownDomains().filter((domain) =>
+      Object.prototype.hasOwnProperty.call(source || {}, domain),
+    );
+  let candidates = [];
+  let skipped = 0;
+  for (let domain of hydrationCacheKnownDomains()) {
+    let stored = hydrationCacheDomainEntry(domain);
+    if (stored && !freshHydrationCacheEntry(stored.entry, userId)) {
+      try {
+        sessionStorage.removeItem(hydrationCacheDomainKey(domain));
+      } catch (_) {}
+    }
+  }
+  for (let domain of domains) {
+    if (source[domain] === undefined) continue;
+    if (blocked.includes(domain)) {
+      skipped++;
+      continue;
+    }
+    try {
+      let raw = JSON.stringify({ userId, savedAt, value: source[domain] });
+      if (raw.length > window.OSKARS_HYDRATION_CACHE_MAX_DOMAIN_CHARS) {
+        rememberOversizedHydrationDomain(userId, domain, savedAt);
+        skipped++;
+      } else candidates.push({ domain, raw });
+    } catch (_) {
+      skipped++;
+    }
+  }
+  candidates.sort((a, b) => a.raw.length - b.raw.length);
+  let stored = 0;
+  for (let candidate of candidates) {
+    if (storeHydrationDomain(userId, candidate.domain, candidate.raw)) stored++;
+    else skipped++;
+  }
+  finish?.(`stored: ${stored}; skipped: ${skipped}`);
+};
+
+function scheduleHydrationCacheWrites() {
+  if (
+    !hydrationCachePageReady ||
+    hydrationCacheWriteScheduled ||
+    !pendingHydrationCacheDomains.size
+  )
+    return;
+  let generation = hydrationCacheGeneration;
+  hydrationCacheWriteScheduled = true;
+  window.requestAnimationFrame(() =>
+    window.requestAnimationFrame(() => {
+      if (generation !== hydrationCacheGeneration) return;
+      hydrationCacheWriteScheduled = false;
+      let entries = [...pendingHydrationCacheDomains.values()];
+      pendingHydrationCacheDomains.clear();
+      let owner = window.getSupabaseCurrentUser?.()?.id;
+      let groups = new Map();
+      for (let entry of entries) {
+        if (
+          !freshHydrationCacheEntry(entry, entry.userId) ||
+          (window.getSupabaseCurrentUser && owner !== entry.userId)
+        )
+          continue;
+        let groupKey = `${entry.userId}:${entry.savedAt}`;
+        let group = groups.get(groupKey) || {
+          userId: entry.userId,
+          domains: [],
+          savedAt: entry.savedAt,
+        };
+        group.domains.push(entry.domain);
+        group[entry.domain] = entry.value;
+        groups.set(groupKey, group);
+      }
+      groups.forEach((source) =>
+        window.writeCachedSupabaseHydrationSource(
+          source.userId,
+          source,
+          source.savedAt,
+        ),
+      );
+    }),
+  );
+}
+
+/** Queues immutable raw hydration rows until the page's first paint; pending rows also serve same-document reads. @param {string} userId Signed-in account ID. @param {Object} source Newly fetched raw domains. */
+window.queueCachedSupabaseHydrationSource = function (userId, source) {
+  if (!userId) return;
+  if (!window.requestAnimationFrame) {
+    window.writeCachedSupabaseHydrationSource(userId, source);
     return;
   }
-  try {
-    sessionStorage.setItem(
-      window.OSKARS_HYDRATION_CACHE_KEY,
-      JSON.stringify({ userId, savedAt: Date.now(), source }),
+  let savedAt = Date.now();
+  let domains =
+    source.domains ||
+    hydrationCacheKnownDomains().filter((domain) =>
+      Object.prototype.hasOwnProperty.call(source, domain),
     );
-    finishWrite?.("stored");
-  } catch (err) {
-    if (isStorageQuotaError(err))
-      rememberHydrationCacheOverflow(userId, domains);
-    finishWrite?.("unavailable");
-    // Storage quota exceeded or disabled (private browsing, etc.) - caching
-    // is a pure optimization, so a write failure just means every page
-    // re-fetches, not a broken app.
-  }
+  for (let domain of domains)
+    if (source[domain] !== undefined)
+      pendingHydrationCacheDomains.set(domain, {
+        userId,
+        domain,
+        savedAt,
+        value: source[domain],
+      });
+  scheduleHydrationCacheWrites();
+};
+
+/** Allows queued hydration cache writes after the entry controller has rendered. */
+window.markHydrationCachePageReady = function () {
+  hydrationCachePageReady = true;
+  scheduleHydrationCacheWrites();
+};
+
+/** Reports whether a post-paint cache batch is pending for performance navigation checks. @returns {boolean} Whether raw domains still await storage. */
+window.hydrationCacheWritesPending = function () {
+  return pendingHydrationCacheDomains.size > 0 || hydrationCacheWriteScheduled;
 };
 
 window.OSKARS_PEOPLE_EDGES_CACHE_KEY = "oskars-people-edges-cache:v1";
@@ -261,7 +422,14 @@ window.OSKARS_HYDRATION_INVALIDATION_KEY = "oskars-hydration-invalidation:v1";
 
 /** Clears cached hydration (and cached people edges / film details) and notifies active shell consumers. @param {boolean} [broadcast] Whether to notify other tabs after a local write. */
 window.invalidateCachedSupabaseHydrationSource = function (broadcast = true) {
+  hydrationCacheGeneration++;
+  pendingHydrationCacheDomains.clear();
+  hydrationCacheWriteScheduled = false;
   try {
+    clearLegacyHydrationCacheEntries();
+    hydrationCacheKnownDomains().forEach((domain) =>
+      sessionStorage.removeItem(hydrationCacheDomainKey(domain)),
+    );
     sessionStorage.removeItem(window.OSKARS_HYDRATION_CACHE_KEY);
     sessionStorage.removeItem(window.OSKARS_PEOPLE_EDGES_CACHE_KEY);
     sessionStorage.removeItem(window.OSKARS_HYDRATION_CACHE_OVERFLOW_KEY);

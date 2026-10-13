@@ -106,9 +106,8 @@
 
   // Reasons are checked in tier order so that among several candidates
   // carrying the same signal, the better-tiered one wins.
-  function pickOne(candidates, options) {
-    if (!candidates.length) return null;
-    let sorted = [...candidates].sort(window.compareWatchlistItems);
+  function pickOne(sorted, options) {
+    if (!sorted.length) return null;
     for (let item of sorted) {
       let reason =
         options.relationshipReasons === false
@@ -169,7 +168,8 @@
    */
   window.pickWatchQueueItems = function (candidates, options = {}) {
     let count = Math.max(1, Number(options.count) || 1);
-    let pool = (candidates || []).slice();
+    // Filtering out each chosen ID preserves this order for later picks.
+    let pool = (candidates || []).slice().sort(window.compareWatchlistItems);
     let picks = [];
     while (picks.length < count && pool.length) {
       let pick = pickOne(pool, options);
