@@ -185,10 +185,8 @@
     // public-profile session (issue #253) regardless of baked mode,
     // matching entry-loader.js's owner-page gate.
     return (
-      (window.runtimeModeCapabilities?.(window.getRuntimeMode?.())
-        ?.allowOwnerPages ??
-        true) &&
-      !window.resolveActiveProfileSlug?.()
+      window.runtimeModeCapabilities?.(window.getRuntimeMode?.())
+        ?.allowOwnerPages ?? true
     );
   }
 
@@ -747,7 +745,6 @@
   async function refreshHeaderAuthStatus(header) {
     let status = header.querySelector("[data-auth-status]");
     if (!status) return;
-    if (window.renderPublicProfileExit?.(status)) return;
     let auth = await window.resolveSupabaseAuthState?.();
     if (auth?.status !== "signed-in" || !auth.user?.id) {
       status.innerHTML = `<div class="auth-status-sign-in" data-supabase-sign-in></div>`;
@@ -857,6 +854,7 @@
     let selectedFilm = null;
     let selectedMode = "watched";
     let searchTimer = null;
+    let searchVersion = 0;
     let busy = false;
 
     function renderModal() {
@@ -868,6 +866,7 @@
           </div>
           <div class="quick-add-body">
             <input type="search" class="quick-add-search-input" data-quick-add-search-input placeholder="${escape(headerText("quickAdd.searchPlaceholder", "Search catalog or TMDB…"))}" autocomplete="off">
+            <label class="quick-add-field"><span>${escape(headerText("quickAdd.searchYear", "Release year (optional for search)"))}</span><input type="number" min="1888" max="2100" data-quick-add-search-year></label>
             <div class="quick-add-results" data-quick-add-results>
               <p class="quick-add-search-hint">${escape(headerText("quickAdd.searchPlaceholder", "Type a film title to search your catalog and TMDB."))}</p>
             </div>
@@ -882,10 +881,18 @@
     function bindSearchStep() {
       let input = dialog.querySelector("[data-quick-add-search-input]");
       let resultsEl = dialog.querySelector("[data-quick-add-results]");
+      let yearInput = dialog.querySelector("[data-quick-add-search-year]");
+      let tmdbMode = false;
+      function isCurrent(version) {
+        return (
+          version === searchVersion && resultsEl.isConnected && dialog.open
+        );
+      }
       let closeBtn = dialog.querySelector("[data-quick-add-close]");
       closeBtn?.addEventListener("click", () => dialog.close());
 
       async function runSearch(query) {
+        let version = ++searchVersion;
         if (!query || query.trim().length < 2) {
           resultsEl.innerHTML = `<p class="quick-add-search-hint">${escape(headerText("quickAdd.searchPlaceholder", "Type a film title to search your catalog and TMDB."))}</p>`;
           return;
@@ -895,6 +902,7 @@
           await window.ensureCatalogIdentity?.();
           let matches =
             (await window.searchSupabaseFilmsByTitle?.(query.trim())) || [];
+          if (!isCurrent(version)) return;
           let cardsHtml = matches
             .slice(0, 6)
             .map((film) => {
@@ -907,7 +915,7 @@
                 tmdbId: film.tmdb_id || "",
               });
               return `<button type="button" class="quick-add-result-card" data-pick-film="${escape(json)}">
-              ${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" class="quick-add-result-thumb">` : `<span class="quick-add-result-thumb-placeholder">★</span>`}
+              ${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" class="quick-add-result-thumb">` : `<span class="quick-add-result-thumb-placeholder" aria-hidden="true">★</span>`}
               <div class="quick-add-result-info">
                 <strong>${escape(film.title)}</strong>
                 <span>${escape(film.year || "")}</span>
@@ -917,51 +925,84 @@
             .join("");
           resultsEl.innerHTML = `${cardsHtml || `<p class="data-panel-status">No catalog matches for "${escape(query)}".</p>`}<div class="quick-add-tmdb-row"><button type="button" class="sort-order-button" data-quick-add-tmdb-search>${escape(headerText("quickAdd.searchTmdb", "Search TMDB instead"))}</button></div>`;
         } catch (err) {
+          if (!isCurrent(version)) return;
           resultsEl.innerHTML = `<p class="data-panel-status">${escape(err.message || String(err))}</p>`;
         }
       }
 
       async function runTmdbSearch(title) {
+        let version = ++searchVersion;
+        clearTimeout(searchTimer);
+        if (!title) return;
+        tmdbMode = true;
+        let year = yearInput.value.trim();
         resultsEl.innerHTML = `<p class="data-panel-status">${escape(headerText("search.loading", "Searching TMDB…"))}</p>`;
         try {
           await window.ensureCatalogIdentity?.();
-          let match = await window.lookupTmdbMovieMetadata?.({ title });
-          if (!match) {
-            resultsEl.innerHTML = `<p class="data-panel-status">No TMDB match found for "${escape(title)}".</p>`;
-            return;
-          }
-          let json = JSON.stringify({
-            title: match.matchedTitle || title,
-            year: match.matchedYear || "",
-            director: match.director || "",
-            posterUrl: match.poster?.url || "",
-            tmdbId: match.tmdbId || "",
-          });
-          resultsEl.innerHTML = `<button type="button" class="quick-add-result-card" data-pick-film="${escape(json)}">
-            ${match.poster?.url ? `<img src="${escape(match.poster.url)}" alt="" class="quick-add-result-thumb">` : `<span class="quick-add-result-thumb-placeholder">★</span>`}
-            <div class="quick-add-result-info">
-              <strong>${escape(match.matchedTitle || title)}</strong>
-              <span>${escape(match.matchedYear || "")}${match.director ? ` · ${escape(match.director)}` : ""}</span>
-            </div>
-          </button>`;
+          let matches = await window.searchTmdbFilmCandidates({ title, year });
+          if (!isCurrent(version)) return;
+          resultsEl.innerHTML =
+            matches
+              .map((match) => {
+                let json = JSON.stringify(match);
+                return `<button type="button" class="quick-add-result-card" data-pick-film="${escape(json)}" data-tmdb-candidate>
+              ${match.posterUrl ? `<img src="${escape(match.posterUrl)}" alt="" class="quick-add-result-thumb">` : `<span class="quick-add-result-thumb-placeholder" aria-hidden="true">★</span>`}
+              <div class="quick-add-result-info"><strong>${escape(match.title)}</strong> <span>${escape(match.year || "")}${match.mediaType === "tv" ? " · TV" : ""}</span></div>
+            </button>`;
+              })
+              .join("") ||
+            `<p class="data-panel-status">${escape(headerText("quickAdd.noTmdbMatches", "No TMDB matches. Try another title or clear the year to broaden the search."))}</p>`;
         } catch (err) {
-          resultsEl.innerHTML = `<p class="data-panel-status">${escape(err.message || String(err))}</p>`;
+          if (isCurrent(version))
+            resultsEl.innerHTML = `<p class="data-panel-status">${escape(err.message || String(err))}</p>`;
         }
       }
 
       input?.addEventListener("input", () => {
+        searchVersion++;
         clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => runSearch(input.value), 250);
+        searchTimer = setTimeout(
+          () =>
+            tmdbMode
+              ? runTmdbSearch(input.value.trim())
+              : runSearch(input.value),
+          250,
+        );
       });
 
-      resultsEl?.addEventListener("click", (event) => {
+      yearInput?.addEventListener("input", () => {
+        searchVersion++;
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => runTmdbSearch(input.value.trim()), 250);
+      });
+
+      resultsEl?.addEventListener("click", async (event) => {
         let pickBtn = event.target.closest("[data-pick-film]");
         let tmdbBtn = event.target.closest("[data-quick-add-tmdb-search]");
         if (pickBtn) {
+          let version = ++searchVersion;
           try {
-            selectedFilm = JSON.parse(pickBtn.dataset.pickFilm);
+            let film = JSON.parse(pickBtn.dataset.pickFilm);
+            clearTimeout(searchTimer);
+            if (pickBtn.hasAttribute("data-tmdb-candidate")) {
+              resultsEl.innerHTML = `<p class="data-panel-status">${escape(headerText("search.loading", "Loading…"))}</p>`;
+              let metadata = await window.lookupTmdbMovieMetadata(film);
+              if (!isCurrent(version)) return;
+              if (!metadata)
+                throw new Error("TMDB metadata unavailable. Try again.");
+              film = {
+                ...film,
+                ...metadata,
+                posterUrl: metadata.poster?.url || film.posterUrl,
+              };
+              film.hasTmdbMetadata = true;
+            }
+            selectedFilm = film;
             renderModal();
-          } catch (_) {}
+          } catch (err) {
+            if (isCurrent(version))
+              resultsEl.innerHTML = `<p class="data-panel-status">${escape(err.message || String(err))}</p>`;
+          }
         } else if (tmdbBtn) {
           runTmdbSearch(input.value.trim());
         }
@@ -983,7 +1024,7 @@
         </div>
         <div class="quick-add-body">
           <div class="quick-add-selected-banner">
-            ${selectedFilm.posterUrl ? `<img src="${escape(selectedFilm.posterUrl)}" alt="" class="quick-add-result-thumb">` : `<span class="quick-add-result-thumb-placeholder">★</span>`}
+            ${selectedFilm.posterUrl ? `<img src="${escape(selectedFilm.posterUrl)}" alt="" class="quick-add-result-thumb">` : `<span class="quick-add-result-thumb-placeholder" aria-hidden="true">★</span>`}
             <div class="quick-add-selected-info">
               <strong>${escape(selectedFilm.title)}</strong>
               <span>${escape(selectedFilm.year || "")}${selectedFilm.director ? ` · ${escape(selectedFilm.director)}` : ""}</span>
@@ -1098,7 +1139,10 @@
           let parsedRating = window.parseFilmRating
             ? window.parseFilmRating(rawRating)
             : { value: rawRating ? Number(rawRating) : null, modifier: null };
+          if (selectedFilm.hasTmdbMetadata)
+            await window.saveSupabaseQuickAddFilmMetadata(selectedFilm);
           let values = {
+            ...selectedFilm,
             title: selectedFilm.title,
             year: selectedFilm.year,
             tmdbId: selectedFilm.tmdbId,
@@ -1140,6 +1184,9 @@
         renderFormStep();
         try {
           let formData = new FormData(watchlistForm);
+          if (selectedFilm.hasTmdbMetadata)
+            selectedFilm.supabaseFilmId =
+              await window.saveSupabaseQuickAddFilmMetadata(selectedFilm);
           let values = {
             ...selectedFilm,
             supabaseFilmId: selectedFilm.id || selectedFilm.supabaseFilmId,
@@ -1238,6 +1285,14 @@
             window.openQuickAddModal?.(escape);
           });
       }
+    }
+    if (!document.documentElement.dataset.quickAddActionsBound) {
+      document.documentElement.dataset.quickAddActionsBound = "true";
+      document.addEventListener("click", (event) => {
+        if (event.target.closest?.("[data-open-quick-add]")) {
+          window.openQuickAddModal?.(window.pageEscape);
+        }
+      });
     }
     bindSiteHeader(header, escape);
     refreshHeaderAuthStatus(header);

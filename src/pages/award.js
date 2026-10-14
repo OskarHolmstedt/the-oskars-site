@@ -80,7 +80,7 @@
       <p><a href="directors.html">${escape(ui("Browse directors"))} →</a> · <a href="franchises.html">${escape(ui("Browse franchises"))} →</a></p>
       ${collectionError ? `<p role="alert">${escape(ui("Could not load collection ceremonies."))} <button type="button" class="link-button" data-award-retry>${escape(ui("Try again"))}</button></p>` : ""}
       ${completed.length ? `<details><summary>${escape(ui("Completed ceremonies"))} (${completed.length})</summary>${section("awardCompleted", ui("Completed ceremonies"), completed, ui("View ceremony"))}</details>` : ""}
-      ${model.periods.length ? "" : `<p class="detail-empty">${escape(ui("Add watched films to start your first ceremony."))} <a href="intake.html">${escape(ui("Intake"))} →</a></p>`}`;
+      ${model.periods.length ? "" : `<p class="detail-empty">${escape(ui("Add watched films to start your first ceremony."))} <a href="build.html">${escape(ui("Build your Oskars"))} →</a></p>`}`;
     finish?.(
       `${model.periods.length} periods, ${continuing.length} continuing`,
     );

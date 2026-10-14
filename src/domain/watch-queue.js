@@ -117,16 +117,25 @@
             tagReason(item, options.tag);
       if (reason) return { item, reason };
     }
-    let topTier = window.watchlistTierRank(sorted[0].tier);
+    let topTier = window.watchlistTierGrade(
+      sorted[0].tier,
+      sorted[0].tierModifier,
+    );
     let tied = sorted.filter(
-      (item) => window.watchlistTierRank(item.tier) === topTier,
+      (item) =>
+        window.watchlistTierGrade(item.tier, item.tierModifier) === topTier,
     );
     if (tied.length === 1) {
       return {
         item: tied[0],
         reason: {
           type: "highest-tier",
-          params: { tier: tied[0].tier || "" },
+          params: {
+            tier: window.renderTierWithModifier(
+              tied[0].tier,
+              tied[0].tierModifier,
+            ),
+          },
         },
       };
     }
@@ -142,7 +151,9 @@
       item: chosen,
       reason: {
         type: "random",
-        params: { tier: chosen.tier || "" },
+        params: {
+          tier: window.renderTierWithModifier(chosen.tier, chosen.tierModifier),
+        },
       },
     };
   }

@@ -33,11 +33,7 @@
   window.loadSupabaseOpenIntakeForFilm = async function (filmId) {
     if (!window.isUuid(filmId)) return null;
     if (window.oskarsCapabilities?.().canEdit === false) return null;
-    if (
-      window.state?.isPublicProfileView ||
-      window.resolveActiveProfileSlug?.()
-    )
-      return null;
+    if (window.state?.isPublicProfileView) return null;
     let ready = await window.ensureSupabaseClient();
     if (!ready) throw new Error("Supabase not configured.");
     let authState = await window.resolveSupabaseAuthState();

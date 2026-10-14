@@ -11,7 +11,6 @@
       schema: {
         type: { default: "" },
         key: { default: "" },
-        returnIntake: { default: "" },
       },
     })
     .read();
@@ -647,17 +646,13 @@
   // deliberately lighter than "Start project" (issue #163).
   let watchlistQueueVisible = false;
 
-  // Compact Watchlist read (issue #598): window.OSKARS_WATCHLIST_COMPACT
-  // opts this one view into a fast initial paint from
-  // read_watchlist_page() instead of the eager full hydration every other
-  // period.html view still gets. `watchlistCompactActive` stays true only
-  // until a full hydration actually completes (either the eager background
-  // upgrade below, or an interactive action that needs it) - once it flips
-  // false it never flips back for the rest of this page's life, so the
-  // rest of the controller's existing watchlist code (every write handler,
-  // periodWatchlistEntries, periodWatchlistBaseEntries and everything built
-  // on it) runs completely unmodified from that point on.
-  let watchlistCompactActive = Boolean(window.OSKARS_WATCHLIST_COMPACT);
+  // Every private period entry can switch to Watchlist in place. Keep the
+  // compact reader available until a complete archive has been loaded, even
+  // when startup hydrated only the Watched view's domains.
+  let watchlistCompactActive =
+    Boolean(
+      window.OSKARS_PERIOD_WATCHLIST_COMPACT || window.OSKARS_WATCHLIST_COMPACT,
+    ) && !window.state?.isPublicProfileView;
   let compactWatchlistModel = null;
   let compactWatchlistKey = null;
   let compactWatchlistRequestId = 0;
@@ -875,7 +870,7 @@
   function matchesRewatchTierFilter(film) {
     if (rewatchTierFilter === null) return true;
     return rewatchTierFilter.includes(
-      window.normalizeWatchlistTier(film.rewatchTier),
+      window.watchlistTierKey(film.rewatchTier, film.rewatchTierModifier),
     );
   }
 
@@ -905,20 +900,87 @@
   }
 
   function periodRewatchFilms() {
-    return periodRewatchBaseFilms()
-      .filter((film) => matchesRewatchTierFilter(film))
-      .sort((left, right) => {
-        let tierComparison =
-          window.watchlistTierRank(left.rewatchTier) -
-          window.watchlistTierRank(right.rewatchTier);
-        return (
-          tierComparison ||
-          window.compareByAllTimeRank(left, right, undefined, {
-            rankTieBreak: false,
-            yearFallback: false,
-          })
-        );
-      });
+    return window
+      .rewatchFilmsInOrder(periodRewatchBaseFilms())
+      .filter((film) => matchesRewatchTierFilter(film));
+  }
+
+  let rewatchOrderEditMode = false;
+  let rewatchOrderBusy = false;
+  let renderedRewatchFilms = [];
+  let rewatchRanks = new Map();
+
+  function rewatchRank(film) {
+    return rewatchRanks.get(film.id) || 0;
+  }
+
+  function rewatchOrderAttributes(film) {
+    return {
+      enabled: rewatchOrderEditMode && !rewatchOrderBusy,
+      scope: "period-rewatch",
+      id: film.id,
+      index: rewatchRank(film),
+      group: window.watchlistTierKey(
+        film.rewatchTier,
+        film.rewatchTierModifier,
+      ),
+    };
+  }
+
+  function rewatchPositionControl(film) {
+    if (!rewatchOrderEditMode) return "";
+    let films = renderedRewatchFilms;
+    let group = window.watchlistTierKey(
+      film.rewatchTier,
+      film.rewatchTierModifier,
+    );
+    let options = films
+      .map((entry, index) =>
+        window.watchlistTierKey(
+          entry.rewatchTier,
+          entry.rewatchTierModifier,
+        ) === group
+          ? `<option value="${periodEscape(entry.id)}" ${entry.id === film.id ? "selected" : ""}>${index + 1}</option>`
+          : "",
+      )
+      .join("");
+    return `<label>${periodEscape(ui("Position"))} <select data-rewatch-position="${periodEscape(film.id)}" aria-label="${periodEscape(ui("Position"))}: ${periodEscape(film.title)}" ${rewatchOrderBusy ? "disabled" : ""}>${options}</select></label>`;
+  }
+
+  function rewatchOrderControls() {
+    if (!canEdit) return "";
+    return `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-rewatch-order-edit ${periodOrder !== "rank" || rewatchOrderBusy ? "disabled" : ""}>${periodEscape(ui(rewatchOrderEditMode ? "Finish order" : "Reorder"))}</button>${rewatchOrderEditMode ? `<span>${periodEscape(ui("Rewatchlist ordering moves are limited to the same interest tier."))}</span>` : ""}</div>`;
+  }
+
+  async function moveRewatchItem(from, target, position) {
+    if (!canEdit || !rewatchOrderEditMode || rewatchOrderBusy)
+      return { ok: false };
+    let globalFilms = window.rewatchFilmsInOrder([
+      ...Object.values(state.filmsById || {}),
+      ...(state.watchedOther || []),
+    ]);
+    globalFilms = [
+      ...new Map(globalFilms.map((film) => [film.id, film])).values(),
+    ];
+    let result = window.moveRewatchFilmInOrder(
+      globalFilms,
+      from.id,
+      target.id,
+      position,
+    );
+    if (!result.ok) return result;
+    rewatchOrderBusy = true;
+    render();
+    try {
+      await commitPeriodWrite(
+        () => window.persistSupabaseRewatchOrder(result.films),
+        false,
+      );
+      return { ok: true };
+    } finally {
+      rewatchOrderBusy = false;
+      render();
+    }
   }
 
   function periodOtherFilms() {
@@ -957,7 +1019,10 @@
       window.watchlistTierFilterValues().map((tier) => [tier, 0]),
     );
     films.forEach((film) => {
-      let tier = window.normalizeWatchlistTier(film.rewatchTier);
+      let tier = window.watchlistTierKey(
+        film.rewatchTier,
+        film.rewatchTierModifier,
+      );
       counts.set(tier, (counts.get(tier) || 0) + 1);
     });
     let selected = selectedRewatchTierSet();
@@ -966,7 +1031,9 @@
       .map((tier) => {
         let label = tier || ui("Unset");
         let active = selected.has(tier);
-        let cls = tier ? ` tier-${tier.toLowerCase()}` : "";
+        let cls = tier
+          ? ` tier-${window.normalizeWatchlistTier(tier).toLowerCase()}`
+          : "";
         return `<button type="button" class="watchlist-tier-filter-button${active ? " is-active" : ""}${cls}" data-period-rewatch-tier-toggle="${periodEscape(tier || "unset")}" aria-pressed="${active ? "true" : "false"}"><span>${periodEscape(label)}</span><small>${periodEscape(counts.get(tier) || 0)}</small></button>`;
       })
       .join("");
@@ -990,8 +1057,10 @@
       return `<div class="detail-empty"><p>${periodEscape(ui("No films"))}</p></div>`;
     let rows = films
       .map((film) => {
-        let rank = rankForFilm(film);
-        return `<tr><td class="leaderboard-position">${periodEscape(rank && window.isFilmRankConfirmed(film, awardPeriodType) ? rank : rank ? "NR" : "")}</td>${window.renderFilmIdentityCell(
+        let rank = options.showRewatchTier
+          ? rewatchRank(film)
+          : rankForFilm(film);
+        return `<tr${options.showRewatchTier ? window.renderOrderEditItemAttributes(rewatchOrderAttributes(film), periodEscape) : ""}><td class="leaderboard-position">${periodEscape(rank && (options.showRewatchTier || window.isFilmRankConfirmed(film, awardPeriodType)) ? rank : rank ? "NR" : "")}</td>${window.renderFilmIdentityCell(
           film,
           {
             escape: periodEscape,
@@ -1010,7 +1079,7 @@
                 })
               : "",
           },
-        )}</tr>`;
+        )}${options.showRewatchTier && rewatchOrderEditMode ? `<td>${rewatchPositionControl(film)}</td>` : ""}</tr>`;
       })
       .join("");
     return window.renderLeaderboardTable({
@@ -1019,6 +1088,9 @@
         ui("Film"),
         ui("Director"),
         options.showRewatchTier ? ui("Interest") : ui("Rating"),
+        ...(options.showRewatchTier && rewatchOrderEditMode
+          ? [ui("Position")]
+          : []),
       ].map(periodEscape),
       rows,
     });
@@ -1443,7 +1515,7 @@
         ? null
         : `merge.html?mode=watched&type=${encodeURIComponent(awardPeriodType)}&key=${encodeURIComponent(key)}`;
     let mergeLink = mergeUrl
-      ? `<a class="sort-order-button" href="${periodEscape(mergeUrl)}">${periodEscape(ui("Merge rankings"))}</a>`
+      ? `<a class="sort-order-button" href="rankings.html#watchlist-ordering">Order years</a><a class="sort-order-button" href="${periodEscape(mergeUrl)}">${periodEscape(ui("Merge rankings"))}</a>`
       : "";
     if (allFilms.some((film) => film.rankConfirmedByScope)) {
       let url =
@@ -1490,6 +1562,7 @@
   }
 
   function render() {
+    if (periodOrder !== "rank") rewatchOrderEditMode = false;
     let finishRenderTimer = window.startOskarsPerformance?.("period:render");
     let watchlistFilters = currentWatchlistFilters();
     if (viewMode === "watchlist" && watchlistCompactActive)
@@ -1542,6 +1615,10 @@
         ? allFilms.filter((film) => (film.awards || []).some(awardInPeriod))
         : allFilms;
     let rewatchFilms = periodRewatchFilms();
+    renderedRewatchFilms = rewatchFilms;
+    rewatchRanks = new Map(
+      rewatchFilms.map((film, index) => [film.id, index + 1]),
+    );
     let otherFilms = periodOtherFilms();
     if (
       viewMode === "shared" &&
@@ -1703,6 +1780,9 @@
             rankingEditMode,
             canonicalRankContextHtml,
             showRewatchTier: viewMode === "rewatch",
+            rewatchRank,
+            rewatchOrderAttributes,
+            rewatchPositionControl,
             showAwards,
           })
         : "";
@@ -1808,10 +1888,6 @@
       ? ` · <a class="period-link" href="${periodEscape(sourceUrl)}" target="_blank" rel="noopener noreferrer">${periodEscape(ui("Source"))}</a>`
       : "";
     document.title = `${title} · The Oskars`;
-    let returnIntake = periodIdentityState.returnIntake;
-    let intakeReturnHtml = returnIntake
-      ? `<section class="detail-note"><p>${periodEscape(ui("You opened this bracket from a watched-film intake."))}</p><a class="button-link" href="${periodEscape(window.intakePageUrl(returnIntake))}">${periodEscape(ui("Return to intake"))}</a></section>`
-      : "";
     // Issue #232: a year with watched films but no ranking and/or no
     // bracket yet has nothing else on this page inviting the user to build
     // either from scratch - offer the guided setup page whenever there's
@@ -1889,7 +1965,6 @@
       ? `<p class="period-view-description">${periodEscape(viewModeDescription)}</p>`
       : "";
     container.innerHTML = `${window.renderDetailHeader({ mainHtml: `<h1>${periodEscape(title)}</h1><div class="period-heading-meta"><p>${periodEscape(typeLabel)}${sourceLinkHtml}</p>${window.renderPeriodNeighborNavigation(type, key, periodEscape)}${window.renderPeriodChildNavigation(type, key, periodEscape)}</div>`, actionsHtml: ceremonyActionHtml })}
-    ${intakeReturnHtml}
     ${setupYearCtaHtml}
     ${window.renderSupabaseEntityNote({
       entityKind: "period",
@@ -1938,7 +2013,7 @@
         : viewMode === "shared"
           ? `${pagination}${pageTotal ? `<div class="film-grid period-film-grid shared-archive-grid">${sharedCards}</div>` : sharedArchiveEmptyHtml()}${pagination}`
           : viewMode === "rewatch"
-            ? `${renderRewatchTierFilter()}<fieldset class="period-filter-controls"><legend>${periodEscape(ui("Rewatchlist filters"))}</legend>${filmRuntimeFilterInputsHtml()}</fieldset>${pagination}${pageTotal ? (layout === "grid" ? `<div class="film-grid period-film-grid">${filmCards}</div>` : renderPeriodFilmList(visibleFilmPage, { showRewatchTier: true })) : `<p class="detail-empty">${periodEscape(ui("No films are marked for rewatch yet."))}</p>`}${pagination}`
+            ? `${rewatchOrderControls()}${renderRewatchTierFilter()}<fieldset class="period-filter-controls"><legend>${periodEscape(ui("Rewatchlist filters"))}</legend>${filmRuntimeFilterInputsHtml()}</fieldset>${pagination}${pageTotal ? (layout === "grid" ? `<div class="film-grid period-film-grid">${filmCards}</div>` : renderPeriodFilmList(visibleFilmPage, { showRewatchTier: true })) : `<p class="detail-empty">${periodEscape(ui("No films are marked for rewatch yet."))}</p>`}${pagination}`
             : viewMode === "other"
               ? `${pagination}${pageTotal ? (layout === "grid" ? `<div class="film-grid period-film-grid">${otherCards}</div>` : renderOtherWatchedList(visibleFilmPage)) : `<p class="detail-empty">${periodEscape(ui("No shorts, documentaries or TV watched in this period."))}</p>`}${pagination}`
               : viewMode === "films"
@@ -1963,6 +2038,7 @@
 
   window.addEventListener?.("popstate", () => {
     let nextState = periodUrlState.read();
+    rewatchOrderEditMode = false;
     scope = nextState.scope;
     viewMode = nextState.viewMode;
     editMode =
@@ -2289,6 +2365,7 @@
         periodDirection = window.defaultOrderForFilmAxis(periodOrder);
       } else editMode = false;
       if (viewMode !== "films") rankingEditMode = false;
+      rewatchOrderEditMode = false;
       if (viewMode !== "watchlist") {
         watchlistOrderEditMode = false;
         tierEditMode = false;
@@ -2304,6 +2381,7 @@
       periodDirection = window.defaultOrderForFilmAxis(periodOrder);
       if (periodOrder !== "rank") rankingEditMode = false;
       if (periodOrder !== "rank") watchlistOrderEditMode = false;
+      if (periodOrder !== "rank") rewatchOrderEditMode = false;
       filmPage = 1;
       updateViewUrl();
       render();
@@ -2392,7 +2470,7 @@
           if (!result.ok)
             throw new Error(result.reason || ui("Could not add this film."));
           window.location.href = result.intakeId
-            ? window.intakePageUrl(result.intakeId)
+            ? "build.html"
             : window.filmPageUrl(result.filmId);
         })
         .catch((err) => {
@@ -2459,7 +2537,7 @@
       let tier =
         rewatchTierToggle.dataset.periodRewatchTierToggle === "unset"
           ? ""
-          : window.normalizeWatchlistTier(
+          : window.watchlistTierKey(
               rewatchTierToggle.dataset.periodRewatchTierToggle,
             );
       let selected = selectedRewatchTierSet();
@@ -2747,8 +2825,7 @@
       render();
     },
     toggleTierFilter(rawValue) {
-      let tier =
-        rawValue === "unset" ? "" : window.normalizeWatchlistTier(rawValue);
+      let tier = rawValue === "unset" ? "" : window.watchlistTierKey(rawValue);
       let allValues = window.watchlistTierFilterValues();
       let selected = new Set(
         watchlistTierFilter === null ? allValues : watchlistTierFilter,
@@ -2802,7 +2879,11 @@
       let rows = after
         .filter(
           (item) =>
-            original.has(item.id) && original.get(item.id).tier !== item.tier,
+            original.has(item.id) &&
+            window.watchlistTierKey(
+              original.get(item.id).tier,
+              original.get(item.id).tierModifier,
+            ) !== window.watchlistTierKey(item.tier, item.tierModifier),
         )
         .map((item) => ({
           id: item.id,
@@ -2844,6 +2925,50 @@
     },
     afterMove() {},
   }).bulkTierControl;
+  window.createOrderEditController({
+    container,
+    scope: "period-rewatch",
+    enabled: () =>
+      canEdit &&
+      viewMode === "rewatch" &&
+      rewatchOrderEditMode &&
+      !rewatchOrderBusy,
+    rejectedMessage: ui(
+      "Rewatchlist ordering moves are limited to the same interest tier.",
+    ),
+    commit: moveRewatchItem,
+  });
+  container.addEventListener("click", (event) => {
+    if (
+      !event.target.closest("[data-rewatch-order-edit]") ||
+      !canEdit ||
+      rewatchOrderBusy ||
+      periodOrder !== "rank"
+    )
+      return;
+    rewatchOrderEditMode = !rewatchOrderEditMode;
+    render();
+  });
+  container.addEventListener("change", async (event) => {
+    let select = event.target.closest("[data-rewatch-position]");
+    if (!select || rewatchOrderBusy || !rewatchOrderEditMode) return;
+    let films = periodRewatchFilms();
+    let fromIndex = films.findIndex(
+      (film) => film.id === select.dataset.rewatchPosition,
+    );
+    let targetIndex = films.findIndex((film) => film.id === select.value);
+    if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) return;
+    try {
+      let result = await moveRewatchItem(
+        { id: films[fromIndex].id },
+        { id: films[targetIndex].id },
+        fromIndex < targetIndex ? "after" : "before",
+      );
+      if (!result.ok && result.reason) window.alert?.(ui(result.reason));
+    } catch (error) {
+      window.alert?.(error.message || String(error));
+    }
+  });
   container.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     let card = event.target.closest("[data-open-film-id]");

@@ -39,7 +39,7 @@ window.buildSupabaseStatsModel = function (source, officialFallback = null) {
 
 /** Reads one versioned private Stats snapshot; public pages use their existing anonymous loader. @returns {Promise<Object>} Compact Stats inputs. */
 window.loadSupabaseStatsProjection = async function () {
-  if (window.resolveActiveProfileSlug?.() || window.state?.isPublicProfileView)
+  if (window.state?.isPublicProfileView)
     throw new Error("Private Stats are unavailable in public mode.");
   let auth = await window.resolveSupabaseAuthState();
   if (auth.status !== "signed-in")

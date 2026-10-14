@@ -61,6 +61,7 @@ window.normalizeSupabaseRankingReviewScopeType = function (type) {
 
 /** Tests whether a joined film row belongs to one ranking scope. @param {string} scopeType @param {string} scopeKey @param {Object} entry @returns {boolean} */
 window.supabaseRankingEntryInScope = function (scopeType, scopeKey, entry) {
+  if (!window.supabaseRankingFilmEligible(entry)) return false;
   if (scopeType === "allTime") return true;
   let year = entry.films?.year;
   if (scopeType === "years") return String(year) === String(scopeKey);

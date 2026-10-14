@@ -25,6 +25,165 @@
   let rawItems = [];
   let noteState = { note: "", editing: false, busy: false };
   let busy = false;
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
+  let boundContainerEvents = false;
+
+  function collectionAction(kind, id, active) {
+    if (!canEdit || !id) return "";
+    return window.renderCollectionActionButton({
+      kind,
+      label: ui(
+        kind === "rewatch"
+          ? active
+            ? "Remove from rewatchlist"
+            : "Want to rewatch"
+          : active
+            ? "Remove from watchlist"
+            : "Add to watchlist",
+      ),
+      active,
+      escape,
+      attributes: {
+        "data-collection-action": kind,
+        "data-collection-id": id,
+        "data-collection-active": String(Boolean(active)),
+        disabled: busy || queueEditMode,
+      },
+    });
+  }
+
+  function updateCollectionActionAvailability() {
+    container
+      .querySelectorAll("[data-collection-action], [data-edit-tier]")
+      .forEach((action) => {
+        /** @type {HTMLButtonElement} */ (action).disabled =
+          busy || queueEditMode;
+      });
+  }
+
+  async function handleCollectionAction(event) {
+    let target = /** @type {HTMLElement|null} */ (event.target);
+    let button = target?.closest?.("[data-collection-action]");
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!canEdit || busy || queueEditMode) return;
+    let { collectionAction: kind, collectionId: id } =
+      /** @type {HTMLButtonElement} */ (button).dataset;
+    let active =
+      /** @type {HTMLButtonElement} */ (button).dataset.collectionActive ===
+      "true";
+    if (!id) return;
+    busy = true;
+    updateCollectionActionAvailability();
+    try {
+      if (kind === "rewatch") {
+        await window.setSupabaseWatchedRewatch(id, !active);
+        let rec = items.find(
+          (r) =>
+            (r.film || r.item)?.supabaseFilmId === id ||
+            (r.film || r.item)?.id === id,
+        );
+        if (rec?.film) {
+          rec.film.wantToRewatch = !active;
+          if (active) {
+            rec.film.rewatchTier = "";
+            rec.film.rewatchTierModifier = "";
+          }
+        }
+      } else if (kind === "watchlist" && active) {
+        await window.removeFromSupabaseWatchlist(id);
+        window.invalidateCachedSupabaseHydrationSource?.();
+        let removedIndex = (window.state?.watchlist || []).findIndex(
+          (item) => item.id === id,
+        );
+        if (removedIndex !== -1) {
+          window.state.watchlist.splice(removedIndex, 1);
+        }
+        let rec = items.find((r) => r.item?.id === id);
+        if (rec) {
+          rec.status = "missing";
+          rec.film = window.watchlistFilmLike(rec.item);
+          delete rec.item;
+        }
+        if (window.state) {
+          window.state.aggregateVersion =
+            (Number(window.state.aggregateVersion) || 0) + 1;
+        }
+      } else if (kind === "watchlist" && !active) {
+        let created = await window.addToSupabaseWatchlist(id);
+        window.invalidateCachedSupabaseHydrationSource?.();
+        let rec = items.find(
+          (r) =>
+            (r.film || r.item)?.supabaseFilmId === id ||
+            (r.film || r.item)?.id === id,
+        );
+        let film = rec?.film;
+        let watchlistItem = {
+          id: created?.id || id,
+          supabaseFilmId: film?.supabaseFilmId || film?.id || id,
+          title: film?.title || "",
+          year: film?.year || "",
+          letterboxdUrl: film?.letterboxdUrl || "",
+          added: new Date().toISOString().slice(0, 10),
+          tmdbId: film?.tmdbId || "",
+          swedishTitle: film?.swedishTitle || "",
+          tier: created?.tier || "",
+          tierModifier: created?.tier_modifier || created?.tierModifier || "",
+          order: (window.state?.watchlist?.length || 0) + 1,
+          director: film?.director || "",
+          directors: film?.directors || [],
+          directorIds: film?.directorIds || [],
+        };
+        window.state.watchlist ||= [];
+        window.state.watchlist.push(watchlistItem);
+        if (rec) {
+          rec.status = "watchlist";
+          rec.item = watchlistItem;
+        }
+        if (window.state) {
+          window.state.aggregateVersion =
+            (Number(window.state.aggregateVersion) || 0) + 1;
+        }
+      }
+      render();
+    } catch (error) {
+      window.alert?.(error.message || String(error));
+    } finally {
+      busy = false;
+      updateCollectionActionAvailability();
+    }
+  }
+
+  function handleCollectionTierEdit(event) {
+    return window.handleInlineTierEditClick(event, {
+      container,
+      escape,
+      ui,
+      canEdit: canEdit && !busy && !queueEditMode,
+      onSaved: ({ targetId, tier, modifier, type }) => {
+        if (type === "watchlist") {
+          let rec = items.find((r) => r.item?.id === targetId);
+          if (rec?.item) {
+            rec.item.tier = tier;
+            rec.item.tierModifier = modifier;
+            rec.item.tier_modifier = modifier;
+          }
+        } else if (type === "rewatch") {
+          let rec = items.find(
+            (r) =>
+              r.film &&
+              (r.film.supabaseFilmId === targetId || r.film.id === targetId),
+          );
+          if (rec?.film) {
+            rec.film.rewatchTier = tier;
+            rec.film.rewatchTierModifier = modifier;
+          }
+        }
+        render();
+      },
+    });
+  }
 
   let sortValues = new Set(["year", "title", "rating", "shuffle"]);
   let requestedSort = window.pageQueryParam("sort");
@@ -91,7 +250,7 @@
         showYear: true,
         escape,
         beforeTitleHtml: item.tier
-          ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(item.tier)}</span>`
+          ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(window.renderTierWithModifier(item.tier, item.tier_modifier || item.tierModifier))}</span>`
           : "",
         titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
         bodyHtml: `<div class="watchlist-card-actions"><span>${escape(ui("Watchlist"))}</span></div>`,
@@ -121,6 +280,25 @@
     });
   }
 
+  function collectionRewatchTierCell(film) {
+    let tierHtml = window.renderInlineTierTrigger({
+      type: "rewatch",
+      targetId: film.supabaseFilmId || film.id,
+      tier: film.rewatchTier,
+      modifier: film.rewatchTierModifier,
+      editable: canEdit && Boolean(film.wantToRewatch),
+      disabled: busy || queueEditMode,
+      escape,
+      ui,
+    });
+    let actionHtml = collectionAction(
+      "rewatch",
+      film.supabaseFilmId || film.id,
+      film.wantToRewatch,
+    );
+    return `<td class="rating-tier-cell">${tierHtml} ${actionHtml}</td>`;
+  }
+
   function itemRow(record, index = 0, editable = false) {
     if (record.status === "watchlist") {
       let item = record.item;
@@ -135,7 +313,22 @@
         },
         escape,
       );
-      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", item.year))}">${escape(item.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, href: window.filmPageUrl(item.supabaseFilmId) })}${window.renderRatingTierCell({ item }, { escape })}</tr>`;
+      let tierHtml = window.renderInlineTierTrigger({
+        type: "watchlist",
+        targetId: item.id,
+        tier: item.tier,
+        modifier: item.tierModifier || item.tier_modifier,
+        editable: canEdit,
+        disabled: busy || queueEditMode,
+        escape,
+        ui,
+      });
+      let actionHtml = collectionAction("watchlist", item.id, true);
+      let ratingTierHtml = window.renderRatingTierCell(
+        { item },
+        { escape, editHtml: `${tierHtml} ${actionHtml}` },
+      );
+      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", item.year))}">${escape(item.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, href: window.filmPageUrl(item.supabaseFilmId) })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td>${ratingTierHtml}</tr>`;
     }
     let film = record.film;
     let missingEditable = editable && record.status === "missing";
@@ -149,7 +342,16 @@
       },
       escape,
     );
-    return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}${record.status === "missing" ? `<td>${escape(ui("Not in your collection yet"))}</td>` : window.renderRatingTierCell({ film }, { escape })}</tr>`;
+    let directorCell = `<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td>`;
+    if (record.status === "missing") {
+      let actionHtml = collectionAction(
+        "watchlist",
+        film.supabaseFilmId || film.id,
+        false,
+      );
+      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}${directorCell}<td class="rating-tier-cell">— ${actionHtml}</td></tr>`;
+    }
+    return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}${directorCell}${window.renderRatingTierCell({ film }, { escape })}${collectionRewatchTierCell(film)}</tr>`;
   }
 
   function render() {
@@ -231,7 +433,7 @@
         ? `<div class="film-grid project-film-grid">${queueCards || `<p>${escape(ui("No films"))}</p>`}</div>`
         : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))} / ${escape(ui("Tier"))}</th></tr></thead><tbody>${queueRows || `<tr><td colspan="4">${escape(ui("No films"))}</td></tr>`}</tbody></table></div>`
     }
-    ${watched.length ? `<h2>${escape(ui("Watched"))}</h2>${filmView === "grid" ? `<div class="film-grid project-film-grid">${watchedCards}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))}</th></tr></thead><tbody>${watchedRows}</tbody></table></div>`}` : ""}
+    ${watched.length ? `<h2>${escape(ui("Watched"))}</h2>${filmView === "grid" ? `<div class="film-grid project-film-grid">${watchedCards}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))}</th><th>${escape(ui("Rewatch tier"))}</th></tr></thead><tbody>${watchedRows}</tbody></table></div>`}` : ""}
     <section class="project-manage" data-collection-manage>
       <h2>${escape(ui("Manage"))}</h2>
       <ul class="project-manage-list">${items
@@ -249,6 +451,14 @@
         </form>
       </dialog>
     </section>`;
+
+    if (!boundContainerEvents) {
+      container.addEventListener("click", (event) => {
+        if (handleCollectionTierEdit(event)) return;
+        handleCollectionAction(event);
+      });
+      boundContainerEvents = true;
+    }
 
     container
       .querySelector("[data-collection-sort]")

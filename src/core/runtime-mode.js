@@ -80,25 +80,9 @@ window.getRuntimeMode = function () {
   );
 };
 
-/**
- * Reads the active runtime mode's capabilities in one call — folding in an
- * active public-profile view (issue #253) as a per-tab override to the same
- * "viewer" capability set, regardless of the deployment's baked mode. A
- * `local`-mode deployment (the only real one, `the-oskars-site`) otherwise
- * reports full owner-equivalent `canEdit`/`canImport` even
- * while a visitor is viewing someone else's published profile. Every
- * page-controller call site that decides whether to *render* a mutation
- * control reads this function's output, so folding the override in here,
- * once, keeps edit UI away from profile visitors on every current and
- * future `oskarsCapabilities()` call site instead of requiring each page to
- * separately remember to check `state.isPublicProfileView` too.
- * @returns {{allowOwnerPages: boolean, canEdit: boolean, canImport: boolean}}
- *   See runtimeModeCapabilities() for what each capability gates.
- */
+/** Reads runtime capabilities, preserving the read-only guard for public projection state. @returns {{allowOwnerPages: boolean, canEdit: boolean, canImport: boolean}} Runtime permissions. */
 window.oskarsCapabilities = function () {
   if (window.state?.isPublicProfileView)
-    return window.runtimeModeCapabilities("viewer");
-  if (window.resolveActiveProfileSlug?.())
     return window.runtimeModeCapabilities("viewer");
   return window.runtimeModeCapabilities(window.getRuntimeMode());
 };

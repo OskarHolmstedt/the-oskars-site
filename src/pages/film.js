@@ -83,6 +83,159 @@
       .catch(() => {});
   }
 
+  // Friend & Community Activity (issue #983): lazily loaded for this film.
+  let socialSummary = null;
+  let socialSummaryRequested = false;
+
+  function formatPeriodScope(scopeType, scope) {
+    if (!scope) return "";
+    if (scopeType === "allTime") return ui("All-time");
+    if (scopeType === "centuries") return `${scope}s`;
+    if (scopeType === "decades") return `${scope}s`;
+    return String(scope);
+  }
+
+  function socialSectionHtml() {
+    if (!socialSummary) return "";
+    let {
+      communityAverage,
+      communityCount,
+      friendRatings = [],
+      friendAwards = [],
+    } = socialSummary;
+    let hasCommunity = communityCount > 0;
+    let hasFriends = friendRatings.length > 0;
+    let hasAwards = friendAwards.length > 0;
+
+    if (!hasCommunity && !hasFriends && !hasAwards) {
+      return `<section class="film-social-section" aria-label="${filmPageEscape(ui("Friend & Community Activity"))}">
+        <div class="film-social-header">
+          <h2>${filmPageEscape(ui("Friend & Community Activity"))}</h2>
+        </div>
+        <p class="film-social-empty">${filmPageEscape(ui("No friend ratings or ceremony recognitions yet."))}</p>
+      </section>`;
+    }
+
+    let communityStatHtml = hasCommunity
+      ? `<div class="film-social-community-score">
+          <div class="film-social-score-badge">
+            <span class="film-social-score-value">${filmPageEscape(Number(communityAverage).toFixed(1))}</span>
+            <span class="film-social-score-star" aria-hidden="true">★</span>
+          </div>
+          <div class="film-social-score-meta">
+            <strong>${filmPageEscape(ui("Community score"))}</strong>
+            <span>${filmPageEscape(ui(communityCount === 1 ? "1 rating" : "{count} ratings", { count: communityCount }))}</span>
+          </div>
+        </div>`
+      : "";
+
+    let ratingsHtml = hasFriends
+      ? `<div class="film-social-friends-block">
+          <h3>${filmPageEscape(ui("Friend ratings"))}</h3>
+          <ul class="film-social-friend-list">
+            ${friendRatings
+              .map((r) => {
+                let initial = (r.name || r.slug || "?").charAt(0).toUpperCase();
+                let userUrl =
+                  window.userPageUrl?.(r.slug) ||
+                  `user.html?u=${encodeURIComponent(r.slug)}`;
+                let ratingObj = {
+                  rating: r.rating,
+                  ratingModifier: r.ratingModifier,
+                };
+                let ratingBadge = window.renderFilmRatingHtml
+                  ? window.renderFilmRatingHtml(ratingObj, {
+                      escape: filmPageEscape,
+                    })
+                  : `${r.rating}★`;
+                let relBadge = r.isMutualFriend
+                  ? `<span class="data-source-badge data-source-badge--connected" style="margin-left: 6px; font-size: 0.7rem; padding: 2px 6px;">${filmPageEscape(ui("Friend"))}</span>`
+                  : r.isFollowing
+                    ? `<span class="data-source-badge" style="margin-left: 6px; font-size: 0.7rem; padding: 2px 6px;">${filmPageEscape(ui("Following"))}</span>`
+                    : "";
+                return `<li class="film-social-friend-item">
+                  <a class="film-social-user-link" href="${filmPageEscape(userUrl)}">
+                    <span class="film-social-avatar" aria-hidden="true">${filmPageEscape(initial)}</span>
+                    <strong class="film-social-user-name">${filmPageEscape(r.name || r.slug)}</strong>
+                    ${relBadge}
+                  </a>
+                  <span class="film-social-user-rating">${ratingBadge}</span>
+                </li>`;
+              })
+              .join("")}
+          </ul>
+        </div>`
+      : "";
+
+    let awardsHtml = hasAwards
+      ? `<div class="film-social-awards-block">
+          <h3>${filmPageEscape(ui("Ceremony recognition"))}</h3>
+          <ul class="film-social-award-list">
+            ${friendAwards
+              .map((a) => {
+                let userUrl =
+                  window.userPageUrl?.(a.slug) ||
+                  `user.html?u=${encodeURIComponent(a.slug)}`;
+                let isWin = Number(a.placement) === 1;
+                let placeLabel = isWin
+                  ? ui("Won")
+                  : window.pagePlacement
+                    ? window.pagePlacement(a.placement)
+                    : `#${a.placement}`;
+                let periodText = formatPeriodScope(a.scopeType, a.scope);
+                return `<li class="film-social-award-item ${isWin ? "is-win" : ""}">
+                  <span class="film-social-award-badge">${filmPageEscape(placeLabel)}</span>
+                  <div class="film-social-award-desc">
+                    <strong>${filmPageEscape(a.category)}</strong>
+                    ${periodText ? `<span class="film-social-award-period">(${filmPageEscape(periodText)})</span>` : ""}
+                    <span class="film-social-award-in">${filmPageEscape(ui("in"))}</span>
+                    <a class="film-social-friend-inline" href="${filmPageEscape(userUrl)}">${filmPageEscape(a.name || a.slug)}</a>${filmPageEscape(ui("'s Oskars"))}
+                    ${a.detail ? `<small class="film-social-award-detail">${filmPageEscape(a.detail)}</small>` : ""}
+                  </div>
+                </li>`;
+              })
+              .join("")}
+          </ul>
+        </div>`
+      : "";
+
+    return `<section class="film-social-section" aria-label="${filmPageEscape(ui("Friend & Community Activity"))}">
+      <div class="film-social-header">
+        <h2>${filmPageEscape(ui("Friend & Community Activity"))}</h2>
+        ${communityStatHtml}
+      </div>
+      <div class="film-social-content">
+        ${ratingsHtml}
+        ${awardsHtml}
+      </div>
+    </section>`;
+  }
+
+  function ensureSocialSummary() {
+    let resolvedId = filmId || currentFilm()?.id;
+    if (
+      socialSummaryRequested ||
+      !resolvedId ||
+      !window.loadSupabaseFilmSocialSummary
+    )
+      return;
+    socialSummaryRequested = true;
+    let result = window.loadSupabaseFilmSocialSummary(resolvedId);
+    if (result && typeof result.then === "function") {
+      result
+        .then((summary) => {
+          socialSummary = summary;
+          if (!currentlyEditing) render(false);
+        })
+        .catch((err) => {
+          console.warn("Film social summary:", err);
+        });
+    } else if (result) {
+      socialSummary = result;
+      if (!currentlyEditing) render(false);
+    }
+  }
+
   // Compact film detail (issue #617): window.OSKARS_FILM_COMPACT opts a
   // canonical film.html?id=<filmId> visit into a fast initial paint from
   // loadSupabaseFilmDetail() (one film's own watched/watchlist/rankings/
@@ -116,6 +269,7 @@
   let isWatchlistDetail = false;
   let watchlistBusy = false;
   let pendingCollectionAction = "";
+  let rewatchBusy = false;
   let collectionDetail = null;
   let collectionFilm = null;
   let collectionPreview = null;
@@ -123,30 +277,6 @@
   let requestedWatchedForm = window.pageQueryParam("action") === "watched";
   let removedWatchlistSnapshot = null;
   let watchlistFranchiseChains = null;
-  let scopedOpenIntake = null;
-  let intakeRequestedForFilm = "";
-
-  function ensureOpenIntake() {
-    let id = window.isUuid?.(filmId) ? filmId : currentFilm()?.supabaseFilmId;
-    if (
-      !canEdit ||
-      window.state?.isPublicProfileView ||
-      window.resolveActiveProfileSlug?.() ||
-      !window.isUuid?.(id) ||
-      intakeRequestedForFilm === id ||
-      !window.loadSupabaseOpenIntakeForFilm
-    )
-      return;
-    intakeRequestedForFilm = id;
-    window
-      .loadSupabaseOpenIntakeForFilm(id)
-      .then((workflow) => {
-        scopedOpenIntake = workflow;
-        if (workflow && !currentlyEditing) render(false);
-      })
-      .catch(() => {});
-  }
-
   let scopedActiveProjects = [];
   let scopedArchiveMatch = null;
   // Read-only archive-match hint, ported from watchlist-film.js: built
@@ -303,6 +433,7 @@
         }
         render(currentlyEditing);
         ensureOfficialResultsForThisFilm();
+        ensureSocialSummary();
       })
       .catch(() => {
         // The compact read itself failed (not just the background
@@ -524,7 +655,7 @@
         <label>${filmPageEscape(ui("Platform"))} <input name="platform" value="${filmPageEscape(watchlistItem.platform || "")}"></label>
         <label>${filmPageEscape(ui("Views"))} <input name="views" type="number" min="1" step="1" value="1"></label>
       </div></section>
-      <p>${filmPageEscape(ui("Any unfinished rating, ranking, and awards work will remain in the intake queue."))}</p>
+      <p>${filmPageEscape(ui("Remaining rating, ranking, and ceremony work is available in Build your Oskars."))}</p>
     </form>`;
     window.enhanceRatingInputs?.(container);
   }
@@ -588,6 +719,7 @@
         : "",
     })}
     ${catalogTagsHtml()}
+    ${socialSectionHtml()}
     ${filmCollectionSections(watchlistItem, true)}
     ${archiveMatchHtml}`;
     window.enhanceTierSetters?.(container);
@@ -1045,10 +1177,6 @@
       : `<div class="film-award-period-grid">${renderAwardGroups(film, awards, officialContext)}</div>`
   }</div></section>`
         : "";
-    let openIntake = scopedOpenIntake;
-    let intakeBannerHtml = openIntake
-      ? `<section class="detail-note"><div><h2>${filmPageEscape(ui("Watched-film intake is open"))}</h2></div><p>${filmPageEscape(ui("Rating, global ranking, or awards review still needs an explicit decision."))}</p><a class="button-link" href="${filmPageEscape(window.intakePageUrl(openIntake.id))}">${filmPageEscape(ui("Continue intake"))}</a></section>`
-      : "";
 
     container.innerHTML = `${window.renderDetailHeader({
       classes: posterHtml ? "has-poster" : "",
@@ -1061,7 +1189,7 @@
         canEdit
           ? `${window.renderCollectionActionButton({ kind: "watched", label: ui("Remove from watched"), escape: filmPageEscape, active: true, attributes: { "data-remove-watched-film": true } })}${window.renderCollectionActionButton({ kind: "rewatch", label: ui(film.wantToRewatch ? "Remove from rewatchlist" : "Want to rewatch"), escape: filmPageEscape, active: film.wantToRewatch, attributes: { "data-toggle-film-rewatch": true } })}${
               film.wantToRewatch && window.renderTierSetter
-                ? `<label class="film-rewatch-tier-label">${filmPageEscape(ui("Rewatch tier"))} <span class="tier-select-row">${window.renderTierSetter({ tierName: "rewatchTier", tier: film.rewatchTier, modifierName: "rewatchTierModifier", modifier: film.rewatchTierModifier, tierAttributes: "data-rewatch-tier-select", escape: filmPageEscape, ui })}</span></label>`
+                ? `<label class="film-rewatch-tier-label">${filmPageEscape(ui("Rewatch tier"))} <span class="tier-select-row">${window.renderTierSetter({ tierName: "rewatchTier", tier: film.rewatchTier, modifierName: "rewatchTierModifier", modifier: film.rewatchTierModifier, tierAttributes: "data-rewatch-tier-select", modifierAttributes: "data-rewatch-tier-select", escape: filmPageEscape, ui })}</span></label>`
                 : ""
             }`
           : ""
@@ -1070,8 +1198,9 @@
   <section class="film-personal-summary">      ${statsHtml}
       ${viewingHtml}
       ${film.review || canEdit ? `<section class="detail-note film-review-compact"><div><h2>${filmPageEscape(ui("Review"))}${canEdit ? `<button type="button" class="film-inline-add" data-edit-film="review" aria-label="${filmPageEscape(ui("Review / comment"))}">✎</button>` : ""}</h2></div><p>${filmPageEscape(film.review || "")}</p></section>` : ""}</section>
-  ${intakeBannerHtml}
+
   ${catalogTagsHtml()}
+  ${socialSectionHtml()}
   ${filmCollectionSections(film)}
   ${relationsHtml}
   ${projectMembershipHtml}
@@ -1345,6 +1474,7 @@
         : "",
     })}
     ${catalogTagsHtml()}
+    ${socialSectionHtml()}
     ${franchiseHtml ? `<section class="film-franchises"><h2>${filmPageEscape(ui("Franchises"))}</h2><div class="film-franchise-links">${franchiseHtml}</div></section>` : ""}`;
   }
 
@@ -1353,6 +1483,28 @@
   let currentlyEditing = false;
   let filmEditBusy = false;
   let stopArchiveWatch = () => {};
+  async function saveRewatchChanges(film, changes) {
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
+    let before = Object.fromEntries(
+      Object.keys(changes).map((key) => [key, film[key]]),
+    );
+    rewatchBusy = true;
+    Object.assign(film, changes);
+    render(false);
+    try {
+      await window.updateSupabaseWatchedFilm(film, changes);
+      window.OSKARS_STATE_HYDRATION_COMPLETE = false;
+      window.OSKARS_SUPABASE_HYDRATION_SOURCE = null;
+      fullyHydratedPromise = null;
+    } catch (error) {
+      if (isCurrent()) Object.assign(film, before);
+      alert(error.message || String(error));
+    } finally {
+      rewatchBusy = false;
+      if (isCurrent()) render(false);
+    }
+  }
+
   function render(editing = false) {
     if (container.querySelector("[data-film-quick-editor]")) return;
     if (editing && container.querySelector(".film-inline-dialog[open]")) return;
@@ -1372,7 +1524,18 @@
           });
         });
     }
-    if (compactReady) ensureOpenIntake();
+    if (rewatchBusy) {
+      container
+        .querySelectorAll(
+          "[data-collection-action], [data-edit-film], [data-tier-setter] button",
+        )
+        .forEach((control) => {
+          control.disabled = true;
+        });
+      container
+        .querySelector("[data-toggle-film-rewatch]")
+        ?.setAttribute("aria-busy", "true");
+    }
     stopArchiveWatch();
     stopArchiveWatch = window.whenCompleteArchiveNeeded(container, () =>
       ensureFilmFullyHydrated().catch(() => {}),
@@ -1522,7 +1685,6 @@
         previewTmdbId = "";
         refreshWatchlistDetailState();
         updateFilmViewUrl();
-        intakeRequestedForFilm = "";
         ensureOfficialResultsForThisFilm();
       } catch (err) {
         alert(err.message || String(err));
@@ -1532,10 +1694,21 @@
       }
       return;
     }
+    if (event.target.closest("[data-toggle-film-rewatch]")) {
+      let film = currentFilm();
+      if (!canEdit || rewatchBusy || pendingCollectionAction || !film) return;
+      await saveRewatchChanges(film, {
+        wantToRewatch: !film.wantToRewatch,
+        ...(!film.wantToRewatch
+          ? {}
+          : { rewatchTier: "", rewatchTierModifier: "" }),
+      });
+      return;
+    }
     // Plain clicks, including popover light dismissal, do not need archive data.
     if (
       !event.target.closest(
-        "[data-cancel-watchlist-transition], [data-toggle-film-rewatch], [data-edit-film], [data-cancel-film-edit]",
+        "[data-cancel-watchlist-transition], [data-edit-film], [data-cancel-film-edit]",
       )
     )
       return;
@@ -1547,32 +1720,6 @@
     await ensureFilmFullyHydrated().catch(() => {});
     if (event.target.closest("[data-cancel-watchlist-transition]")) {
       render(false);
-      return;
-    }
-    if (event.target.closest("[data-toggle-film-rewatch]")) {
-      let film = currentFilm();
-      let backup = window.cloneRecord(window.getSerializableState());
-      try {
-        window.updateFilmMetadata(
-          film.id,
-          Object.assign(window.filmMetadataFormValues(film), {
-            wantToRewatch: !film.wantToRewatch,
-          }),
-        );
-        // Render immediately so the button state and the tier picker card
-        // update without waiting for the network round-trip.
-        render(false);
-        await window.updateSupabaseWatchedFilm(currentFilm(), {
-          wantToRewatch: currentFilm().wantToRewatch || false,
-          rewatchTier: currentFilm().rewatchTier || "",
-          rewatchTierModifier: currentFilm().rewatchTierModifier || "",
-        });
-      } catch (err) {
-        if (err.code !== "OSKARS_ACCOUNT_CHANGED")
-          window.restoreSerializableState?.(backup);
-        alert(err.message || String(err));
-        render(false);
-      }
       return;
     }
     if (event.target.closest("[data-edit-film]")) {
@@ -1595,14 +1742,12 @@
       )
     )
       return;
-    await ensureFilmFullyHydrated().catch(() => {});
     // Inline rewatch-tier setter on the watched-film view (the tier setter
     // dispatches change from the hidden rewatchTier / rewatchTierModifier
-    // input; both use data-rewatch-tier-select on their [data-tier-setter]).
+    // inputs; each carries data-rewatch-tier-select).
     let rewatchTierChange = event.target.closest("[data-rewatch-tier-select]");
     if (rewatchTierChange) {
       let film = currentFilm();
-      let backup = window.cloneRecord(window.getSerializableState());
       // Read both values from the DOM before re-rendering detaches the node.
       let setterRoot = rewatchTierChange.closest("[data-tier-setter]");
       let tierVal =
@@ -1611,27 +1756,13 @@
       let modVal =
         setterRoot?.querySelector('input[data-tier-setter-input="modifier"]')
           ?.value || "";
-      try {
-        window.updateFilmMetadata(
-          film.id,
-          Object.assign(window.filmMetadataFormValues(film), {
-            rewatchTier: tierVal,
-            rewatchTierModifier: modVal,
-          }),
-        );
-        // Optimistic render before the network write so the badge updates
-        // immediately, then save in the background.
-        render(false);
-        await window.updateSupabaseWatchedFilm(currentFilm(), {
-          rewatchTier: currentFilm().rewatchTier || "",
-          rewatchTierModifier: currentFilm().rewatchTierModifier || "",
-        });
-      } catch (err) {
-        if (err.code !== "OSKARS_ACCOUNT_CHANGED")
-          window.restoreSerializableState?.(backup);
-        alert(err.message || String(err));
-        render(false);
-      }
+      if (!canEdit || rewatchBusy || !film?.wantToRewatch) return;
+      await saveRewatchChanges(film, {
+        rewatchTier: window.normalizeWatchlistTier(tierVal),
+        rewatchTierModifier: tierVal
+          ? window.normalizeTierModifierValue(modVal)
+          : "",
+      });
       return;
     }
     let input = event.target.closest('input[name="filmAwardsView"]');
@@ -1658,17 +1789,14 @@
       watchlistBusy = true;
       render(false);
       try {
-        let workflow = await window.createSupabaseWatchlistWatchedIntake(
-          watchlistItem.id,
-          {
-            rating: parsed.value || null,
-            ratingModifier: parsed.modifier,
-            dateWatched: values.dateWatched,
-            platform: values.platform,
-            views: values.views,
-          },
-        );
-        window.location.href = window.intakePageUrl(workflow.id);
+        await window.createSupabaseWatchlistWatchedIntake(watchlistItem.id, {
+          rating: parsed.value || null,
+          ratingModifier: parsed.modifier,
+          dateWatched: values.dateWatched,
+          platform: values.platform,
+          views: values.views,
+        });
+        window.location.href = "build.html";
       } catch (err) {
         alert(err.message || String(err));
         watchlistBusy = false;
@@ -1805,4 +1933,5 @@
   render(false);
   ensureOfficialResultsForThisFilm();
   ensureCatalogTags();
+  ensureSocialSummary();
 })();

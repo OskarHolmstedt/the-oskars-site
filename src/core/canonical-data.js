@@ -73,6 +73,7 @@ const CANONICAL_FILM_FIELDS = new Set([
   "review",
   "rewatchTier",
   "rewatchTierModifier",
+  "rewatchPosition",
   "runtimeMinutes",
   "screenplayType",
   "suppressAllTimeRank",
@@ -190,6 +191,7 @@ const CANONICAL_OPINION_REBUILD_FILM_FIELDS = new Set([
   "wantToRewatch",
   "rewatchTier",
   "rewatchTierModifier",
+  "rewatchPosition",
   "musicScore",
   "musicRating",
   "musicRatingValue",
@@ -207,6 +209,7 @@ const CANONICAL_OPINION_REBUILD_WATCHED_FIELDS = new Set([
   "wantToRewatch",
   "rewatchTier",
   "rewatchTierModifier",
+  "rewatchPosition",
   "franchiseRanks",
 ]);
 
@@ -557,6 +560,7 @@ function canonicalValidateFilm(errors, film, path, allowed) {
   [
     "adaptation",
     "adaptationSource",
+    "added",
     "country",
     "dateWatched",
     "director",
@@ -579,6 +583,7 @@ function canonicalValidateFilm(errors, film, path, allowed) {
     "supabaseWatchlistPosition",
     "supabaseWatchlistUpdatedAt",
     "swedishTitle",
+    "tierModifier",
     "tmdbId",
     "type",
     "url",
@@ -637,6 +642,16 @@ function canonicalValidateFilm(errors, film, path, allowed) {
         );
     });
   }
+  if (
+    film.rewatchPosition !== undefined &&
+    film.rewatchPosition !== null &&
+    (!Number.isInteger(film.rewatchPosition) || film.rewatchPosition <= 0)
+  )
+    canonicalError(
+      errors,
+      `${path}.rewatchPosition`,
+      "must be a positive integer",
+    );
   ["rankConfirmed", "suppressAllTimeRank", "wantToRewatch"].forEach((field) => {
     if (
       film[field] !== undefined &&
@@ -658,6 +673,16 @@ function canonicalValidateFilm(errors, film, path, allowed) {
     !["", "S", "A", "B", "C", "D", "E", "F"].includes(film.tier)
   )
     canonicalError(errors, `${path}.tier`, "has an unsupported watchlist tier");
+  if (
+    film.tierModifier !== undefined &&
+    film.tierModifier !== null &&
+    !["", "plus", "minus"].includes(film.tierModifier)
+  )
+    canonicalError(
+      errors,
+      `${path}.tierModifier`,
+      "has an unsupported watchlist tier modifier",
+    );
   ["compositeParts"].forEach((field) => {
     if (film[field] === undefined || film[field] === null) return;
     if (!canonicalCheckArray(errors, film[field], `${path}.${field}`)) return;
@@ -1598,11 +1623,12 @@ window.canonicalDataToRuntimeState = function (source) {
 window.OSKARS_PUBLIC_SCHEMA_VERSION = 1;
 
 // Sections disclosed in full (subject to the per-film field allowlist below
-// for years/watchedFilms) whenever a public profile is built.
+// for years/watchedFilms/watchlist) whenever a public profile is built.
 const CANONICAL_PUBLIC_SECTIONS = new Set([
   "years",
   "officialResults",
   "collectionAwards",
+  "watchlist",
   "watchedFilms",
   "peopleAliases",
   "personPortraits",
@@ -1617,21 +1643,16 @@ const CANONICAL_PUBLIC_SECTIONS = new Set([
 const CANONICAL_OPT_IN_SECTIONS = new Set(["localRanks"]);
 
 // Sections that never appear in a public profile at all, regardless of
-// options. watchlist is "the complete watchlist" the issue names
-// explicitly; intakeWorkflows/editLog are process and edit-history audit
+// options. intakeWorkflows/editLog are process and edit-history audit
 // trails (editLog's free-form changes/context/undo payloads routinely
 // embed the exact private content — reviews, notes, whole watchlist
 // records, source spreadsheet ids — this is disclosing, so exclusion is
 // the only safe option, not per-field redaction); projects reference
-// private watchlist items by id and would otherwise leak their existence;
-// entityNotes is the app's literal
+// private items by id and editorial status; entityNotes is the app's literal
 // "notes" feature; rejectedPersonAliases is internal curation housekeeping
-// with no public value; declinedOfficialWatchlistAdds references the
-// private watchlist and is itself just curation housekeeping for the
-// shared-archive auto-add
-// reconciliation, with no public value either.
+// with no public value; declinedOfficialWatchlistAdds references curation
+// housekeeping for shared-archive auto-add reconciliation, with no public value.
 const CANONICAL_PRIVATE_SECTIONS = new Set([
-  "watchlist",
   "intakeWorkflows",
   "rankingReviews",
   "awardReviews",
@@ -1660,25 +1681,23 @@ const CANONICAL_PRIVATE_SECTIONS = new Set([
 })();
 
 // Per-film fields excluded from public disclosure even though the film
-// record's section is otherwise public: viewing facts (dateWatched,
-// platform, views), opinion fields (musicScore and its separate musicRating
-// star rating), rewatch intent (wantToRewatch, rewatchTier), free personal
-// prose (review — functionally a note despite its name), and genre (unused by
-// any writer anywhere in this codebase; excluded conservatively rather than
-// guessed at).
+// record's section is otherwise public: opinion fields (musicScore and its
+// separate musicRating star rating), rewatch intent (wantToRewatch, rewatchTier),
+// free personal prose (review — functionally a note despite its name), and genre
+// (unused by any writer anywhere in this codebase; excluded conservatively rather
+// than guessed at). Viewing history facts (dateWatched, platform, views) are public
+// per issue #981.
 const CANONICAL_PRIVATE_FILM_FIELDS = new Set([
-  "dateWatched",
   "genre",
   "musicRating",
   "musicRatingValue",
   "musicScore",
-  "platform",
   "review",
   "rewatchTier",
   "rewatchTierModifier",
+  "rewatchPosition",
   "supabaseWatchedId",
   "supabaseWatchedUpdatedAt",
-  "views",
   "wantToRewatch",
 ]);
 
@@ -1691,6 +1710,7 @@ const CANONICAL_PUBLIC_FILM_FIELDS = new Set([
   "centuryRank",
   "compositeParts",
   "country",
+  "dateWatched",
   "decadeRank",
   "director",
   "directorIds",
@@ -1703,6 +1723,7 @@ const CANONICAL_PUBLIC_FILM_FIELDS = new Set([
   "medium",
   "normalizedTitle",
   "originalLanguage",
+  "platform",
   "poster",
   "primaryCountry",
   "rank",
@@ -1723,6 +1744,7 @@ const CANONICAL_PUBLIC_FILM_FIELDS = new Set([
   "tmdbId",
   "type",
   "url",
+  "views",
   "year",
   "yearRank",
 ]);
@@ -1825,6 +1847,9 @@ window.buildPublicProjection = function (canonical, options = {}) {
         franchise: {},
       },
     ),
+    watchlist: (canonical.watchlist || []).map((film) =>
+      stripToAllowedFields(film, CANONICAL_WATCHLIST_FIELDS),
+    ),
     watchedFilms: (canonical.watchedFilms || []).map((film) =>
       stripToAllowedFields(film, CANONICAL_PUBLIC_FILM_FIELDS),
     ),
@@ -1886,6 +1911,15 @@ window.validatePublicData = function (source) {
   canonicalValidateOfficialResults(errors, source.officialResults);
   if (source.collectionAwards !== undefined)
     canonicalValidateCollectionAwards(errors, source.collectionAwards);
+  if (canonicalCheckArray(errors, source.watchlist, "$.watchlist"))
+    source.watchlist.forEach((film, index) =>
+      canonicalValidateFilm(
+        errors,
+        film,
+        `$.watchlist[${index}]`,
+        CANONICAL_WATCHLIST_FIELDS,
+      ),
+    );
   if (canonicalCheckArray(errors, source.watchedFilms, "$.watchedFilms"))
     source.watchedFilms.forEach((film, index) =>
       canonicalValidateFilm(
@@ -2000,8 +2034,8 @@ window.publicProjectionPreview = function (canonical, options = {}) {
     },
     {
       section: "watchlist",
-      disclosure: "private",
-      includedRecordCount: 0,
+      disclosure: "public",
+      includedRecordCount: (projection.watchlist || []).length,
       totalRecordCount: (canonical.watchlist || []).length,
     },
     {
@@ -2055,53 +2089,4 @@ window.serializePublicData = function (canonical, options = {}) {
   let projection = window.buildPublicProjection(canonical, options);
   window.assertPublicData(projection);
   return `${JSON.stringify(canonicalNormalize(projection), null, 2)}\n`;
-};
-
-/**
- * Hydrates a validated public-profile document (buildPublicProjection()'s
- * output) into browsable runtime state, for a viewer-mode session browsing
- * another owner's published profile (issue #256). Public-profile data is
- * never a private canonical draft, so this path sets draftMetadata to null
- * and isPublicProfileView to true, and the state only ever lives for the
- * current tab.
- * @param {Object} publicData Public-profile document to hydrate.
- * @param {{slug?: string, ownerName?: string, revision?: string, publishedAt?: string}} [meta]
- *   Manifest-resolved profile identity (issue #253) stashed as
- *   `state.publicProfileMeta` for UI attribution; omitted fields default to
- *   empty strings rather than being left undefined.
- * @returns {OskarsState} Hydrated, non-persistable viewer state.
- * @throws {Error} `OSKARS_INVALID_PUBLIC_DATA` when publicData fails validation.
- */
-window.hydratePublicProfileState = function (publicData, meta = {}) {
-  window.assertPublicData(publicData);
-  let runtimeSource = {
-    dataVersion: window.OSKARS_BUNDLED_DATA_VERSION || 0,
-    creditSchemaVersion: 3,
-    ...window.CURRENT_MIGRATION_FLAGS,
-    years: publicData.years,
-    officialResults: publicData.officialResults,
-    collectionAwards: publicData.collectionAwards || {
-      director: {},
-      franchise: {},
-    },
-    watchedOther: publicData.watchedFilms,
-    peopleAliases: publicData.peopleAliases,
-    personPortraits: publicData.personPortraits,
-    franchiseLinks: publicData.franchiseLinks,
-    directorLinks: publicData.directorLinks,
-    ...(publicData.localRanks ? { localRanks: publicData.localRanks } : {}),
-  };
-  window.migrateCreditSchema?.(runtimeSource);
-  window.state = Object.assign(window.createEmptyState(), runtimeSource);
-  window.state.years = runtimeSource.years;
-  window.state.draftMetadata = null;
-  window.state.isPublicProfileView = true;
-  window.state.publicProfileMeta = {
-    slug: String(meta.slug || ""),
-    ownerName: String(meta.ownerName || ""),
-    revision: String(meta.revision || ""),
-    publishedAt: String(meta.publishedAt || ""),
-  };
-  if (window.rebuildAggregates) window.rebuildAggregates();
-  return window.state;
 };

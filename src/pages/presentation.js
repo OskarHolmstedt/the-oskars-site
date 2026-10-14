@@ -476,8 +476,8 @@
         )
         .sort(
           (left, right) =>
-            (window.watchlistTierRank?.(left.tier) ?? 9) -
-              (window.watchlistTierRank?.(right.tier) ?? 9) ||
+            window.watchlistTierGrade(left.tier, left.tierModifier) -
+              window.watchlistTierGrade(right.tier, right.tierModifier) ||
             window.compareEnglishTitles(left.title, right.title),
         )
         .slice(0, sliceLimit(6));
@@ -491,7 +491,7 @@
             showYear: true,
             escape,
             beforeTitleHtml: item.tier
-              ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(item.tier)}</span>`
+              ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(window.renderTierWithModifier(item.tier, item.tierModifier))}</span>`
               : "",
             titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
             director: film.director || (film.directors || []).join(", "),

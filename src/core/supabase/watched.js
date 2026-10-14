@@ -121,6 +121,47 @@
   };
 
   /**
+   * Sets or clears the rewatch interest tier on a watched film row.
+   * @param {string} filmId Supabase film id.
+   * @param {string} tier Interest tier ('S', 'A', etc., or empty string to clear).
+   * @param {'minus'|'plus'|''} [modifier] Modifier refinement ('minus', 'plus', or empty string).
+   * @returns {Promise<void>}
+   */
+  window.setSupabaseWatchedRewatchTier = async function (
+    filmId,
+    tier,
+    modifier,
+  ) {
+    let ready = await window.ensureSupabaseClient();
+    let auth = await window.resolveSupabaseAuthState();
+    if (!ready || auth.status !== "signed-in")
+      throw new Error("Sign in to update rewatch tier.");
+    let userId = auth.user.id;
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
+    let { error } = await ready.client
+      .from("watched")
+      .update({
+        rewatch_tier: tier || null,
+        rewatch_tier_modifier: modifier || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId)
+      .eq("film_id", filmId);
+    if (error) throw error;
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    if (window.supabaseWorkspaceContext.workspaceState?.watched) {
+      let row = window.supabaseWorkspaceContext.workspaceState.watched.find(
+        (r) => r.film_id === filmId,
+      );
+      if (row) {
+        row.rewatch_tier = tier || null;
+        row.rewatch_tier_modifier = modifier || null;
+      }
+    }
+    window.invalidateCachedSupabaseHydrationSource?.();
+  };
+
+  /**
    * Updates only the requested personal fields on one versioned watched row.
    * @param {FilmRecord} film Hydrated watched film, including its row version.
    * @param {Object} changes Personal fields in film view-model shape.
@@ -178,6 +219,33 @@
       source.supabaseWatchedUpdatedAt = data.updated_at;
     window.invalidateCachedSupabaseHydrationSource?.();
     return data;
+  };
+
+  /**
+   * Atomically saves a complete versioned rewatchlist order for the current owner.
+   * @param {FilmRecord[]} films Rewatch films in the reviewed global order.
+   * @returns {Promise<void>}
+   */
+  window.persistSupabaseRewatchOrder = async function (films) {
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
+    if (
+      films.some(
+        (film) => !film.supabaseWatchedId || !film.supabaseWatchedUpdatedAt,
+      )
+    )
+      throw new Error("Refresh your rewatchlist before editing it.");
+    let ready = await window.ensureSupabaseClient();
+    if (!ready) throw new Error("Supabase not configured.");
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    let { error } = await ready.client.rpc("replace_rewatch_order", {
+      entries: films.map((film) => ({
+        id: film.supabaseWatchedId,
+        updated_at: film.supabaseWatchedUpdatedAt,
+      })),
+    });
+    if (error) throw error;
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    window.invalidateCachedSupabaseHydrationSource?.();
   };
 
   /**
@@ -270,10 +338,7 @@
       )
     )
       throw new Error("Invalid film identity.");
-    if (
-      window.state?.isPublicProfileView ||
-      window.resolveActiveProfileSlug?.()
-    )
+    if (window.state?.isPublicProfileView)
       throw new Error("Public profiles are read-only.");
     let ready = await window.ensureSupabaseClient();
     let auth = await window.resolveSupabaseAuthState();

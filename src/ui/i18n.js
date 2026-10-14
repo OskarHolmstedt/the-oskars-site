@@ -17,11 +17,14 @@
     "nav.compare": { sv: "Jämför" },
     "nav.data": { sv: "Data" },
     "nav.profile": { sv: "Profil" },
-    "nav.intake": { sv: "Intag" },
     "quickAdd.title": { sv: "Lägg till film eller logga sedd" },
     "quickAdd.heading": { sv: "Lägg till film" },
     "quickAdd.searchLabel": { sv: "Sök filmtitel" },
     "quickAdd.searchPlaceholder": { sv: "Sök i katalogen eller TMDB…" },
+    "quickAdd.searchYear": { sv: "Premiärår (valfritt vid sökning)" },
+    "quickAdd.noTmdbMatches": {
+      sv: "Inga TMDB-träffar. Prova en annan titel eller ta bort året för en bredare sökning.",
+    },
     "quickAdd.searchTmdb": { sv: "Sök på TMDB istället" },
     "quickAdd.changeFilm": { sv: "Välj en annan film" },
     "quickAdd.tabWatched": { sv: "Logga sedd" },
@@ -107,7 +110,6 @@
   };
 
   let literalTranslations = {
-    Intake: { sv: "Intag" },
     Build: { sv: "Bygg" },
     Award: { sv: "Belöna" },
     "Nominate your favourites and choose the winners.": {
@@ -158,6 +160,17 @@
     "Save rating": { sv: "Spara betyg" },
     "Choose a rating before saving.": { sv: "Välj ett betyg innan du sparar." },
     "Saved rating for {title}": { sv: "Sparade betyg för {title}" },
+    "Friend & Community Activity": { sv: "Vänners och gemenskapens aktivitet" },
+    "No friend ratings or ceremony recognitions yet.": {
+      sv: "Inga vänbetyg eller ceremoniutmärkelser ännu.",
+    },
+    "Community score": { sv: "Gemenskapspoäng" },
+    "Friend ratings": { sv: "Vänbetyg" },
+    Friend: { sv: "Vän" },
+    Following: { sv: "Följer" },
+    "Ceremony recognition": { sv: "Ceremoniutmärkelser" },
+    in: { sv: "i" },
+    "'s Oskars": { sv: "s Oskars" },
     "First film at this rating": { sv: "Första filmen med detta betyg" },
     "comparison film": { sv: "jämförelsefilm" },
     "No other films in {year} share this rating. Slot directly into ranking order.":
@@ -493,13 +506,6 @@
     "Some films may already be saved. Retry safely to finish.": {
       sv: "Vissa filmer kan redan vara sparade. Försök igen för att slutföra utan att ändra sparade uppgifter.",
     },
-    "Your film is saved. Continue your verdict now, or come back to it later.":
-      {
-        sv: "Din film är sparad. Fortsätt med ditt omdöme nu eller återkom senare.",
-      },
-    "Find a film by title. Ratings and viewing dates can wait.": {
-      sv: "Hitta en film via titeln. Betyg och visningsdatum kan vänta.",
-    },
     "Path 2 · Letterboxd": { sv: "Spår 2 · Letterboxd" },
     "Import your Letterboxd export ZIP once, then connect your username to auto-sync future watches via RSS.":
       {
@@ -606,9 +612,10 @@
     "All caught up — no new Letterboxd watches found.": {
       sv: "Helt ikapp — inga nya sedda filmer hittades på Letterboxd.",
     },
-    "Synced {count} new watch(es) into Intake.": {
-      sv: "Synkade {count} ny(a) sedd(a) film(er) till Intag.",
-    },
+    "Synced {count} new watch(es). Review remaining work in Build your Oskars.":
+      {
+        sv: "Synkade {count} nya visningar. Se återstående arbete i Bygg dina Oskars.",
+      },
     "Sync finished.": {
       sv: "Synkningen slutförd.",
     },
@@ -727,7 +734,6 @@
     "Could not fetch Letterboxd feed (check username or profile privacy).": {
       sv: "Kunde inte hämta Letterboxd-flödet (kontrollera användarnamn eller profilens sekretess).",
     },
-    "New Letterboxd watch": { sv: "Ny Letterboxd-film" },
     "Saving to your account… this can take a while for a large import. Don't close this tab.":
       {
         sv: "Sparar till ditt konto… det kan ta ett tag för en stor import. Stäng inte den här fliken.",
@@ -1587,9 +1593,6 @@
       {
         sv: "En tillfällig kö som räknas om från de aktuella filtren varje gång - inget här sparas.",
       },
-    "No interest tier has at least two watchlist films to merge.": {
-      sv: "Ingen intressetier har minst två watchlist-filmer att slå ihop.",
-    },
     "Interest tier": { sv: "Intressetier" },
     "Slightly lower priority": { sv: "Något lägre prioritet" },
     "Slightly higher priority": { sv: "Något högre prioritet" },
@@ -1922,6 +1925,9 @@
     "No tiers": { sv: "Inga tiers" },
     "No maximum": { sv: "Inget maximum" },
     "No minimum": { sv: "Inget minimum" },
+    "Rewatchlist ordering moves are limited to the same interest tier.": {
+      sv: "Omtittningslistan kan bara ordnas inom samma intressenivå.",
+    },
     "No films are marked for rewatch yet.": {
       sv: "Inga filmer är markerade för omtitt ännu.",
     },
@@ -2173,22 +2179,12 @@
     },
     "Viewing facts": { sv: "Tittningsuppgifter" },
     "Date watched": { sv: "Sedd datum" },
-    "Any unfinished rating, ranking, and awards work will remain in the intake queue.":
+    "Remaining rating, ranking, and ceremony work is available in Build your Oskars.":
       {
-        sv: "Ofärdigt arbete med betyg, rankning och priser ligger kvar i intagskön.",
-      },
-    "Continue intake": { sv: "Fortsätt intag" },
-    "Watched-film intake is open": { sv: "Intag för sedd film är öppet" },
-    "Rating, global ranking, or awards review still needs an explicit decision.":
-      {
-        sv: "Betyg, global rankning eller prisgranskning behöver fortfarande ett uttryckligt beslut.",
+        sv: "Återstående arbete med betyg, rankning och ceremonier finns i Bygg dina Oskars.",
       },
     "Annual awards": { sv: "Årliga priser" },
     "Song title": { sv: "Låttitel" },
-    "You opened this bracket from a watched-film intake.": {
-      sv: "Du öppnade denna bracket från ett intag för sedd film.",
-    },
-    "Return to intake": { sv: "Tillbaka till intag" },
     Role: { sv: "Roll" },
     Review: { sv: "Granska" },
     "Review / comment": { sv: "Text / kommentar" },
@@ -2306,37 +2302,14 @@
       sv: "Ett nästa steg, ett minne och en film som väntar på dig.",
     },
     "Archive summary": { sv: "Arkivöversikt" },
-    "Continue your Oskars": { sv: "Fortsätt med dina Oskars" },
-    "Unfinished Intake": { sv: "Oavslutad Intake" },
-    "Your rating, ranking, or ceremony decisions are waiting.": {
-      sv: "Ditt betyg, din rankning eller dina ceremonibeslut väntar.",
-    },
-    "Resume Intake": { sv: "Fortsätt Intake" },
     "Continue a project": { sv: "Fortsätt ett projekt" },
     "Up next: {title}": { sv: "Nästa: {title}" },
     "Open next film": { sv: "Öppna nästa film" },
-    "Published archive": { sv: "Publicerat arkiv" },
-    "Explore this film world": { sv: "Utforska den här filmvärlden" },
-    "Browse its years, decades, and all-time collection.": {
-      sv: "Bläddra bland dess år, årtionden och all-time-samling.",
-    },
-    "Explore periods": { sv: "Utforska perioder" },
     "Start your archive": { sv: "Starta ditt arkiv" },
-    "Add a watched film": { sv: "Lägg till en sedd film" },
     "All caught up": { sv: "Allt är klart" },
     "Add your latest watch": { sv: "Lägg till din senaste tittning" },
     "Start with rating, then place the film in your rankings and ceremonies.": {
       sv: "Börja med betyg och placera sedan filmen i dina rankningar och ceremonier.",
-    },
-    "Open Intake": { sv: "Öppna Intake" },
-    "Checking for unfinished Intake…": {
-      sv: "Letar efter en oavslutad Intake…",
-    },
-    "Could not check unfinished Intake. Intake is still available.": {
-      sv: "Kunde inte kontrollera oavslutad Intake. Intake är fortfarande tillgänglig.",
-    },
-    "No unfinished Intake or project.": {
-      sv: "Ingen oavslutad Intake eller något öppet projekt.",
     },
     "Watched entries": { sv: "Sedda verk" },
     "Release years": { sv: "Utgivningsår" },
@@ -2691,10 +2664,10 @@
       {
         sv: "Hantera dina aktiva synkroniseringsanslutningar, lägg till en ny källa eller koppla från en tjänst. Tidigare importerad arkivdata förblir intakt vid frånkoppling.",
       },
-    "Manual logging & Intake": { sv: "Manuell loggning & Intag" },
-    "Direct logging via Intake and catalog. Always available with no persistent connection needed.":
+    "Manual logging": { sv: "Manuell loggning" },
+    "Log watches with the header +. Review remaining work in Build your Oskars.":
       {
-        sv: "Direkt loggning via Intag och katalog. Alltid tillgängligt utan krav på beständig anslutning.",
+        sv: "Logga sedda filmer med + i sidhuvudet. Se återstående arbete i Bygg dina Oskars.",
       },
     "Explore years": { sv: "Utforska år" },
     "Not connected": { sv: "Inte ansluten" },
@@ -2749,9 +2722,9 @@
     "Sync future watches automatically": {
       sv: "Synka framtida visningar automatiskt",
     },
-    "Connect your Letterboxd username to detect new diary entries via RSS and start an Intake for them.":
+    "Connect your Letterboxd username to save new diary entries via RSS. Review remaining work in Build your Oskars.":
       {
-        sv: "Anslut ditt Letterboxd-användarnamn för att upptäcka nya dagboksinlägg via RSS och starta ett Intag för dem.",
+        sv: "Anslut ditt Letterboxd-användarnamn för att spara nya dagboksinlägg via RSS. Se återstående arbete i Bygg dina Oskars.",
       },
     "Connect Letterboxd": { sv: "Anslut Letterboxd" },
     "Track your archive in Google Sheets": {
@@ -2765,9 +2738,9 @@
     "Connected source suggestion": { sv: "Förslag på ansluten källa" },
     "Dismiss suggestion": { sv: "Avfärda förslag" },
     "How does fresh start work?": { sv: "Hur fungerar en nystart?" },
-    "Pick a release year to mark films you've seen, or add individual watches with ratings and ceremony ballots in Intake.":
+    "Pick a release year to mark films you've seen, or log an individual watch with the header +.":
       {
-        sv: "Välj ett utgivningsår för att markera filmer du har sett, eller lägg till enskilda visningar med betyg och röstsedlar i Intag.",
+        sv: "Välj ett premiärår för att markera filmer du har sett, eller logga en film med + i sidhuvudet.",
       },
     "Explore release years ↗": { sv: "Utforska utgivningsår ↗" },
     "How does Google Sheets sync work?": {

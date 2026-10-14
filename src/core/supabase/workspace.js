@@ -250,7 +250,7 @@
   // A watched/watchlist row's own columns as every hydration read selects
   // them; the film embed is added per query.
   const HYDRATION_WATCHED_FIELDS =
-    "id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, music_score, music_rating, music_rating_value, views, platform, updated_at";
+    "id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, rewatch_position, music_score, music_rating, music_rating_value, views, platform, updated_at";
 
   const HYDRATION_WATCHLIST_FIELDS =
     "id, film_id, tier, tier_modifier, position, reason, added_at, updated_at";

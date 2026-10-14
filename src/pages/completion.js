@@ -37,7 +37,7 @@
   function preferredCanonicalListTier(listId) {
     try {
       return (
-        window.normalizeWatchlistTier?.(
+        window.watchlistTierKey(
           localStorage.getItem(canonicalListTierKey(listId)),
         ) || "C"
       );
@@ -233,7 +233,7 @@
   function preferredOfficialWatchlistTier(sourceId) {
     try {
       return (
-        window.normalizeWatchlistTier(
+        window.watchlistTierKey(
           localStorage.getItem(officialWatchlistTierKey(sourceId)),
         ) || "C"
       );
@@ -1042,10 +1042,13 @@
     let tier = officialWatchlistTiers.get(sourceId);
     let status = officialWatchlistStatuses.get(sourceId) || "";
     let lastAddition = lastOfficialWatchlistAdditions.get(sourceId) || null;
-    let tierOptions = window.WATCHLIST_TIERS.map(
-      (option) =>
-        `<option value="${option}"${option === tier ? " selected" : ""}>${option}</option>`,
-    ).join("");
+    let tierOptions = window
+      .watchlistExactTiers()
+      .map(
+        (option) =>
+          `<option value="${option}"${option === tier ? " selected" : ""}>${option}</option>`,
+      )
+      .join("");
     let watchlistTools = canEdit
       ? `<div class="oscar-watchlist-tools"><label><span>${escape(ui("Add unseen to interest tier"))}</span><select data-oscar-watchlist-tier="${escape(sourceId)}">${tierOptions}</select></label><span>${escape(ui("Unambiguous scopes add immediately."))}</span></div>${status ? `<p class="data-panel-status oscar-watchlist-status" role="status" data-oscar-watchlist-status="${escape(sourceId)}">${escape(status)}${lastAddition?.length ? ` <button type="button" class="link-button" data-undo-oscar-watchlist="${escape(sourceId)}">${escape(ui("Undo"))}</button>` : ""}</p>` : ""}`
       : "";
@@ -1317,10 +1320,13 @@
     let projectAction = minimalSourceProjectAction("canonical-list", list.id);
     let watchlistAction = canonicalListWatchlistButton(list);
     let tier = canonicalListTiers.get(list.id) || "C";
-    let tierOptions = window.WATCHLIST_TIERS.map(
-      (option) =>
-        `<option value="${option}"${option === tier ? " selected" : ""}>${option}</option>`,
-    ).join("");
+    let tierOptions = window
+      .watchlistExactTiers()
+      .map(
+        (option) =>
+          `<option value="${option}"${option === tier ? " selected" : ""}>${option}</option>`,
+      )
+      .join("");
     let status = canonicalListStatuses.get(list.id) || "";
     let lastAddition = lastCanonicalListAdditions.get(list.id) || null;
     let isExpanded = canonicalExpandedLists.has(list.id);
@@ -1905,7 +1911,7 @@ ${officialWatchlistDialog()}`;
     let tierInput = event.target.closest("[data-oscar-watchlist-tier]");
     if (tierInput) {
       let sourceId = tierInput.dataset.oscarWatchlistTier;
-      let tier = window.normalizeWatchlistTier?.(tierInput.value);
+      let tier = window.watchlistTierKey(tierInput.value);
       if (tier) {
         officialWatchlistTiers.set(sourceId, tier);
         try {
@@ -1919,7 +1925,7 @@ ${officialWatchlistDialog()}`;
     );
     if (canonicalTierInput) {
       let listId = canonicalTierInput.dataset.canonicalWatchlistTier;
-      let tier = window.normalizeWatchlistTier?.(canonicalTierInput.value);
+      let tier = window.watchlistTierKey(canonicalTierInput.value);
       if (tier) {
         canonicalListTiers.set(listId, tier);
         try {

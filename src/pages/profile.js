@@ -19,9 +19,7 @@
   async function clearBrowserStorage() {
     localStorage.removeItem("oskars");
     localStorage.removeItem("oskars-recovery");
-    sessionStorage.removeItem(
-      window.OSKARS_PROFILE_ACTIVE_SLUG_KEY || "oskars-active-profile",
-    );
+    sessionStorage.removeItem("oskars-active-profile");
     if (!window.indexedDB) return;
     await new Promise((resolve, reject) => {
       let request = window.indexedDB.deleteDatabase("oskars");
@@ -43,7 +41,7 @@
 
     let statusHtml = isPublic
       ? `<span class="data-source-badge data-source-badge--connected">Public</span>
-         <span>Available at <a href="index.html?profile=${encodeURIComponent(slug)}">index.html?profile=${escape(slug)}</a></span>`
+         <span>Available at <a href="user.html?u=${encodeURIComponent(slug)}">user.html?u=${escape(slug)}</a></span>`
       : `<span class="data-source-badge data-source-badge--disconnected">Private</span>
          <span>Only you can open your personal archive.</span>`;
 
@@ -69,7 +67,7 @@
         <div class="profile-settings-row">
           <div class="profile-settings-label">
             <strong>Public access</strong>
-            <span>Allow others to view your ratings, awards, and rankings via your link. Private notes stay hidden.</span>
+            <span>Publish your watched films, ratings, rankings, awards, tags, watchlist, and viewing facts (watch dates, platforms, and view counts). Notes and reviews stay private.</span>
           </div>
           <div class="profile-settings-control">
             <button id="togglePublicAccessBtn" type="button" class="${isPublic ? "button-secondary" : ""}" ${!name && !isPublic ? "disabled" : ""}>
@@ -201,7 +199,54 @@
     </section>`;
   }
 
-  function render(user) {
+  function followingSectionHtml(followingList) {
+    let items = followingList || [];
+    return `<section id="profileFollowingSection" class="data-panel">
+      <span class="eyebrow">Connections</span>
+      <h2>Following &amp; Friends</h2>
+      <p>Members you follow on The Oskars. Mutual follows establish a friend connection that highlights ratings and ceremonies on film details.</p>
+
+      ${
+        items.length
+          ? `<ul class="profile-following-list" style="list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 8px;">
+              ${items
+                .map((item) => {
+                  let p = item.profile || {};
+                  let name = p.display_name || p.public_slug || "Member";
+                  let initial = (name || "?").charAt(0).toUpperCase();
+                  let isFriend = Boolean(item.isMutualFriend);
+                  let userUrl = p.public_slug
+                    ? `user.html?u=${encodeURIComponent(p.public_slug)}`
+                    : "#";
+                  return `<li class="profile-following-item" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--card-bg, rgba(255,255,255,0.04)); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <span class="film-social-avatar" aria-hidden="true" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--accent); color: #fff; font-weight: bold; font-size: 0.9rem;">${escape(initial)}</span>
+                      <div>
+                        ${
+                          p.public_slug
+                            ? `<a href="${escape(userUrl)}" style="font-weight: 600; text-decoration: none; color: inherit;">${escape(name)}</a>`
+                            : `<strong style="font-weight: 600;">${escape(name)}</strong>`
+                        }
+                        ${
+                          isFriend
+                            ? `<span class="data-source-badge data-source-badge--connected" style="margin-left: 6px; font-size: 0.75rem;">Friend</span>`
+                            : `<span class="data-source-badge" style="margin-left: 6px; font-size: 0.75rem;">Following</span>`
+                        }
+                      </div>
+                    </div>
+                    <button type="button" class="button-secondary" data-profile-unfollow-id="${escape(item.following_id)}" style="padding: 4px 10px; font-size: 0.85rem;">
+                      Unfollow
+                    </button>
+                  </li>`;
+                })
+                .join("")}
+            </ul>`
+          : `<p class="data-panel-status" style="margin-top: 12px;">You are not following any members yet. Discover public profiles in <a href="community.html">Community</a>.</p>`
+      }
+    </section>`;
+  }
+
+  function render(user, followingList = []) {
     container.innerHTML = `<div class="data-workspace-heading">
         <div>
           <span class="eyebrow">Settings</span>
@@ -214,6 +259,7 @@
       </div>
       <div class="data-panel-stack">
         ${publicProfileCardHtml(user)}
+        ${followingSectionHtml(followingList)}
         ${preferencesSectionHtml()}
         ${authSectionHtml(user)}
         ${deleteProfileHtml(profile)}
@@ -366,6 +412,24 @@
         let input = /** @type {HTMLInputElement} */ (e.target);
         window.applyOskarsPosterBackdrop?.(input.checked);
       });
+    // Connections: Unfollow
+    container
+      .querySelectorAll("[data-profile-unfollow-id]")
+      .forEach((button) => {
+        button.addEventListener("click", async (e) => {
+          let followingId = e.currentTarget.dataset.profileUnfollowId;
+          if (!followingId) return;
+          button.disabled = true;
+          try {
+            await window.unfollowSupabaseUser?.(followingId);
+            let updatedList = (await window.listSupabaseFollowing?.()) || [];
+            render(user, updatedList);
+          } catch (err) {
+            button.disabled = false;
+            console.warn("Unfollow failed:", err);
+          }
+        });
+      });
   }
 
   function renderHeaderAuthStatus(user, profileRecord) {
@@ -373,6 +437,12 @@
   }
 
   async function boot() {
+    let params = new URLSearchParams(window.location.search || "");
+    let querySlug = params.get("u") || params.get("profile");
+    if (querySlug) {
+      window.location.replace(`user.html?u=${encodeURIComponent(querySlug)}`);
+      return;
+    }
     let finish = window.startOskarsPerformance?.("profile:render");
     let access = await window.resolveSupabaseAccountGate();
     if (!access.allowed) {
@@ -381,7 +451,15 @@
     }
     try {
       profile = await window.loadSupabaseProfile();
-      render(access.user);
+      let followingList = [];
+      try {
+        if (window.listSupabaseFollowing) {
+          followingList = await window.listSupabaseFollowing();
+        }
+      } catch (err) {
+        console.warn("Failed loading following list:", err);
+      }
+      render(access.user, followingList);
       renderHeaderAuthStatus(access.user, profile);
       finish?.();
       window.refreshFocusedShellBackdrop?.();

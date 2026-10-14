@@ -3,7 +3,7 @@
 /**
  * Renders the role/song detail-value input for a category's credit form, or
  * "" for categories with no meaningful second identifying field (issue
- * #192) - shared by every award-editing form (awards-year.js, intake.js) so
+ * #192) - shared by every award-editing form (awards-year.js) so
  * the role/song field set stays in exactly one place.
  * @param {string} category Award category.
  * @param {string} value Current detail value.

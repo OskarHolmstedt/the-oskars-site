@@ -7,7 +7,7 @@
  * logic (rebuildPeopleIndex, directorCompletion, watchlistItemsByDirector,
  * officialPersonOscarRecord, ...) is already pure over window.state, so it
  * works unmodified once fed Supabase-sourced state. Only entity notes and
- * the watchlist tier/order/local-rank write paths route to Supabase
+ * watchlist membership, rewatch intent, tier/order/local-rank write paths route to Supabase
  * directly, via the shared UI helpers tag.js/franchise.js already built
  * (supabase-entity-note.js, supabase-watchlist-bulk-tier.js).
  *
@@ -119,10 +119,6 @@
       window.history.replaceState(null, "", personViewUrl());
   }
 
-  function reload() {
-    window.location.href = personViewUrl();
-  }
-
   // Module-level so event handlers reachable outside render() (order-edit
   // commit callbacks, the sort/awards-view change handler) can read the
   // latest computed values without threading them through separately -
@@ -136,6 +132,161 @@
   let localRankFilms = [];
   let watchlistItems = [];
   let directorPosition = new Map();
+  let watchlistOrderController = null;
+  let localRankOrderController = null;
+  let boundContainerNavigation = false;
+
+  function personCollectionAction(kind, id, active) {
+    if (!canEdit || !id) return "";
+    return window.renderCollectionActionButton({
+      kind,
+      label: ui(
+        kind === "rewatch"
+          ? active
+            ? "Remove from rewatchlist"
+            : "Want to rewatch"
+          : active
+            ? "Remove from watchlist"
+            : "Add to watchlist",
+      ),
+      active,
+      escape: personPageEscape,
+      attributes: {
+        "data-person-collection-action": kind,
+        "data-person-collection-id": id,
+        "data-person-collection-active": String(Boolean(active)),
+        disabled: busy || watchlistOrderEditMode || localRankEditMode,
+      },
+    });
+  }
+
+  function updatePersonCollectionActionAvailability() {
+    container
+      .querySelectorAll(
+        "[data-person-collection-action], [data-edit-person-tier]",
+      )
+      .forEach((action) => {
+        action.disabled = busy || watchlistOrderEditMode || localRankEditMode;
+      });
+  }
+
+  async function handlePersonCollectionAction(event) {
+    let button = event.target.closest("[data-person-collection-action]");
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!canEdit || busy || watchlistOrderEditMode || localRankEditMode) return;
+    let { personCollectionAction: kind, personCollectionId: id } =
+      button.dataset;
+    let active = button.dataset.personCollectionActive === "true";
+    if (!id) return;
+    busy = true;
+    updatePersonCollectionActionAvailability();
+    try {
+      if (kind === "rewatch") {
+        await window.setSupabaseWatchedRewatch(id, !active);
+        let film =
+          Object.values(window.state?.filmsById || {}).find(
+            (candidate) =>
+              candidate.supabaseFilmId === id || candidate.id === id,
+          ) ||
+          (window.state?.watchedOther || []).find(
+            (candidate) =>
+              candidate.supabaseFilmId === id || candidate.id === id,
+          );
+        if (film) {
+          film.wantToRewatch = !active;
+          if (active) {
+            film.rewatchTier = "";
+            film.rewatchTierModifier = "";
+          }
+        }
+      } else if (kind === "watchlist" && active) {
+        await window.removeFromSupabaseWatchlist(id);
+        window.invalidateCachedSupabaseHydrationSource?.();
+        let removedIndex = (window.state?.watchlist || []).findIndex(
+          (item) => item.id === id,
+        );
+        let removedItem =
+          removedIndex !== -1 ? window.state.watchlist[removedIndex] : null;
+        if (removedIndex !== -1) {
+          window.state.watchlist.splice(removedIndex, 1);
+        }
+        let catalogId = removedItem?.supabaseFilmId || removedItem?.id || id;
+        if (
+          person?.catalogIds &&
+          catalogId &&
+          !person.catalogIds.includes(catalogId)
+        ) {
+          person.catalogIds.push(catalogId);
+        }
+        if (window.state) {
+          window.state._watchlistDirectorLookup = null;
+          window.state.aggregateVersion =
+            (Number(window.state.aggregateVersion) || 0) + 1;
+        }
+      } else if (kind === "watchlist") {
+        let created = await window.addToSupabaseWatchlist(id);
+        window.invalidateCachedSupabaseHydrationSource?.();
+        let archiveFilm =
+          window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID?.[id] ||
+          Object.values(window.OSKARS_SHARED_FILM_ARCHIVE || {}).find(
+            (candidate) =>
+              candidate.id === id || candidate.supabaseFilmId === id,
+          );
+        if (person?.catalogIds) {
+          person.catalogIds = person.catalogIds.filter(
+            (candidateId) =>
+              candidateId !== id &&
+              (!archiveFilm || candidateId !== archiveFilm.id),
+          );
+        }
+        let watchlistItem = {
+          id: created?.id || id,
+          supabaseFilmId: archiveFilm?.supabaseFilmId || archiveFilm?.id || id,
+          title: archiveFilm?.title || "",
+          year: archiveFilm?.year || "",
+          letterboxdUrl: archiveFilm?.letterboxdUrl || "",
+          added: new Date().toISOString().slice(0, 10),
+          tmdbId: archiveFilm?.tmdbId || "",
+          swedishTitle: archiveFilm?.swedishTitle || "",
+          tier: created?.tier || "",
+          tierModifier: created?.tier_modifier || created?.tierModifier || "",
+          order: (window.state?.watchlist?.length || 0) + 1,
+          director: archiveFilm?.director || (isDirector ? person.name : ""),
+          directors:
+            archiveFilm?.directors || (isDirector ? [person.name] : []),
+          directorIds: archiveFilm?.directorIds || [],
+        };
+        window.state.watchlist ||= [];
+        window.state.watchlist.push(watchlistItem);
+        if (window.state) {
+          window.state._watchlistDirectorLookup = null;
+          window.state.aggregateVersion =
+            (Number(window.state.aggregateVersion) || 0) + 1;
+        }
+      } else {
+        return;
+      }
+      render();
+    } catch (error) {
+      window.alert?.(error.message || String(error));
+    } finally {
+      busy = false;
+      updatePersonCollectionActionAvailability();
+    }
+  }
+
+  function handlePersonTierEdit(event) {
+    return window.handleInlineTierEditClick(event, {
+      container,
+      escape: personPageEscape,
+      ui,
+      canEdit:
+        canEdit && !busy && !watchlistOrderEditMode && !localRankEditMode,
+      onSaved: render,
+    });
+  }
 
   function collectionViewUrl(view) {
     let url = new URL(personViewUrl(), window.location.href);
@@ -374,6 +525,24 @@
       return { professions, detailHtml };
     }
 
+    function personRewatchTierCell(film) {
+      let badge = film.wantToRewatch
+        ? window.renderWatchlistTierBadge(film.rewatchTier, {
+            escape: personPageEscape,
+            modifier: film.rewatchTierModifier,
+          })
+        : "";
+      let tierHtml = badge || "—";
+      if (canEdit && film.wantToRewatch) {
+        let disabledAttr =
+          busy || watchlistOrderEditMode || localRankEditMode
+            ? " disabled"
+            : "";
+        tierHtml = `<button type="button" class="film-inline-value" data-edit-person-tier="rewatch" data-person-tier-target-id="${personPageEscape(film.supabaseFilmId || film.id)}" aria-label="${personPageEscape(ui("Rewatch tier"))}"${disabledAttr}>${badge || "—"}</button>`;
+      }
+      return `<td class="rating-tier-cell">${tierHtml} ${personCollectionAction("rewatch", film.supabaseFilmId, film.wantToRewatch)}</td>`;
+    }
+
     function personFilmRow(film, index = 0) {
       let credit = filmCredit(film);
       let attributes = window.renderOrderEditItemAttributes(
@@ -396,6 +565,7 @@
       })}
       <td class="film-people-cell">${personPageEscape(credit.professions.join(", "))}${credit.detailHtml ? `<span class="leaderboard-meta">${credit.detailHtml}</span>` : ""}</td>
       ${window.renderRatingTierCell({ film }, { escape: personPageEscape })}
+      ${personRewatchTierCell(film)}
     </tr>`;
     }
 
@@ -431,6 +601,7 @@
       ${window.renderFilmIdentityCell(film, { escape: personPageEscape })}
       <td class="film-people-cell">${personPageEscape(film.type || ui("Other"))}</td>
       ${window.renderRatingTierCell({ film }, { escape: personPageEscape })}
+      ${personRewatchTierCell(film)}
     </tr>`;
     }
 
@@ -450,6 +621,7 @@
       return `<tr>
       <td><a class="period-link" href="${personPageEscape(`${window.periodPageUrl("year", film.year)}&view=shared`)}">${personPageEscape(film.year || "")}</a></td>
       ${window.renderFilmIdentityCell(film, { escape: personPageEscape })}
+      ${canEdit ? `<td>${personCollectionAction("watchlist", film.supabaseFilmId || film.id, false)}</td>` : ""}
     </tr>`;
     }
 
@@ -475,13 +647,16 @@
           scope: "watchlist",
           id: item.id,
           index,
-          group: window.normalizeWatchlistTier(item.tier),
+          group: window.watchlistTierKey(
+            item.tier,
+            item.tier_modifier || item.tierModifier,
+          ),
         }),
         openFilm: false,
         showYear: true,
         escape: personPageEscape,
         beforeTitleHtml: item.tier
-          ? `<span class="watchlist-tier tier-${personPageEscape(item.tier.toLowerCase())}">${personPageEscape(item.tier)}</span>`
+          ? `<span class="watchlist-tier tier-${personPageEscape(item.tier.toLowerCase())}">${personPageEscape(window.renderTierWithModifier(item.tier, item.tier_modifier || item.tierModifier))}</span>`
           : "",
         titleHtml: `<a class="table-film-link" href="${personPageEscape(window.filmPageUrl(item.supabaseFilmId))}">${personPageEscape(item.title)}</a>`,
         bodyHtml:
@@ -497,10 +672,25 @@
           scope: "watchlist",
           id: item.id,
           index,
-          group: window.normalizeWatchlistTier(item.tier),
+          group: window.watchlistTierKey(
+            item.tier,
+            item.tier_modifier || item.tierModifier,
+          ),
         },
         personPageEscape,
       );
+      let badge = window.renderWatchlistTierBadge(item.tier, {
+        escape: personPageEscape,
+        modifier: item.tierModifier,
+      });
+      let tierHtml = badge || "—";
+      if (canEdit) {
+        let disabledAttr =
+          busy || watchlistOrderEditMode || localRankEditMode
+            ? " disabled"
+            : "";
+        tierHtml = `<button type="button" class="film-inline-value" data-edit-person-tier="watchlist" data-person-tier-target-id="${personPageEscape(item.id)}" aria-label="${personPageEscape(ui("Interest tier"))}"${disabledAttr}>${badge || "—"}</button>`;
+      }
       return `<tr${attributes}>
       ${filmographySort === "director-rank" ? '<td class="leaderboard-position">—</td>' : ""}
       <td><a class="period-link" href="${personPageEscape(window.periodPageUrl("year", item.year))}">${personPageEscape(item.year || "")}</a></td>
@@ -509,7 +699,8 @@
         href: window.filmPageUrl(item.supabaseFilmId),
       })}
       <td class="film-people-cell">${personPageEscape(ui("Watchlist"))}</td>
-      ${window.renderRatingTierCell({ item }, { escape: personPageEscape })}
+      ${window.renderRatingTierCell({ item }, { escape: personPageEscape, editHtml: `${tierHtml} ${personCollectionAction("watchlist", item.id, true)}` })}
+      ${combinedView ? '<td class="rating-tier-cell">—</td>' : ""}
     </tr>`;
     }
 
@@ -1024,12 +1215,13 @@
         canEdit && filmographySort === "local-rank" && films.length > 1
           ? `<div class="period-edit-controls"><button type="button" class="sort-order-button" data-person-local-rank-edit-toggle${busy ? " disabled" : ""}>${personPageEscape(ui(localRankEditMode ? "Finish order" : "Reorder"))}</button>${localRankEditMode ? `<span>${personPageEscape(ui("Drag to set this collection's independent local order."))}</span>` : `<a class="sort-order-button" href="${personPageEscape(window.localRankMergePageUrl("people", person.id, personViewUrl()))}">${personPageEscape(ui("Merge-sort tool"))}</a>`}</div>`
           : "";
-      return `${localRankControls}<div data-person-filmography="list" ${filmographyView === "list" ? "" : "hidden"}><div class="leaderboard-wrap"><table class="leaderboard"><thead><tr>${filmographySort === "director-rank" ? `<th>${personPageEscape(ui("Rank"))}</th>` : ""}${filmographySort === "local-rank" ? `<th>${personPageEscape(ui("Rank"))}</th>` : ""}<th>${personPageEscape(ui("Year"))}</th><th>${personPageEscape(ui("Film"))}</th><th>${personPageEscape(ui("Credit"))}</th><th>${combinedView ? `${personPageEscape(ui("Rating"))} / ${personPageEscape(ui("Tier"))}` : personPageEscape(ui("Rating"))}</th></tr></thead><tbody>${combinedView ? combinedRows : filmRows}</tbody></table></div></div><div data-person-filmography="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${(combinedView ? combinedCards : filmCards) || `<p>${personPageEscape(ui("No films"))}</p>`}</div></div>`;
+      return `${localRankControls}<div data-person-filmography="list" ${filmographyView === "list" ? "" : "hidden"}><div class="leaderboard-wrap"><table class="leaderboard"><thead><tr>${filmographySort === "director-rank" ? `<th>${personPageEscape(ui("Rank"))}</th>` : ""}${filmographySort === "local-rank" ? `<th>${personPageEscape(ui("Rank"))}</th>` : ""}<th>${personPageEscape(ui("Year"))}</th><th>${personPageEscape(ui("Film"))}</th><th>${personPageEscape(ui("Credit"))}</th><th>${combinedView ? `${personPageEscape(ui("Rating"))} / ${personPageEscape(ui("Tier"))}` : personPageEscape(ui("Rating"))}</th><th>${personPageEscape(ui("Rewatch tier"))}</th></tr></thead><tbody>${combinedView ? combinedRows : filmRows}</tbody></table></div></div><div data-person-filmography="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${(combinedView ? combinedCards : filmCards) || `<p>${personPageEscape(ui("No films"))}</p>`}</div></div>`;
     }
     function renderPersonFilmographyFilms() {
       let section = container.querySelector("[data-person-filmography-films]");
       if (!section) return false;
       section.innerHTML = personFilmographyFilmsHtml();
+      bindPersonOrderEditToggles();
       return true;
     }
     function personWatchlistContentHtml() {
@@ -1059,6 +1251,7 @@
       let section = container.querySelector("[data-person-watchlist-section]");
       if (!section) return false;
       section.innerHTML = personWatchlistContentHtml();
+      bindPersonOrderEditToggles();
       return true;
     }
 
@@ -1104,8 +1297,8 @@
   )}</div>
   ${!combinedView ? `<h3 id="person-watched" class="person-filmography-subheading">${personPageEscape(ui("Watched"))}</h3>` : ""}
   <section data-person-filmography-films>${personFilmographyFilmsHtml()}</section>
-  ${otherWatched.length && filmographySort !== "local-rank" ? `<section class="person-other-watched"><h3 class="person-filmography-subheading">${personPageEscape(ui("Shorts, docs & TV"))}</h3><p class="section-description">${personPageEscape(ui("Shorts, specials, and standalone works watched outside the main award competition."))}</p><div data-person-other-watched="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Type"), ui("Rating")].map(personPageEscape), rows: otherWatched.map(personOtherWatchedRow).join("") })}</div><div data-person-other-watched="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${otherWatched.map(personOtherWatchedCard).join("")}</div></div></section>` : ""}
-  ${unseenFilms.length ? `<section class="person-unseen"><h3 class="person-filmography-subheading">${personPageEscape(ui("Other films"))}</h3><p class="section-description">${personPageEscape(ui("Films with this person that are not yet watched or on your watchlist."))}</p><div data-person-unseen="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title")].map(personPageEscape), rows: unseenFilms.map(personUnseenRow).join("") })}</div><div data-person-unseen="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${unseenFilms.map(personUnseenCard).join("")}</div></div></section>` : ""}
+  ${otherWatched.length && filmographySort !== "local-rank" ? `<section class="person-other-watched"><h3 class="person-filmography-subheading">${personPageEscape(ui("Shorts, docs & TV"))}</h3><p class="section-description">${personPageEscape(ui("Shorts, specials, and standalone works watched outside the main award competition."))}</p><div data-person-other-watched="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Type"), ui("Rating"), ui("Rewatch tier")].map(personPageEscape), rows: otherWatched.map(personOtherWatchedRow).join("") })}</div><div data-person-other-watched="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${otherWatched.map(personOtherWatchedCard).join("")}</div></div></section>` : ""}
+  ${unseenFilms.length ? `<section class="person-unseen"><h3 class="person-filmography-subheading">${personPageEscape(ui("Other films"))}</h3><p class="section-description">${personPageEscape(ui("Films with this person that are not yet watched or on your watchlist."))}</p><div data-person-unseen="list" ${filmographyView === "list" ? "" : "hidden"}>${window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ...(canEdit ? [ui("Actions")] : [])].map(personPageEscape), rows: unseenFilms.map(personUnseenRow).join("") })}</div><div data-person-unseen="grid" ${filmographyView === "grid" ? "" : "hidden"}><div class="film-grid person-film-grid">${unseenFilms.map(personUnseenCard).join("")}</div></div></section>` : ""}
   ${!combinedView && watchlistItems.length ? `<section data-person-watchlist-section>${personWatchlistContentHtml()}</section>` : ""}
   <h2 id="person-awards">${personPageEscape(ui("Awards"))}</h2>
   <fieldset class="person-awards-view-controls"><legend>${personPageEscape(ui("Display"))}</legend><label><input type="radio" name="personAwardsView" value="periods" ${personAwardsView === "periods" ? "checked" : ""}> ${personPageEscape(ui("Period tables"))}</label><label><input type="radio" name="personAwardsView" value="progression" ${personAwardsView === "progression" ? "checked" : ""}> ${personPageEscape(ui("Progression table"))}</label></fieldset>
@@ -1147,25 +1340,37 @@
           updatePersonViewUrl();
         });
       });
-    container
-      .querySelector("[data-person-watchlist-order-edit-toggle]")
-      ?.addEventListener("click", (event) => {
-        event.preventDefault();
-        if (!canEdit || busy) return;
-        watchlistOrderEditMode = !watchlistOrderEditMode;
-        renderPersonWatchlistSection();
-        updatePersonViewUrl();
-      });
-    container
-      .querySelector("[data-person-local-rank-edit-toggle]")
-      ?.addEventListener("click", (event) => {
-        event.preventDefault();
-        if (!canEdit || busy) return;
-        localRankEditMode = !localRankEditMode;
-        renderPersonFilmographyFilms();
-        updatePersonViewUrl();
-      });
-    window.createOrderEditController({
+    function bindPersonOrderEditToggles() {
+      let watchlistToggle = /** @type {HTMLButtonElement|null} */ (
+        container.querySelector(
+          "button[data-person-watchlist-order-edit-toggle]",
+        )
+      );
+      if (watchlistToggle)
+        watchlistToggle.onclick = (event) => {
+          event.preventDefault();
+          if (!canEdit || busy) return;
+          watchlistOrderEditMode = !watchlistOrderEditMode;
+          renderPersonWatchlistSection();
+          updatePersonCollectionActionAvailability();
+          updatePersonViewUrl();
+        };
+      let localRankToggle = /** @type {HTMLButtonElement|null} */ (
+        container.querySelector("button[data-person-local-rank-edit-toggle]")
+      );
+      if (localRankToggle)
+        localRankToggle.onclick = (event) => {
+          event.preventDefault();
+          if (!canEdit || busy) return;
+          localRankEditMode = !localRankEditMode;
+          renderPersonFilmographyFilms();
+          updatePersonCollectionActionAvailability();
+          updatePersonViewUrl();
+        };
+    }
+    bindPersonOrderEditToggles();
+    watchlistOrderController?.destroy();
+    watchlistOrderController = window.createOrderEditController({
       container,
       scope: "watchlist",
       enabled: () => canEdit && watchlistOrderEditMode,
@@ -1180,8 +1385,14 @@
             ok: false,
             reason: "Both films must exist in the watchlist.",
           };
-        let fromTier = window.normalizeWatchlistTier(fromItem.tier);
-        let toTier = window.normalizeWatchlistTier(toItem.tier);
+        let fromTier = window.watchlistTierKey(
+          fromItem.tier,
+          fromItem.tier_modifier || fromItem.tierModifier,
+        );
+        let toTier = window.watchlistTierKey(
+          toItem.tier,
+          toItem.tier_modifier || toItem.tierModifier,
+        );
         if (fromTier !== toTier)
           return {
             ok: false,
@@ -1190,7 +1401,11 @@
           };
         let tierItems = watchlistItems
           .filter(
-            (item) => window.normalizeWatchlistTier(item.tier) === fromTier,
+            (item) =>
+              window.watchlistTierKey(
+                item.tier,
+                item.tier_modifier || item.tierModifier,
+              ) === fromTier,
           )
           .sort(
             (a, b) => Number(a.order || 999999) - Number(b.order || 999999),
@@ -1212,9 +1427,35 @@
         );
         return { ok: true };
       },
-      rerender: reload,
+      rerender: async () => {
+        let workspace = window.getSupabaseWorkspace?.();
+        if (workspace?.watchlist && window.state) {
+          let chains = window.buildSupabaseFranchiseChains?.(
+            workspace.franchises || [],
+          );
+          let rankedIndex = 0;
+          window.state.watchlist = workspace.watchlist
+            .map((row) => {
+              let index =
+                row.position != null && row.position !== ""
+                  ? rankedIndex++
+                  : null;
+              return window.supabaseLegacyHydrationWatchlistItem?.(
+                row,
+                index,
+                chains,
+              );
+            })
+            .filter(Boolean);
+          window.state._watchlistDirectorLookup = null;
+          window.state.aggregateVersion =
+            (Number(window.state.aggregateVersion) || 0) + 1;
+        }
+        render();
+      },
     });
-    window.createOrderEditController({
+    localRankOrderController?.destroy();
+    localRankOrderController = window.createOrderEditController({
       container,
       scope: "local-rank",
       enabled: () => canEdit && localRankEditMode,
@@ -1229,21 +1470,42 @@
         );
         return ok ? { ok: true } : { ok: false };
       },
-      rerender: reload,
+      rerender: async () => {
+        if (person && window.personStorageKey) {
+          let implicitFilmIds = localRankFilms.map(
+            (film) => film.supabaseFilmId,
+          );
+          let stored = await window.loadSupabaseLocalRankOrder(
+            "person",
+            window.personStorageKey(person),
+          );
+          let order = window.mergeSupabaseLocalRankOrder(
+            stored,
+            implicitFilmIds,
+          );
+          localRankMap = new Map(
+            order.map((filmId, index) => [filmId, index + 1]),
+          );
+        }
+        render();
+      },
     });
 
-    container.addEventListener("click", (event) => {
-      let card = event.target.closest("[data-open-film-id]");
-      if (card && !event.target.closest("a,button,input,label"))
+    if (!boundContainerNavigation) {
+      boundContainerNavigation = true;
+      container.addEventListener("click", (event) => {
+        let card = event.target.closest("[data-open-film-id]");
+        if (card && !event.target.closest("a,button,input,label"))
+          window.location.href = window.filmPageUrl(card.dataset.openFilmId);
+      });
+      container.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        let card = event.target.closest("[data-open-film-id]");
+        if (!card || event.target.closest("a,button,input,label")) return;
+        event.preventDefault();
         window.location.href = window.filmPageUrl(card.dataset.openFilmId);
-    });
-    container.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      let card = event.target.closest("[data-open-film-id]");
-      if (!card || event.target.closest("a,button,input,label")) return;
-      event.preventDefault();
-      window.location.href = window.filmPageUrl(card.dataset.openFilmId);
-    });
+      });
+    }
 
     finishRenderTimer?.(
       `${person.id}, ${films.length} film(s), ${watchlistItems.length} watchlist item(s), ${awards.length} award credit(s)`,
@@ -1286,6 +1548,8 @@
       window.renderSupabaseAccountGate(access, container);
       return;
     }
+    container.addEventListener("click", handlePersonCollectionAction);
+    container.addEventListener("click", handlePersonTierEdit);
     window.bindSupabaseEntityNoteEditor({
       container,
       entityKind: "person",
@@ -1307,7 +1571,31 @@
         busy = false;
         render();
       },
-      rerender: reload,
+      rerender: async () => {
+        let select = /** @type {HTMLSelectElement|null} */ (
+          container.querySelector("[data-supabase-watchlist-bulk-tier]")
+        );
+        let tier = select?.value || "";
+        let parsed = window.parseWatchlistTier?.(tier) || {
+          tier: "",
+          modifier: "",
+        };
+        let ids = watchlistItems.map((item) => item.id);
+        (window.state?.watchlist || []).forEach((item) => {
+          if (ids.includes(item.id)) {
+            item.tier = parsed.tier || "";
+            item.tierModifier = parsed.modifier || "";
+            item.tier_modifier = parsed.modifier || "";
+          }
+        });
+        if (window.state) {
+          window.state._watchlistDirectorLookup = null;
+          window.state.aggregateVersion =
+            (Number(window.state.aggregateVersion) || 0) + 1;
+        }
+        busy = false;
+        render();
+      },
     });
     try {
       // Compact read (issue #633): a canonical uuid visit loads only this

@@ -984,7 +984,7 @@ window.compareRenderCollectionDistributionPanel = function (targets) {
       <td class="compare-number-cell">${compareEscape(ranked.length)}</td>
       <td class="compare-number-cell">${compareEscape(top250.length)}</td>
       <td>${countSummary(films.map((film) => film.rating))}</td>
-      <td>${countSummary(watchlistItems.map((item) => item.tier))}</td>
+      <td>${countSummary(watchlistItems.map((item) => window.watchlistTierKey(item.tier, item.tier_modifier || item.tierModifier)))}</td>
     </tr>`;
     })
     .join("");

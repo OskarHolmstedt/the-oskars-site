@@ -97,7 +97,7 @@
     (window.state.watchlist || []).forEach((item) => {
       let archiveFilm = window.findWatchlistArchiveFilm?.(item);
       let film = window.watchlistFilmLike?.(item, archiveFilm) || item;
-      let tier = window.normalizeWatchlistTier?.(item.tier);
+      let tier = window.renderTierWithModifier(item.tier, item.tierModifier);
       let context = [
         film.year || "",
         film.director || "",

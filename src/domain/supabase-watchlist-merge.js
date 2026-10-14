@@ -28,7 +28,14 @@
   window.supabaseWatchlistTierItemsInOrder = function (tier) {
     let workspace = window.getSupabaseWorkspace();
     return (workspace?.watchlist || [])
-      .filter((row) => (tier === "all" ? Boolean(row.tier) : row.tier === tier))
+      .filter((row) =>
+        tier === "all"
+          ? Boolean(row.tier)
+          : window.watchlistTierKey(
+              row.tier,
+              row.tier_modifier || row.tierModifier,
+            ) === window.watchlistTierKey(tier),
+      )
       .sort((left, right) => {
         let gradeLeft = window.watchlistTierGrade
           ? window.watchlistTierGrade(
@@ -72,9 +79,11 @@
    * @returns {string[]}
    */
   window.supabaseWatchlistTiersWithItems = function () {
-    return (window.WATCHLIST_TIERS || []).filter(
-      (tier) => window.supabaseWatchlistTierItemsInOrder(tier).length >= 2,
-    );
+    return window
+      .watchlistExactTiers()
+      .filter(
+        (tier) => window.supabaseWatchlistTierItemsInOrder(tier).length >= 2,
+      );
   };
 
   /**

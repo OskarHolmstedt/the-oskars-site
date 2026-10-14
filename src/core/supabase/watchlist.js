@@ -2,6 +2,30 @@
 
 (function () {
   /**
+   * Reads every confirmed watchlist shelf and merge group for the active owner.
+   * @returns {Promise<Object[]>}
+   */
+  window.loadSupabaseWatchlistOrderGroups = async function () {
+    let ready = await window.ensureSupabaseClient();
+    if (!ready) throw new Error("Supabase not configured.");
+    let ownerId = window.getSupabaseCurrentUser?.()?.id;
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
+    let groups = [];
+    for (let offset = 0; ; offset += 500) {
+      let { data, error } = await ready.client
+        .from("watchlist_order_groups")
+        .select("id,tier,kind,years,film_ids")
+        .eq("user_id", ownerId)
+        .order("id")
+        .range(offset, offset + 499);
+      if (error) throw error;
+      window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+      groups.push(...(data || []));
+      if ((data || []).length < 500) return groups;
+    }
+  };
+
+  /**
    * Adds a film (already in the shared catalog) to the signed-in user's
    * watchlist, straight through to Supabase, then updates the in-memory
    * cache. `position` uses a simple monotonic base-36 timestamp string so
@@ -284,10 +308,7 @@
 
   /**
    * Bulk-assigns an interest tier to selected watchlist items in bounded
-   * requests. Always resets each item's minus/plus
-   * refinement to null - a stale refinement from whatever tier an item
-   * was in before a bulk reassignment would be actively misleading, and
-   * there's no single sensible modifier to apply across a whole batch.
+   * requests, applying the selected exact tier and modifier to each item.
    * @param {string[]} watchlistIds
    * @param {string} tier
    */
@@ -299,13 +320,14 @@
     if (!ready) throw new Error("Supabase not configured.");
     let ids = (watchlistIds || []).filter(Boolean);
     if (!ids.length) return;
+    let parsed = window.parseWatchlistTier(tier);
     let updatedAt = new Date().toISOString();
     await window.supabaseWorkspaceContext.selectInChunks(ids, (chunk) =>
       ready.client
         .from("watchlist")
         .update({
-          tier: tier || null,
-          tier_modifier: null,
+          tier: parsed.tier || null,
+          tier_modifier: parsed.modifier || null,
           updated_at: updatedAt,
         })
         .in("id", chunk),

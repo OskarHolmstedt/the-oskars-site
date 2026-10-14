@@ -5,71 +5,6 @@
 
 window.OSKARS_BUNDLED_DATA_VERSION = 6;
 
-/**
- * Builds a public profile's stable, shareable entry URL from the current
- * page location — always `index.html?profile=<slug>`, regardless of which
- * page the viewer is currently on, so "Copy profile link" always shares the
- * canonical entry point rather than an incidental internal-navigation URL.
- * @param {string} slug Profile slug.
- * @returns {string} Absolute share URL.
- */
-function publicProfileShareUrl(slug) {
-  let base = String(window.location?.href || "").replace(/[^/]*$/, "");
-  return `${base}index.html?${window.OSKARS_PROFILE_SLUG_QUERY_PARAM}=${encodeURIComponent(slug)}`;
-}
-
-const PUBLIC_PROFILE_ERROR_MESSAGES = {
-  "not-found": "Profile not found",
-  invalid: "This profile's data could not be loaded",
-  unavailable: "This profile is temporarily unavailable",
-  offline: "This profile is temporarily unavailable",
-};
-
-/**
- * Attempts to load and hydrate the active public profile for the current
- * tab (issue #253) — reachable regardless of the deployment's baked runtime
- * mode; see the file-level comment in public-profile.js. Reports a status
- * message either way — a shareable "Viewing X's public profile" badge on
- * success, or a plain-language reason on a recoverable failure — but only
- * ever returns whether hydration succeeded; callers decide what startup
- * path runs next.
- * @param {string} slug Profile slug to load.
- * @returns {Promise<boolean>} Whether the profile was hydrated.
- */
-async function ensurePublicProfileData(slug) {
-  // Supabase is the one live profile source (issue #452). Immutable static
-  // revisions remain a separate Community comparison contract.
-  let result;
-  try {
-    result = await window.loadSupabasePublicProfile?.(slug);
-  } catch (err) {
-    result = { ok: false, error: "unavailable" };
-  }
-  result ||= { ok: false, error: "unavailable" };
-  if (result.ok) {
-    window.showPublicProfileStatus?.(
-      `Viewing ${result.meta.ownerName}'s public profile · live data`,
-      "viewer",
-      [
-        {
-          label: "Copy profile link",
-          run: () => window.copyViewLink?.(publicProfileShareUrl(slug)),
-        },
-      ],
-    );
-    return true;
-  }
-  let message =
-    PUBLIC_PROFILE_ERROR_MESSAGES[result.error] ||
-    PUBLIC_PROFILE_ERROR_MESSAGES.unavailable;
-  window.showPublicProfileStatus?.(message, "error", [
-    { label: "Retry", run: () => window.location.reload() },
-  ]);
-  window.state ||= window.createEmptyState?.() || {};
-  window.state.isPublicProfileView = true;
-  return false;
-}
-
 // Without supabase/workspace.js's domain list (a stubbed loader), the archive
 // is one all-or-nothing domain.
 function allHydrationDomains() {
@@ -127,7 +62,7 @@ function mergeHydrationSources(base, addition) {
 
 /**
  * Loads and hydrates window.state from Supabase (issues #438/#452) - the
- * owner's own data or someone else's published live profile. entry-loader.js
+ * owner's own data. entry-loader.js
  * has already resolved the
  * Supabase account gate by the time this runs, so no account-access
  * recheck is needed here.
@@ -153,22 +88,8 @@ window.ensureOskarsData = async function (options = {}) {
   // instead, fails loudly here rather than silently deleting records
   // outside that partial set (issue #607).
   window.OSKARS_STATE_HYDRATION_COMPLETE = false;
-  let activeSlug = window.resolveActiveProfileSlug?.();
-  if (options.isCurrent && (activeSlug || !options.isCurrent()))
+  if (options.isCurrent && !options.isCurrent())
     throw new Error("Archive request is no longer current.");
-  if (activeSlug) {
-    if (await ensurePublicProfileData(activeSlug)) {
-      window.refreshOskarsBackdrop?.();
-      doneEnsure?.();
-      return window.state;
-    }
-    // An invalid/missing profile link shows the same failure status
-    // ensurePublicProfileData() already reported - the viewer may not be
-    // signed in at all here (the Supabase account gate is skipped while a
-    // profile slug is active).
-    doneEnsure?.();
-    return window.state;
-  }
   // Cross-navigation cache (issue: performance investigation) - this is a
   // multi-page app, so every navigation would otherwise re-fetch and
   // re-join the entire watched/watchlist/rankings/awards/film-and-

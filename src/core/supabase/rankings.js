@@ -1,8 +1,17 @@
 /** @file Owns scoped rankings, local collection orders, and ranking review persistence. */
 
 (function () {
+  /** Reports whether a joined film can participate in feature-film rankings. @param {Object} entry Watched row or ranking entry joined with its film. @returns {boolean} Whether the title is eligible. */
+  window.supabaseRankingFilmEligible = function (entry) {
+    return (
+      String(entry?.films?.type || "")
+        .trim()
+        .toLowerCase() !== "short"
+    );
+  };
+
   const RANKING_ENTRY_SELECT =
-    "film_id, position, rank_confirmed, tie_group_id, films(id, tmdb_id, tmdb_tv_ref, title, year, poster_url)";
+    "film_id, position, rank_confirmed, tie_group_id, films(id, tmdb_id, tmdb_tv_ref, title, year, type, poster_url)";
 
   /**
    * Finds or creates one account-scoped ranking under the unique owner, scope type, and scope constraint.
@@ -75,7 +84,10 @@
           .order("position")
           .order("film_id"),
     );
-    return { rankingId, entries };
+    return {
+      rankingId,
+      entries: entries.filter(window.supabaseRankingFilmEligible),
+    };
   };
 
   /**
@@ -114,7 +126,9 @@
     });
     return rankings.map((ranking) => ({
       ...ranking,
-      ranking_entries: byRanking.get(ranking.id) || [],
+      ranking_entries: (byRanking.get(ranking.id) || []).filter(
+        window.supabaseRankingFilmEligible,
+      ),
     }));
   };
 
@@ -131,6 +145,7 @@
     watched,
   ) {
     let loaded = await window.loadSupabaseRanking(scope, scopeType);
+    let watchedById = new Map(watched.map((row) => [row.film_id, row]));
     let eligible = watched.filter((row) =>
       window.supabaseRankingEntryInScope(scopeType, scope, row),
     );
@@ -188,7 +203,14 @@
         loaded = await window.loadSupabaseRanking(scope, scopeType);
       }
     }
-    return loaded;
+    return {
+      ...loaded,
+      entries: loaded.entries.filter((entry) =>
+        window.supabaseRankingFilmEligible(
+          watchedById.get(entry.film_id) || entry,
+        ),
+      ),
+    };
   };
 
   /**
@@ -239,6 +261,7 @@
     let missing = watched
       .filter(
         (row) =>
+          window.supabaseRankingFilmEligible(row) &&
           (year === null || String(row.films?.year) === String(year)) &&
           window.supabaseRankingRatingKey(row) &&
           !rankedIds.has(row.film_id),

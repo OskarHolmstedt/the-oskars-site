@@ -209,11 +209,14 @@
       },
       matches(record, value) {
         if (value === null || inactive(value)) return true;
-        let tier = window.normalizeWatchlistTier(record?.tier);
+        let tier = window.watchlistTierKey(
+          record?.tier,
+          record?.tier_modifier || record?.tierModifier,
+        );
         if (Array.isArray(value)) return value.includes(tier);
         return value === "unset"
           ? !tier
-          : tier === window.normalizeWatchlistTier(value);
+          : tier === window.watchlistTierKey(value);
       },
     },
     // A film's relationship to the viewer (watched/watchlisted/unseen),

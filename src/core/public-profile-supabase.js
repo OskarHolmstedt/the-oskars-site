@@ -1,27 +1,4 @@
-/**
- * @file Builds and hydrates a public-profile projection straight from
- * Supabase (issue #452's live reader). `fetchSupabasePublicProfileProjection()`
- * is the shared, non-mutating core: direct `?profile=<slug>` viewing
- * (`loadSupabasePublicProfile()`) hydrates its result into `window.state`,
- * while Community's live comparison and joint-ceremony views (issue #483)
- * call it once per selected profile and keep each result independent, since
- * comparing archives must never let one profile's data stomp another's
- * shared global state. Reuses the same validated
- * `buildPublicProjection()`/`hydratePublicProfileState()` contract
- * unchanged, so every existing page renders identically regardless of which
- * source produced the projection - only how the `years`/`watchedFilms`
- * input is assembled differs here.
- *
- * officialResults is not queried from Supabase at all: it is shared,
- * non-personal data every deployment already ships bundled
- * (`window.OSKARS_BUNDLED_OFFICIAL_RESULTS`, issue #277) - reusing it
- * directly avoids reshaping four more Supabase tables for data that was
- * never per-user in the first place. collectionAwards is intentionally
- * left empty: issue #450 established personal_nominations as the durable
- * award authority, with the legacy director/franchise collection
- * brackets now compatibility-only, not the live source a fresh public
- * profile reader should query.
- */
+/** @file Builds validated public archive projections from anonymous Supabase reads for member profiles and Community comparisons without changing the viewer's workspace. */
 
 (function () {
   let PAGE_SIZE = 1000;
@@ -68,52 +45,62 @@
    * @returns {Promise<Object>} Raw rows by section.
    */
   window.fetchSupabasePublicProfileSource = async function (client, slug) {
-    let [profileResult, films, rankings, awards, tags] = await Promise.all([
-      client
-        .from("profiles")
-        .select("id, public_slug, display_name")
-        .eq("public_slug", slug)
-        .maybeSingle(),
-      fetchAllPages((from, to) =>
+    let [profileResult, films, rankings, awards, tags, watchlist] =
+      await Promise.all([
         client
-          .from("public_watched_films")
-          .select("*")
+          .from("profiles")
+          .select("id, public_slug, display_name")
           .eq("public_slug", slug)
-          .order("year")
-          .order("title")
-          .order("film_id")
-          .range(from, to),
-      ),
-      fetchAllPages((from, to) =>
-        client
-          .from("public_rankings")
-          .select("*")
-          .eq("public_slug", slug)
-          .order("scope_type")
-          .order("scope")
-          .order("position")
-          .order("film_id")
-          .range(from, to),
-      ),
-      fetchAllPages((from, to) =>
-        client
-          .from("public_personal_awards")
-          .select("*")
-          .eq("public_slug", slug)
-          .order("nomination_id")
-          .order("recipient_name")
-          .range(from, to),
-      ),
-      fetchAllPages((from, to) =>
-        client
-          .from("public_profile_tags")
-          .select("*")
-          .eq("public_slug", slug)
-          .order("film_id")
-          .order("name")
-          .range(from, to),
-      ),
-    ]);
+          .maybeSingle(),
+        fetchAllPages((from, to) =>
+          client
+            .from("public_watched_films")
+            .select("*")
+            .eq("public_slug", slug)
+            .order("year")
+            .order("title")
+            .order("film_id")
+            .range(from, to),
+        ),
+        fetchAllPages((from, to) =>
+          client
+            .from("public_rankings")
+            .select("*")
+            .eq("public_slug", slug)
+            .order("scope_type")
+            .order("scope")
+            .order("position")
+            .order("film_id")
+            .range(from, to),
+        ),
+        fetchAllPages((from, to) =>
+          client
+            .from("public_personal_awards")
+            .select("*")
+            .eq("public_slug", slug)
+            .order("nomination_id")
+            .order("recipient_name")
+            .range(from, to),
+        ),
+        fetchAllPages((from, to) =>
+          client
+            .from("public_profile_tags")
+            .select("*")
+            .eq("public_slug", slug)
+            .order("film_id")
+            .order("name")
+            .range(from, to),
+        ),
+        fetchAllPages((from, to) =>
+          client
+            .from("public_watchlists")
+            .select("*")
+            .eq("public_slug", slug)
+            .order("position")
+            .order("film_id")
+            .range(from, to),
+        ),
+      ]);
     if (profileResult.error) throw profileResult.error;
     return {
       profile: profileResult.data,
@@ -121,6 +108,7 @@
       rankings,
       awards,
       tags,
+      watchlist,
     };
   };
 
@@ -273,6 +261,9 @@
                 ratingModifier: row.rating_modifier || "",
               }) || ""
             : "",
+        dateWatched: row.date_watched || "",
+        platform: row.platform || "",
+        views: row.views || null,
         awards: [],
         tags: tagsByFilm.get(row.film_id) || [],
         franchises: franchisesByFilm.get(row.film_id) || [],
@@ -381,13 +372,10 @@
   /**
    * Builds one published profile's validated public projection straight
    * from Supabase, without touching `window.state` - the shared fetch/build
-   * core behind both `loadSupabasePublicProfile()` (direct `?profile=`
-   * viewing, which hydrates the result into browsable state) and Community's
-   * live comparison/ceremony views (issue #483's Supabase directory
-   * counterpart), which fetch several profiles at once and must not have
-   * one profile's hydration stomp another's.
+   * core for member profiles and Community comparison/ceremony views.
+   * Results stay independent of the viewer's global archive state.
    * @param {string} slug Profile slug to load.
-   * @returns {Promise<{ok: boolean, ownerName?: string, data?: Object, error?: string, detail?: string}>}
+   * @returns {Promise<{ok: boolean, id?: string, slug?: string, ownerName?: string, data?: Object, error?: string, detail?: string}>}
    */
   window.fetchSupabasePublicProfileProjection = async function (slug) {
     let ready;
@@ -410,7 +398,9 @@
     let directorsByFilm;
     let franchisesByFilm;
     try {
-      let filmIds = source.films.map((row) => row.film_id);
+      let filmIdSet = new Set(source.films.map((row) => row.film_id));
+      (source.watchlist || []).forEach((row) => filmIdSet.add(row.film_id));
+      let filmIds = Array.from(filmIdSet);
       [directorsByFilm, franchisesByFilm] = await Promise.all([
         fetchDirectorsByFilm(ready.client, filmIds),
         fetchFranchisesByFilm(ready.client, filmIds),
@@ -427,10 +417,45 @@
       directorsByFilm,
       franchisesByFilm,
     );
+    let watchlist = (source.watchlist || []).map((row, index) => {
+      let directors = directorsByFilm.get(row.film_id) || [];
+      return {
+        id: row.film_id,
+        supabaseFilmId: row.film_id,
+        supabaseWatchlistPosition: row.position || "",
+        supabaseWatchlistUpdatedAt: row.updated_at || "",
+        title: row.title,
+        year: row.year != null ? String(row.year) : "",
+        letterboxdUrl: row.letterboxd_url || "",
+        added: row.added_at ? String(row.added_at).slice(0, 10) : "",
+        tmdbId:
+          row.tmdb_tv_ref || (row.tmdb_id != null ? String(row.tmdb_id) : ""),
+        swedishTitle: row.swedish_title || "",
+        tier: row.tier || "",
+        tierModifier: row.tier_modifier || "",
+        order: index + 1,
+        director: directors.join(", "),
+        directors,
+        directorIds: [],
+        directorUncredited: [],
+        country: row.country || "",
+        primaryCountry: row.primary_country || "",
+        originalLanguage: "",
+        medium: row.medium || "unknown",
+        screenplayType: row.screenplay_type || "unknown",
+        runtimeMinutes: row.runtime_minutes || null,
+        adaptationSource: row.adaptation_source || "",
+        platform: "",
+        tags: [],
+        franchises: franchisesByFilm.get(row.film_id) || [],
+        poster: posterFromUrl(row.poster_url, row.tmdb_tv_ref || row.tmdb_id),
+      };
+    });
     let projection = window.buildPublicProjection(
       {
         years,
         watchedFilms,
+        watchlist,
         officialResults: window.OSKARS_BUNDLED_OFFICIAL_RESULTS || {},
       },
       {},
@@ -446,37 +471,10 @@
     }
     return {
       ok: true,
+      id: source.profile.id,
+      slug: source.profile.public_slug || slug,
       ownerName: source.profile.display_name || slug,
       data: projection,
     };
-  };
-
-  /**
-   * Loads one published profile straight from Supabase and hydrates it
-   * into browsable state. Same result contract: `{ok:true, meta}` or
-   * `{ok:false, error, detail}`.
-   * @param {string} slug Profile slug to load.
-   * @param {Function} [isCurrent] Guard against a delayed request publishing into another account or profile.
-   * @returns {Promise<{ok: boolean, meta?: Object, error?: string, detail?: string}>}
-   */
-  window.loadSupabasePublicProfile = async function (slug, isCurrent) {
-    let result = await window.fetchSupabasePublicProfileProjection(slug);
-    if (!result.ok) return result;
-    if (isCurrent && !isCurrent()) return { ok: false, error: "unavailable" };
-    try {
-      window.hydratePublicProfileState(result.data, {
-        slug,
-        ownerName: result.ownerName,
-        revision: "",
-        publishedAt: "",
-      });
-    } catch (err) {
-      return {
-        ok: false,
-        error: "invalid",
-        detail: String(err?.message || err),
-      };
-    }
-    return { ok: true, meta: window.state.publicProfileMeta };
   };
 })();

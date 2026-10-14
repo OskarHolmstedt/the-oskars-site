@@ -19,12 +19,17 @@ window.renderPeriodFilmGrid = function (options) {
     rankingEditMode = false,
     canonicalRankContextHtml = () => "",
     showRewatchTier = false,
+    rewatchRank = () => 0,
+    rewatchOrderAttributes = () => ({ enabled: false }),
+    rewatchPositionControl = () => "",
     showAwards = true,
   } = options;
   return (
     films
       .map((film, index) => {
-        let rank = rankForFilm(film);
+        let rank = showRewatchTier ? rewatchRank(film) : rankForFilm(film);
+        let orderAttributes = rewatchOrderAttributes(film);
+        let rewatchEditing = showRewatchTier && orderAttributes.enabled;
         let canonicalContext = canonicalRankContextHtml(film, escape);
         let director = filmDirector(film);
         // Hidden entirely rather than just visually collapsed (issue #222),
@@ -49,7 +54,11 @@ window.renderPeriodFilmGrid = function (options) {
               })
               .join("");
         return window.renderSharedFilmCard(film, {
-          classes: rankingEditMode ? ["ranking-edit-card"] : [],
+          classes: rankingEditMode
+            ? ["ranking-edit-card"]
+            : rewatchEditing
+              ? ["watchlist-order-card"]
+              : [],
           attributes: rankingEditMode
             ? {
                 draggable: "true",
@@ -58,23 +67,27 @@ window.renderPeriodFilmGrid = function (options) {
                 "data-ranking-index": index,
                 "data-ranking-rank": rank || "",
               }
-            : {},
-          openFilm: !rankingEditMode,
-          titleHtml: rankingEditMode
-            ? `<span class="table-film-link">${escape(film.title)}</span>`
-            : undefined,
+            : showRewatchTier
+              ? window.orderEditItemAttributes(orderAttributes)
+              : {},
+          openFilm: !rankingEditMode && !rewatchEditing,
+          titleHtml:
+            rankingEditMode || rewatchEditing
+              ? `<span class="table-film-link">${escape(film.title)}</span>`
+              : undefined,
           rankLabel:
             rank &&
-            (window.isFilmRankConfirmed?.(
-              film,
-              {
-                year: "years",
-                decade: "decades",
-                century: "centuries",
-                alltime: "allTime",
-              }[type] || type,
-            ) ??
-              film.rankConfirmed !== false)
+            (showRewatchTier ||
+              (window.isFilmRankConfirmed?.(
+                film,
+                {
+                  year: "years",
+                  decade: "decades",
+                  century: "centuries",
+                  alltime: "allTime",
+                }[type] || type,
+              ) ??
+                film.rankConfirmed !== false))
               ? `${rank}.`
               : canonicalContext
                 ? ""
@@ -86,7 +99,7 @@ window.renderPeriodFilmGrid = function (options) {
           directorTitle: director,
           directorPrefix: "by ",
           escape,
-          bodyHtml: `${showRewatchTier ? window.renderWatchlistTierBadge(film.rewatchTier, { escape, modifier: film.rewatchTierModifier }) : ""}${renderFilmStats(window.getFilmStats(film, key, type))}${canonicalContext}${awardCards}`,
+          bodyHtml: `${showRewatchTier ? rewatchPositionControl(film) : ""}${showRewatchTier ? window.renderWatchlistTierBadge(film.rewatchTier, { escape, modifier: film.rewatchTierModifier }) : ""}${renderFilmStats(window.getFilmStats(film, key, type))}${canonicalContext}${awardCards}`,
         });
       })
       .join("") || "<p>No films</p>"

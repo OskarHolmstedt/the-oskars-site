@@ -23,6 +23,41 @@
   let rawItems = [];
   let noteState = { note: "", editing: false, busy: false };
   let busy = false;
+  let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
+  let boundContainerEvents = false;
+
+  function handleProjectTierEdit(event) {
+    return window.handleInlineTierEditClick(event, {
+      container,
+      escape,
+      ui,
+      canEdit: canEdit && !busy && !queueEditMode,
+      onSaved: ({ targetId, tier, modifier, type }) => {
+        if (type === "watchlist") {
+          let rec = items.find(
+            (r) =>
+              r.item?.id === targetId || r.item?.supabaseFilmId === targetId,
+          );
+          if (rec?.item) {
+            rec.item.tier = tier;
+            rec.item.tierModifier = modifier;
+            rec.item.tier_modifier = modifier;
+          }
+        } else if (type === "rewatch") {
+          let rec = items.find(
+            (r) =>
+              r.film &&
+              (r.film.supabaseFilmId === targetId || r.film.id === targetId),
+          );
+          if (rec?.film) {
+            rec.film.rewatchTier = tier;
+            rec.film.rewatchTierModifier = modifier;
+          }
+        }
+        render();
+      },
+    });
+  }
 
   let sortValues = new Set(["year", "title", "rating", "shuffle"]);
   let requestedSort = window.pageQueryParam("sort");
@@ -91,7 +126,7 @@
         showYear: true,
         escape,
         beforeTitleHtml: item.tier
-          ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(item.tier)}</span>`
+          ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(window.renderTierWithModifier(item.tier, item.tier_modifier || item.tierModifier))}</span>`
           : "",
         titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(filmId))}">${escape(displayTitle)}</a>`,
         bodyHtml: `<div class="watchlist-card-actions"><span>${escape(ui("Watchlist"))}</span></div>`,
@@ -191,7 +226,7 @@
           }),
         },
       });
-      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", item.year))}">${escape(item.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, href: window.filmPageUrl(filmId) })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td>${window.renderRatingTierCell({ item }, { escape })}<td class="project-manage-cell">${removeButtonHtml}</td></tr>`;
+      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", item.year))}">${escape(item.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, href: window.filmPageUrl(filmId) })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td>${window.renderRatingTierCell({ item }, { escape, canEditTier: canEdit && !queueEditMode, disabled: busy })}<td class="project-manage-cell">${removeButtonHtml}</td></tr>`;
     }
     let film = record.film;
     let filmId = film.supabaseFilmId || film.id;
@@ -232,7 +267,7 @@
       },
     });
     let manageCellHtml = `<td class="project-manage-cell">${rewatchButtonHtml}${removeButtonHtml}</td>`;
-    return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td>${record.status === "missing" ? `<td>${escape(ui("Not in your collection yet"))}</td>` : window.renderRatingTierCell({ film }, { escape, showRewatchTier })}${manageCellHtml}</tr>`;
+    return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td>${record.status === "missing" ? `<td>${escape(ui("Not in your collection yet"))}</td>` : window.renderRatingTierCell({ film }, { escape, showRewatchTier, canEditTier: canEdit && !queueEditMode, disabled: busy })}${manageCellHtml}</tr>`;
   }
 
   function render() {
@@ -329,7 +364,14 @@
       let nextMetaParts = [];
       if (nextFilm.year) nextMetaParts.push(escape(nextFilm.year));
       if (upNextRecord.status === "watchlist" && upNextRecord.item?.tier) {
-        nextMetaParts.push(escape(upNextRecord.item.tier));
+        nextMetaParts.push(
+          escape(
+            window.renderTierWithModifier(
+              upNextRecord.item.tier,
+              upNextRecord.item.tier_modifier || upNextRecord.item.tierModifier,
+            ),
+          ),
+        );
       } else if (upNextRecord.rewatch) {
         nextMetaParts.push(escape(ui("Rewatch")));
       }
@@ -399,6 +441,13 @@
         <div class="dialog-actions"><button type="button" data-delete-project-cancel>${escape(ui("Cancel"))}</button><button type="button" data-delete-project-confirm>${escape(ui("Delete"))}</button></div>
       </form>
     </dialog>`;
+
+    if (!boundContainerEvents) {
+      container.addEventListener("click", (event) => {
+        if (handleProjectTierEdit(event)) return;
+      });
+      boundContainerEvents = true;
+    }
 
     container
       .querySelector("[data-project-sort]")

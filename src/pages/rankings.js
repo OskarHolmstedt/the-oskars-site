@@ -8,10 +8,10 @@
   let escape = window.pageEscape;
   let container = document.getElementById("rankingsPage");
 
-  function renderHeader(watchedCount, watchlistCount) {
+  function renderHeader(watchedCount, watchlistCount, unrankedCount) {
     let mainHtml = `<h1>${escape(window.t ? window.t("nav.rankings", "Rankings") : "Rankings")}</h1>`;
     let subHtml = `<p class="period-header-meta">${escape(
-      `Central hub for ordering watched films (${watchedCount} rated) and watchlist tiers (${watchlistCount} items).`,
+      `Central hub for ordering watched films (${watchedCount} rated; ${unrankedCount} unranked in release years) and watchlist tiers (${watchlistCount} items).`,
     )}</p>`;
     return window.renderDetailHeader({ mainHtml, subHtml });
   }
@@ -27,7 +27,44 @@
     </div>`;
   }
 
-  function renderWatchedPeriods(watchedRows) {
+  function rankingProgress(rows, rankings, type, key) {
+    let entries = (rankings || [])
+      .filter(
+        (ranking) =>
+          ranking.scope_type === type && String(ranking.scope) === String(key),
+      )
+      .flatMap((ranking) => ranking.ranking_entries || []);
+    let positioned = new Map(
+      entries
+        .filter(
+          (entry) =>
+            entry.position != null &&
+            entry.position !== "" &&
+            (type !== "allTime" || !entry.suppress_all_time_rank),
+        )
+        .map((entry) => [entry.film_id, entry]),
+    );
+    let unranked = rows.filter((row) => !positioned.has(row.film_id));
+    let unreviewed = rows.filter(
+      (row) => positioned.get(row.film_id)?.rank_confirmed === false,
+    );
+    return { ranked: rows.length - unranked.length, unranked, unreviewed };
+  }
+
+  function renderProgress(progress) {
+    let filmList = (rows) =>
+      rows
+        .map(
+          (row) =>
+            `<li><a href="${escape(window.filmPageUrl(row.film_id))}">${escape(row.films?.title || "Unknown film")}</a></li>`,
+        )
+        .join("");
+    return `<div class="rankings-card-meta">${progress.ranked} ranked · ${progress.unranked.length} unranked${progress.unreviewed.length ? ` · ${progress.unreviewed.length} awaiting review` : ""}</div>
+      ${progress.unranked.length ? `<details><summary>Unranked films (${progress.unranked.length})</summary><ul>${filmList(progress.unranked)}</ul></details>` : ""}
+      ${progress.unreviewed.length ? `<details><summary>Awaiting review (${progress.unreviewed.length})</summary><ul>${filmList(progress.unreviewed)}</ul></details>` : ""}`;
+  }
+
+  function renderWatchedPeriods(watchedRows, rankings) {
     let scopes = window.supabaseWatchedScopes
       ? window.supabaseWatchedScopes(watchedRows)
       : [];
@@ -52,11 +89,27 @@
         let reviewUrl = `ranking-review.html?type=${encodeURIComponent(scope.type)}&key=${encodeURIComponent(scope.key)}`;
         let viewUrl = `period.html?type=${encodeURIComponent(periodTypeParam)}&key=${encodeURIComponent(scope.key)}&view=films&order=rank`;
 
+        let rows = watchedRows.filter((row) => {
+          let year = row.films?.year;
+          if (
+            !Number.isInteger(year) ||
+            !(row.rating || window.supabaseRankingRatingKey?.(row))
+          )
+            return false;
+          return (
+            scope.type === "allTime" ||
+            (scope.type === "decades"
+              ? window.getDecadeKey(year)
+              : window.getCenturyKey(year)) === scope.key
+          );
+        });
+        let progress = rankingProgress(rows, rankings, scope.type, scope.key);
         return `<div class="rankings-card">
           <div class="rankings-card-title">
             <span>${escape(scope.label)}</span>
             <span class="rankings-card-meta">${escape(scope.count)} films</span>
           </div>
+          ${renderProgress(progress)}
           <div class="rankings-card-actions">
             <a class="sort-order-button" href="${escape(mergeUrl)}">Merge</a>
             <a class="sort-order-button" href="${escape(reviewUrl)}">Review</a>
@@ -75,7 +128,7 @@
     </section>`;
   }
 
-  function renderYearShelves(watchedRows) {
+  function renderYearShelves(watchedRows, rankings) {
     let yearMap = new Map();
     (watchedRows || []).forEach((row) => {
       let year = row.films?.year;
@@ -83,8 +136,9 @@
       let isRated = Boolean(
         row.rating || window.supabaseRankingRatingKey?.(row),
       );
-      let current = yearMap.get(year) || { rated: 0, total: 0 };
+      let current = yearMap.get(year) || { rated: 0, total: 0, rows: [] };
       current.total += 1;
+      current.rows.push(row);
       if (isRated) current.rated += 1;
       yearMap.set(year, current);
     });
@@ -100,6 +154,7 @@
         return `<div class="rankings-year-card">
           <span class="rankings-year-num">${escape(year)}</span>
           <span class="rankings-year-count">${escape(stats.rated)} rated</span>
+          ${renderProgress(rankingProgress(stats.rows, rankings, "years", String(year)))}
           <div class="rankings-card-actions" style="justify-content: center;">
             <a class="sort-order-button" href="${escape(rankUrl)}">Rank</a>
             <a class="sort-order-button" href="${escape(viewUrl)}">View</a>
@@ -118,17 +173,24 @@
   }
 
   function renderWatchlistTiers(watchlistRows) {
-    let tiers = window.WATCHLIST_TIERS || ["S", "A", "B", "C", "D", "E", "F"];
+    let tiers = window.watchlistExactTiers();
     let rows = watchlistRows || [];
 
     let cardsHtml = tiers
       .map((tier) => {
-        let tierItems = rows.filter((r) => r.tier === tier);
+        let tierItems = rows.filter(
+          (r) =>
+            window.watchlistTierKey(
+              r.tier,
+              r.tier_modifier || r.tierModifier,
+            ) === tier,
+        );
         let count = tierItems.length;
-        let rankedCount = tierItems.filter(
-          (r) => r.position != null && r.position !== "",
-        ).length;
-        let nrCount = count - rankedCount;
+        let pendingCount = window
+          .watchlistOrderingShelves(tier)
+          .filter((shelf) => !shelf.confirmed)
+          .reduce((sum, shelf) => sum + shelf.items.length, 0);
+        let groupCount = window.watchlistOrderingBlocks(tier).length;
 
         let badgeHtml = window.renderWatchlistTierBadge
           ? window.renderWatchlistTierBadge(tier, { escape })
@@ -142,11 +204,12 @@
             <span class="rankings-card-meta">${escape(count)} items</span>
           </div>
           <div class="rankings-card-meta">
-            ${rankedCount} ranked · ${nrCount} unranked (NR)
+            ${pendingCount} awaiting year ordering · ${groupCount} ordered groups
           </div>
-          <progress value="${rankedCount}" max="${count || 1}" style="width: 100%; height: 6px;"></progress>
+          <progress value="${count - pendingCount}" max="${count || 1}" style="width: 100%; height: 6px;"></progress>
           <div class="rankings-card-actions">
-            ${count >= 2 ? `<a class="sort-order-button" href="${escape(mergeUrl)}">Merge order</a>` : ""}
+            <a class="sort-order-button" href="#watchlist-ordering">Order years</a>
+            ${groupCount >= 2 ? `<a class="sort-order-button" href="${escape(mergeUrl)}">Merge order</a>` : ""}
             <a class="sort-order-button" href="${escape(viewUrl)}">View tier</a>
           </div>
         </div>`;
@@ -190,30 +253,58 @@
 
     try {
       let workspace = await window.loadSupabaseWorkspace({
-        parts: ["watched", "watchlist"],
+        parts: ["watched", "watchlist", "rankings"],
       });
-      let watched = workspace?.watched || [];
+      await window.loadWatchlistOrdering();
+      if (window.mountWatchlistYearOrder(container)) return;
+      let watched = (workspace?.watched || []).filter(
+        window.supabaseRankingFilmEligible,
+      );
+      let rankings = workspace?.rankings || [];
       let watchlist = workspace?.watchlist || [];
 
       let ratedWatched = watched.filter(
         (row) => row.rating || window.supabaseRankingRatingKey?.(row),
       );
 
-      let headerHtml = renderHeader(ratedWatched.length, watchlist.length);
+      let yearRankedIds = new Set(
+        rankings
+          .filter((ranking) => ranking.scope_type === "years")
+          .flatMap((ranking) =>
+            (ranking.ranking_entries || [])
+              .filter(
+                (entry) => entry.position != null && entry.position !== "",
+              )
+              .map((entry) => `${ranking.scope}:${entry.film_id}`),
+          ),
+      );
+      let unrankedCount = watched.filter(
+        (row) =>
+          Number.isInteger(row.films?.year) &&
+          !yearRankedIds.has(`${row.films.year}:${row.film_id}`),
+      ).length;
+      let finishRender = window.startOskarsPerformance?.("rankings:render");
+      let headerHtml = renderHeader(
+        ratedWatched.length,
+        watchlist.length,
+        unrankedCount,
+      );
       let quickActionsHtml = renderQuickActions();
-      let watchedPeriodsHtml = renderWatchedPeriods(watched);
+      let watchedPeriodsHtml = renderWatchedPeriods(watched, rankings);
       let watchlistTiersHtml = renderWatchlistTiers(watchlist);
-      let yearShelvesHtml = renderYearShelves(watched);
+      let yearShelvesHtml = renderYearShelves(watched, rankings);
       let collectionsHtml = renderCollections();
 
       container.innerHTML = `
         ${headerHtml}
         ${quickActionsHtml}
         ${watchedPeriodsHtml}
+        ${window.renderWatchlistOrderingProgress()}
         ${watchlistTiersHtml}
         ${yearShelvesHtml}
         ${collectionsHtml}
       `;
+      finishRender?.();
     } catch (err) {
       container.innerHTML = `<section class="detail-empty"><h2>Could not load rankings hub</h2><p>${escape(err.message || String(err))}</p></section>`;
     }

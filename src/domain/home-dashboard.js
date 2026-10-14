@@ -55,7 +55,7 @@
     let bestTierRank = Infinity;
     let shortlist = [];
     (items || []).forEach((item) => {
-      let rank = window.watchlistTierRank(item?.tier);
+      let rank = window.watchlistTierGrade(item?.tier, item?.tierModifier);
       if (rank < bestTierRank) {
         bestTierRank = rank;
         shortlist = [item];

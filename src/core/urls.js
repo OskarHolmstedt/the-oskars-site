@@ -23,14 +23,12 @@ window.sharedFilmPreviewUrl = function (tmdbId) {
 };
 
 /**
- * Builds a watched-film intake URL.
- * @param {string} [workflowId] Intake workflow id to open.
- * @returns {string} Relative intake URL.
+ * Builds a public user profile URL.
+ * @param {string} slug Public user profile slug.
+ * @returns {string} Relative user profile URL.
  */
-window.intakePageUrl = function (workflowId) {
-  return workflowId
-    ? `intake.html?intake=${encodeURIComponent(String(workflowId))}`
-    : "intake.html";
+window.userPageUrl = function (slug) {
+  return `user.html?u=${encodeURIComponent(String(slug || ""))}`;
 };
 
 /** Retries an idempotent request after transient network, 429, or 5xx failures with bounded exponential backoff. @template T @param {() => Promise<T>} operation Request to retry. @param {{maxAttempts?: number, baseDelayMs?: number, maxDelayMs?: number, jitter?: number, sleep?: (duration: number) => Promise<void>, random?: () => number, shouldRetry?: (error: any) => boolean}} [options] Retry controls. @returns {Promise<T>} The first successful result. */

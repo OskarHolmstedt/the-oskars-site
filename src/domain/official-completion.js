@@ -632,7 +632,7 @@
   ) {
     if (window.oskarsCapabilities && !window.oskarsCapabilities().canEdit)
       return { ok: false, reason: "Watchlist editing is unavailable." };
-    let normalizedTier = window.normalizeWatchlistTier?.(tier);
+    let normalizedTier = window.watchlistTierKey(tier);
     if (!normalizedTier)
       return { ok: false, reason: "Choose an interest tier." };
     let plan = window.officialCollectionWatchlistPlan(scopeId);

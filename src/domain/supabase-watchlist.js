@@ -93,10 +93,7 @@
    * @returns {Promise<{totalCount:number, tierCounts:Object, subPeriodCounts:Object, orderedIds:string[], page:Object[]}>}
    */
   window.loadSupabaseWatchlistPage = async function (filters, options = {}) {
-    if (
-      window.resolveActiveProfileSlug?.() ||
-      window.state?.isPublicProfileView
-    )
+    if (window.state?.isPublicProfileView)
       throw new Error(
         "The compact Watchlist read is unavailable in public mode.",
       );

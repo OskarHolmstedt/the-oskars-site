@@ -20,7 +20,13 @@
   let isMutating = false;
 
   function yearEntries() {
-    return allEntries.filter((entry) => String(entry.films?.year) === year);
+    return allEntries.filter(
+      (entry) =>
+        String(entry.films?.year) === year &&
+        window.supabaseRankingFilmEligible(
+          watchedByFilmId.get(entry.film_id) || entry,
+        ),
+    );
   }
 
   function ratingBuckets() {
@@ -40,7 +46,7 @@
     let film = entry.films || {};
     return `<article class="film-card ranking-edit-card"${canEdit ? ' draggable="true"' : ""} data-setup-rank-film-id="${escape(entry.film_id)}" data-setup-rank-index="${escape(bucketIndex)}">
       ${film.poster_url ? `<img src="${escape(film.poster_url)}" alt="" class="rate-watched-poster-thumb" loading="lazy" decoding="async">` : ""}
-      <span class="table-film-link">${escape(film.title || "Unknown film")}</span>
+      <a class="table-film-link" href="${escape(window.filmPageUrl(entry.film_id))}">${escape(film.title || "Unknown film")}</a>
       ${entry.rank_confirmed === false ? `<span class="film-rank">${escape("NR")}</span>` : ""}
     </article>`;
   }
@@ -57,7 +63,7 @@
       return `<div class="setup-year-category-row setup-year-shelf is-settled">
         <div class="setup-year-category-header setup-year-shelf-header">
           <span class="setup-year-rank-bucket-label">${escape(label)}</span>
-          <span class="setup-year-section-empty">${escape(bucketEntries[0].films?.title || "")}</span>
+          <a class="setup-year-section-empty" href="${escape(window.filmPageUrl(bucketEntries[0].film_id))}">${escape(bucketEntries[0].films?.title || "")}</a>
           <span class="setup-ranking-state is-reviewed">Settled</span>
         </div>
       </div>`;

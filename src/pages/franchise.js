@@ -93,6 +93,115 @@
     return `${window.franchisePageUrl(franchise.id)}${parts.join("")}`;
   }
 
+  let boundContainerEvents = false;
+
+  function franchiseCollectionAction(kind, id, active) {
+    if (!canEdit || !id) return "";
+    return window.renderCollectionActionButton({
+      kind,
+      label: ui(
+        kind === "rewatch"
+          ? active
+            ? "Remove from rewatchlist"
+            : "Want to rewatch"
+          : active
+            ? "Remove from watchlist"
+            : "Add to watchlist",
+      ),
+      active,
+      escape,
+      attributes: {
+        "data-collection-action": kind,
+        "data-collection-id": id,
+        "data-collection-active": String(Boolean(active)),
+        disabled: busy || watchlistOrderEditMode || localRankEditMode,
+      },
+    });
+  }
+
+  function updateFranchiseActionAvailability() {
+    container
+      .querySelectorAll("[data-collection-action], [data-edit-tier]")
+      .forEach((action) => {
+        /** @type {HTMLButtonElement} */ (action).disabled =
+          busy || watchlistOrderEditMode || localRankEditMode;
+      });
+  }
+
+  async function handleFranchiseCollectionAction(event) {
+    let target = /** @type {HTMLElement|null} */ (event.target);
+    let button = target?.closest?.("[data-collection-action]");
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!canEdit || busy || watchlistOrderEditMode || localRankEditMode) return;
+    let { collectionAction: kind, collectionId: id } =
+      /** @type {HTMLButtonElement} */ (button).dataset;
+    let active =
+      /** @type {HTMLButtonElement} */ (button).dataset.collectionActive ===
+      "true";
+    if (!id) return;
+    busy = true;
+    updateFranchiseActionAvailability();
+    try {
+      if (kind === "rewatch") {
+        await window.setSupabaseWatchedRewatch(id, !active);
+        let film =
+          Object.values(window.state?.filmsById || {}).find(
+            (candidate) =>
+              candidate.supabaseFilmId === id || candidate.id === id,
+          ) ||
+          (window.state?.watchedOther || []).find(
+            (candidate) =>
+              candidate.supabaseFilmId === id || candidate.id === id,
+          );
+        if (film) {
+          film.wantToRewatch = !active;
+          if (active) {
+            film.rewatchTier = "";
+            film.rewatchTierModifier = "";
+          }
+        }
+      } else if (kind === "watchlist" && active) {
+        await window.removeFromSupabaseWatchlist(id);
+        window.invalidateCachedSupabaseHydrationSource?.();
+        let removedIndex = (window.state?.watchlist || []).findIndex(
+          (item) => item.id === id,
+        );
+        if (removedIndex !== -1) {
+          window.state.watchlist.splice(removedIndex, 1);
+        }
+        if (window.state) {
+          window.state.aggregateVersion =
+            (Number(window.state.aggregateVersion) || 0) + 1;
+        }
+        franchiseIndex = window.ensureFranchiseIndex();
+        franchise = franchiseIndex[franchiseId] || null;
+      }
+      render();
+    } catch (error) {
+      window.alert?.(error.message || String(error));
+    } finally {
+      busy = false;
+      updateFranchiseActionAvailability();
+    }
+  }
+
+  function handleFranchiseTierEdit(event) {
+    return window.handleInlineTierEditClick(event, {
+      container,
+      escape,
+      ui,
+      canEdit:
+        canEdit && !busy && !watchlistOrderEditMode && !localRankEditMode,
+      onSaved: () => {
+        franchiseIndex = window.ensureFranchiseIndex();
+        franchise = franchiseIndex[franchiseId] || null;
+        render();
+      },
+    });
+  }
+
   function reload() {
     window.location.href = franchiseViewUrl();
   }
@@ -247,7 +356,28 @@
         ? localRankMap.get(film.supabaseFilmId) || "—"
         : franchiseRank.get(film.id) || "—";
     }
-    function franchiseFilmRow({ entry, film }, index = 0) {
+
+    function franchiseRewatchTierCell(film) {
+      let tierHtml = window.renderInlineTierTrigger({
+        type: "rewatch",
+        targetId: film.supabaseFilmId || film.id,
+        tier: film.rewatchTier,
+        modifier: film.rewatchTierModifier,
+        editable: canEdit && Boolean(film.wantToRewatch),
+        disabled: busy || watchlistOrderEditMode || localRankEditMode,
+        escape,
+        ui,
+      });
+      let actionHtml = franchiseCollectionAction(
+        "rewatch",
+        film.supabaseFilmId || film.id,
+        film.wantToRewatch,
+      );
+      return `<td class="rating-tier-cell">${tierHtml} ${actionHtml}</td>`;
+    }
+
+    function franchiseFilmRow(entryRecord, index = 0) {
+      let { entry, film } = entryRecord;
       let childMemberships = (film.franchises || []).filter(
         (membership) =>
           membership.parentId === franchise.id ||
@@ -279,11 +409,11 @@
           allTimeRank: true,
           metaFragments: context ? [`${escape(ui("via"))} ${context}`] : [],
         },
-      )}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape, assumeIndexed: true })}</td>${window.renderRatingTierCell({ film }, { escape })}</tr>`;
+      )}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape, assumeIndexed: true })}</td>${window.renderRatingTierCell({ film }, { escape })}${franchiseRewatchTierCell(film)}</tr>`;
     }
 
     function franchiseOtherRow({ film }) {
-      return `<tr><td><a class="period-link" href="${escape(`${window.periodPageUrl("year", film.year)}&view=other`)}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td><td>${escape(film.type || ui("Other"))}</td>${window.renderRatingTierCell({ film }, { escape })}</tr>`;
+      return `<tr><td><a class="period-link" href="${escape(`${window.periodPageUrl("year", film.year)}&view=other`)}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td><td>${escape(film.type || ui("Other"))}</td>${window.renderRatingTierCell({ film }, { escape })}${franchiseRewatchTierCell(film)}</tr>`;
     }
 
     function franchiseOtherCard({ film }) {
@@ -370,9 +500,24 @@
           scope: "watchlist",
           id: item.id,
           index,
-          group: window.normalizeWatchlistTier(item.tier),
+          group: window.watchlistTierKey(item.tier, item.tierModifier),
         },
         escape,
+      );
+      let tierHtml = window.renderInlineTierTrigger({
+        type: "watchlist",
+        targetId: item.id,
+        tier: item.tier,
+        modifier: item.tierModifier,
+        editable: canEdit,
+        disabled: busy || watchlistOrderEditMode || localRankEditMode,
+        escape,
+        ui,
+      });
+      let actionHtml = franchiseCollectionAction("watchlist", item.id, true);
+      let ratingTierHtml = window.renderRatingTierCell(
+        { item },
+        { escape, editHtml: `${tierHtml} ${actionHtml}` },
       );
       return `<tr${attributes}><td class="leaderboard-position">${escape(item.order || entry.rank || "NR")}</td>${window.renderFilmIdentityCell(
         film,
@@ -382,7 +527,7 @@
           year: true,
           metaFragments: context ? [`${escape(ui("via"))} ${context}`] : [],
         },
-      )}<td class="film-people-cell">${directorHtml}</td>${window.renderRatingTierCell({ item }, { escape })}</tr>`;
+      )}<td class="film-people-cell">${directorHtml}</td>${ratingTierHtml}${statusCell ? `<td class="rating-tier-cell">—</td>` : ""}</tr>`;
     }
     /** @param {{entry: Object, item: WatchlistItem}} record @param {{statusBody?: boolean, index?: number}} [options] */
     function franchiseWatchlistCard(
@@ -418,7 +563,7 @@
           scope: "watchlist",
           id: item.id,
           index,
-          group: window.normalizeWatchlistTier(item.tier),
+          group: window.watchlistTierKey(item.tier, item.tierModifier),
         }),
         openFilm: false,
         compare: false,
@@ -434,7 +579,7 @@
           ? `<div class="film-director">${escape(ui("by"))} ${directorHtml}</div>`
           : "",
         beforeTitleHtml: item.tier
-          ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(item.tier)}</span>`
+          ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(window.renderTierWithModifier(item.tier, item.tierModifier))}</span>`
           : "",
         bodyHtml: bodyMeta
           ? `<div class="leaderboard-meta">${bodyMeta}</div>`
@@ -467,7 +612,7 @@
       window.franchiseUpNext?.(franchise, 3) ||
       (completion.nextItem ? [completion.nextItem] : []);
     let nextWatchlist = upNextItems.length
-      ? `<section class="franchise-next-watch"><h2>${escape(ui(upNextItems.length > 1 ? "Up next" : "Next unwatched"))}</h2><div class="franchise-next-watch-list">${upNextItems.map((item) => `<div class="film-table-cell">${window.renderFilmPoster(window.watchlistFilmLike(item), "thumb")}<span><a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}"><strong>${escape(window.localizedFilmTitle?.(window.watchlistFilmLike(item)) || item.title)}</strong></a><span class="leaderboard-meta">${escape(item.year || "")}${item.tier ? ` · ${escape(ui("Tier"))} ${escape(item.tier)}` : ""}</span></span></div>`).join("")}</div></section>`
+      ? `<section class="franchise-next-watch"><h2>${escape(ui(upNextItems.length > 1 ? "Up next" : "Next unwatched"))}</h2><div class="franchise-next-watch-list">${upNextItems.map((item) => `<div class="film-table-cell">${window.renderFilmPoster(window.watchlistFilmLike(item), "thumb")}<span><a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}"><strong>${escape(window.localizedFilmTitle?.(window.watchlistFilmLike(item)) || item.title)}</strong></a><span class="leaderboard-meta">${escape(item.year || "")}${item.tier ? ` · ${escape(ui("Tier"))} ${escape(window.renderTierWithModifier(item.tier, item.tierModifier))}` : ""}</span></span></div>`).join("")}</div></section>`
       : "";
     let completionCaveat = !completion.watchlistCount
       ? `<p class="franchise-completion-caveat">${escape(ui("All known films watched. Completion counts known films only — add missing entries to the watchlist to track true coverage."))}</p>`
@@ -521,12 +666,19 @@
       combinedView
         ? filmView === "grid"
           ? `<div class="film-grid franchise-film-grid">${combinedGrid || `<p>${escape(ui("No films"))}</p>`}</div>`
-          : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Rank"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))} / ${escape(ui("Tier"))}</th></tr></thead><tbody>${combinedRows || `<tr><td colspan="4">${escape(ui("No films"))}</td></tr>`}</tbody></table></div>`
-        : `${filmView === "grid" ? `<div class="film-grid franchise-film-grid">${filmGrid || `<p>${escape(ui("No films"))}</p>`}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Rank"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))}</th></tr></thead><tbody>${rows || `<tr><td colspan="4">${escape(ui("No films"))}</td></tr>`}</tbody></table></div>`}
+          : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Rank"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))} / ${escape(ui("Tier"))}</th><th>${escape(ui("Rewatch tier"))}</th></tr></thead><tbody>${combinedRows || `<tr><td colspan="5">${escape(ui("No films"))}</td></tr>`}</tbody></table></div>`
+        : `${filmView === "grid" ? `<div class="film-grid franchise-film-grid">${filmGrid || `<p>${escape(ui("No films"))}</p>`}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Rank"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))}</th><th>${escape(ui("Rewatch tier"))}</th></tr></thead><tbody>${rows || `<tr><td colspan="5">${escape(ui("No films"))}</td></tr>`}</tbody></table></div>`}
     ${watchlistRows ? `<h2>Watchlist</h2>${watchlistBulkTierControls}${watchlistOrderControls}${filmView === "grid" ? `<div class="film-grid franchise-film-grid">${watchlistGrid}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Interest"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Tier"))}</th></tr></thead><tbody>${watchlistRows}</tbody></table></div>`}` : ""}`
     }
-    ${otherRows ? `<section class="franchise-other-watched"><h2>${escape(ui("Shorts, docs & TV"))}</h2>${filmView === "grid" ? `<div class="film-grid franchise-film-grid">${otherGrid}</div>` : window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Director"), ui("Type"), ui("Rating")].map(escape), rows: otherRows })}</section>` : ""}</div>
+    ${otherRows ? `<section class="franchise-other-watched"><h2>${escape(ui("Shorts, docs & TV"))}</h2>${filmView === "grid" ? `<div class="film-grid franchise-film-grid">${otherGrid}</div>` : window.renderLeaderboardTable({ headers: [ui("Year"), ui("Title"), ui("Director"), ui("Type"), ui("Rating"), ui("Rewatch tier")].map(escape), rows: otherRows })}</section>` : ""}</div>
     <div data-collection-page-view="awards" ${collectionPageView === "awards" ? "" : "hidden"}>${window.renderCollectionAwardsView(collectionAwardModel, { escape, ui, buildUrl: canEdit ? window.collectionBallotUrl("franchise", franchise.id) : "" })}</div>`;
+    if (!boundContainerEvents) {
+      container.addEventListener("click", (event) => {
+        if (handleFranchiseTierEdit(event)) return;
+        handleFranchiseCollectionAction(event);
+      });
+      boundContainerEvents = true;
+    }
     container
       .querySelectorAll("[data-start-project-source]")
       .forEach((button) => {
@@ -580,8 +732,14 @@
             ok: false,
             reason: "Both films must exist in the watchlist.",
           };
-        let fromTier = window.normalizeWatchlistTier(fromRecord.item.tier);
-        let toTier = window.normalizeWatchlistTier(toRecord.item.tier);
+        let fromTier = window.watchlistTierKey(
+          fromRecord.item.tier,
+          fromRecord.item.tier_modifier || fromRecord.item.tierModifier,
+        );
+        let toTier = window.watchlistTierKey(
+          toRecord.item.tier,
+          toRecord.item.tier_modifier || toRecord.item.tierModifier,
+        );
         if (fromTier !== toTier)
           return {
             ok: false,
@@ -591,7 +749,10 @@
         let tierItems = watchlistEntries
           .filter(
             (record) =>
-              window.normalizeWatchlistTier(record.item.tier) === fromTier,
+              window.watchlistTierKey(
+                record.item.tier,
+                record.item.tier_modifier || record.item.tierModifier,
+              ) === fromTier,
           )
           .map((record) => record.item)
           .sort(

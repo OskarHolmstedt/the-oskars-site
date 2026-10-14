@@ -24,7 +24,7 @@ window.fetchSupabaseCommunityDirectory = async function () {
   let published = await pages((from, to) =>
     client
       .from("profiles")
-      .select("public_slug, display_name")
+      .select("id, public_slug, display_name")
       .not("public_slug", "is", null)
       .order("public_slug")
       .range(from, to),
@@ -69,6 +69,7 @@ window.fetchSupabaseCommunityDirectory = async function () {
         if (films.count == null || rated.count == null)
           throw new Error("Public profile counts are unavailable.");
         return {
+          id: profile.id,
           slug,
           ownerName: profile.display_name || slug,
           summary: {

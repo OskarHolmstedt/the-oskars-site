@@ -840,7 +840,6 @@ ${section(
       generation === requestGeneration &&
       requestOwner &&
       requestOwner === window.getSupabaseCurrentUser?.()?.id &&
-      !window.resolveActiveProfileSlug?.() &&
       !window.state?.isPublicProfileView;
     container.innerHTML = `<p role="status">${escape(ui("Loading statistics…"))}</p>`;
     let finish = window.startOskarsPerformance?.("stats:dataReady");

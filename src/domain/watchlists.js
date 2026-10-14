@@ -75,15 +75,16 @@ window.normalizeTierModifierValue = function (value) {
 window.renderTierWithModifier = function (tier, modifier) {
   let normalized = window.normalizeWatchlistTier(tier);
   if (!normalized) return "";
-  let mod = window.normalizeTierModifierValue(modifier);
+  let mod =
+    window.normalizeTierModifierValue(modifier) ||
+    window.parseWatchlistTier(tier).modifier;
   return `${normalized}${mod === "minus" ? "−" : mod === "plus" ? "＋" : ""}`;
 };
 
 /**
  * Returns a tier's fine-grained sort grade: tier rank expanded threefold
  * with a minus/unmodified/plus offset, placing an unset tier last of
- * all. Additive - existing watchlistTierRank() callers are untouched;
- * this is for call sites that want the modifier to actually break ties.
+ * all. Each letter/modifier combination is a distinct interest tier.
  * @param {*} tier Candidate tier.
  * @param {*} modifier Candidate modifier.
  * @returns {number}
@@ -91,9 +92,29 @@ window.renderTierWithModifier = function (tier, modifier) {
 window.watchlistTierGrade = function (tier, modifier) {
   let rank = window.watchlistTierRank(tier);
   if (rank >= window.WATCHLIST_TIERS.length) return rank * 3;
-  let mod = window.normalizeTierModifierValue(modifier);
+  let mod =
+    window.normalizeTierModifierValue(modifier) ||
+    window.parseWatchlistTier(tier).modifier;
   let offset = mod === "plus" ? 0 : mod === "minus" ? 2 : 1;
   return rank * 3 + offset;
+};
+
+/** Returns an exact tier key including its modifier, or blank when unset. @param {*} tier Candidate tier. @param {*} modifier Candidate modifier. @returns {string} Exact tier key. */
+window.watchlistTierKey = function (tier, modifier) {
+  let parsed = window.parseWatchlistTier(tier);
+  let mod = window.normalizeTierModifierValue(modifier) || parsed.modifier;
+  return parsed.tier
+    ? `${parsed.tier}${mod === "plus" ? "+" : mod === "minus" ? "-" : ""}`
+    : "";
+};
+
+/** Returns all 21 exact interest tiers in priority order. @returns {string[]} Exact tiers. */
+window.watchlistExactTiers = function () {
+  return window.WATCHLIST_TIERS.flatMap((tier) => [
+    `${tier}+`,
+    tier,
+    `${tier}-`,
+  ]);
 };
 
 /**
@@ -104,7 +125,7 @@ window.watchlistTierGrade = function (tier, modifier) {
  * @returns {string[]}
  */
 window.watchlistTierFilterValues = function () {
-  return [...window.WATCHLIST_TIERS, ""];
+  return [...window.watchlistExactTiers(), ""];
 };
 
 /**
@@ -126,7 +147,7 @@ window.parseWatchlistTierFilters = function (raw) {
         .toLowerCase();
       if (text === "unset" || text === "unranked" || text === "blank")
         return "";
-      return window.normalizeWatchlistTier(value);
+      return window.watchlistTierKey(value);
     })
     .filter(
       (tier, index, list) =>
@@ -165,7 +186,9 @@ window.normalizeWatchlistItem = function (item) {
     tmdbId,
     swedishTitle,
     tier: window.normalizeWatchlistTier(item?.tier || item?.rank),
-    tierModifier: window.normalizeTierModifierValue(item?.tierModifier),
+    tierModifier:
+      window.normalizeTierModifierValue(item?.tierModifier) ||
+      window.parseWatchlistTier(item?.tier || item?.rank).modifier,
     director: String(item?.director || "").trim(),
     tags: window.parseFilmTags?.(item?.tags) || [],
     franchises: window.normalizeFranchiseMemberships?.(item?.franchises) || [],
@@ -365,12 +388,12 @@ window.watchlistFilmLike = function (
  */
 window.watchlistPeriodKeys = function (periodType, tier) {
   let normalizedTier =
-    tier === undefined ? null : window.normalizeWatchlistTier(tier);
+    tier === undefined ? null : window.watchlistTierKey(tier);
   let keys = new Set();
   (state.watchlist || []).forEach((item) => {
     if (
       normalizedTier !== null &&
-      window.normalizeWatchlistTier(item?.tier) !== normalizedTier
+      window.watchlistTierKey(item?.tier, item?.tierModifier) !== normalizedTier
     )
       return;
     let archiveFilm = window.findWatchlistArchiveFilm?.(item);
@@ -584,13 +607,14 @@ window.setWatchlistTierForItems = function (ids, tier, options = {}) {
   (state.watchlist || []).forEach((item) => {
     item.id ||= window.watchlistItemId(item);
     if (!idSet.has(item.id)) return;
-    let beforeTier = window.normalizeWatchlistTier(item.tier);
-    if (beforeTier === normalizedTier) {
+    let beforeTier = window.watchlistTierKey(item.tier, item.tierModifier);
+    if (beforeTier === window.watchlistTierKey(tier)) {
       skipped += 1;
       return;
     }
     changedItems.push({ item, beforeTier });
     item.tier = normalizedTier;
+    item.tierModifier = window.parseWatchlistTier(tier).modifier;
   });
   if (!changedItems.length)
     return { ok: true, changed: 0, skipped, tier: normalizedTier };
@@ -605,10 +629,14 @@ window.setWatchlistTierForItems = function (ids, tier, options = {}) {
       changedItems.length > 12 ? `, +${changedItems.length - 12}` : "";
     window.recordEdit({
       type: "watchlist bulk tier",
-      summary: `Set ${changedItems.length} watchlist film(s) to ${normalizedTier || "unset"}`,
+      summary: `Set ${changedItems.length} watchlist film(s) to ${window.watchlistTierKey(tier) || "unset"}`,
       sheetHint: "Watchlist",
       changes: [
-        { field: "tier", before: "mixed", after: normalizedTier || "unset" },
+        {
+          field: "tier",
+          before: "mixed",
+          after: window.watchlistTierKey(tier) || "unset",
+        },
         { field: "films", before: "", after: `${sample}${extra}` },
       ],
       context: {
@@ -683,9 +711,10 @@ window.recomputeWatchlistOrder = function () {
  * @returns {WatchlistItem[]}
  */
 window.watchlistTierItemsInOrder = function (tier) {
-  let normalizedTier = window.normalizeWatchlistTier(tier);
+  let normalizedTier = window.watchlistTierKey(tier);
   return watchlistItemsInCanonicalOrder().filter(
-    (item) => window.normalizeWatchlistTier(item.tier) === normalizedTier,
+    (item) =>
+      window.watchlistTierKey(item.tier, item.tierModifier) === normalizedTier,
   );
 };
 
@@ -818,4 +847,60 @@ window.compareWatchlistItemsBy = function (
     Number(left?.year || 9999) - Number(right?.year || 9999) ||
     window.compareEnglishTitles(left?.title, right?.title);
   return order === "desc" ? -result : result;
+};
+
+/**
+ * Returns marked watched films in their private tier and manual rewatch order.
+ * @param {FilmRecord[]} films Watched films, including standalone works.
+ * @returns {FilmRecord[]}
+ */
+window.rewatchFilmsInOrder = function (films) {
+  return films
+    .filter((film) => film.wantToRewatch)
+    .sort((left, right) => {
+      let tier =
+        window.watchlistTierGrade(left.rewatchTier, left.rewatchTierModifier) -
+        window.watchlistTierGrade(right.rewatchTier, right.rewatchTierModifier);
+      if (tier) return tier;
+      let leftPosition = Number(left.rewatchPosition) || Infinity;
+      let rightPosition = Number(right.rewatchPosition) || Infinity;
+      if (leftPosition !== rightPosition) return leftPosition - rightPosition;
+      return window.compareByAllTimeRank(left, right, undefined, {
+        rankTieBreak: false,
+        yearFallback: false,
+      });
+    });
+};
+
+/**
+ * Moves one rewatch film within its interest tier while retaining hidden films.
+ * @param {FilmRecord[]} films Complete globally ordered rewatchlist.
+ * @param {string} fromId Film being moved.
+ * @param {string} targetId Destination film.
+ * @param {'before'|'after'} position Placement relative to the destination.
+ * @returns {{ok:boolean, films?:FilmRecord[], reason?:string}}
+ */
+window.moveRewatchFilmInOrder = function (films, fromId, targetId, position) {
+  let from = films.find((film) => film.id === fromId);
+  let target = films.find((film) => film.id === targetId);
+  if (
+    !from ||
+    !target ||
+    from === target ||
+    !["before", "after"].includes(position)
+  )
+    return { ok: false, reason: "Invalid rewatchlist move." };
+  if (
+    window.watchlistTierKey(from.rewatchTier, from.rewatchTierModifier) !==
+    window.watchlistTierKey(target.rewatchTier, target.rewatchTierModifier)
+  )
+    return {
+      ok: false,
+      reason:
+        "Rewatchlist ordering moves are limited to the same interest tier.",
+    };
+  let remaining = films.filter((film) => film.id !== fromId);
+  let destination = remaining.findIndex((film) => film.id === targetId);
+  remaining.splice(destination + (position === "after" ? 1 : 0), 0, from);
+  return { ok: true, films: remaining };
 };

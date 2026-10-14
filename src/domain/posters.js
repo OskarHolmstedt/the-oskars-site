@@ -114,6 +114,11 @@ window.lookupTmdbMovieMetadata = async function (film, options = {}) {
         ? Number(details.episode_run_time[0])
         : "";
   return {
+    ...window.extractTmdbFilmClassification(details),
+    genre: (details.genres || [])
+      .map((genre) => genre.name)
+      .filter(Boolean)
+      .join(", "),
     tmdbId: String(match.id),
     type: classifyTmdbFilmType(reference, details),
     director: directors.join(", "),

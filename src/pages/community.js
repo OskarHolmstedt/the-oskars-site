@@ -96,60 +96,157 @@
       .join("")}</div>`;
   }
 
+  let directoryFilter = "all"; // 'all' | 'friends'
+  let viewerFollowingSet = new Set();
+  let viewerFriendSet = new Set();
+
   function renderDirectory(index) {
-    let profiles = index.profiles || [];
+    let allProfiles = index.profiles || [];
+    let profiles =
+      directoryFilter === "friends"
+        ? allProfiles.filter(
+            (p) =>
+              viewerFollowingSet.has(p.slug) ||
+              (p.id && viewerFollowingSet.has(p.id)),
+          )
+        : allProfiles;
+
     container.innerHTML = `<header class="community-hero">
       <p class="eyebrow">Published archives</p>
       <h1>Community</h1>
-      <p>Visit another member’s read-only archive, or select several perspectives to compare tastes and hold a joint ceremony.</p>
+      <p>Visit another member’s profile, or select several perspectives to compare tastes and hold a joint ceremony.</p>
     </header>
+    ${
+      allProfiles.length && viewerFollowingSet.size > 0
+        ? `<div class="community-filter-bar" style="margin-bottom: 20px; display: flex; gap: 8px;">
+            <button type="button" class="${directoryFilter === "all" ? "button-primary" : "button-secondary"}" data-community-filter="all">All (${allProfiles.length})</button>
+            <button type="button" class="${directoryFilter === "friends" ? "button-primary" : "button-secondary"}" data-community-filter="friends">Following &amp; Friends (${
+              allProfiles.filter(
+                (p) =>
+                  viewerFollowingSet.has(p.slug) ||
+                  (p.id && viewerFollowingSet.has(p.id)),
+              ).length
+            })</button>
+          </div>`
+        : ""
+    }
     ${
       profiles.length
         ? `<form id="communitySelection"><div class="community-grid">${profiles
-            .map(
-              (profile) => `<article class="community-card">
+            .map((profile) => {
+              let isFollowing =
+                viewerFollowingSet.has(profile.slug) ||
+                (profile.id && viewerFollowingSet.has(profile.id));
+              let isMutual =
+                viewerFriendSet.has(profile.slug) ||
+                (profile.id && viewerFriendSet.has(profile.id));
+              return `<article class="community-card">
                 ${posterDeckHtml(profile)}
                 <div class="community-card-copy">
-                  <label class="community-select"><input type="checkbox" name="profile" value="${escape(profile.slug)}"> Select</label>
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                    <label class="community-select"><input type="checkbox" name="profile" value="${escape(profile.slug)}"> Select</label>
+                    ${
+                      window.followSupabaseUser
+                        ? `<button type="button" class="${isFollowing ? "button-secondary" : "button-primary"}" data-community-follow-slug="${escape(profile.slug)}" data-community-follow-id="${escape(profile.id || "")}" style="font-size: 0.75rem; padding: 2px 8px;">
+                            ${
+                              isFollowing
+                                ? isMutual
+                                  ? "✓ Friends"
+                                  : "✓ Following"
+                                : "+ Follow"
+                            }
+                          </button>`
+                        : ""
+                    }
+                  </div>
                   <h2>${escape(profile.ownerName)}</h2>
                   <p class="community-card-stats"><span><b>${formatNumber(profile.summary.filmCount)}</b> films</span><span><b>${formatNumber(profile.summary.ratedCount)}</b> rated</span><span><b>${formatNumber(profile.summary.winnerCount)}</b> winners</span></p>
-                  <a class="button-link" href="index.html?profile=${encodeURIComponent(profile.slug)}">Visit archive</a>
+                  <a class="button-link" href="user.html?u=${encodeURIComponent(profile.slug)}">View profile</a>
                 </div>
-              </article>`,
-            )
+              </article>`;
+            })
             .join("")}</div>
           <div class="community-actions">
             <p id="communitySelectionStatus">Select at least two archives.</p>
             <button type="button" data-community-view="compare" disabled>Compare archives</button>
             <button type="button" data-community-view="ceremonyPicker" disabled>Hold a joint ceremony</button>
           </div></form>`
-        : `<div class="detail-empty"><h2>0 profiles</h2><p>Published profiles will appear here when someone chooses to share one.</p></div>`
+        : `<div class="detail-empty"><h2>0 profiles</h2><p>${directoryFilter === "friends" ? "No profiles found among your friends." : "Published profiles will appear here when someone chooses to share one."}</p></div>`
     }`;
     let form = document.getElementById("communitySelection");
-    if (!form) return;
-    let update = () => {
-      let count = form.querySelectorAll('input[name="profile"]:checked').length;
-      form.querySelectorAll("[data-community-view]").forEach((button) => {
-        button.disabled = count < 2;
+    if (form) {
+      let update = () => {
+        let count = form.querySelectorAll(
+          'input[name="profile"]:checked',
+        ).length;
+        form.querySelectorAll("[data-community-view]").forEach((button) => {
+          button.disabled = count < 2;
+        });
+        document.getElementById("communitySelectionStatus").textContent =
+          count < 2
+            ? "Select at least two archives."
+            : `${count} archives selected.`;
+      };
+      form.addEventListener("change", update);
+      form.addEventListener("click", (event) => {
+        let button = event.target.closest("[data-community-view]");
+        if (!button || button.disabled) return;
+        let selected = Array.from(
+          form.querySelectorAll('input[name="profile"]:checked'),
+        ).map((input) => input.value);
+        let params = new URLSearchParams({
+          view: button.dataset.communityView,
+          profiles: selected.join(","),
+        });
+        window.location.href = `community.html?${params}`;
       });
-      document.getElementById("communitySelectionStatus").textContent =
-        count < 2
-          ? "Select at least two archives."
-          : `${count} archives selected.`;
-    };
-    form.addEventListener("change", update);
-    form.addEventListener("click", (event) => {
-      let button = event.target.closest("[data-community-view]");
-      if (!button || button.disabled) return;
-      let selected = Array.from(
-        form.querySelectorAll('input[name="profile"]:checked'),
-      ).map((input) => input.value);
-      let params = new URLSearchParams({
-        view: button.dataset.communityView,
-        profiles: selected.join(","),
+    }
+
+    container.querySelectorAll("[data-community-filter]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        directoryFilter = e.currentTarget.dataset.communityFilter;
+        renderDirectory(index);
       });
-      window.location.href = `community.html?${params}`;
     });
+
+    container
+      .querySelectorAll("[data-community-follow-slug]")
+      .forEach((button) => {
+        button.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          let slug = button.dataset.communityFollowSlug;
+          let id = button.dataset.communityFollowId;
+          button.disabled = true;
+          try {
+            let isFollowing =
+              viewerFollowingSet.has(slug) ||
+              (id && viewerFollowingSet.has(id));
+            if (isFollowing) {
+              await window.unfollowSupabaseUser?.(id || slug);
+              viewerFollowingSet.delete(slug);
+              if (id) viewerFollowingSet.delete(id);
+              viewerFriendSet.delete(slug);
+              if (id) viewerFriendSet.delete(id);
+            } else {
+              await window.followSupabaseUser?.(id || slug);
+              viewerFollowingSet.add(slug);
+              if (id) viewerFollowingSet.add(id);
+              if (window.checkSupabaseFollowing) {
+                let res = await window.checkSupabaseFollowing(slug);
+                if (res.isMutualFriend) {
+                  viewerFriendSet.add(slug);
+                  if (id) viewerFriendSet.add(id);
+                }
+              }
+            }
+            renderDirectory(index);
+          } catch (err) {
+            button.disabled = false;
+            window.showOskarsToast?.(err.message || String(err));
+          }
+        });
+      });
   }
 
   function ratingListHtml(row) {
@@ -579,7 +676,25 @@
       else if (view === "ceremonyPicker") renderCeremonyPicker(profiles, slugs);
       else await renderCeremony(profiles, slugs);
     } else {
-      renderDirectory(await window.fetchSupabaseCommunityDirectory());
+      let index = await window.fetchSupabaseCommunityDirectory();
+      try {
+        if (window.listSupabaseFollowing) {
+          let list = await window.listSupabaseFollowing();
+          (list || []).forEach((item) => {
+            if (item.following_id) viewerFollowingSet.add(item.following_id);
+            if (item.profile?.public_slug)
+              viewerFollowingSet.add(item.profile.public_slug);
+            if (item.isMutualFriend) {
+              if (item.following_id) viewerFriendSet.add(item.following_id);
+              if (item.profile?.public_slug)
+                viewerFriendSet.add(item.profile.public_slug);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn("Could not load following state:", e);
+      }
+      renderDirectory(index);
     }
   } catch (err) {
     console.warn("Community:", err);

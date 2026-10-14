@@ -4,7 +4,6 @@
   let ui = window.uiText || ((text) => text);
   let container = document.getElementById("collectionsPage");
   let readOnly = Boolean(
-    window.resolveActiveProfileSlug?.() ||
     window.oskarsCapabilities?.().allowOwnerPages === false,
   );
   let model = null;
@@ -135,11 +134,6 @@
           : window.listSupabaseCollections({ includePosters: true }),
       ]);
       if (dataResult.status === "rejected") throw dataResult.reason;
-      if (
-        window.resolveActiveProfileSlug?.() &&
-        !window.state.isPublicProfileView
-      )
-        throw new Error("Public profile unavailable.");
       let custom =
         customResult.status === "fulfilled" ? customResult.value : [];
       unavailable = customResult.status === "rejected";

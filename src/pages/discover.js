@@ -147,9 +147,10 @@
     return value;
   }
   function watchlistTierOptions() {
-    return window.WATCHLIST_TIERS.map((tier) =>
-      option(tier, tier, "watchlistTier"),
-    ).join("");
+    return window
+      .watchlistExactTiers()
+      .map((tier) => option(tier, tier, "watchlistTier"))
+      .join("");
   }
   function exactRatingOptions() {
     return [

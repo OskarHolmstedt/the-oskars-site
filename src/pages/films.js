@@ -121,9 +121,7 @@
   });
   let currentState = viewState.read();
   let startFresh =
-    currentState.start === "fresh" &&
-    !window.state?.isPublicProfileView &&
-    !window.resolveActiveProfileSlug?.();
+    currentState.start === "fresh" && !window.state?.isPublicProfileView;
   let seenSelection = new Map();
   let savedSeenIds = new Set();
   let seenReview = false;
@@ -156,7 +154,7 @@
     let review = seenReview
       ? `<section class="films-seen-review"><h2>${escape(ui("Films you remember"))}</h2><p>${escape(ui("Save these as seen. You can rate, rank, or nominate them later."))}</p><ul>${[...seenSelection].map(([id, film]) => `<li><span>${escape(window.localizedFilmTitle?.(film) || film.title)} (${escape(film.year || "")})</span><button type="button" data-seen-film="${escape(id)}"${seenBusy ? " disabled" : ""}>${escape(ui("Remove"))}</button></li>`).join("")}</ul><button class="button-link" type="button" data-seen-save${seenBusy || !seenSelection.size ? " disabled" : ""}>${escape(ui(seenBusy ? "Saving…" : "Save as seen"))}</button></section>`
       : "";
-    return `<section class="films-start-fresh"><h1>${escape(ui("Start with films you remember"))}</h1><p>${escape(ui("Choose a release year and select films you've seen. One film is enough."))}</p><p>${escape(ui("Release year is when the film came out, not when you watched it."))}</p><label>${escape(ui("Release year"))}<select data-seen-year${seenBusy ? " disabled" : ""}><option value="">${escape(ui("Choose a year"))}</option>${years.map((value) => `<option value="${value}"${year === value ? " selected" : ""}>${value}</option>`).join("")}</select></label><p><a href="intake.html?start=fresh">${escape(ui("Can't find a film? Add it by title"))}</a> · <a href="index.html">${escape(ui("View your archive"))}</a></p>${success}<div class="films-seen-tray${seenSelection.size && !seenReview ? " films-seen-tray--floating" : ""}"><strong role="status">${escape(ui(seenSelection.size === 1 ? "1 film selected" : "{count} films selected", { count: seenSelection.size }))}</strong><button type="button" data-seen-review${seenBusy || !seenSelection.size ? " disabled" : ""}>${escape(ui(seenReview ? "Keep browsing" : "Review selection"))}</button></div>${review}${seenError ? `<p role="alert">${escape(ui("Some films may already be saved. Retry safely to finish."))} ${escape(seenError)}</p>` : ""}</section>`;
+    return `<section class="films-start-fresh"><h1>${escape(ui("Start with films you remember"))}</h1><p>${escape(ui("Choose a release year and select films you've seen. One film is enough."))}</p><p>${escape(ui("Release year is when the film came out, not when you watched it."))}</p><label>${escape(ui("Release year"))}<select data-seen-year${seenBusy ? " disabled" : ""}><option value="">${escape(ui("Choose a year"))}</option>${years.map((value) => `<option value="${value}"${year === value ? " selected" : ""}>${value}</option>`).join("")}</select></label><p><button type="button" class="button-link" data-open-quick-add>${escape(ui("Can't find a film? Add it by title"))}</button> · <a href="index.html">${escape(ui("View your archive"))}</a></p>${success}<div class="films-seen-tray${seenSelection.size && !seenReview ? " films-seen-tray--floating" : ""}"><strong role="status">${escape(ui(seenSelection.size === 1 ? "1 film selected" : "{count} films selected", { count: seenSelection.size }))}</strong><button type="button" data-seen-review${seenBusy || !seenSelection.size ? " disabled" : ""}>${escape(ui(seenReview ? "Keep browsing" : "Review selection"))}</button></div>${review}${seenError ? `<p role="alert">${escape(ui("Some films may already be saved. Retry safely to finish."))} ${escape(seenError)}</p>` : ""}</section>`;
   }
   let collectionChoices = null;
   let collectionExpression = window.parseCollectionFilter(
@@ -376,7 +374,8 @@
   }
 
   function tierOptionsHtml() {
-    return (window.WATCHLIST_TIERS || [])
+    return window
+      .watchlistExactTiers()
       .map((tier) => option(tier, tier, "watchlistTier"))
       .join("");
   }
@@ -529,7 +528,7 @@
       // A tier already implies watchlist membership - no tier means the
       // item hasn't been tiered yet, so "Watchlist" is the only fact left
       // to state.
-      return `<span class="films-status films-status--watchlist">${film.tier ? escape(film.tier) : escape(ui("Watchlist"))}</span>`;
+      return `<span class="films-status films-status--watchlist">${film.tier ? escape(window.renderTierWithModifier(film.tier, film.tier_modifier || film.tierModifier)) : escape(ui("Watchlist"))}</span>`;
     return `<span class="films-status films-status--unseen">${escape(ui("Not seen"))}</span>`;
   }
 
@@ -741,9 +740,7 @@
 
   function render() {
     startFresh =
-      currentState.start === "fresh" &&
-      !window.state?.isPublicProfileView &&
-      !window.resolveActiveProfileSlug?.();
+      currentState.start === "fresh" && !window.state?.isPublicProfileView;
     container.classList.toggle("films-start-fresh-page", startFresh);
     // Resolved once per render rather than per film below - render() already
     // re-runs on an "oskars:localechange" event, so this can't go stale.

@@ -26,7 +26,6 @@
   let homeModel = null;
   let homeLoadGeneration = 0;
   let homeTopExpanded = false;
-  let homeIntakeState = { status: "loading", workflows: [] };
   let homeDashboardContext = null;
   let homeProfileCache = null;
   let homeLastSyncResult = null;
@@ -76,23 +75,8 @@
   }
 
   function homePrimaryActionHtml(context) {
-    let { counts, projects, publicProfile, annualAwardCount, actions } =
-      context;
-    let openIntake = homeIntakeState.workflows.find(
-      (workflow) => !workflow.completed_at,
-    );
-    if (!publicProfile && openIntake) {
-      let film = openIntake.watched?.films || {};
-      let eyebrow =
-        openIntake.summary === "Letterboxd sync"
-          ? ui("New Letterboxd watch")
-          : ui("Continue your Oskars");
-      return `<article class="home-daily-card home-daily-card--primary" id="homeNextAction" data-home-action="intake">
-        ${homeFilmMedia(film)}
-        <div class="home-daily-card-body"><span class="eyebrow">${homeEscape(eyebrow)}</span><h2>${homeEscape(film.title || ui("Unfinished Intake"))}</h2><p>${homeEscape(ui("Your rating, ranking, or ceremony decisions are waiting."))}</p><a class="button-link" href="intake.html?intake=${homeEscape(encodeURIComponent(openIntake.id))}">${homeEscape(ui("Resume Intake"))}</a></div>
-      </article>`;
-    }
-    if (!publicProfile && projects.length) {
+    let { counts, projects, annualAwardCount, actions } = context;
+    if (projects.length) {
       let { project, next } = projects[0];
       let film = next.film;
       return `<article class="home-daily-card home-daily-card--primary" id="homeNextAction" data-home-action="project">
@@ -100,15 +84,12 @@
         <div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Continue a project"))}</span><h2>${homeEscape(project.name)}</h2><p>${homeEscape(ui("Up next: {title}", { title: window.localizedFilmTitle?.(film) || film.title }))}</p><a class="button-link" href="${homeEscape(next.href || window.projectPageUrl(project.id))}">${homeEscape(ui("Open next film"))}</a></div>
       </article>`;
     }
-    if (publicProfile) {
-      return `<article class="home-daily-card home-daily-card--primary home-daily-card--text" id="homeNextAction" data-home-action="public"><div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Published archive"))}</span><h2>${homeEscape(ui("Explore this film world"))}</h2><p>${homeEscape(ui("Browse its years, decades, and all-time collection."))}</p><a class="button-link" href="${counts.films ? "periods.html" : "films.html?status=watched"}">${homeEscape(ui(counts.films ? "Explore periods" : "Browse watched entries"))}</a></div></article>`;
-    }
     if (!counts.films && counts.watched) {
-      return `<article class="home-daily-card home-daily-card--primary home-daily-card--text" id="homeNextAction" data-home-action="watched"><div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Your watched archive"))}</span><h2>${homeEscape(ui("Revisit your watches"))}</h2><p>${homeEscape(ui("Your shorts, series, and other watches are saved. Browse them or add your latest watch."))}</p><div class="home-daily-actions"><a class="button-link" href="films.html?status=watched">${homeEscape(ui("Browse watched entries"))}</a><a href="intake.html">${homeEscape(ui("Add a watched film"))}</a></div></div></article>`;
+      return `<article class="home-daily-card home-daily-card--primary home-daily-card--text" id="homeNextAction" data-home-action="watched"><div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Your watched archive"))}</span><h2>${homeEscape(ui("Revisit your watches"))}</h2><p>${homeEscape(ui("Your shorts, series, and other watches are saved. Browse them or add your latest watch."))}</p><div class="home-daily-actions"><a class="button-link" href="films.html?status=watched">${homeEscape(ui("Browse watched entries"))}</a><a href="build.html">${homeEscape(ui("Build your Oskars"))}</a></div></div></article>`;
     }
     let unratedCount = actions?.unratedCount || 0;
     if (unratedCount > 0) {
-      return `<article class="home-daily-card home-daily-card--primary home-daily-card--text" id="homeNextAction" data-home-action="rate-unrated"><div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Rate your films"))}</span><h2>${homeEscape(ui("Rate your unrated imports"))}</h2><p>${homeEscape(ui("You have {count} unrated films in your archive. Rate them to unlock leaderboards and rankings.", { count: unratedCount }))}</p><div class="home-daily-actions"><a class="button-link" href="rate-watched.html">${homeEscape(ui("Rate unrated films"))}</a><a class="button-link button-secondary" href="intake.html">${homeEscape(ui("Add a watched film"))}</a></div></div></article>`;
+      return `<article class="home-daily-card home-daily-card--primary home-daily-card--text" id="homeNextAction" data-home-action="rate-unrated"><div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Rate your films"))}</span><h2>${homeEscape(ui("Rate your unrated imports"))}</h2><p>${homeEscape(ui("You have {count} unrated films in your archive. Rate them to unlock leaderboards and rankings.", { count: unratedCount }))}</p><div class="home-daily-actions"><a class="button-link" href="rate-watched.html">${homeEscape(ui("Rate unrated films"))}</a><a class="button-link button-secondary" href="build.html">${homeEscape(ui("Build your Oskars"))}</a></div></div></article>`;
     }
     let untieredCount = actions?.untieredCount || 0;
     if (untieredCount > 0) {
@@ -117,13 +98,7 @@
     if (annualAwardCount === 0 && counts.watched > 0) {
       return `<article class="home-daily-card home-daily-card--primary home-daily-card--text" id="homeNextAction" data-home-action="build-first-year"><div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("Build your Oskars"))}</span><h2>${homeEscape(ui("Build your first ceremony"))}</h2><p>${homeEscape(ui("Explore your imported films across decades and pick a year to build your first ceremony."))}</p><div class="home-daily-actions"><a class="button-link" href="periods.html">${homeEscape(ui("Explore decades"))}</a><a class="button-link button-secondary" href="build.html">${homeEscape(ui("Build a ceremony"))}</a></div></div></article>`;
     }
-    let intakeStatus =
-      homeIntakeState.status === "loading"
-        ? `<small>${homeEscape(ui("Checking for unfinished Intake…"))}</small>`
-        : homeIntakeState.status === "error"
-          ? `<small>${homeEscape(ui("Could not check unfinished Intake. Intake is still available."))}</small>`
-          : `<small>${homeEscape(ui("No unfinished Intake or project."))}</small>`;
-    return `<article class="home-daily-card home-daily-card--primary home-daily-card--text" id="homeNextAction" data-home-action="caught-up" data-home-intake-status="${homeEscape(homeIntakeState.status)}"><div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("All caught up"))}</span><h2>${homeEscape(ui("Add your latest watch"))}</h2><p>${homeEscape(ui("Start with rating, then place the film in your rankings and ceremonies."))}</p><a class="button-link" href="intake.html">${homeEscape(ui("Open Intake"))}</a>${intakeStatus}</div></article>`;
+    return `<article class="home-daily-card home-daily-card--primary home-daily-card--text" id="homeNextAction" data-home-action="caught-up"><div class="home-daily-card-body"><span class="eyebrow">${homeEscape(ui("All caught up"))}</span><h2>${homeEscape(ui("Add your latest watch"))}</h2><p>${homeEscape(ui("Start with rating, then place the film in your rankings and ceremonies."))}</p><button type="button" class="button-link" data-open-quick-add>${homeEscape(ui("Add film"))}</button><a href="build.html">${homeEscape(ui("Build your Oskars"))}</a></div></article>`;
   }
 
   function homeMemoryHtml(memory, watchedCount) {
@@ -153,8 +128,8 @@
   }
 
   function homeLateJoinNudgeHtml(context, profile) {
-    let { counts, publicProfile } = context || {};
-    if (publicProfile || !counts?.watched) return "";
+    let { counts } = context || {};
+    if (!counts?.watched) return "";
     if (
       typeof sessionStorage !== "undefined" &&
       sessionStorage.getItem("oskars-dismissed-late-join-nudge") === "1"
@@ -178,7 +153,7 @@
       eyebrow = ui("Path 2 · Letterboxd");
       heading = ui("Sync future watches automatically");
       description = ui(
-        "Connect your Letterboxd username to detect new diary entries via RSS and start an Intake for them.",
+        "Connect your Letterboxd username to save new diary entries via RSS. Review remaining work in Build your Oskars.",
       );
       actions = `<a class="button-link" href="data.html#dataSourceCardLetterboxd">${homeEscape(ui("Connect Letterboxd"))}</a><a class="button-link button-secondary" href="data.html#letterboxdImport">${homeEscape(ui("Import ZIP"))}</a>`;
     } else if (!sheetsConnected) {
@@ -240,12 +215,12 @@
           <p>${homeEscape(ui("Find old favourites, revisit a year, or log your latest watch. Your Oskars starts with one film."))}</p>
           <div class="home-daily-actions">
             <a class="button-link" href="films.html?start=fresh">${homeEscape(ui("Explore a year"))}</a>
-            <a class="button-link button-secondary" href="intake.html?start=fresh">${homeEscape(ui("Add a film"))}</a>
+            <button type="button" class="button-link button-secondary" data-open-quick-add>${homeEscape(ui("Add a film"))}</button>
           </div>
           <details class="home-onboarding-how-to">
             <summary>${homeEscape(ui("How does fresh start work?"))}</summary>
             <p>
-              ${homeEscape(ui("Pick a release year to mark films you've seen, or add individual watches with ratings and ceremony ballots in Intake."))}<br />
+              ${homeEscape(ui("Pick a release year to mark films you've seen, or log an individual watch with the header +."))}<br />
               <a href="films.html?start=fresh">${homeEscape(ui("Explore release years ↗"))}</a>
             </p>
           </details>
@@ -311,13 +286,11 @@
       doneRender?.();
       return;
     }
-    let { counts, memory, watchlistPick, projects, publicProfile, actions } =
-      homeModel;
+    let { counts, memory, watchlistPick, projects, actions } = homeModel;
     let annualAwardCount = counts.annualNominations;
     homeDashboardContext = {
       counts,
       projects,
-      publicProfile,
       annualAwardCount,
       actions,
     };
@@ -408,20 +381,17 @@
     doneTopPresentation?.();
 
     let doneDom = window.startOskarsPerformance?.("home:dom");
-    let mainGrid =
-      !counts.watched && !publicProfile
-        ? homeOnboardingHubHtml()
-        : `<div class="home-daily-grid">${homePrimaryActionHtml(homeDashboardContext)}${homeMemoryHtml(memory, counts.watched)}${homeWatchlistHtml(watchlistPick, counts.watchlist)}</div>`;
+    let mainGrid = !counts.watched
+      ? homeOnboardingHubHtml()
+      : `<div class="home-daily-grid">${homePrimaryActionHtml(homeDashboardContext)}${homeMemoryHtml(memory, counts.watched)}${homeWatchlistHtml(watchlistPick, counts.watchlist)}</div>`;
 
-    let topSection =
-      !counts.films && !publicProfile
-        ? ""
-        : `<section class="home-top-films" id="top-films"><header class="home-top-films-header"><div><span class="eyebrow">${homeEscape(ui("Your rankings"))}</span><h2>${homeEscape(ui("Top films"))}</h2></div><span>${homeEscape(ui("Sorted by {sort}", { sort: sortLabel }))}</span></header><div class="home-top-preview">${topPreview}</div><details class="home-top-details"${homeTopExpanded ? " open" : ""}><summary>${homeEscape(ui("Explore the full Top 25 score table"))}</summary><div data-home-top-table>${homeTopExpanded ? topTable : ""}</div></details></section>`;
+    let topSection = !counts.films
+      ? ""
+      : `<section class="home-top-films" id="top-films"><header class="home-top-films-header"><div><span class="eyebrow">${homeEscape(ui("Your rankings"))}</span><h2>${homeEscape(ui("Top films"))}</h2></div><span>${homeEscape(ui("Sorted by {sort}", { sort: sortLabel }))}</span></header><div class="home-top-preview">${topPreview}</div><details class="home-top-details"${homeTopExpanded ? " open" : ""}><summary>${homeEscape(ui("Explore the full Top 25 score table"))}</summary><div data-home-top-table>${homeTopExpanded ? topTable : ""}</div></details></section>`;
 
-    let todayHeading =
-      !counts.watched && !publicProfile
-        ? `<span class="eyebrow">${homeEscape(ui("Welcome to The Oskars"))}</span><h1 id="homeTodayHeading">${homeEscape(ui("Start your archive"))}</h1><p>${homeEscape(ui("Choose the onboarding path that matches how you want to build and track your films."))}</p>`
-        : `<span class="eyebrow">${homeEscape(ui("Today"))}</span><h1 id="homeTodayHeading">${homeEscape(ui("What will you explore?"))}</h1><p>${homeEscape(ui("One next step, one memory, and one film waiting for you."))}</p>`;
+    let todayHeading = !counts.watched
+      ? `<span class="eyebrow">${homeEscape(ui("Welcome to The Oskars"))}</span><h1 id="homeTodayHeading">${homeEscape(ui("Start your archive"))}</h1><p>${homeEscape(ui("Choose the onboarding path that matches how you want to build and track your films."))}</p>`
+      : `<span class="eyebrow">${homeEscape(ui("Today"))}</span><h1 id="homeTodayHeading">${homeEscape(ui("What will you explore?"))}</h1><p>${homeEscape(ui("One next step, one memory, and one film waiting for you."))}</p>`;
 
     let lateJoinNudge = homeLateJoinNudgeHtml(
       homeDashboardContext,
@@ -471,40 +441,10 @@
       )
         return;
       homeModel = model;
-      if (model.publicProfile) {
-        window.state.isPublicProfileView = true;
-        let slug = window.resolveActiveProfileSlug?.();
-        window.showPublicProfileStatus?.(
-          `Viewing ${model.profile?.display_name || slug}’s public profile · live data`,
-          "viewer",
-          [
-            {
-              label: "Copy profile link",
-              run: () =>
-                window.copyViewLink?.(
-                  new URL(
-                    `index.html?profile=${encodeURIComponent(slug)}`,
-                    window.location.href,
-                  ).href,
-                ),
-            },
-          ],
-        );
-      }
-      homeIntakeState = {
-        status: model.actionsError ? "error" : "ready",
-        workflows: model.intake ? [model.intake] : [],
-      };
       renderHome();
       window.refreshFocusedShellBackdrop?.();
     } catch (err) {
       if (generation !== homeLoadGeneration) return;
-      if (window.resolveActiveProfileSlug?.())
-        window.showPublicProfileStatus?.(
-          "This profile is temporarily unavailable",
-          "error",
-          [{ label: "Retry", run: loadHome }],
-        );
       document.getElementById("homeContent").innerHTML =
         `<div class="detail-empty"><h1>${homeEscape(ui("Could not load The Oskars"))}</h1><p>${homeEscape(err.message)}</p><button type="button" data-home-retry>${homeEscape(ui("Try again"))}</button></div>`;
     }
@@ -542,12 +482,10 @@
     loadHome();
   });
   loadHome().then(async () => {
-    if (!homeDashboardContext || homeDashboardContext.publicProfile) return;
+    if (!homeDashboardContext) return;
     try {
       let identity = window.getSupabaseCurrentUser?.()?.id;
-      let isCurrent = () =>
-        identity === window.getSupabaseCurrentUser?.()?.id &&
-        !window.resolveActiveProfileSlug?.();
+      let isCurrent = () => identity === window.getSupabaseCurrentUser?.()?.id;
       let profile = await window.loadSupabaseProfile?.();
       if (!isCurrent()) return;
       updateHomeLetterboxdSyncStatus(profile);

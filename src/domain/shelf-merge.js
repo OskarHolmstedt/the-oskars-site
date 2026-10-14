@@ -353,4 +353,26 @@
     syncShelfSession(session);
     return session;
   };
+
+  /**
+   * Suggests adjacent pairwise groupings for candidate blocks without rigid round ceremony.
+   * @param {{id: string, years: number[], label: string, count: number, isSingle: boolean}[]} blocks
+   * @returns {{pairs: {blockA: {id: string, years: number[], label: string, count: number, isSingle: boolean}, blockB: {id: string, years: number[], label: string, count: number, isSingle: boolean}, id: string, label: string}[], remainder: {id: string, years: number[], label: string, count: number, isSingle: boolean}|null}}
+   */
+  window.suggestShelfMergePairs = function (blocks) {
+    let list = Array.isArray(blocks) ? blocks : [];
+    let pairs = [];
+    for (let i = 0; i < list.length - 1; i += 2) {
+      let blockA = list[i];
+      let blockB = list[i + 1];
+      pairs.push({
+        blockA,
+        blockB,
+        id: `${blockA.id}::${blockB.id}`,
+        label: `${blockA.label} & ${blockB.label}`,
+      });
+    }
+    let remainder = list.length % 2 === 1 ? list[list.length - 1] : null;
+    return { pairs, remainder };
+  };
 })();

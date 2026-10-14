@@ -283,6 +283,7 @@
     record.wantToRewatch = Boolean(row.want_to_rewatch);
     record.rewatchTier = row.rewatch_tier || "";
     record.rewatchTierModifier = row.rewatch_tier_modifier || "";
+    record.rewatchPosition = row.rewatch_position ?? null;
     record.musicScore = row.music_score || "";
     record.musicRating = row.music_rating || "";
     record.musicRatingValue = row.music_rating_value ?? null;

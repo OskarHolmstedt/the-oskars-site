@@ -146,6 +146,7 @@
  * @property {number} [runtimeMinutes]
  * @property {string} [dateWatched] Canonical `YYYY-MM-DD`, '' or raw text.
  * @property {number} [views]
+ * @property {number|null} [rewatchPosition] Saved private manual order within rewatch interest tiers.
  * @property {boolean} [wantToRewatch] True when the watched film is on the rewatchlist.
  * @property {'S'|'A'|'B'|'C'|'D'|'E'|'F'|''} [rewatchTier] Rewatch priority, reusing the watchlist's interest tiers.
  * @property {'minus'|'plus'|''} [rewatchTierModifier] Fine-grained refinement within rewatchTier; default unmodified ("").
@@ -416,9 +417,9 @@
  * @property {string} [added] Date added to the source watchlist (YYYY-MM-DD).
  * @property {string} [tmdbId]
  * @property {string} [swedishTitle]
- * @property {'S'|'A'|'B'|'C'|'D'|'E'|'F'|''} [tier] Interest tier; tiers are
- *   guard buckets for order edits.
- * @property {'minus'|'plus'|''} [tierModifier] Fine-grained refinement within tier; default unmodified ("").
+ * @property {'S'|'A'|'B'|'C'|'D'|'E'|'F'|''} [tier] Base interest letter; combined with tierModifier it defines
+ *   one exact guard bucket for order edits.
+ * @property {'minus'|'plus'|''} [tierModifier] Interest tier suffix; each suffix defines a distinct tier.
  * @property {number} [order] Optional numeric global watchlist order.
  * @property {string} [director]
  * @property {string[]} [directors]
@@ -1320,16 +1321,8 @@
  * @property {OpinionRebuildSession|null} opinionRebuildSession Private baseline
  *   retained while the owner rebuilds the active opinion layer blind.
  * @property {{baseRevision: string, dirty: boolean, lastLocalSaveAt: string, changedAt?: string, reason?: string, lastPublishedRevision?: string, publishedRevision?: string, reconciliationStatus?: string, requiredAction?: string, lastCanonicalCheckAt?: string, publication?: PublicationAttempt, remoteSync?: WorkspaceRemoteSync, pushHeld?: boolean}|null} draftMetadata Local-change marker and legacy canonical-reconciliation/Firestore-sync metadata. Always null for a public-profile viewer state (issue #256) - that state is never a private draft. `publication`/`remoteSync`/`pushHeld` are backward-compatible legacy fields, never written by current code (the reconciliation and Firestore-sync engines that wrote them are retired) - kept only so an old already-persisted workspace or JSON backup still hydrates without loss.
- * @property {boolean} isPublicProfileView Set by `hydratePublicProfileState()`
- *   (issue #256) when state was hydrated from another owner's published
- *   public-profile document rather than a private canonical/workspace
- *   source. Distinguishes a viewer's own read-only browsing state from an
- *   owner or local draft; never true otherwise.
- * @property {{slug: string, ownerName: string, revision: string, publishedAt: string}|null} publicProfileMeta
- *   Identity metadata for the currently hydrated public profile (issue
- *   #253/#452): the live Supabase owner identity or immutable Community
- *   snapshot's manifest-resolved slug/owner/revision/publish time. Set
- *   alongside `isPublicProfileView`; always null otherwise.
+ * @property {boolean} isPublicProfileView Legacy read-only marker retained for existing serialized states. No current loader sets it.
+ * @property {{slug: string, ownerName: string, revision: string, publishedAt: string}|null} publicProfileMeta Legacy public identity retained for existing serialized states. No current loader sets it.
  * @property {ImportFoundation|null} importFoundation One-time local Sheets foundation source/configuration record.
  * @property {Object[]} sourceConflicts Cross-source rating/tier conflicts.
  * @property {{checkedAt: string, ranges: Array<{key: string, checks: ImportConsistencyCheck[]}>}|null} importConsistency Persisted consistency checks.

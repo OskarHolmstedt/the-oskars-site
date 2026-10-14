@@ -32,7 +32,7 @@
     let tier = view.watchlistTier
       ? view.watchlistTier === "unset"
         ? "unset"
-        : window.normalizeWatchlistTier(view.watchlistTier)
+        : window.watchlistTierKey(view.watchlistTier)
       : "";
     return {
       status: view.status || "",
@@ -108,6 +108,40 @@
     let { data, error } = await ready.client.rpc("read_film_community_ratings");
     if (error) throw error;
     return data || {};
+  };
+
+  /**
+   * Reads friend ratings, ceremony recognitions, and community score for a specific film (issue #983).
+   * @param {string} filmId Canonical film id.
+   * @returns {Promise<{filmId: string, communityAverage: number|null, communityCount: number, friendRatings: Array<{slug: string, name: string, rating: number, ratingModifier: string|null, dateWatched: string|null}>, friendAwards: Array<{slug: string, name: string, scope: string, scopeType: string, category: string, placement: number, detail: string|null}>}>} Film social aggregate summary.
+   */
+  window.loadSupabaseFilmSocialSummary = async function (filmId) {
+    if (!filmId) {
+      return {
+        filmId: "",
+        communityAverage: null,
+        communityCount: 0,
+        friendRatings: [],
+        friendAwards: [],
+      };
+    }
+    let ready =
+      (await window.ensureSupabaseClient?.()) ||
+      (await window.ensureSupabasePublicClient?.());
+    if (!ready) throw new Error("Supabase not configured.");
+    let { data, error } = await ready.client.rpc("read_film_social_summary", {
+      p_film_id: filmId,
+    });
+    if (error) throw error;
+    return (
+      data || {
+        filmId,
+        communityAverage: null,
+        communityCount: 0,
+        friendRatings: [],
+        friendAwards: [],
+      }
+    );
   };
 
   // Status counts and option lists don't depend on the filters: fetched

@@ -6,16 +6,18 @@ window.renderWatchlistBulkTierControl = function (options = {}) {
   if (!(window.oskarsCapabilities?.().canEdit ?? true)) return "";
   let escape = options.escape || window.pageEscape;
   let ui = window.uiText || ((text) => text);
-  let value = window.normalizeWatchlistTier?.(options.value) || "";
+  let value = window.watchlistTierKey(options.value) || "";
   let count = Number(options.count) || 0;
   let optionsHtml = [
     `<option value=""${value ? "" : " selected"}>${escape(ui("Unset"))}</option>`,
   ]
     .concat(
-      (window.WATCHLIST_TIERS || []).map(
-        (tier) =>
-          `<option value="${escape(tier)}"${value === tier ? " selected" : ""}>${escape(tier)}</option>`,
-      ),
+      window
+        .watchlistExactTiers()
+        .map(
+          (tier) =>
+            `<option value="${escape(tier)}"${value === tier ? " selected" : ""}>${escape(tier)}</option>`,
+        ),
     )
     .join("");
   let feedback = watchlistBulkTierFeedbackForCurrentView();
@@ -53,7 +55,9 @@ function watchlistBulkTierFeedbackForCurrentView() {
 window.watchlistBulkTierChanges = function (entries, nextTier) {
   return (entries || []).filter((entry) => {
     let item = watchlistBulkEntryItem(entry);
-    return item && window.normalizeWatchlistTier?.(item.tier) !== nextTier;
+    return (
+      item && window.watchlistTierKey(item.tier, item.tierModifier) !== nextTier
+    );
   });
 };
 
@@ -70,7 +74,7 @@ window.applyWatchlistBulkTierChange = function (
   options = {},
 ) {
   let ui = window.uiText || ((text) => text);
-  let tier = window.normalizeWatchlistTier?.(nextTier) || "";
+  let tier = window.watchlistTierKey(nextTier) || "";
   let changedEntries = window.watchlistBulkTierChanges(entries, tier);
   if (!changedEntries.length) {
     window.alert?.(ui("No filtered films need that interest change."));
@@ -82,6 +86,7 @@ window.applyWatchlistBulkTierChange = function (
   let snapshot = (window.state?.watchlist || []).map((item) => ({
     id: item.id || window.watchlistItemId?.(item),
     tier: item.tier || "",
+    tierModifier: item.tierModifier || "",
     order: item.order || "",
     changedTier: changedIds.has(item.id),
   }));
@@ -116,7 +121,10 @@ window.undoWatchlistBulkTierChange = function (options = {}) {
   feedback.snapshot.forEach((before) => {
     let item = window.findWatchlistItemById?.(before.id);
     if (!item) return;
-    if (before.changedTier) item.tier = before.tier;
+    if (before.changedTier) {
+      item.tier = before.tier;
+      item.tierModifier = before.tierModifier;
+    }
     item.order = before.order;
     restored += 1;
   });
@@ -187,7 +195,7 @@ window.bindWatchlistBulkTierControl = function (options = {}) {
     let before = options.persist
       ? window.cloneRecord(window.state.watchlist || [])
       : [];
-    selectedTier = window.normalizeWatchlistTier?.(nextTier) || "";
+    selectedTier = window.watchlistTierKey(nextTier) || "";
     let result = window.applyWatchlistBulkTierChange?.(
       options.entries?.() || [],
       selectedTier,
@@ -198,8 +206,7 @@ window.bindWatchlistBulkTierControl = function (options = {}) {
 
   function onChange(event) {
     let select = event.target?.closest?.("[data-watchlist-bulk-tier]");
-    if (select)
-      selectedTier = window.normalizeWatchlistTier?.(select.value) || "";
+    if (select) selectedTier = window.watchlistTierKey(select.value) || "";
   }
 
   function onClick(event) {

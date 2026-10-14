@@ -22,7 +22,7 @@
   const GOOGLE_SHEETS_STORAGE_KEY = "oskars-google-sheets-spreadsheet-id";
   let legacyIntakeId = window.pageQueryParam?.("intake") || "";
   if (legacyIntakeId) {
-    window.location.replace(window.intakePageUrl(legacyIntakeId));
+    window.location.replace("build.html");
     return;
   }
 
@@ -54,35 +54,49 @@
 
   async function backupValue() {
     let { client } = await readyClient();
-    let [awardReviews, entityNotes, collectionBallots, awardPoolExclusions] =
-      await Promise.all([
+    let [
+      awardReviews,
+      entityNotes,
+      collectionBallots,
+      awardPoolExclusions,
+      watchlistOrderGroups,
+    ] = await Promise.all([
+      client
+        .from("award_reviews")
+        .select("year, category, status, reviewed_at")
+        .order("year")
+        .order("category"),
+      client
+        .from("entity_notes")
+        .select("entity_kind, entity_key, note, updated_at")
+        .order("entity_kind")
+        .order("entity_key"),
+      window.fetchAllSupabaseRows((count) =>
         client
-          .from("award_reviews")
-          .select("year, category, status, reviewed_at")
+          .from("collection_ballots")
+          .select(
+            "collection_type, collection_id, collection_name, nominations, reviews",
+            count ? { count: "exact" } : undefined,
+          )
+          .order("id"),
+      ),
+      window.fetchAllSupabaseRows((count) =>
+        client
+          .from("award_pool_exclusions")
+          .select("year, film_id", count ? { count: "exact" } : undefined)
           .order("year")
-          .order("category"),
+          .order("film_id"),
+      ),
+      window.fetchAllSupabaseRows((count) =>
         client
-          .from("entity_notes")
-          .select("entity_kind, entity_key, note, updated_at")
-          .order("entity_kind")
-          .order("entity_key"),
-        window.fetchAllSupabaseRows((count) =>
-          client
-            .from("collection_ballots")
-            .select(
-              "collection_type, collection_id, collection_name, nominations, reviews",
-              count ? { count: "exact" } : undefined,
-            )
-            .order("id"),
-        ),
-        window.fetchAllSupabaseRows((count) =>
-          client
-            .from("award_pool_exclusions")
-            .select("year, film_id", count ? { count: "exact" } : undefined)
-            .order("year")
-            .order("film_id"),
-        ),
-      ]);
+          .from("watchlist_order_groups")
+          .select(
+            "tier,kind,years,film_ids",
+            count ? { count: "exact" } : undefined,
+          )
+          .order("id"),
+      ),
+    ]);
     if (awardReviews.error) throw awardReviews.error;
     if (entityNotes.error) throw entityNotes.error;
     return {
@@ -95,6 +109,7 @@
         entityNotes: entityNotes.data,
         collectionBallots,
         awardPoolExclusions,
+        watchlistOrderGroups,
         googleSheetsSpreadsheetId:
           (typeof localStorage !== "undefined"
             ? localStorage.getItem(GOOGLE_SHEETS_STORAGE_KEY)
@@ -141,6 +156,7 @@
       "tags",
       "personal_awards",
       "rankings",
+      "watchlist_order_groups",
       "watchlist",
       "watched",
     ])
@@ -199,6 +215,33 @@
     }
     if (data.watchlist != null && !Array.isArray(data.watchlist)) {
       throw new Error(ui("This is not a supported backup."));
+    }
+    if (
+      data.watchlistOrderGroups != null &&
+      !Array.isArray(data.watchlistOrderGroups)
+    )
+      throw new Error(ui("This is not a supported backup."));
+    for (let group of data.watchlistOrderGroups || []) {
+      if (
+        !/^[SABCDEF][+-]?$/.test(group?.tier) ||
+        !["year", "merge"].includes(group?.kind) ||
+        !Array.isArray(group?.years) ||
+        !group.years.length ||
+        group.years.some(
+          (year) => !Number.isInteger(year) || year < 0 || year > 9999,
+        ) ||
+        new Set(group.years).size !== group.years.length ||
+        (group.kind === "year" && group.years.length !== 1) ||
+        !Array.isArray(group?.film_ids) ||
+        !group.film_ids.length ||
+        new Set(group.film_ids).size !== group.film_ids.length ||
+        group.film_ids.some(
+          (id) =>
+            typeof id !== "string" ||
+            !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id),
+        )
+      )
+        throw new Error(ui("This is not a supported backup."));
     }
     if (data.rankings != null && !Array.isArray(data.rankings)) {
       throw new Error(ui("This is not a supported backup."));
@@ -340,6 +383,7 @@
       want_to_rewatch: Boolean(row.want_to_rewatch),
       rewatch_tier: row.rewatch_tier,
       rewatch_tier_modifier: row.rewatch_tier_modifier,
+      rewatch_position: row.rewatch_position ?? null,
       music_score: row.music_score,
       music_rating: row.music_rating,
       music_rating_value: row.music_rating_value,
@@ -373,6 +417,25 @@
       let { error } = await client
         .from("watchlist")
         .upsert(batch, { onConflict: "user_id,film_id" });
+      if (error) throw error;
+    }
+    for (
+      let from = 0;
+      from < (data.watchlistOrderGroups || []).length;
+      from += BATCH_SIZE
+    ) {
+      let batch = data.watchlistOrderGroups
+        .slice(from, from + BATCH_SIZE)
+        .map((group) => ({
+          user_id: user.id,
+          tier: group.tier,
+          kind: group.kind,
+          years: [...group.years].sort((a, b) => a - b),
+          film_ids: group.film_ids,
+        }));
+      let { error } = await client
+        .from("watchlist_order_groups")
+        .upsert(batch, { onConflict: "user_id,tier,kind,years" });
       if (error) throw error;
     }
     await restoreFilmTags(client, user.id, data.watched);
@@ -545,10 +608,10 @@
           <span class="eyebrow">${escape(ui("Path 1 · Start fresh"))}</span>
           <span class="data-source-badge data-source-badge--active">${escape(ui("Active"))}</span>
         </div>
-        <h3>${escape(ui("Manual logging & Intake"))}</h3>
-        <p>${escape(ui("Direct logging via Intake and catalog. Always available with no persistent connection needed."))}</p>
+        <h3>${escape(ui("Manual logging"))}</h3>
+        <p>${escape(ui("Log watches with the header +. Review remaining work in Build your Oskars."))}</p>
         <div class="data-actions">
-          <a href="intake.html" class="button-link button-secondary">${escape(ui("Open Intake"))}</a>
+          <button type="button" class="button-link button-secondary" data-open-quick-add>${escape(ui("Add film"))}</button>
           <a href="films.html?start=fresh" class="button-link button-secondary">${escape(ui("Explore years"))}</a>
         </div>
       </article>
@@ -679,9 +742,12 @@
             if (status) {
               status.textContent =
                 result.createdCount > 0
-                  ? ui("Synced {count} new watch(es) into Intake.", {
-                      count: result.createdCount,
-                    })
+                  ? ui(
+                      "Synced {count} new watch(es). Review remaining work in Build your Oskars.",
+                      {
+                        count: result.createdCount,
+                      },
+                    )
                   : ui("All caught up — no new Letterboxd watches found.");
             }
             dataSourcesProfile = await window.loadSupabaseProfile();
@@ -841,6 +907,7 @@
             want_to_rewatch: false,
             rewatch_tier: null,
             rewatch_tier_modifier: null,
+            rewatch_position: null,
             updated_at: new Date().toISOString(),
           })
           .not("id", "is", null);

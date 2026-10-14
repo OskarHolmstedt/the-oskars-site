@@ -413,3 +413,58 @@ window.catalogFilmLabel = function (film) {
   let title = String(film?.title || "").trim() || "Untitled";
   return film?.year ? `${title} (${film.year})` : title;
 };
+
+/** Saves Quick Add's fetched metadata into empty catalog fields and persists identified directors. @param {Object} film Selected TMDB film. @returns {Promise<string>} Catalog film ID. */
+window.saveSupabaseQuickAddFilmMetadata = async function (film) {
+  let ready = await window.ensureSupabaseClient();
+  if (!ready) throw new Error("Supabase not configured.");
+  let { filmId } = await window.resolveSupabaseCatalogFilm(ready.client, film);
+  if (!filmId)
+    throw new Error("No catalog or TMDB match was found for this film.");
+  let fields = {
+    poster_url: film.poster?.url,
+    runtime_minutes: film.runtimeMinutes,
+    country: film.country,
+    primary_country: film.primaryCountry,
+    swedish_title: film.swedishTitle,
+    genre: film.genre,
+    original_language: film.originalLanguage,
+    medium: film.medium,
+    screenplay_type: film.screenplayType,
+    type: film.type,
+  };
+  let { data: current, error: readError } = await ready.client
+    .from("films")
+    .select([...Object.keys(fields), "owner_decided_fields"].join(","))
+    .eq("id", filmId)
+    .single();
+  if (readError) throw readError;
+  let update = {};
+  for (let [key, value] of Object.entries(fields)) {
+    if (
+      value &&
+      !current[key] &&
+      !(current.owner_decided_fields || []).includes(key)
+    )
+      update[key] = value;
+  }
+  if (Object.keys(update).length) {
+    let query = ready.client.from("films").update(update).eq("id", filmId);
+    // Recheck every blank and owner decision so concurrent edits are preserved.
+    for (let key of Object.keys(update)) {
+      query =
+        current[key] == null
+          ? query.is(key, null)
+          : query.eq(key, current[key]);
+      query = query.not("owner_decided_fields", "cs", `{${key}}`);
+    }
+    let { error } = await query;
+    if (error) throw error;
+  }
+  await window.persistSupabaseFilmCredits(
+    filmId,
+    "director",
+    film.directors || [],
+  );
+  return filmId;
+};

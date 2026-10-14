@@ -89,6 +89,11 @@
       rows.push(row);
       watchedByYear.set(year, rows);
     });
+    rankingEntries = rankingEntries.filter((entry) =>
+      window.supabaseRankingFilmEligible(
+        watchedByFilmId.get(entry.film_id) || entry,
+      ),
+    );
     let rankingByYear = new Map();
     rankingEntries.forEach((entry) => {
       let year = String(entry.films?.year || "");
@@ -121,14 +126,16 @@
           group.every((entry) => entry.rank_confirmed !== false),
         ).length;
         let reviewedCategories = reviewedCategoriesByYear.get(year)?.size || 0;
-        let rankingReady = yearRows.length > 0;
+        let rankingRows = yearRows.filter(window.supabaseRankingFilmEligible);
+        let rankingReady = rankingRows.length > 0;
         let rankedIds = new Set(
           yearRankingEntries
             .filter((entry) => entry.rank_confirmed !== false)
             .map((entry) => entry.film_id),
         );
-        let rankingComplete =
-          rankingReady && yearRows.every((row) => rankedIds.has(row.film_id));
+        let rankingComplete = rankingRows.every((row) =>
+          rankedIds.has(row.film_id),
+        );
         let awardStarted = reviewedCategories > 0;
         let awardComplete =
           categoryNames.length > 0 &&
@@ -157,8 +164,8 @@
           rankingGroupCount: groups.length,
           reviewedRankingGroupCount: reviewedGroups,
           rankingPercent: percent(
-            yearRows.filter((row) => rankedIds.has(row.film_id)).length,
-            yearRows.length,
+            rankingRows.filter((row) => rankedIds.has(row.film_id)).length,
+            rankingRows.length,
           ),
           rankingReady,
           rankingComplete,
@@ -327,7 +334,11 @@
       } else {
         let yearRankingsExist = (rankingCountsByYear.get(year) || 0) > 0;
         let isRanked = rankedFilmIdsByYear.get(year)?.has(row.film_id);
-        if (yearRankingsExist && !isRanked) {
+        if (
+          yearRankingsExist &&
+          !isRanked &&
+          window.supabaseRankingFilmEligible(row)
+        ) {
           inbox.push({
             watched: row,
             film,

@@ -23,9 +23,12 @@
     let busy = Boolean(options.busy);
     let optionsHtml = [`<option value="">${escape(ui("Unset"))}</option>`]
       .concat(
-        (window.WATCHLIST_TIERS || []).map(
-          (tier) => `<option value="${escape(tier)}">${escape(tier)}</option>`,
-        ),
+        window
+          .watchlistExactTiers()
+          .map(
+            (tier) =>
+              `<option value="${escape(tier)}">${escape(tier)}</option>`,
+          ),
       )
       .join("");
     return `<span class="watchlist-bulk-tier-control"><label>${escape(ui("Set filtered interest"))} <select data-supabase-watchlist-bulk-tier>${optionsHtml}</select></label><button type="button" class="sort-order-button" data-supabase-watchlist-bulk-tier-apply${count ? "" : " disabled"}${busy ? " disabled" : ""}>${escape(ui("Update interest"))}</button></span>`;

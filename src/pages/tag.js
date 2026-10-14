@@ -66,6 +66,134 @@
   let implicitTagFilmIds = [];
   let busy = false;
 
+  let boundContainerEvents = false;
+
+  function tagCollectionAction(kind, id, active) {
+    if (!canEdit || !id || isCatalog) return "";
+    return window.renderCollectionActionButton({
+      kind,
+      label: ui(
+        kind === "rewatch"
+          ? active
+            ? "Remove from rewatchlist"
+            : "Want to rewatch"
+          : active
+            ? "Remove from watchlist"
+            : "Add to watchlist",
+      ),
+      active,
+      escape,
+      attributes: {
+        "data-collection-action": kind,
+        "data-collection-id": id,
+        "data-collection-active": String(Boolean(active)),
+        disabled: busy || watchlistOrderEditMode || localRankEditMode,
+      },
+    });
+  }
+
+  function updateTagActionAvailability() {
+    container
+      .querySelectorAll("[data-collection-action], [data-edit-tier]")
+      .forEach((action) => {
+        /** @type {HTMLButtonElement} */ (action).disabled =
+          busy || watchlistOrderEditMode || localRankEditMode;
+      });
+  }
+
+  async function handleTagCollectionAction(event) {
+    let target = /** @type {HTMLElement|null} */ (event.target);
+    let button = target?.closest?.("[data-collection-action]");
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (
+      !canEdit ||
+      busy ||
+      watchlistOrderEditMode ||
+      localRankEditMode ||
+      isCatalog
+    )
+      return;
+    let { collectionAction: kind, collectionId: id } =
+      /** @type {HTMLButtonElement} */ (button).dataset;
+    let active =
+      /** @type {HTMLButtonElement} */ (button).dataset.collectionActive ===
+      "true";
+    if (!id) return;
+    busy = true;
+    updateTagActionAvailability();
+    try {
+      if (kind === "rewatch") {
+        await window.setSupabaseWatchedRewatch(id, !active);
+        let film =
+          tagFilms.find(
+            (candidate) =>
+              candidate.supabaseFilmId === id || candidate.id === id,
+          ) ||
+          Object.values(window.state?.filmsById || {}).find(
+            (candidate) =>
+              candidate.supabaseFilmId === id || candidate.id === id,
+          );
+        if (film) {
+          film.wantToRewatch = !active;
+          if (active) {
+            film.rewatchTier = "";
+            film.rewatchTierModifier = "";
+          }
+        }
+      } else if (kind === "watchlist" && active) {
+        await window.removeFromSupabaseWatchlist(id);
+        window.invalidateCachedSupabaseHydrationSource?.();
+        let removedIndex = (window.state?.watchlist || []).findIndex(
+          (item) => item.id === id,
+        );
+        if (removedIndex !== -1) {
+          window.state.watchlist.splice(removedIndex, 1);
+        }
+        let localIndex = watchlistItems.findIndex((item) => item.id === id);
+        if (localIndex !== -1) {
+          watchlistItems.splice(localIndex, 1);
+        }
+        if (window.state) {
+          window.state.aggregateVersion =
+            (Number(window.state.aggregateVersion) || 0) + 1;
+        }
+      }
+      render();
+    } catch (error) {
+      window.alert?.(error.message || String(error));
+    } finally {
+      busy = false;
+      updateTagActionAvailability();
+    }
+  }
+
+  function handleTagTierEdit(event) {
+    return window.handleInlineTierEditClick(event, {
+      container,
+      escape,
+      ui,
+      canEdit:
+        canEdit &&
+        !isCatalog &&
+        !busy &&
+        !watchlistOrderEditMode &&
+        !localRankEditMode,
+      onSaved: ({ targetId, tier, modifier, type }) => {
+        if (type === "watchlist") {
+          let item = watchlistItems.find((w) => w.id === targetId);
+          if (item) {
+            item.tier = tier;
+            item.tierModifier = modifier;
+            item.tier_modifier = modifier;
+          }
+        }
+        render();
+      },
+    });
+  }
+
   function tagRecordCompare(left, right) {
     return window.compareFilmAxisRecords(left, right, {
       axis: sort,
@@ -176,7 +304,10 @@
         scope: "watchlist",
         id: item.id,
         index,
-        group: window.normalizeWatchlistTier(item.tier),
+        group: window.watchlistTierKey(
+          item.tier,
+          item.tier_modifier || item.tierModifier,
+        ),
       }),
       openFilm: false,
       showYear: true,
@@ -185,7 +316,7 @@
         : "",
       escape,
       beforeTitleHtml: item.tier
-        ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(item.tier)}</span>`
+        ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(window.renderTierWithModifier(item.tier, item.tier_modifier || item.tierModifier))}</span>`
         : "",
       titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
       bodyHtml:
@@ -253,6 +384,25 @@
         tagFilmCard(film, watchedPagination.sliceStart + index),
       )
       .join("");
+    function tagRewatchTierCell(film) {
+      let tierHtml = window.renderInlineTierTrigger({
+        type: "rewatch",
+        targetId: film.supabaseFilmId || film.id,
+        tier: film.rewatchTier,
+        modifier: film.rewatchTierModifier,
+        editable: canEdit && !isCatalog && Boolean(film.wantToRewatch),
+        disabled: busy || watchlistOrderEditMode || localRankEditMode,
+        escape,
+        ui,
+      });
+      let actionHtml = tagCollectionAction(
+        "rewatch",
+        film.supabaseFilmId || film.id,
+        film.wantToRewatch,
+      );
+      return `<td class="rating-tier-cell">${tierHtml} ${actionHtml}</td>`;
+    }
+
     let rows = visibleFilms
       .map((film, index) => {
         let attributes = window.renderOrderEditItemAttributes(
@@ -269,7 +419,7 @@
           sort === "local"
             ? `<td class="leaderboard-position">${escape(localRankMap.get(film.id) || "—")}</td>`
             : "";
-        return `<tr${attributes}>${positionCell}${tagWatchedCells(film)}${window.renderRatingTierCell({ film }, { escape })}</tr>`;
+        return `<tr${attributes}>${positionCell}${tagWatchedCells(film)}${window.renderRatingTierCell({ film }, { escape })}${tagRewatchTierCell(film)}</tr>`;
       })
       .join("");
     let watchlistCards = visibleWatchlistItems
@@ -287,14 +437,32 @@
             scope: "watchlist",
             id: item.id,
             index: watchlistPagination.sliceStart + index,
-            group: window.normalizeWatchlistTier(item.tier),
+            group: window.watchlistTierKey(
+              item.tier,
+              item.tier_modifier || item.tierModifier,
+            ),
           },
           escape,
+        );
+        let tierHtml = window.renderInlineTierTrigger({
+          type: "watchlist",
+          targetId: item.id,
+          tier: item.tier,
+          modifier: item.tier_modifier || item.tierModifier,
+          editable: canEdit && !isCatalog,
+          disabled: busy || watchlistOrderEditMode || localRankEditMode,
+          escape,
+          ui,
+        });
+        let actionHtml = tagCollectionAction("watchlist", item.id, true);
+        let ratingTierHtml = window.renderRatingTierCell(
+          { item },
+          { escape, editHtml: `${tierHtml} ${actionHtml}` },
         );
         return `<tr${attributes}><td class="leaderboard-position">${escape(item.order ? `${item.order}` : "NR")}</td>${window.renderFilmIdentityCell(
           film,
           { escape, href: window.filmPageUrl(item.supabaseFilmId), year: true },
-        )}<td class="film-people-cell">${directorHtml}</td>${window.renderRatingTierCell({ item }, { escape })}</tr>`;
+        )}<td class="film-people-cell">${directorHtml}</td>${ratingTierHtml}</tr>`;
       })
       .join("");
     let combinedCards = visibleCombinedRecords
@@ -305,14 +473,29 @@
     let combinedRows = visibleCombinedRecords
       .map((record) => {
         if (record.film)
-          return `<tr>${tagWatchedCells(record.film)}${window.renderRatingTierCell({ film: record.film }, { escape })}</tr>`;
+          return `<tr>${tagWatchedCells(record.film)}${window.renderRatingTierCell({ film: record.film }, { escape })}${tagRewatchTierCell(record.film)}</tr>`;
         let item = record.item;
         let film = window.watchlistFilmLike(item);
         let directorHtml = window.renderLinkedDirectors(film, { escape });
+        let tierHtml = window.renderInlineTierTrigger({
+          type: "watchlist",
+          targetId: item.id,
+          tier: item.tier,
+          modifier: item.tier_modifier || item.tierModifier,
+          editable: canEdit && !isCatalog,
+          disabled: busy || watchlistOrderEditMode || localRankEditMode,
+          escape,
+          ui,
+        });
+        let actionHtml = tagCollectionAction("watchlist", item.id, true);
+        let ratingTierHtml = window.renderRatingTierCell(
+          { item },
+          { escape, editHtml: `${tierHtml} ${actionHtml}` },
+        );
         return `<tr><td><a class="period-link" href="${escape(window.periodPageUrl("year", item.year))}">${escape(item.year || "")}</a></td>${window.renderFilmIdentityCell(
           film,
           { escape, href: window.filmPageUrl(item.supabaseFilmId) },
-        )}<td class="film-people-cell">${directorHtml}</td>${window.renderRatingTierCell({ item }, { escape })}</tr>`;
+        )}<td class="film-people-cell">${directorHtml}</td>${ratingTierHtml}<td class="rating-tier-cell">—</td></tr>`;
       })
       .join("");
     let tagReverseTargetSort = sort === "shuffle" ? "year" : sort;
@@ -382,7 +565,7 @@
         ? cards
           ? `<div class="film-grid tag-film-grid">${cards}</div>`
           : `<div class="detail-empty">${escape(ui("No watched films use this tag."))}</div>`
-        : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr>${sort === "local" ? `<th>${escape(ui("Rank"))}</th>` : ""}<th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))}</th></tr></thead><tbody>${rows || `<tr><td colspan="${sort === "local" ? "5" : "4"}">${escape(ui("No watched films use this tag."))}</td></tr>`}</tbody></table></div>`;
+        : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr>${sort === "local" ? `<th>${escape(ui("Rank"))}</th>` : ""}<th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))}</th><th>${escape(ui("Rewatch tier"))}</th></tr></thead><tbody>${rows || `<tr><td colspan="${sort === "local" ? "6" : "5"}">${escape(ui("No watched films use this tag."))}</td></tr>`}</tbody></table></div>`;
     let watchlistContentHtml = sortedWatchlistItems.length
       ? `<section class="tag-film-section tag-watchlist-section">${sectionHeading("Watchlist", sortedWatchlistItems.length)}${watchlistBulkTierControls}${watchlistOrderControls}${watchlistPaginationHtml}${filmView === "grid" ? `<div class="film-grid tag-film-grid">${watchlistCards}</div>` : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Interest"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Tier"))}</th></tr></thead><tbody>${watchlistRows}</tbody></table></div>`}${watchlistPaginationHtml}</section>`
       : "";
@@ -392,12 +575,20 @@
         ? combinedCards
           ? `<div class="film-grid tag-film-grid">${combinedCards}</div>`
           : `<div class="detail-empty">${escape(ui("No watched films use this tag."))}</div>`
-        : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))} / ${escape(ui("Tier"))}</th></tr></thead><tbody>${combinedRows || `<tr><td colspan="4">${escape(ui("No watched films use this tag."))}</td></tr>`}</tbody></table></div>`
+        : `<div class="leaderboard-wrap"><table class="leaderboard"><thead><tr><th>${escape(ui("Year"))}</th><th>${escape(ui("Film"))}</th><th>${escape(ui("Director"))}</th><th>${escape(ui("Rating"))} / ${escape(ui("Tier"))}</th><th>${escape(ui("Rewatch tier"))}</th></tr></thead><tbody>${combinedRows || `<tr><td colspan="5">${escape(ui("No watched films use this tag."))}</td></tr>`}</tbody></table></div>`
     }${combinedPaginationHtml}`;
     let ratingStatistics = window.collectionRatingStatistics(tagFilms);
 
     document.title = `${canonicalTag} · ${ui("Tags")} · The Oskars`;
     container.innerHTML = `${window.renderBreadcrumbs([{ label: ui("Tags"), href: "tags.html" }, { label: canonicalTag }], { escape })}${window.renderDetailHeader({ mainHtml: `<h1>${escape(canonicalTag)}</h1>${isCatalog ? `<p>${escape(ui("Catalog tag"))} · ${escape(ui({ genre: "Genre", theme: "Theme", form: "Form", source: "Source" }[catalogKind] || "Genre"))}</p>` : ""}`, actionsHtml: isCatalog ? "" : window.renderSourceProjectAction("tag", canonicalTag, { escape }) })}${window.renderDetailStats({ itemsHtml: `<span><b>${films.length}</b> ${escape(ui(films.length === 1 ? "Film" : "Films"))}</span>${sortedWatchlistItems.length ? `<span><b>${sortedWatchlistItems.length}</b> ${escape(ui("Watchlist"))}</span>` : ""}${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}${isCatalog ? "" : window.renderSupabaseEntityNote({ entityKind: "tag", entityKey: canonicalTag, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Tag note"), escape })}${toolbarHtml}${combinedView ? combinedContentHtml : splitContentHtml}`;
+
+    if (!boundContainerEvents) {
+      container.addEventListener("click", (event) => {
+        if (handleTagTierEdit(event)) return;
+        handleTagCollectionAction(event);
+      });
+      boundContainerEvents = true;
+    }
 
     container
       .querySelectorAll?.("[data-start-project-source]")
@@ -464,8 +655,14 @@
             ok: false,
             reason: "Both films must exist in the watchlist.",
           };
-        let fromTier = window.normalizeWatchlistTier(fromItem.tier);
-        let toTier = window.normalizeWatchlistTier(toItem.tier);
+        let fromTier = window.watchlistTierKey(
+          fromItem.tier,
+          fromItem.tier_modifier || fromItem.tierModifier,
+        );
+        let toTier = window.watchlistTierKey(
+          toItem.tier,
+          toItem.tier_modifier || toItem.tierModifier,
+        );
         if (fromTier !== toTier)
           return {
             ok: false,
@@ -474,7 +671,11 @@
           };
         let tierItems = sortedWatchlistItems
           .filter(
-            (item) => window.normalizeWatchlistTier(item.tier) === fromTier,
+            (item) =>
+              window.watchlistTierKey(
+                item.tier,
+                item.tier_modifier || item.tierModifier,
+              ) === fromTier,
           )
           .sort(
             (a, b) => Number(a.order || 999999) - Number(b.order || 999999),

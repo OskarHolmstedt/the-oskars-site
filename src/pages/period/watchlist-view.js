@@ -403,9 +403,11 @@ window.renderAddWatchlistForm = function (options = {}) {
   let ui = options.ui || window.uiText || ((text) => text);
   let tierOptions = [`<option value="">${escape(ui("Unset"))}</option>`]
     .concat(
-      window.WATCHLIST_TIERS.map(
-        (tier) => `<option value="${escape(tier)}">${escape(tier)}</option>`,
-      ),
+      window
+        .watchlistExactTiers()
+        .map(
+          (tier) => `<option value="${escape(tier)}">${escape(tier)}</option>`,
+        ),
     )
     .join("");
   return `<details class="period-secondary-controls"${options.open ? " open" : ""}><summary>${escape(ui("Add film"))}</summary><form class="period-filter-controls" data-add-watchlist-form><label>${escape(ui("Title"))} <input type="text" name="title" required></label><label>${escape(ui("Year"))} <input type="number" name="year" min="1888" max="2100"></label><label>${escape(ui("Director"))} <input type="text" name="director"></label><label>${escape(ui("Interest"))} <select name="tier">${tierOptions}</select></label>${window.renderCollectionActionButton({ kind: "watchlist", label: ui("Add to watchlist"), escape, attributes: { type: "submit" } })}</form></details>`;
@@ -427,12 +429,15 @@ window.watchlistTierCounts = function (filters, options = {}) {
   );
   if (options.tierCounts) {
     Object.entries(options.tierCounts).forEach(([tierKey, count]) => {
-      let tier = window.normalizeWatchlistTier(tierKey);
+      let tier = window.watchlistTierKey(tierKey);
       counts.set(tier, (counts.get(tier) || 0) + Number(count));
     });
   } else {
     watchlistTierFilterEntries(filters).forEach((entry) => {
-      let tier = window.normalizeWatchlistTier(entry.item.tier);
+      let tier = window.watchlistTierKey(
+        entry.item.tier,
+        entry.item.tierModifier,
+      );
       counts.set(tier, (counts.get(tier) || 0) + 1);
     });
   }
@@ -445,7 +450,7 @@ function watchlistTierShelfLabel(tier, ui) {
 
 /**
  * Renders interest-ordered watchlist entries with a full-width shelf
- * heading wherever the tier changes, so S, A, B... read as separate rows of
+ * heading wherever the exact tier changes, so S+, S, S−... read as separate rows of
  * the poster grid (or table). A page that starts mid-tier opens with that
  * tier's heading.
  * @param {Object[]} entries Visible `{item, index, archiveFilm}` entries, in interest order.
@@ -463,7 +468,10 @@ window.renderWatchlistTierShelves = function (entries, renderEntry, options) {
   let previousTier = null;
   return entries
     .map((entry, visibleIndex) => {
-      let tier = window.normalizeWatchlistTier(entry.item.tier);
+      let tier = window.watchlistTierKey(
+        entry.item.tier,
+        entry.item.tierModifier,
+      );
       let shelf = "";
       if (tier !== previousTier) {
         previousTier = tier;
@@ -536,7 +544,9 @@ window.renderWatchlistTierFilter = function (filters, options = {}) {
     .map((tier) => {
       let label = tier || ui("Unset");
       let active = selected.has(tier);
-      let cls = tier ? ` tier-${tier.toLowerCase()}` : "";
+      let cls = tier
+        ? ` tier-${window.normalizeWatchlistTier(tier).toLowerCase()}`
+        : "";
       return `<button type="button" class="watchlist-tier-filter-button${active ? " is-active" : ""}${cls}" data-period-watchlist-tier-toggle="${escape(tier || "unset")}" aria-pressed="${active ? "true" : "false"}"><span>${escape(label)}</span><small>${escape(counts.get(tier) || 0)}</small></button>`;
     })
     .join("");
@@ -641,7 +651,7 @@ window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
   let tierEditMode = Boolean(options.tierEditMode);
   let watchlistOrderEditMode = Boolean(options.watchlistOrderEditMode);
   let periodOrder = options.periodOrder;
-  let periodRank = options.periodRank;
+  let periodRank = Number(entry.item.order) > 0 ? options.periodRank : null;
   let item = entry.item;
   item.id ||= window.watchlistItemId(item);
   let film = window.watchlistFilmLike(item, entry.archiveFilm);
@@ -718,7 +728,7 @@ window.renderWatchlistRow = function (entry, visibleIndex = 0, options = {}) {
   let escape = options.escape || window.pageEscape;
   let tierEditMode = Boolean(options.tierEditMode);
   let watchlistOrderEditMode = Boolean(options.watchlistOrderEditMode);
-  let periodRank = options.periodRank;
+  let periodRank = Number(entry.item.order) > 0 ? options.periodRank : null;
   let item = entry.item;
   item.id ||= window.watchlistItemId(item);
   let film = window.watchlistFilmLike(item, entry.archiveFilm);

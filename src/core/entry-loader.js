@@ -22,7 +22,7 @@
     "home",
     "data",
     "profile",
-    "intake",
+    "user",
     "build",
     "award",
     "rate-watched",
@@ -199,7 +199,6 @@
       people: locale === "sv" ? "Personer" : "People",
       data: "Data",
       profile: locale === "sv" ? "Profil" : "Profile",
-      intake: locale === "sv" ? "Intag" : "Intake",
       quickAddTitle:
         locale === "sv"
           ? "Lägg till film eller logga sedd"
@@ -208,8 +207,7 @@
       tierWatchlist:
         locale === "sv" ? "Sätt watchlist-tier" : "Set watchlist tier",
     };
-    // Build is owner-only; the runtime-mode and
-    // public-profile gate below removes it once it resolves.
+    // Build is owner-only; the runtime-mode gate removes it once resolved.
     let navItems = [
       ["home", text.home, "index.html"],
       ["build", text.buildOskars, "build.html"],
@@ -301,7 +299,6 @@
     window.renderStaticHeaderAuth = async function () {
       let status = header.querySelector("[data-auth-status]");
       if (!status) return;
-      if (window.renderPublicProfileExit?.(status)) return;
       if (!window.resolveSupabaseAuthState) return;
       let auth = await window.resolveSupabaseAuthState();
       if (auth?.status !== "signed-in" || !auth.user?.id) {
@@ -369,16 +366,15 @@
   window.OSKARS_STATS_COMPACT =
     entry === "stats" &&
     new URLSearchParams(window.location.search).get("statsSource") !== "legacy";
-  // Period Watchlist compact-read cutover (issue #598): period.html serves
-  // both the period-ranking view and, at ?view=watchlist, the Watchlist
-  // view in one shared entry - unlike stats, only THIS specific view skips
-  // eager full hydration; every other period.html visit (any other `view`,
-  // or `view=watchlist` with the legacy escape hatch below) is completely
-  // unaffected and keeps its existing eager-hydration behavior.
-  window.OSKARS_WATCHLIST_COMPACT =
+  // Period pages can enter Watchlist on startup or through the view switcher.
+  // Only direct Watchlist visits skip initial archive hydration; the controller
+  // also needs the compact reader available after a Watched-only startup.
+  window.OSKARS_PERIOD_WATCHLIST_COMPACT =
     entry === "period" &&
-    new URLSearchParams(window.location.search).get("view") === "watchlist" &&
     new URLSearchParams(window.location.search).get("legacyWatchlist") !== "1";
+  window.OSKARS_WATCHLIST_COMPACT =
+    window.OSKARS_PERIOD_WATCHLIST_COMPACT &&
+    new URLSearchParams(window.location.search).get("view") === "watchlist";
   // Compact Completion cutover (issue #597 expansion): official-results,
   // award-bracket, and watch-goal completion paint fast from a compact
   // read; directors/franchises/projects ("known collections") still needs
@@ -521,10 +517,10 @@
   window.OSKARS_ENTRY_HYDRATION_DOMAINS = entryHydrationDomains;
   let focusedShellEntries = new Set([
     "profile",
+    "user",
     "home",
     // Dedicated editors keep their scoped reads at startup; shared header
     // interactions hydrate the complete account archive on demand.
-    "intake",
     "build",
     "award",
     "rank-year",
@@ -598,7 +594,7 @@
       ? ["src/domain/watch-goals.js"]
       : []),
     ...(entry === "completion" ? ["src/domain/supabase-completion.js"] : []),
-    ...(["film", "period", "data", "intake", "awards-year"].includes(entry)
+    ...(["film", "period", "data", "awards-year"].includes(entry)
       ? ["src/domain/nomination-plans.js"]
       : []),
     "src/domain/franchises.js",
@@ -684,9 +680,7 @@
       ? ["src/domain/ranking-consistency.js", "src/domain/award-stories.js"]
       : []),
     ...(entry === "period" ? ["src/domain/decade-merge.js"] : []),
-    ...(["data", "intake", "awards-year"].includes(entry)
-      ? ["src/domain/films.js"]
-      : []),
+    ...(["data", "awards-year"].includes(entry) ? ["src/domain/films.js"] : []),
     "src/domain/stats.js",
     ...(entry === "community" ? ["src/domain/community.js"] : []),
     ...(entry === "compare" ? ["src/domain/compare-targets.js"] : []),
@@ -767,7 +761,7 @@
   // carries it for every other entry, but these 9 pages load only this
   // trimmed list, so their mobile primary nav never got the horizontal-
   // overflow scroll affordance at all. Added uniformly rather than only to
-  // the one entry (intake) the audit happens to exercise.
+  // a single entry the audit happens to exercise.
   let supabaseEntryDependencies = {
     home: [
       "src/core/state.js",
@@ -887,6 +881,18 @@
       "src/ui/storage-status.js",
       "src/ui/scroll-affordance.js",
     ],
+    user: [
+      "src/core/canonical-data.js",
+      "src/core/state.js",
+      "src/domain/community.js",
+      "src/domain/watchlists.js",
+      "src/ui/film-card.js",
+      "src/ui/film-rating.js",
+      "src/ui/posters.js",
+      "src/ui/country.js",
+      "src/ui/detail-scaffold.js",
+      "src/ui/scroll-affordance.js",
+    ],
     "rank-year": [
       "src/core/state.js",
       "src/ui/film-rating.js",
@@ -920,13 +926,6 @@
       "src/domain/credits.js",
       "src/domain/people/index.js",
       "src/ui/poster-deck.js",
-      "src/ui/detail-scaffold.js",
-      "src/ui/scroll-affordance.js",
-    ],
-    intake: [
-      "src/core/state.js",
-      "src/domain/people/index.js",
-      "src/ui/film-rating.js",
       "src/ui/detail-scaffold.js",
       "src/ui/scroll-affordance.js",
     ],
@@ -1001,7 +1000,7 @@
   }
 
   // Owner-mutation pages: data.html and every guided mutation-workflow
-  // page that has no independent read-only content of its own (intake,
+  // page that has no independent read-only content of its own (build,
   // rank-year, awards-year, watchlist-merge, local-rank-merge,
   // ranking-review — issue #256 broadened this from editor/data alone,
   // issue #245's original set; editor.html itself was removed in #433).
@@ -1011,7 +1010,6 @@
   let ownerOnlyEntries = new Set([
     "data",
     "profile",
-    "intake",
     "build",
     "award",
     "rate-watched",
@@ -1066,11 +1064,11 @@
     "merge",
     "rankings",
     "profile",
+    "user",
     "rank-year",
     "awards-year",
     "build",
     "award",
-    "intake",
     "data-tools",
   ]);
 
@@ -1105,7 +1103,7 @@
   // page controller's full legacy dependency list rather than a curated
   // minimal one (unlike supabaseBackedEntries) - the controller calls
   // Supabase functions directly for both reads and writes (matching
-  // intake.js's pattern), it just needs the same wide set of shared UI/
+  // the focused editors' pattern), it just needs the same wide set of shared UI/
   // domain helpers (film cards, tags, franchises, posters, ...) the
   // collection controllers depend on (issue #439).
   let supabaseFullDependencyEntries = new Set([
@@ -1171,7 +1169,15 @@
       "projects",
       "notes-tags",
     ],
-    intake: ["workspace", "intake", "catalog", "rankings", "awards", "profile"],
+    user: [
+      "workspace",
+      "watched",
+      "watchlist",
+      "catalog",
+      "rankings",
+      "awards",
+      "profile",
+    ],
     award: ["workspace", "catalog", "awards", "profile"],
     build: ["workspace", "watched", "catalog", "rankings", "awards", "profile"],
     "rate-watched": [
@@ -1206,6 +1212,7 @@
     ],
     person: [
       "workspace",
+      "watched",
       "intake",
       "watchlist",
       "catalog",
@@ -1340,7 +1347,7 @@
       "profile",
       "notes-tags",
     ],
-    rankings: ["workspace", "rankings", "profile"],
+    rankings: ["workspace", "watchlist", "rankings", "profile"],
     "rank-year": ["workspace", "rankings", "profile"],
     "awards-year": ["workspace", "catalog", "rankings", "awards", "profile"],
     compare: [
@@ -1508,11 +1515,8 @@
     window.installOskarsErrorRecovery?.();
     await loadScript("src/core/runtime-mode.js");
     await loadScript("runtime-mode.config.js", true);
-    // Loaded early, before the owner-page gate below, so an active public-
-    // profile session (issue #253 — a per-tab override on top of the baked
-    // mode, not a baked mode itself) can block owner-only pages regardless
-    // of deployment mode. Its later entry in `dependencies` is removed.
     await loadScript("src/core/public-profile.js");
+    if (window.redirectLegacyPublicProfile()) return;
     await window.renderStaticHeaderAuth?.();
     await loadScript("src/core/public-profile-supabase.js");
     let runtimeModeResult = window.resolveRuntimeMode(
@@ -1524,26 +1528,17 @@
       return;
     }
     let capabilities = window.runtimeModeCapabilities(runtimeModeResult.mode);
-    let activeProfileSlug = window.resolveActiveProfileSlug?.();
-    if (activeProfileSlug) useLegacyStats();
-    if (!capabilities.allowOwnerPages || activeProfileSlug) {
+    if (!capabilities.allowOwnerPages) {
       document
         .querySelectorAll(
           '.site-menu-panel [data-site-menu-owner], .app-primary-nav a[href="build.html"], .app-primary-nav a[href="rankings.html"], [data-quick-add-toggle]',
         )
         .forEach((element) => element.remove());
     }
-    if (
-      ownerOnlyEntries.has(entry) &&
-      (!capabilities.allowOwnerPages || activeProfileSlug)
-    ) {
+    if (ownerOnlyEntries.has(entry) && !capabilities.allowOwnerPages) {
       renderBlockedMessage(
-        activeProfileSlug
-          ? "Not available while viewing a public profile"
-          : "Not available in viewer mode",
-        activeProfileSlug
-          ? "Stop viewing the public profile to use this page."
-          : "This page requires owner or local access.",
+        "Not available in viewer mode",
+        "This page requires owner or local access.",
       );
       return;
     }
@@ -1621,6 +1616,11 @@
       await loadScript("src/domain/supabase-ranking-consistency.js");
       await loadScript("src/domain/fractional-position.js");
     }
+    if (["merge", "rankings"].includes(entry)) {
+      await loadScript("src/domain/watchlist-ordering.js");
+    }
+    if (entry === "rankings")
+      await loadScript("src/ui/watchlist-year-order.js");
     if (entry === "ranking-review") {
       await loadScript("src/domain/supabase-ranking-consistency.js");
       await loadScript("src/domain/fractional-position.js");
@@ -1635,10 +1635,6 @@
       await loadScript("src/domain/supabase-watched-intake.js");
       await loadScript("src/domain/supabase-ranking-consistency.js");
       await loadScript("src/domain/build-journey.js");
-    }
-    if (entry === "intake") {
-      await loadScript("src/domain/fractional-position.js");
-      await loadScript("src/domain/supabase-watched-intake.js");
     }
     if (["tag", "franchise", "person"].includes(entry)) {
       await loadScript("src/domain/fractional-position.js");
@@ -1663,7 +1659,7 @@
       await loadScript("src/ui/supabase-entity-note.js");
     }
     // state.js/aggregates.js/film-rating.js aren't loaded here (unlike
-    // rate-watched/build/intake above) - these entries fall through to
+    // rate-watched/build above) - these entries fall through to
     // the full legacy `dependencies` array below, which already
     // includes all three for every non-Supabase-pattern entry.
     if (
@@ -1671,22 +1667,12 @@
       supabaseFullDependencyEntries.has(entry)
     )
       await loadScript("src/domain/supabase-legacy-hydration.js");
-    // Compact Watchlist read (issue #598) - only actually called in
-    // window.OSKARS_WATCHLIST_COMPACT mode, but loading it unconditionally
-    // for "period" is simpler than a second narrower condition and costs
-    // nothing on every other period.html visit (a few hundred bytes,
-    // parsed but never invoked).
+    // All period views can switch to Watchlist without reloading the page.
     if (entry === "period")
       await loadScript("src/domain/supabase-watchlist.js");
-    if (entry === "films")
+    if (entry === "films" || entry === "film")
       await loadScript("src/domain/supabase-film-catalog.js");
-    // Community's directory/compare/ceremony views are read-only over the
-    // same isolated anonymous public reader direct profile viewing uses
-    // (issue #483) - `activeProfileSlug` only ever recognizes the
-    // singular `?profile=` viewing param, never Community's own bare
-    // directory or its plural `?view=compare/ceremony&profiles=a,b`, so
-    // without this it fell through to the same sign-in gate as every
-    // owner page even though it depends on no account at all (issue #490).
+    // Community and member profiles read public data independently of the viewer's workspace.
     /**
      * Reports whether owner account access is currently blocked by the account gate.
      * @returns {boolean}
@@ -1694,8 +1680,8 @@
     window.oskarsAccountAccessBlocked = () => false;
     if (
       window.runtimeAccountAccessRequired(runtimeModeResult.mode) &&
-      !activeProfileSlug &&
-      entry !== "community"
+      entry !== "community" &&
+      entry !== "user"
     ) {
       window.renderSupabaseAccountGate(
         { status: "loading" },
@@ -1782,7 +1768,11 @@
       window.OSKARS_FILMS_COMPACT;
     // Home owns its compact reads and defers the archive to shell interactions.
     // Community never hydrates here.
-    if (!pageLoadsOwnData) {
+    if (
+      !pageLoadsOwnData &&
+      (entry !== "user" ||
+        (await window.resolveSupabaseAuthState())?.status === "signed-in")
+    ) {
       await window.ensureOskarsData(
         entryHydrationDomains ? { domains: entryHydrationDomains } : {},
       );

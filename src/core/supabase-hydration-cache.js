@@ -3,7 +3,7 @@
  * freshness window, post-paint writes and mutation/account invalidation.
  */
 
-window.OSKARS_HYDRATION_CACHE_KEY = "oskars-supabase-hydration-cache:v6";
+window.OSKARS_HYDRATION_CACHE_KEY = "oskars-supabase-hydration-cache:v7";
 window.OSKARS_HYDRATION_CACHE_TTL_MS = 5 * 60 * 1000;
 window.OSKARS_HYDRATION_CACHE_MAX_DOMAIN_CHARS = 5_000_000;
 window.OSKARS_HYDRATION_CACHE_OVERFLOW_KEY =
@@ -41,7 +41,7 @@ function hydrationCacheDomainKey(domain) {
 }
 function clearLegacyHydrationCacheEntries() {
   try {
-    for (let version = 1; version <= 5; version++)
+    for (let version = 1; version <= 6; version++)
       sessionStorage.removeItem(`oskars-supabase-hydration-cache:v${version}`);
     sessionStorage.removeItem("oskars-supabase-hydration-cache-overflow:v1");
   } catch (_) {}
@@ -351,7 +351,7 @@ window.writeCachedPeopleDirectoryEdges = function (
   }
 };
 
-window.OSKARS_FILM_DETAIL_CACHE_PREFIX = "oskars-film-detail-cache:v1:";
+window.OSKARS_FILM_DETAIL_CACHE_PREFIX = "oskars-film-detail-cache:v2:";
 
 /**
  * Reads cached loadSupabaseFilmDetail() source for a specific user and film, if fresh.
@@ -513,6 +513,7 @@ window.OSKARS_HYDRATION_CACHE_INVALIDATING_MUTATIONS = [
   "setSupabaseProjectStatus",
   "setSupabaseProjectPinned",
   "setSupabaseWatchedRewatch",
+  "setSupabaseWatchedRewatchTier",
   "deleteSupabaseCollection",
   "removeSupabaseCollectionItem",
   "moveSupabaseCollectionItem",

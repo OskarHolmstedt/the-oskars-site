@@ -73,7 +73,7 @@ window.buildSupabaseCompletionOfficialModel = function (
 
 /** Reads one versioned private Completion watched/watchlist projection; the official-results side stays on the existing hydrateOfficialResultsFromSupabase()/window.state.officialResults path, unchanged. @returns {Promise<Object>} Compact watched/watchlist projection. */
 window.loadSupabaseCompletionWatchedProjection = async function () {
-  if (window.resolveActiveProfileSlug?.() || window.state?.isPublicProfileView)
+  if (window.state?.isPublicProfileView)
     throw new Error("Private Completion reads are unavailable in public mode.");
   let auth = await window.resolveSupabaseAuthState();
   if (auth.status !== "signed-in")

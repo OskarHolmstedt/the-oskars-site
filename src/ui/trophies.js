@@ -8,7 +8,6 @@ window.renderTrophyCabinet = function () {
   const trophies = window.trophyCabinetData();
   const escape = window.pageEscape;
   const ui = window.uiText || ((text) => text);
-  const profile = window.resolveActiveProfileSlug?.();
   const earned = trophies.filter((trophy) => trophy.earned).length;
   return `<section id="trophies" class="trophy-cabinet" aria-labelledby="trophyCabinetHeading">
     <header><h2 id="trophyCabinetHeading">${escape(ui("Trophy cabinet"))}</h2>
@@ -37,7 +36,6 @@ window.renderTrophyCabinet = function () {
           <ul>${trophy.films
             .map((film) => {
               let href = window.filmPageUrl(film.id);
-              if (profile) href += `&profile=${encodeURIComponent(profile)}`;
               return `<li><span class="trophy-film-state">${escape(ui(film.watched ? "Watched" : "Not watched"))}</span><span><a href="${escape(href)}">${escape(film.title)}</a>${film.kind ? `<small class="trophy-film-kind">${escape(ui(film.kind))}</small>` : ""}</span><span class="trophy-film-year">${film.year}</span></li>`;
             })
             .join("")}</ul>
