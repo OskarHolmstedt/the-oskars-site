@@ -59,7 +59,6 @@
     "custom-collections",
     "collection",
     "films",
-    "data-tools",
   ]);
   if (!pageEntries.has(entry))
     throw new Error(`Unknown application entry: ${entry}`);
@@ -571,9 +570,7 @@
   ];
 
   let dependencies = [
-    ...(["data", "data-tools"].includes(entry)
-      ? ["src/ui/browser-downloads.js"]
-      : []),
+    ...(entry === "data" ? ["src/ui/browser-downloads.js"] : []),
     "src/core/canonical-data.js",
     "src/core/canonical-data-official.js",
     "src/core/edit-log.js",
@@ -587,7 +584,9 @@
     ...(entry === "completion"
       ? ["src/domain/award-bracket-completion.js"]
       : []),
-    ...(entry === "completion"
+    ...(["completion", "person", "franchise", "collection", "user"].includes(
+      entry,
+    )
       ? ["src/domain/trophies.js", "src/ui/trophies.js"]
       : []),
     ...(["completion", "project"].includes(entry)
@@ -854,6 +853,7 @@
       "src/domain/watchlists.js",
       "src/ui/film-rating.js",
       "src/ui/detail-scaffold.js",
+      "src/ui/navigation.js",
       "src/ui/film-table.js",
       "src/ui/search.js",
       "src/ui/scroll-affordance.js",
@@ -895,7 +895,10 @@
     ],
     "rank-year": [
       "src/core/state.js",
+      "src/domain/watchlists.js",
+      "src/ui/film-table.js",
       "src/ui/film-rating.js",
+      "src/ui/pagination.js",
       "src/ui/detail-scaffold.js",
       "src/ui/scroll-affordance.js",
     ],
@@ -929,26 +932,6 @@
       "src/ui/detail-scaffold.js",
       "src/ui/scroll-affordance.js",
     ],
-    // Owner catalog ingestion shares film/person identity and lane parsers
-    // with account import flows; metadata tools also use their domain helpers.
-    // Keep the common dependency set and add this page's catalog tools.
-    "data-tools": dependencies.concat([
-      "src/domain/supabase-metadata-batch.js",
-      "src/domain/metadata-jobs.js",
-      "src/domain/tmdb-metadata-verification.js",
-      "src/domain/shared-catalog-editor.js",
-      "src/imports/google-sheets.js",
-      "src/imports/google-sheets-supabase-import.js",
-      // Only merge-check.js's own report needs window.state.years
-      // populated - it calls window.ensureOskarsData() itself, lazily,
-      // rather than this page paying that hydration cost on every visit
-      // just for its usual TMDB/duplicate tooling. Still needs
-      // supabase-legacy-hydration.js loaded up front since that's what
-      // defines buildLegacyStateFromSupabaseHydration/
-      // buildSharedFilmArchiveFromSupabase that ensureOskarsData() calls.
-      "src/domain/supabase-legacy-hydration.js",
-      "src/domain/merge-check.js",
-    ]),
   };
 
   function versionedAsset(path) {
@@ -1045,12 +1028,6 @@
     // collections/collection_items.
     "collection",
     "custom-collections",
-    // Local-only owner tools (missing-metadata fetch, duplicate film/
-    // person detection and merge) - gated a second time, inside its own
-    // controller, on window.OSKARS_LOCAL_CONFIG?.ownerDataTools, so it's
-    // inert on the deployed site even though it's registered the same as
-    // any other owner-only entry here.
-    "data-tools",
   ]);
 
   // Entries with dedicated Supabase data loading and persistence. Every
@@ -1069,7 +1046,6 @@
     "awards-year",
     "build",
     "award",
-    "data-tools",
   ]);
 
   // Entries that reuse the established window.state-derived view model while
@@ -1348,7 +1324,7 @@
       "notes-tags",
     ],
     rankings: ["workspace", "watchlist", "rankings", "profile"],
-    "rank-year": ["workspace", "rankings", "profile"],
+    "rank-year": ["workspace", "watchlist", "rankings", "profile"],
     "awards-year": ["workspace", "catalog", "rankings", "awards", "profile"],
     compare: [
       "workspace",
@@ -1457,17 +1433,6 @@
       "official-results",
       "projects",
       "notes-tags",
-    ],
-    "data-tools": [
-      "workspace",
-      "intake",
-      "catalog",
-      "rankings",
-      "profile",
-      "projects",
-      "notes-tags",
-      "catalog-admin",
-      "catalog-metadata",
     ],
   };
 
@@ -1597,7 +1562,7 @@
       // calculator over a {rating, rating_modifier}-shaped row.
       await loadScript("src/domain/supabase-watched-intake.js");
     }
-    if (["watchlist-merge", "merge", "rankings"].includes(entry))
+    if (["watchlist-merge", "merge", "rankings", "rank-year"].includes(entry))
       await loadScript("src/domain/shelf-merge.js");
     if (entry === "watchlist-merge")
       await loadScript("src/domain/supabase-watchlist-merge.js");
@@ -1610,22 +1575,26 @@
       await loadScript("src/domain/supabase-ranking-consistency.js");
       await loadScript("src/domain/fractional-position.js");
     }
-    if (entry === "rankings") {
+    if (entry === "rankings" || entry === "rank-year") {
       await loadScript("src/domain/supabase-watchlist-merge.js");
       await loadScript("src/domain/supabase-watched-merge.js");
       await loadScript("src/domain/supabase-ranking-consistency.js");
       await loadScript("src/domain/fractional-position.js");
     }
-    if (["merge", "rankings"].includes(entry)) {
+    if (["merge", "rankings", "rank-year"].includes(entry)) {
       await loadScript("src/domain/watchlist-ordering.js");
     }
     if (entry === "rankings")
       await loadScript("src/ui/watchlist-year-order.js");
-    if (entry === "ranking-review") {
-      await loadScript("src/domain/supabase-ranking-consistency.js");
+    if (entry === "period")
       await loadScript("src/domain/fractional-position.js");
+    if (entry === "rankings") {
+      await loadScript("src/domain/watchlist-placement.js");
+      await loadScript("src/ui/watchlist-placement.js");
+      await loadScript("src/domain/ranking-placement.js");
+      await loadScript("src/core/supabase/ranking-placement.js");
     }
-    if (entry === "rank-year") {
+    if (entry === "ranking-review") {
       await loadScript("src/domain/supabase-ranking-consistency.js");
       await loadScript("src/domain/fractional-position.js");
     }

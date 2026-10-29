@@ -421,6 +421,90 @@
   };
 
   /**
+   * Saves one completed insertion with a version-checked row update and patches local caches.
+   * @param {Object} plan Completed staged placement draft.
+   * @returns {Promise<void>}
+   */
+  window.saveWatchlistPlacement = async function (plan) {
+    if (plan.stage !== plan.stages.length)
+      throw new Error("Finish placing the film first.");
+    let context = window.supabaseWorkspaceContext;
+    let isCurrent = context.beginWorkspaceMutation();
+    let ready = await window.ensureSupabaseClient();
+    if (!ready) throw new Error("Supabase not configured.");
+    context.assertCurrentWorkspaceMutation(isCurrent);
+    let film = plan.film;
+    if (!film.supabaseWatchlistUpdatedAt)
+      throw new Error("Refresh the watchlist before placing this film.");
+    let before = plan.peers[plan.index - 1]?.supabaseWatchlistPosition || null;
+    let after = plan.peers[plan.index]?.supabaseWatchlistPosition || null;
+    let old = film.supabaseWatchlistPosition;
+    if (old && (!before || before < old) && (!after || old < after)) return;
+    let position = window.fractionalPositionBetween(before, after);
+    let { data, error } = await ready.client
+      .from("watchlist")
+      .update({ position, updated_at: new Date().toISOString() })
+      .eq("id", film.id)
+      .eq("updated_at", film.supabaseWatchlistUpdatedAt)
+      .select("id,position,updated_at")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data)
+      throw new Error(
+        "This film changed elsewhere. Reload the page before placing it again.",
+      );
+    context.assertCurrentWorkspaceMutation(isCurrent);
+    let raw = context.workspaceState?.watchlist?.find(
+      (row) => row.id === film.id,
+    );
+    if (raw)
+      Object.assign(raw, {
+        position: data.position,
+        updated_at: data.updated_at,
+      });
+    let items = (window.state?.watchlist || []).map((item) =>
+      item.id === film.id
+        ? {
+            ...item,
+            supabaseWatchlistPosition: data.position,
+            supabaseWatchlistUpdatedAt: data.updated_at,
+          }
+        : { ...item },
+    );
+    items.sort((a, b) => {
+      let left = a.supabaseWatchlistPosition;
+      let right = b.supabaseWatchlistPosition;
+      return !left
+        ? !right
+          ? 0
+          : 1
+        : !right
+          ? -1
+          : left < right
+            ? -1
+            : left > right
+              ? 1
+              : 0;
+    });
+    items.forEach((item, index) => {
+      item.order = item.supabaseWatchlistPosition ? index + 1 : null;
+    });
+    if (window.state) window.state.watchlist = items;
+    if (context.workspaceState?.watchlist) {
+      context.workspaceState.watchlist.sort((a, b) => {
+        if (!a.position) return b.position ? 1 : 0;
+        if (!b.position) return -1;
+        return a.position < b.position ? -1 : a.position > b.position ? 1 : 0;
+      });
+      context.workspaceState.watchlist.forEach((row, index) => {
+        if (Object.hasOwn(row, "order"))
+          row.order = row.position ? index + 1 : null;
+      });
+    }
+    window.invalidateCachedSupabaseHydrationSource?.();
+  };
+
+  /**
    * Sets the specified watchlist rows' tiers and optionally restores their saved positions.
    * @param {Object[]} rows Explicit row ids, tier/modifier pairs, versions, and optional positions.
    * @returns {Promise<void>} Resolves after the selected rows are saved.

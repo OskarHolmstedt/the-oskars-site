@@ -215,6 +215,12 @@
     let collectionAwardModel =
       window.supabaseCollectionBallotViewModel?.(savedCollectionBallot) ||
       window.collectionAwardViewModel?.("franchise", franchise.id);
+    let collectionTrophy = window.getCollectionTrophy
+      ? window.getCollectionTrophy("franchise", franchise.id, state)
+      : null;
+    let trophyBannerHtml = collectionTrophy
+      ? window.renderCollectionTrophyBanner(collectionTrophy)
+      : "";
     let finishRenderTimer = window.startOskarsPerformance?.("franchise:render");
     let parents = (
       franchise.parentIds?.length
@@ -378,6 +384,15 @@
 
     function franchiseFilmRow(entryRecord, index = 0) {
       let { entry, film } = entryRecord;
+      let filmTier = collectionTrophy
+        ? window.getCollectionFilmTier(
+            collectionTrophy,
+            film.supabaseFilmId || film.id,
+          )
+        : null;
+      let tierBadgeHtml = filmTier
+        ? window.renderCollectionTierBadge(filmTier)
+        : "";
       let childMemberships = (film.franchises || []).filter(
         (membership) =>
           membership.parentId === franchise.id ||
@@ -401,28 +416,49 @@
         },
         escape,
       );
+      let metaFragments = [];
+      if (context) metaFragments.push(`${escape(ui("via"))} ${context}`);
+      if (tierBadgeHtml) metaFragments.push(tierBadgeHtml);
       return `<tr${attributes}><td class="leaderboard-position">${franchiseFilmPosition(film)}</td>${window.renderFilmIdentityCell(
         film,
         {
           escape,
           year: true,
           allTimeRank: true,
-          metaFragments: context ? [`${escape(ui("via"))} ${context}`] : [],
+          metaFragments,
         },
       )}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape, assumeIndexed: true })}</td>${window.renderRatingTierCell({ film }, { escape })}${franchiseRewatchTierCell(film)}</tr>`;
     }
 
     function franchiseOtherRow({ film }) {
-      return `<tr><td><a class="period-link" href="${escape(`${window.periodPageUrl("year", film.year)}&view=other`)}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td><td>${escape(film.type || ui("Other"))}</td>${window.renderRatingTierCell({ film }, { escape })}${franchiseRewatchTierCell(film)}</tr>`;
+      let otherTier = collectionTrophy
+        ? window.getCollectionFilmTier(
+            collectionTrophy,
+            film.supabaseFilmId || film.id,
+          )
+        : null;
+      let otherBadge = otherTier
+        ? window.renderCollectionTierBadge(otherTier)
+        : "";
+      return `<tr><td><a class="period-link" href="${escape(`${window.periodPageUrl("year", film.year)}&view=other`)}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, metaFragments: otherBadge ? [otherBadge] : [] })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td><td>${escape(film.type || ui("Other"))}</td>${window.renderRatingTierCell({ film }, { escape })}${franchiseRewatchTierCell(film)}</tr>`;
     }
 
     function franchiseOtherCard({ film }) {
+      let otherTier = collectionTrophy
+        ? window.getCollectionFilmTier(
+            collectionTrophy,
+            film.supabaseFilmId || film.id,
+          )
+        : null;
+      let otherBadge = otherTier
+        ? window.renderCollectionTierBadge(otherTier)
+        : "";
       return window.renderSharedFilmCard(film, {
         classes: ["franchise-film-card", "other-watched-card"],
         showYear: true,
         directorHtml: window.renderLinkedDirectors(film, { escape }),
         escape,
-        bodyHtml: `<div class="leaderboard-meta">${escape(film.type || ui("Other"))}</div>`,
+        bodyHtml: `<div class="leaderboard-meta">${escape(film.type || ui("Other"))}${otherBadge ? ` ${otherBadge}` : ""}</div>`,
       });
     }
     let rows = filmEntries
@@ -430,6 +466,15 @@
       .join("");
     function filmCard(entryRecord, index = 0) {
       let { entry, film } = entryRecord;
+      let filmTier = collectionTrophy
+        ? window.getCollectionFilmTier(
+            collectionTrophy,
+            film.supabaseFilmId || film.id,
+          )
+        : null;
+      let tierBadgeHtml = filmTier
+        ? window.renderCollectionTierBadge(filmTier)
+        : "";
       let childMemberships = (film.franchises || []).filter(
         (membership) =>
           membership.parentId === franchise.id ||
@@ -438,6 +483,16 @@
       let context = entry.direct
         ? ""
         : childMemberships.map((membership) => membership.name).join(", ");
+      let cardMeta = [
+        context
+          ? `<div class="leaderboard-meta">${escape(ui("via"))} ${escape(context)}</div>`
+          : "",
+        tierBadgeHtml
+          ? `<div class="card-tier-meta">${tierBadgeHtml}</div>`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("");
       return window.renderSharedFilmCard(film, {
         classes: [
           "franchise-film-card",
@@ -457,9 +512,7 @@
         escape,
         titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(film.id))}">${escape(window.localizedFilmTitle?.(film) || film.title)}</a>`,
         director: film.director || (film.directors || []).join(", "),
-        bodyHtml: context
-          ? `<div class="leaderboard-meta">${escape(ui("via"))} ${escape(context)}</div>`
-          : "",
+        bodyHtml: cardMeta,
       });
     }
     let filmGrid = filmEntries
@@ -654,6 +707,7 @@
       { escape },
     )}
     ${window.renderDetailHeader({ classes: "franchise-detail-header", leadingHtml: representativePoster ? `<div class="franchise-detail-poster">${representativePoster}</div>` : "", mainHtml: `<h1>${escape(franchise.name)}</h1><p>${parentLinks ? `${escape(ui("Part of"))} ${parentLinks}` : escape(ui("Franchise"))}${sourceLinkHtml}</p>`, actionsHtml: `${window.renderSourceProjectAction("franchise", franchise.id, { escape })}${canEdit && completion.watchedCount ? `<a class="button-link" href="${escape(window.collectionBallotUrl("franchise", franchise.id))}">${escape(ui("Hold ceremony"))}</a>` : ""}` })}
+    ${trophyBannerHtml}
     ${window.renderCollectionViewController({ view: collectionPageView, overviewUrl: window.franchisePageUrl(franchise.id), awardsUrl: `${window.franchisePageUrl(franchise.id)}&collection-view=awards`, escape, ui })}
     <div data-collection-page-view="films" ${collectionPageView === "films" ? "" : "hidden"}>
     ${window.renderDetailStats({ itemsHtml: `<span><b>${completion.watchedCount}</b> ${escape(ui("Watched"))}</span>${completion.watchlistCount ? `<span><b>${completion.watchlistCount}</b> Watchlist</span>` : ""}<span><b>${completion.total}</b> ${escape(ui("Known"))}</span><span><b>${completion.percent}%</b> ${escape(ui("Complete"))}</span>${years.length ? `<span><b>${Math.min(...years)}–${Math.max(...years)}</b> ${escape(ui("Years"))}</span>` : ""}<span><b>${children.length}</b> ${escape(ui("Child franchises"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}

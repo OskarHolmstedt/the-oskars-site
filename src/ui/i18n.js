@@ -290,60 +290,237 @@
     "Not watched": { sv: "Inte sedd" },
     Trophies: { sv: "Troféer" },
     "Trophy cabinet": { sv: "Troféskåp" },
-    "Fixed collections from your viewing history.": {
-      sv: "Fasta samlingar från din visningshistorik.",
+    "Three-tier cinephile milestones: Essentialist, Completionist, and Sycophant.":
+      {
+        sv: "Cinefila milstolpar i tre nivåer: Essentialist, Completionist och Sykofant.",
+      },
+    "Collection Trophies": { sv: "Samlingstroféer" },
+    "Collection trophy progress": { sv: "Framsteg för samlingstroféer" },
+    "Trophy in progress": { sv: "Trofé påbörjad" },
+    "All collection trophies unlocked!": {
+      sv: "Alla samlingstroféer upplåsta!",
+    },
+    "Next milestone: {nextTier} ({watched} of {total} watched)": {
+      sv: "Nästa milstolpe: {nextTier} ({watched} av {total} sedda)",
+    },
+    "Aiming for {targetTier} ({watched} of {total} watched)": {
+      sv: "Siktar på {targetTier} ({watched} av {total} sedda)",
+    },
+    "Earned Collection Trophies": { sv: "Intjänade samlingstroféer" },
+    "Persona titles unlocked": { sv: "Personatitlar upplåsta" },
+    "Trophies earned": { sv: "Troféer intjänade" },
+    Essentialist: { sv: "Essentialist" },
+    Completionist: { sv: "Completionist" },
+    Sycophant: { sv: "Sykofant" },
+    Essential: { sv: "Essentiell" },
+    "Theatrical Canon": { sv: "Biokanon" },
+    "Expanded Canon": { sv: "Utökad kanon" },
+    "The Essentials · Curated artistic peak": {
+      sv: "De essentiella · Kurerad konstnärlig höjdpunkt",
+    },
+    "The Theatrical Canon · Official feature film": {
+      sv: "Biokanonen · Officiell långfilm",
+    },
+    "Expanded & Bonus Works · Peripheral catalog entry": {
+      sv: "Utökade verk & bonusmaterial · Perifert katalogbidrag",
+    },
+    "{personaName} Essentialist": { sv: "{personaName} Essentialist" },
+    "{personaName} Completionist": { sv: "{personaName} Completionist" },
+    "{personaName} Sycophant": { sv: "{personaName} Sykofant" },
+    "{count} landmark films": { sv: "{count} milstolpefilmer" },
+    "{count} theatrical feature films": { sv: "{count} biolångfilmer" },
+    "Complete catalog · {count} works": {
+      sv: "Hela katalogen · {count} verk",
+    },
+    "You mastered {personaName}'s defining masterpieces.": {
+      sv: "Du bemästrade de definierande mästerverken av {personaName}.",
+    },
+    "Unhinged completist devotion to {personaName}.": {
+      sv: "Gränslös kompletist-hängivenhet till {personaName}.",
+    },
+    "Experience the essential landmark films.": {
+      sv: "Upplev de essentiella milstolpefilmerna.",
+    },
+    "Watch all {count} official films in the theatrical canon.": {
+      sv: "Se samtliga {count} filmer i den officiella biokanonen.",
+    },
+    "Watch {count} curated landmarks.": {
+      sv: "Se {count} kurerade milstolpar.",
+    },
+    "Watch every cataloged work directed by {personaName}.": {
+      sv: "Se varje katalogiserat verk regisserat av {personaName}.",
+    },
+    "8-film franchise canon": { sv: "Franchisekanon med 8 filmer" },
+    "4 landmark films": { sv: "4 milstolpefilmer" },
+    "8 mainline theatrical films": { sv: "8 officiella biofilmer" },
+    "The entire expanded franchise": { sv: "Hela den utökade franchisen" },
+    "You mastered the essential landmarks.": {
+      sv: "Du bemästrade de essentiella milstolparna.",
+    },
+    "Experience the peak four impossible missions.": {
+      sv: "Upplev de fyra främsta omöjliga uppdragen.",
+    },
+    "Watch 4 curated landmarks: Mission: Impossible, Ghost Protocol, Rogue Nation, and Fallout.":
+      {
+        sv: "Se 4 kurerade milstolpar: Mission: Impossible, Ghost Protocol, Rogue Nation och Fallout.",
+      },
+    "You completed the full theatrical canon.": {
+      sv: "Du fullbordade hela biokanonen.",
+    },
+    "Your mission: watch the canonical films.": {
+      sv: "Ditt uppdrag: se de kanoniska filmerna.",
+    },
+    "Your mission: watch all eight mainline films.": {
+      sv: "Ditt uppdrag: se alla åtta biofilmerna.",
+    },
+    "13 theatrical features": { sv: "13 biolångfilmer" },
+    "4 theatrical feature films": { sv: "4 biolångfilmer" },
+    "Watch all 13 core features plus Homesdale and The Plumber.": {
+      sv: "Se alla 13 kärnfilmer plus Homesdale och The Plumber.",
+    },
+    "Watch the four features and complete Paranoia Agent. The series counts as one work when marked watched.":
+      {
+        sv: "Se de fyra långfilmerna och slutför Paranoia Agent. Serien räknas som ett verk när den är sedd.",
+      },
+    "Watch all 8 mainline theatrical films from the 1996 original to The Final Reckoning.":
+      {
+        sv: "Se alla 8 officiella biofilmer från originalet 1996 till The Final Reckoning.",
+      },
+    "Unhinged dedication to the entire franchise catalog.": {
+      sv: "Gränslös hängivenhet till hela franchisekatalogen.",
+    },
+    "Watch every mission, spin-off, and bonus work.": {
+      sv: "Se varje uppdrag, spin-off och bonusverk.",
+    },
+    "Watch every cataloged work associated with the franchise in the database.":
+      {
+        sv: "Se varje katalogiserat verk kopplat till franchisen i databasen.",
+      },
+    "Watch all official Mission: Impossible releases. Newly cataloged entries update qualification dynamically.":
+      {
+        sv: "Se alla officiella Mission: Impossible-släpp. Nyinlagda verk uppdaterar kvalificeringen dynamiskt.",
+      },
+    "6 landmark films": { sv: "6 milstolpefilmer" },
+    "You mastered Nolan's defining masterpieces.": {
+      sv: "Du bemästrade Nolans definierande mästerverk.",
+    },
+    "Six essential films from Memento to Oppenheimer.": {
+      sv: "Sex essentiella filmer från Memento till Oppenheimer.",
+    },
+    "Watch 6 landmark artistic peaks: Memento, The Prestige, The Dark Knight, Inception, Interstellar, and Oppenheimer.":
+      {
+        sv: "Se 6 konstnärliga milstolpar: Memento, The Prestige, The Dark Knight, Inception, Interstellar och Oppenheimer.",
+      },
+    "Every piece in place across the theatrical canon.": {
+      sv: "Varje bit på plats över hela biokanonen.",
+    },
+    "The complete theatrical canon from Following to The Odyssey.": {
+      sv: "Hela biokanonen från Following till The Odyssey.",
+    },
+    "Watch all 13 official narrative theatrical features from Following to The Odyssey.":
+      {
+        sv: "Se alla 13 officiella fiktionslångfilmer från Following till The Odyssey.",
+      },
+    "The complete expanded catalog": { sv: "Hela den utökade katalogen" },
+    "Unhinged completist devotion to Christopher Nolan.": {
+      sv: "Gränslös kompletist-hängivenhet till Christopher Nolan.",
+    },
+    "Watch all features and every expanded project.": {
+      sv: "Se alla långfilmer och varje utökat projekt.",
+    },
+    "Watch all 13 theatrical features and any expanded catalog projects.": {
+      sv: "Se alla 13 biolångfilmer och alla utökade katalogprojekt.",
+    },
+    "Watch directed features, including upcoming releases as they catalog. Shorts and producing-only credits are not required.":
+      {
+        sv: "Se regisserade långfilmer, inklusive kommande filmer allt eftersom de katalogiseras. Kortfilmer och producentkrediter krävs inte.",
+      },
+    "13 features · 15 complete works": {
+      sv: "13 långfilmer · 15 kompletta verk",
+    },
+    "You experienced Weir's towering classics.": {
+      sv: "Du upplevde Weirs odödliga klassiker.",
+    },
+    "Six essential films from Picnic at Hanging Rock to Master and Commander.":
+      {
+        sv: "Sex essentiella filmer från Picnic at Hanging Rock till Master and Commander.",
+      },
+    "Watch 6 curated landmarks: Picnic at Hanging Rock, Gallipoli, Witness, Dead Poets Society, The Truman Show, and Master and Commander.":
+      {
+        sv: "Se 6 kurerade milstolpar: Picnic at Hanging Rock, Gallipoli, Witness, Dead Poets Society, The Truman Show och Master and Commander.",
+      },
+    "You completed the full theatrical feature filmography.": {
+      sv: "Du fullbordade hela filmografin av biolångfilmer.",
+    },
+    "Watch all 13 theatrical features. Homesdale and The Plumber belong to the Sycophant tier.":
+      {
+        sv: "Se alla 13 biolångfilmer. Homesdale och The Plumber tillhör Sykofant-nivån.",
+      },
+    "Expanded archive · 15 feature-length works": {
+      sv: "Utökat arkiv · 15 långfilmsverk",
+    },
+    "The complete journey into every corner of Weir's career.": {
+      sv: "Den fullständiga resan in i varje hörn av Weirs karriär.",
+    },
+    "Watch all 13 theatrical features or go further with Homesdale and The Plumber for the Sycophant badge.":
+      {
+        sv: "Se alla 13 biolångfilmer eller gå vidare med Homesdale och The Plumber för Sykofant-märket.",
+      },
+    "3 landmark films": { sv: "3 milstolpefilmer" },
+    "You entered the surreal masterworks.": {
+      sv: "Du klev in i de surrealistiska mästerverken.",
+    },
+    "Three essential films: Perfect Blue, Millennium Actress, and Paprika.": {
+      sv: "Tre essentiella filmer: Perfect Blue, Millennium Actress och Paprika.",
+    },
+    "Watch 3 essential masterpieces: Perfect Blue, Millennium Actress, and Paprika.":
+      {
+        sv: "Se 3 essentiella mästerverk: Perfect Blue, Millennium Actress och Paprika.",
+      },
+    "The complete feature film canon.": {
+      sv: "Hela långfilmskanonen.",
+    },
+    "Watch all four features including Tokyo Godfathers.": {
+      sv: "Se alla fyra långfilmer inklusive Tokyo Godfathers.",
+    },
+    "Watch all four directed theatrical features: Perfect Blue, Millennium Actress, Tokyo Godfathers, and Paprika.":
+      {
+        sv: "Se alla fyra regisserade långfilmer: Perfect Blue, Millennium Actress, Tokyo Godfathers och Paprika.",
+      },
+    "You crossed entirely into the dream.": {
+      sv: "Du klev helt och hållet in i drömmen.",
+    },
+    "Four features and the complete Paranoia Agent series.": {
+      sv: "Fyra långfilmer och hela Paranoia Agent-serien.",
+    },
+    "Watch the four features and complete Paranoia Agent.": {
+      sv: "Se de fyra långfilmerna och slutför Paranoia Agent.",
     },
     "Trophy earned": { sv: "Trofé intjänad" },
     "You did the impossible.": { sv: "Du gjorde det omöjliga." },
-    "Your mission: watch all eight films.": {
-      sv: "Ditt uppdrag: se alla åtta filmer.",
-    },
     "{watched} of {total} watched": { sv: "{watched} av {total} sedda" },
     "View collection": { sv: "Visa samling" },
     "{earned} of {total} trophies earned": {
       sv: "{earned} av {total} troféer intjänade",
     },
-    "8-film collection": { sv: "Samling med 8 filmer" },
     "13 feature films": { sv: "13 långfilmer" },
-    "Bonus · 15 feature-length films": { sv: "Bonus · 15 långfilmer" },
     "4 feature films + 1 series": { sv: "4 långfilmer + 1 serie" },
     "TV series": { sv: "TV-serie" },
     "Every piece in place.": { sv: "Varje bit på plats." },
     "From Following to The Odyssey.": {
       sv: "Från Following till The Odyssey.",
     },
-    "Watch these 13 directed features, including The Odyssey. Shorts and producing-only credits are not required. Future films do not change this collection.":
-      {
-        sv: "Se dessa 13 långfilmer i Nolans regi, inklusive The Odyssey. Kortfilmer och filmer där han enbart är producent krävs inte. Framtida filmer ändrar inte samlingen.",
-      },
     "You took the long way home.": { sv: "Du tog den långa vägen hem." },
     "From The Cars That Ate Paris to The Way Back.": {
       sv: "Från The Cars That Ate Paris till The Way Back.",
     },
-    "Watch these 13 theatrical features. Homesdale and The Plumber belong to the separate bonus trophy and are not required here.":
-      {
-        sv: "Se dessa 13 biolångfilmer. Homesdale och The Plumber ingår i den separata bonustrofén och krävs inte här.",
-      },
-    "The complete journey.": { sv: "Hela resan." },
     "Go further with Homesdale and The Plumber.": {
       sv: "Fortsätt med Homesdale och The Plumber.",
     },
-    "Watch all 13 core features plus Homesdale and The Plumber. The bonus does not replace your 13-film trophy.":
-      {
-        sv: "Se alla 13 grundfilmer plus Homesdale och The Plumber. Bonusen ersätter inte din trofé för de 13 filmerna.",
-      },
     "You crossed into the dream.": { sv: "Du klev in i drömmen." },
     "Four features and Paranoia Agent.": {
       sv: "Fyra långfilmer och Paranoia Agent.",
     },
-    "Watch the four features and complete Paranoia Agent. The series counts as one work when marked watched in your archive; individual episodes are not tracked here.":
-      {
-        sv: "Se de fyra långfilmerna och hela Paranoia Agent. Serien räknas som ett verk när den är markerad som sedd i ditt arkiv; enskilda avsnitt spåras inte här.",
-      },
-    "This collection is fixed at eight films. Existing watches count; future releases do not change it.":
-      {
-        sv: "Den här samlingen består av åtta fasta filmer. Redan sedda filmer räknas; framtida filmer ändrar inte samlingen.",
-      },
     "Loading statistics…": { sv: "Laddar statistik…" },
     "Loading people…": { sv: "Laddar personer…" },
     "Loading directors…": { sv: "Laddar regissörer…" },

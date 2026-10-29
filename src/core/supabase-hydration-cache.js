@@ -495,6 +495,7 @@ window.OSKARS_HYDRATION_CACHE_INVALIDATING_MUTATIONS = [
   "reopenSupabaseAwardReview",
   "insertSupabasePersonalNomination",
   "deleteSupabasePersonalNomination",
+  "moveSupabasePersonalNomination",
   "updateSupabaseNominationDetail",
   "updateSupabaseNominationRecipients",
   "createSupabaseWatchlistWatchedIntake",

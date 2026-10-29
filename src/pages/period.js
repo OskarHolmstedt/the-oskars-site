@@ -2540,12 +2540,18 @@
           : window.watchlistTierKey(
               rewatchTierToggle.dataset.periodRewatchTierToggle,
             );
-      let selected = selectedRewatchTierSet();
-      if (selected.has(tier)) selected.delete(tier);
-      else selected.add(tier);
       let allValues = window.watchlistTierFilterValues();
-      let next = allValues.filter((value) => selected.has(value));
-      rewatchTierFilter = next.length === allValues.length ? null : next;
+      if (!allValues.includes(tier)) return;
+      if (rewatchTierFilter === null) {
+        rewatchTierFilter = [tier];
+      } else {
+        let selected = new Set(rewatchTierFilter);
+        if (selected.has(tier)) selected.delete(tier);
+        else selected.add(tier);
+        let next = allValues.filter((value) => selected.has(value));
+        rewatchTierFilter =
+          next.length === 0 || next.length === allValues.length ? null : next;
+      }
       filmPage = 1;
       updateViewUrl();
       render();
@@ -2799,10 +2805,6 @@
     },
     async toggleOrderEdit() {
       if (!canEdit) return;
-      // Entering order-edit mode needs the complete watchlist (drag-
-      // reorder moves operate on real items, not a compact page slice) -
-      // wait for a full hydration before turning it on at all, so
-      // moveItem/afterMove below are only ever reachable already hydrated.
       let next = !watchlistOrderEditMode;
       if (next) await ensureWatchlistFullyHydrated(false).catch(() => {});
       watchlistOrderEditMode = next && !watchlistCompactActive;
@@ -2827,13 +2829,17 @@
     toggleTierFilter(rawValue) {
       let tier = rawValue === "unset" ? "" : window.watchlistTierKey(rawValue);
       let allValues = window.watchlistTierFilterValues();
-      let selected = new Set(
-        watchlistTierFilter === null ? allValues : watchlistTierFilter,
-      );
-      if (selected.has(tier)) selected.delete(tier);
-      else selected.add(tier);
-      let next = allValues.filter((value) => selected.has(value));
-      watchlistTierFilter = next.length === allValues.length ? null : next;
+      if (!allValues.includes(tier)) return;
+      if (watchlistTierFilter === null) {
+        watchlistTierFilter = [tier];
+      } else {
+        let selected = new Set(watchlistTierFilter);
+        if (selected.has(tier)) selected.delete(tier);
+        else selected.add(tier);
+        let next = allValues.filter((value) => selected.has(value));
+        watchlistTierFilter =
+          next.length === 0 || next.length === allValues.length ? null : next;
+      }
       filmPage = 1;
       updateViewUrl();
       render();

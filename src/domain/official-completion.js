@@ -159,11 +159,19 @@
       ]),
     );
     return titles.map((title, index) => {
-      /** @type {{tmdbId?: string|number, filmRef?: {id: string, title: string, year: string}}} */
+      /** @type {{tmdbId?: string|number, filmRef?: {id: string, title: string, year: string}, filmId?: string, filmYear?: string|number, sourceTitle?: string}} */
       let link = index === 0 ? nomination : extras.get(index + 1) || {};
       let film = { title };
       if (link.tmdbId) film.tmdbId = String(link.tmdbId);
-      if (link.filmRef) film.filmRef = link.filmRef;
+      if (link.filmRef) {
+        film.filmRef = link.filmRef;
+      } else if (link.filmId) {
+        film.filmRef = {
+          id: link.filmId,
+          title: link.sourceTitle || title,
+          year: link.filmYear != null ? String(link.filmYear) : "",
+        };
+      }
       return film;
     });
   };
@@ -311,6 +319,9 @@
           film.tmdbId ||= entry.tmdbId || "";
           if (entry.filmRef?.id && !film.filmRefId)
             film.filmRefId = entry.filmRef.id;
+          if (entry.filmRef?.year && !film.filmRefYear)
+            film.filmRefYear = String(entry.filmRef.year);
+          if (entry.filmRef && !film.filmRef) film.filmRef = entry.filmRef;
           if (
             nomination.category &&
             !film.categories.includes(nomination.category)
@@ -538,6 +549,9 @@
       );
       let periodYears = window.officialResultPeriodYears(film.periodKey);
       if (!year && periodYears.length === 1) year = periodYears[0];
+      if (!year && film.filmRefYear && periodYears.includes(film.filmRefYear)) {
+        year = film.filmRefYear;
+      }
       if (!/^\d{4}$/.test(year)) return;
       let key = window.normalizeTitle(film.title);
       let years = evidenceByTitle.get(key) || new Set();
@@ -580,10 +594,15 @@
       let periodYears = window.officialResultPeriodYears(film.periodKey);
       let year = periodYears.length === 1 ? periodYears[0] : "";
       if (!year && periodYears.length > 1) {
-        let evidence = [
-          ...(evidenceByTitle.get(window.normalizeTitle(film.title)) || []),
-        ].filter((value) => periodYears.includes(value));
-        if (evidence.length === 1) year = evidence[0];
+        let catalogYear = String(film.filmRefYear || film.filmRef?.year || "");
+        if (catalogYear && periodYears.includes(catalogYear)) {
+          year = catalogYear;
+        } else {
+          let evidence = [
+            ...(evidenceByTitle.get(window.normalizeTitle(film.title)) || []),
+          ].filter((value) => periodYears.includes(value));
+          if (evidence.length === 1) year = evidence[0];
+        }
       }
       if (!year) {
         needsReview.set(film.id, {

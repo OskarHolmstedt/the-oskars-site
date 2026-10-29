@@ -72,12 +72,66 @@ window.withRetry = async function (operation, options = {}) {
 };
 
 /**
+ * Builds a period- or year-ranking URL.
+ * @param {string} [type] Period type: 'years'|'decades'|'centuries'|'allTime' (or singular).
+ * @param {string|number} [key] Period key.
+ * @param {string} [category] Category: 'watched' or 'watchlist'.
+ * @param {string} [tier] Optional exact tier filter for watchlist.
+ * @returns {string} Relative ranking URL.
+ */
+window.periodRankingPageUrl = function (
+  type = "year",
+  key = "",
+  category = "watched",
+  tier = "",
+) {
+  let pageType = window.periodPageType?.(type) || type;
+  let base;
+  if (pageType === "alltime") {
+    base = "rank-year.html?type=alltime";
+  } else if (pageType === "year") {
+    base = `rank-year.html?year=${encodeURIComponent(String(key ?? ""))}`;
+  } else {
+    base = `rank-year.html?type=${encodeURIComponent(pageType)}&key=${encodeURIComponent(String(key ?? ""))}`;
+  }
+  if (category && category !== "watched") {
+    base += `&category=${encodeURIComponent(category)}`;
+  }
+  if (tier) {
+    base += `&tier=${encodeURIComponent(tier)}`;
+  }
+  return base;
+};
+
+/**
  * Builds the dedicated year-ranking workflow URL.
  * @param {string|number} year Release year.
+ * @param {string} [category] Category: 'watched' or 'watchlist'.
+ * @param {string} [tier] Optional exact tier filter for watchlist.
  * @returns {string} Relative year-ranking URL.
  */
-window.yearRankingPageUrl = function (year) {
-  return `rank-year.html?year=${encodeURIComponent(String(year || ""))}`;
+window.yearRankingPageUrl = function (year, category = "watched", tier = "") {
+  let str = String(year ?? "").trim();
+  if (str.toLowerCase() === "alltime") {
+    return window.periodRankingPageUrl("alltime", "alltime", category, tier);
+  }
+  if (/^\d{4}s$/.test(str)) {
+    return window.periodRankingPageUrl("decade", str, category, tier);
+  }
+  if (/^\d{1,2}C$/i.test(str)) {
+    return window.periodRankingPageUrl("century", str, category, tier);
+  }
+  return window.periodRankingPageUrl("year", str, category, tier);
+};
+
+/**
+ * Builds a link to the watchlist year editor, optionally opening an exact tier.
+ * @param {number|string} year
+ * @param {string} [tier]
+ * @returns {string}
+ */
+window.watchlistYearOrderUrl = function (year, tier = "") {
+  return window.yearRankingPageUrl(year, "watchlist", tier);
 };
 
 /**

@@ -10,7 +10,8 @@
  * URLs: `?year=N` (the default grouping), or `?collection=director|franchise`
  * with an optional `&id=` (a people.id or normalized franchise name, the
  * same parameters as the awards-year.html collection builder). Director and
- * franchise membership is read once, on the first non-year view.
+ * franchise membership is read once, on the first non-year view. Directors
+ * with a single open film share the `&id=various` group.
  */
 (function () {
   const KINDS = [
@@ -21,6 +22,9 @@
   const KIND_PLURALS = {
     director: "directors",
     franchise: "franchises",
+  };
+  const POOLS = {
+    director: { id: "various", name: "Various directors" },
   };
 
   /**
@@ -73,17 +77,51 @@
       return "";
     }
 
-    function openRows(group) {
-      return group.rows.filter((row) => !config.isDone(row));
+    function isOpen(row) {
+      return !config.isDone(row);
     }
 
-    function filmMeta(film, kind) {
-      return [kind === "year" ? "" : film.year, film.medium, film.type]
+    function openRows(group) {
+      return group.rows.filter(isOpen);
+    }
+
+    // Directors list only those with two or more open films; the rest pool
+    // into "Various directors". A one-film franchise offers nothing to
+    // compare against; its film is still reachable by year, or by linking
+    // to it directly.
+    function listGroups(rows, kind, keepId) {
+      let groups = window.groupSupabaseQueueRows(rows, kind, membership);
+      if (kind === "year") return groups;
+      if (POOLS[kind])
+        return window.listSupabaseQueueCollections(
+          groups,
+          isOpen,
+          POOLS[kind],
+          keepId,
+        );
+      return groups.filter(
+        (group) => group.rows.length >= 2 || group.id === keepId,
+      );
+    }
+
+    function filmMeta(row, kind, pooled) {
+      let film = row.films;
+      let collections = pooled
+        ? (membership?.get(row.film_id)?.[kind] || [])
+            .map((collection) => collection.name)
+            .join(", ")
+        : "";
+      return [
+        collections,
+        kind === "year" ? "" : film.year,
+        film.medium,
+        film.type,
+      ]
         .filter(Boolean)
         .join(" · ");
     }
 
-    function renderCard(row, kind) {
+    function renderCard(row, kind, pooled) {
       let film = row.films;
       // Reuses the same sized, aspect-ratio-constrained poster component every
       // browse grid already uses (film-poster--card) instead of a bare <img>
@@ -100,7 +138,7 @@
       ${poster}
       <div class="queue-identity">
         <h3>${escape(film.title)}</h3>
-        <p>${escape(filmMeta(film, kind))}</p>
+        <p>${escape(filmMeta(row, kind, pooled))}</p>
       </div>
       <div class="queue-input-row">
         ${config.renderInput(row)}
@@ -211,22 +249,17 @@
         return;
       }
 
-      let groups = window.groupSupabaseQueueRows(rows, view.kind, membership);
-      // A one-film director or franchise offers nothing to compare against;
-      // its film is still reachable by year, or by linking to it directly.
-      let listed =
-        view.kind === "year"
-          ? groups
-          : groups.filter(
-              (group) => group.rows.length >= 2 || group.id === view.id,
-            );
+      let listed = listGroups(rows, view.kind, view.id);
       let group =
         listed.find((candidate) => candidate.id === view.id) ||
         listed.find((candidate) => openRows(candidate).length) ||
         listed[0];
 
       if (!group) {
-        container.innerHTML = `${header()}${progressHtml(doneCount, rows.length)}${toolbarHtml(view.kind, listed, null)}<section class="detail-empty"><h2>No ${escape(KIND_PLURALS[view.kind])} with two or more of these films</h2></section>`;
+        let wanted = POOLS[view.kind]
+          ? `${config.words.open} films`
+          : "two or more of these films";
+        container.innerHTML = `${header()}${progressHtml(doneCount, rows.length)}${toolbarHtml(view.kind, listed, null)}<section class="detail-empty"><h2>No ${escape(KIND_PLURALS[view.kind])} with ${escape(wanted)}</h2></section>`;
         active = null;
         finish?.(`${openCount} open, no ${view.kind} groups`);
         return;
@@ -238,13 +271,13 @@
         .sort(
           (left, right) => config.doneScore(right) - config.doneScore(left),
         );
-      let href = collectionUrl(view.kind, group.id);
+      let href = group.pooled ? "" : collectionUrl(view.kind, group.id);
       let nameHtml = href
         ? `<a class="queue-collection-link" href="${escape(href)}">${escape(group.name)}</a>`
         : escape(group.name);
 
       let openBody = queue.length
-        ? `<section><h2>${nameHtml} · <span data-queue-open-count>${escape(queue.length)}</span> ${escape(config.words.open)}</h2><div class="queue-grid">${queue.map((row) => renderCard(row, view.kind)).join("")}</div></section>`
+        ? `<section><h2>${nameHtml} · <span data-queue-open-count>${escape(queue.length)}</span> ${escape(config.words.open)}</h2><div class="queue-grid">${queue.map((row) => renderCard(row, view.kind, group.pooled)).join("")}</div></section>`
         : `<section class="detail-empty"><h2>${nameHtml} is fully ${escape(config.words.done)}</h2></section>`;
       let doneBody = done.length
         ? `<section class="queue-done-section"><h2>${nameHtml} · ${escape(config.words.doneHeading)}</h2><ol class="queue-done-list">${done.map((row) => renderDoneEntry(row, view.kind)).join("")}</ol></section>`
@@ -282,19 +315,20 @@
     // top on every single save). Falls back to a full render() once the
     // current group's queue actually empties, or the done list doesn't
     // exist in the DOM yet (its first entry is a real layout change
-    // render() already knows how to draw).
+    // render() already knows how to draw). A pooled group never lists
+    // finished films.
     function removeDoneCard(form, updatedRow) {
       let rows = window.supabaseQueueRows(config.part);
       let openCount = rows.filter((row) => !config.isDone(row)).length;
       let group = active
-        ? window
-            .groupSupabaseQueueRows(rows, active.kind, membership)
-            .find((candidate) => candidate.id === active.id)
+        ? listGroups(rows, active.kind, active.id).find(
+            (candidate) => candidate.id === active.id,
+          )
         : null;
       let queue = group ? openRows(group) : [];
       let doneList = container.querySelector(".queue-done-list");
 
-      if (!queue.length || !doneList) {
+      if (!queue.length || (!doneList && !group.pooled)) {
         render();
         return;
       }
@@ -315,7 +349,7 @@
       ).find((candidate) => candidate.value === active.id);
       if (option) option.textContent = `${group.name} · ${queue.length}`;
 
-      if (updatedRow) insertDoneEntry(doneList, updatedRow);
+      if (updatedRow && doneList) insertDoneEntry(doneList, updatedRow);
     }
 
     function navigate(url) {

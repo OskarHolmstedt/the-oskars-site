@@ -2,8 +2,10 @@
 
 window.OSKARS_LOCAL_CONFIG = {
   // Enables local catalog ingestion, metadata repair, and duplicate merges.
-  // Account and catalog-owner checks still apply.
   ownerDataTools: true,
+  // Optional Supabase Service Role key for standalone data-tools.html.
+  // Bypasses user sign-in and Row Level Security for direct catalog administration.
+  // supabaseServiceRoleKey: "your-supabase-service-role-key",
   googleClientId: "your-google-oauth-client-id.apps.googleusercontent.com",
   googleSheets: {
     spreadsheetId: "your-private-google-sheet-id",

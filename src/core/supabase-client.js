@@ -37,7 +37,11 @@ function reportSupabaseError(err) {
 window.oskarsSupabaseConfigured = function () {
   return Boolean(
     window.OSKARS_SUPABASE_CONFIG?.url &&
-    window.OSKARS_SUPABASE_CONFIG?.anonKey,
+    (window.OSKARS_SUPABASE_CONFIG?.anonKey ||
+      window.OSKARS_LOCAL_CONFIG?.supabaseServiceRoleKey ||
+      window.OSKARS_LOCAL_CONFIG?.serviceRoleKey ||
+      (typeof localStorage !== "undefined" &&
+        localStorage.getItem("oskars-data-tools-service-role-key"))),
   );
 };
 
@@ -100,34 +104,68 @@ function supabaseResilientFetch(url, options) {
  * Returns the shared Supabase client instance, initializing it if
  * needed. Account operations share this instance so session storage and
  * token refresh have one owner; published profiles use a separate anonymous client.
+ * @param {Object} [options] Optional configuration overrides.
+ * @param {string} [options.serviceRoleKey] Optional service role key for admin workflows.
+ * @param {string} [options.key] Alternative API key override.
+ * @param {boolean} [options.forceNew] Whether to re-create the client instance.
  * @returns {Promise<{module: Object, client: Object}|null>} Null when unconfigured.
  */
-window.ensureSupabaseClient = async function () {
+window.ensureSupabaseClient = async function (options) {
   if (!window.oskarsSupabaseConfigured()) return null;
   let module = await loadSupabaseModule();
-  if (!supabaseClientInstance) {
+  let serviceRoleKey =
+    options?.serviceRoleKey ||
+    options?.key ||
+    (window.__oskarsDataToolsStandalone
+      ? window.OSKARS_LOCAL_CONFIG?.supabaseServiceRoleKey ||
+        window.OSKARS_LOCAL_CONFIG?.serviceRoleKey ||
+        (typeof localStorage !== "undefined"
+          ? localStorage.getItem("oskars-data-tools-service-role-key")
+          : null)
+      : null);
+
+  let key = serviceRoleKey || window.OSKARS_SUPABASE_CONFIG.anonKey;
+  let isServiceRole = Boolean(serviceRoleKey && key === serviceRoleKey);
+
+  if (!supabaseClientInstance || options?.forceNew) {
     supabaseClientInstance = module.createClient(
       window.OSKARS_SUPABASE_CONFIG.url,
-      window.OSKARS_SUPABASE_CONFIG.anonKey,
+      key,
       {
         global: {
           fetch: supabaseResilientFetch,
         },
+        auth: {
+          persistSession: !isServiceRole,
+          autoRefreshToken: !isServiceRole,
+          detectSessionInUrl: !isServiceRole,
+        },
       },
     );
-    // Whatever resolveSupabaseAuthState() last resolved may no longer be
-    // current the moment a real auth event fires - reset its cache so a
-    // later call re-resolves instead of returning a stale answer forever
-    // (found: nothing reset it at all, so a "signed-out" resolved before
-    // sign-in completed would stick for the rest of the page's life).
-    // Set up once here, rather than inside the public
-    // onSupabaseAuthChange() below (which creates a new listener per
-    // caller), so this holds even when nothing ever subscribes.
-    supabaseClientInstance.auth.onAuthStateChange(() => {
-      supabaseAuthResolutionPromise = null;
-    });
+    if (!isServiceRole) {
+      // Whatever resolveSupabaseAuthState() last resolved may no longer be
+      // current the moment a real auth event fires - reset its cache so a
+      // later call re-resolves instead of returning a stale answer forever
+      // (found: nothing reset it at all, so a "signed-out" resolved before
+      // sign-in completed would stick for the rest of the page's life).
+      // Set up once here, rather than inside the public
+      // onSupabaseAuthChange() below (which creates a new listener per
+      // caller), so this holds even when nothing ever subscribes.
+      supabaseClientInstance.auth.onAuthStateChange(() => {
+        supabaseAuthResolutionPromise = null;
+      });
+    }
   }
   return { module, client: supabaseClientInstance };
+};
+
+/**
+ * Resets the shared Supabase client instance and auth cache.
+ * @returns {void}
+ */
+window.resetSupabaseClient = function () {
+  supabaseClientInstance = null;
+  supabaseAuthResolutionPromise = null;
 };
 
 /**

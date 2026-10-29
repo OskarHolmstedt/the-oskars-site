@@ -901,6 +901,11 @@
     }
   }
 
+  let moveChain = Promise.resolve();
+  let pendingMoveCount = 0;
+  let pendingMoveCategories = new Set();
+  let moveAborted = false;
+
   async function moveNominee(category, filmId, fromPlacement, toPlacement) {
     if (!canEdit || fromPlacement === toPlacement) return;
     let from = Number(fromPlacement);
@@ -908,7 +913,7 @@
     let previousProgress = progress;
 
     // Optimistic update
-    if (!isCollection && window.withAnnualBallotNominationMove) {
+    if (window.withAnnualBallotNominationMove) {
       progress = window.withAnnualBallotNominationMove(
         progress,
         category,
@@ -919,34 +924,60 @@
     }
     renderTargeted([category]);
 
-    let movePersisted = false;
-    try {
-      if (isCollection)
-        await window.changeSupabaseCollectionBallot(collectionSession, {
-          type: "move",
-          category,
-          filmId,
-          placement: from,
-          toPlacement: to,
-        });
-      else
-        await window.moveSupabasePersonalNomination(
-          personalAwardId,
-          category,
-          from,
-          to,
-          filmId,
-        );
-      movePersisted = true;
-      await refreshProgress();
-      renderTargeted([category]);
-    } catch (error) {
-      if (!movePersisted) {
-        progress = previousProgress;
-        renderTargeted([category]);
-      }
-      alert(error.message || String(error));
-    }
+    pendingMoveCount++;
+    pendingMoveCategories.add(category);
+
+    moveChain = moveChain
+      .then(async () => {
+        if (moveAborted) return;
+        let movePersisted = false;
+        try {
+          if (isCollection) {
+            await window.changeSupabaseCollectionBallot(collectionSession, {
+              type: "move",
+              category,
+              filmId,
+              placement: from,
+              toPlacement: to,
+            });
+          } else {
+            await window.moveSupabasePersonalNomination(
+              personalAwardId,
+              category,
+              from,
+              to,
+              filmId,
+            );
+            let categoryEntry = previousProgress?.categories?.find(
+              (candidate) => candidate.category === category,
+            );
+            if (categoryEntry?.reviewed) {
+              await window.reopenSupabaseAwardReview(year, category);
+            }
+          }
+          movePersisted = true;
+          if (pendingMoveCount === 1) {
+            let categoriesToRefresh = Array.from(pendingMoveCategories);
+            pendingMoveCategories.clear();
+            await refreshProgress();
+            renderTargeted(categoriesToRefresh);
+          }
+        } catch (error) {
+          moveAborted = true;
+          pendingMoveCategories.clear();
+          if (!movePersisted) {
+            progress = previousProgress;
+            renderTargeted([category]);
+          }
+          alert(error.message || String(error));
+        }
+      })
+      .finally(() => {
+        pendingMoveCount--;
+        if (pendingMoveCount === 0) {
+          moveAborted = false;
+        }
+      });
   }
 
   async function changeGlobalExclusions(filmId) {
@@ -1470,12 +1501,17 @@
     if (!card) return;
     draggedFilmId = card.dataset.setupAwardFilm;
     event.dataTransfer.effectAllowed = "move";
+    if (event.dataTransfer) {
+      try {
+        event.dataTransfer.setData("text/plain", draggedFilmId);
+      } catch (_) {}
+    }
     card.classList.add("dragging");
   });
-  container.addEventListener("dragend", (event) => {
-    event.target
-      .closest("[data-setup-award-film]")
-      ?.classList.remove("dragging");
+  container.addEventListener("dragend", () => {
+    container
+      .querySelectorAll?.(".dragging, .drop-target")
+      ?.forEach((el) => el.classList.remove("dragging", "drop-target"));
     draggedFilmId = null;
   });
   container.addEventListener("dragover", (event) => {
@@ -1495,9 +1531,13 @@
   container.addEventListener("drop", (event) => {
     if (!canEdit || !draggedFilmId) return;
     let target = event.target.closest("[data-setup-award-target]");
+    let currentFilmId = draggedFilmId;
+    draggedFilmId = null;
+    container
+      .querySelectorAll?.(".dragging, .drop-target")
+      ?.forEach((el) => el.classList.remove("dragging", "drop-target"));
     if (!target) return;
     event.preventDefault();
-    target.classList.remove("drop-target");
     let category = target.closest("[data-setup-award-board]")?.dataset
       .setupAwardBoard;
     if (!category) return;
@@ -1506,28 +1546,28 @@
       (candidate) => candidate.category === category,
     );
     let existing = entry?.nominations.find(
-      (nomination) => nomination.film_id === draggedFilmId,
+      (nomination) => nomination.film_id === currentFilmId,
     );
     if (existing) {
       moveNominee(
         category,
-        draggedFilmId,
+        currentFilmId,
         Number(existing.placement),
         toPlacement,
       );
     } else {
-      let key = `${category}\n${draggedFilmId}`;
+      let key = `${category}\n${currentFilmId}`;
       if (inFlightNominees.size > 0 || inFlightNominees.has(key)) return;
       inFlightNominees.add(key);
       let card = container.querySelector?.(
-        `[data-setup-award-add="${typeof CSS !== "undefined" && CSS.escape ? CSS.escape(category) : category}"][data-setup-award-film="${typeof CSS !== "undefined" && CSS.escape ? CSS.escape(draggedFilmId) : draggedFilmId}"]`,
+        `[data-setup-award-add="${typeof CSS !== "undefined" && CSS.escape ? CSS.escape(category) : category}"][data-setup-award-film="${typeof CSS !== "undefined" && CSS.escape ? CSS.escape(currentFilmId) : currentFilmId}"]`,
       );
       if (card) {
         card.classList?.add("is-pending");
         card.setAttribute?.("aria-busy", "true");
         card.setAttribute?.("tabindex", "-1");
       }
-      beginNominee(category, draggedFilmId, toPlacement);
+      beginNominee(category, currentFilmId, toPlacement);
     }
   });
 

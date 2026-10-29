@@ -99,11 +99,11 @@
     return decades;
   };
 
-  /** Renders the exact year/decade/century navigation matrix. @param {{compact?: boolean}} [options] Presentation options. @returns {string} Matrix HTML. */
+  /** Renders the exact year/decade/century navigation matrix. @param {{compact?: boolean, years?: string[], decades?: string[], allTimeUrl?: string, centuryUrl?: (century: string) => string, decadeUrl?: (decade: string) => string, yearUrl?: (year: string) => string, yearClass?: (year: string) => string, yearAttrs?: (year: string) => string, yearContent?: (year: string) => string, classes?: string}} [options] Presentation options. @returns {string} Matrix HTML. */
   window.renderPeriodIndexMatrix = function (options = {}) {
     let escape = escapeHtml;
-    let years = window.periodIndexYears();
-    let decades = window.periodIndexDecades(years);
+    let years = options.years || window.periodIndexYears();
+    let decades = options.decades || window.periodIndexDecades(years);
     let digitHeaders = Array.from(
       { length: 10 },
       (_, digit) => `<th scope="col">${digit}</th>`,
@@ -113,23 +113,50 @@
       .map((decade) => {
         let start = Number(decade.replace(/\D/g, ""));
         let century = `${Math.floor(start / 100) * 100}s`;
+        let allTimeUrl =
+          options.allTimeUrl || window.periodPageUrl("alltime", "alltime");
         let allTimeCell =
           previousCentury === ""
-            ? `<th class="period-alltime-cell" scope="rowgroup"><a href="${escape(window.periodPageUrl("alltime", "alltime"))}">${escape(ui("All-time"))}</a></th>`
+            ? `<th class="period-alltime-cell" scope="rowgroup"><a href="${escape(allTimeUrl)}">${escape(ui("All-time"))}</a></th>`
             : '<td class="period-alltime-gap" aria-hidden="true"></td>';
+        let centuryUrl = options.centuryUrl
+          ? options.centuryUrl(century)
+          : window.periodPageUrl("century", century);
         let centuryCell =
           century !== previousCentury
-            ? `<th class="period-century-cell" scope="rowgroup"><a href="${escape(window.periodPageUrl("century", century))}">${escape(century)}</a></th>`
+            ? `<th class="period-century-cell" scope="rowgroup"><a href="${escape(centuryUrl)}">${escape(century)}</a></th>`
             : '<td class="period-century-gap" aria-hidden="true"></td>';
         previousCentury = century;
+        let decadeUrl = options.decadeUrl
+          ? options.decadeUrl(decade)
+          : window.periodPageUrl("decade", decade);
         let yearCells = Array.from({ length: 10 }, (_, digit) => {
           let year = String(start + digit);
-          return `<td><a href="${escape(window.periodPageUrl("year", year))}">${escape(year)}</a></td>`;
+          let href = options.yearUrl
+            ? options.yearUrl(year)
+            : window.periodPageUrl("year", year);
+          let cellClass = options.yearClass
+            ? ` class="${escape(options.yearClass(year))}"`
+            : "";
+          let cellAttrs = options.yearAttrs
+            ? ` ${options.yearAttrs(year)}`
+            : "";
+          let content = options.yearContent
+            ? options.yearContent(year)
+            : escape(year);
+          return `<td><a href="${escape(href)}"${cellClass}${cellAttrs}>${content}</a></td>`;
         }).join("");
-        return `<tr>${allTimeCell}${centuryCell}<th scope="row"><a href="${escape(window.periodPageUrl("decade", decade))}">${escape(decade)}</a></th>${yearCells}</tr>`;
+        return `<tr>${allTimeCell}${centuryCell}<th scope="row"><a href="${escape(decadeUrl)}">${escape(decade)}</a></th>${yearCells}</tr>`;
       })
       .join("");
-    return `<div class="period-year-grid-wrap${options.compact ? " period-year-grid-wrap--compact" : ""}"><table class="period-year-grid"><thead><tr><th scope="col">${escape(ui("All-time"))}</th><th scope="col">${escape(ui("Century"))}</th><th scope="col">${escape(ui("Decade"))}</th>${digitHeaders}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    let classes = [
+      "period-year-grid-wrap",
+      options.compact ? "period-year-grid-wrap--compact" : "",
+      options.classes || "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    return `<div class="${escape(classes)}"><table class="period-year-grid"><thead><tr><th scope="col">${escape(ui("All-time"))}</th><th scope="col">${escape(ui("Century"))}</th><th scope="col">${escape(ui("Decade"))}</th>${digitHeaders}</tr></thead><tbody>${rows}</tbody></table></div>`;
   };
 
   /** Renders the canonical category board with compact-preview or visual-card treatment. @param {{compact?: boolean, visual?: boolean, posterFilmsForCategory?: (category: string) => FilmRecord[]}} [options] Presentation options. @returns {string} Category board HTML. */

@@ -4,7 +4,8 @@
  * release years, director filmographies or franchises. Director and
  * franchise membership comes from loadSupabaseQueueMembership()'s rows; a
  * franchise includes its sub-franchises' films, as the Build hub's
- * collection ceremonies do.
+ * collection ceremonies do. Collections with a single open row can be
+ * pooled into one trailing group.
  *
  * No DOM, no Supabase SDK import - directly Node-testable.
  */
@@ -116,4 +117,38 @@ window.groupSupabaseQueueRows = function (rows, kind, membership) {
           right.rows.length - left.rows.length ||
           left.name.localeCompare(right.name),
       );
+};
+
+/**
+ * Lists the collection groups worth working through one at a time: those
+ * with two or more open rows, in their given order, followed by a pool
+ * group of the remaining open rows whose collections each hold only one.
+ * A row covered by a listed group stays out of the pool, and the pool holds
+ * open rows only. The group named by keepId stays listed whatever it holds,
+ * so the group being worked through never drops out from under the page;
+ * naming the pool keeps it even when empty.
+ * @param {{id: string, name: string, rows: Object[]}[]} groups groupSupabaseQueueRows() director or franchise groups.
+ * @param {(row: Object) => boolean} isOpen Whether a row still needs setting.
+ * @param {{id: string, name: string}} pool The pool group's id and name.
+ * @param {string} [keepId] Group id to list regardless of its open rows.
+ * @returns {{id: string, name: string, rows: Object[], pooled?: boolean}[]} Listed groups, the pool last and flagged `pooled`.
+ */
+window.listSupabaseQueueCollections = function (groups, isOpen, pool, keepId) {
+  /** @type {{id: string, name: string, rows: Object[], pooled?: boolean}[]} */
+  let listed = groups.filter(
+    (group) => group.id === keepId || group.rows.filter(isOpen).length >= 2,
+  );
+  let covered = new Set(listed.flatMap((group) => group.rows));
+  let pooled = new Set();
+  for (let group of groups)
+    for (let row of group.rows)
+      if (isOpen(row) && !covered.has(row)) pooled.add(row);
+  if (pooled.size || pool.id === keepId)
+    listed.push({
+      id: pool.id,
+      name: pool.name,
+      rows: [...pooled].sort(compareYearTitle),
+      pooled: true,
+    });
+  return listed;
 };

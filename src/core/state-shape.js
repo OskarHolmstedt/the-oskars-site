@@ -615,6 +615,10 @@
  * @property {'archive'|'watched'|''} watchedType Resolved watched store.
  * @property {WatchlistItem|null} watchlistItem Resolved current watchlist item.
  * @property {string} href Best current film or official-period URL.
+ * @property {string} [tmdbId] Resolved TMDB movie id.
+ * @property {string} [filmRefId] Linked catalog film id.
+ * @property {string} [filmRefYear] Linked catalog release year.
+ * @property {{id: string, title: string, year: string}|null} [filmRef] Linked catalog film reference.
  */
 
 /**
@@ -1687,20 +1691,204 @@ window.canonicalDataRevision = function (canonical) {
  * @property {string} kind Optional display label, or an empty string for films.
  * @property {boolean} watched Whether the active archive marks this work watched.
  */
+
 /**
- * A curated fixed collection with qualification derived from watched records.
+ * One curated collection tier: Essentialist, Completionist, or Sycophant.
+ * @typedef {'essentialist'|'completionist'|'sycophant'} TrophyTierKey
+ */
+
+/**
+ * Progression status and requirements for one tier of a collection trophy.
+ * @typedef {Object} CollectionTierProgress
+ * @property {TrophyTierKey} tier Tier key.
+ * @property {string} title Tier title ('Essentialist', 'Completionist', or 'Sycophant').
+ * @property {string} personaTitle Persona milestone title (e.g. 'Nolan Essentialist').
+ * @property {string} badge Ornamental badge emoji ('🥉', '🥈', or '🥇').
+ * @property {number} level Progression level (1 for essentialist, 2 for completionist, 3 for sycophant).
+ * @property {string} scope Localizable scope description.
+ * @property {string} criteria Localizable qualification criteria.
+ * @property {string} celebration Localizable earned caption.
+ * @property {string} invitation Localizable invitation caption.
+ * @property {TrophyWorkProgress[]} films All cumulative works required for this tier.
+ * @property {TrophyWorkProgress[]} tierOnlyFilms Works belonging specifically to this tier increment.
+ * @property {number} watchedCount Number of required works watched.
+ * @property {number} total Total required works.
+ * @property {boolean} earned Whether this tier is fully qualified.
+ */
+
+/**
+ * An earned persona title unlocked by achieving a trophy tier milestone.
+ * @typedef {Object} EarnedPersonaTitle
+ * @property {string} collectionId Unique collection identifier.
+ * @property {string} collectionTitle Collection display title.
+ * @property {'person'|'franchise'|'collection'} entityType Type of entity represented.
+ * @property {string} entityId Entity identifier (slug or UUID).
+ * @property {TrophyTierKey} tier Tier key.
+ * @property {string} title Tier title.
+ * @property {string} personaTitle Full persona title.
+ * @property {string} badge Badge emoji.
+ * @property {number} level Progression level.
+ * @property {string} emblem Emblem initials.
+ */
+
+/**
+ * A curated collection trophy row in Supabase (`public.collection_trophies`).
+ * @typedef {Object} CollectionTrophyRow
+ * @property {string} id Unique collection trophy identifier.
+ * @property {'person'|'franchise'|'collection'} entity_type Entity kind.
+ * @property {string} entity_id Entity identifier (slug or UUID).
+ * @property {string} title Collection or director display title.
+ * @property {string} persona_name Persona base name (e.g. 'Nolan', 'Weir').
+ * @property {string|null} [emblem] Typographic emblem.
+ * @property {string|null} [edition] Edition numeral or string.
+ * @property {string|null} [letterboxd_url] Letterboxd canonical list URL.
+ * @property {Object} [custom_rules] Inclusions, exclusions, and aliases.
+ * @property {boolean} [is_active] Whether active in the catalog.
+ * @property {string} [created_at] ISO timestamp.
+ * @property {CollectionTrophyEssentialRow[]} [collection_trophy_essentials] Joined landmark films.
+ */
+
+/**
+ * A curated collection landmark row in Supabase (`public.collection_trophy_essentials`).
+ * @typedef {Object} CollectionTrophyEssentialRow
+ * @property {string} collection_id
+ * @property {string} film_id
+ * @property {number} sort_order
+ */
+
+/**
+ * A planned director collection trophy entry.
+ * @typedef {Object} PlannedDirectorTrophy
+ * @property {string} name Full director name.
+ * @property {string} personaName Persona surname or nickname.
+ * @property {string|null} letterboxdUrl Curated Letterboxd filmography URL.
+ */
+
+/**
+ * A curated collection with 3-tier persona progression (Essentialist, Completionist, Sycophant).
  * @typedef {Object} CollectionTrophyProgress
  * @property {string} id Stable trophy identifier.
  * @property {string} domId Unique prefix for accessible heading and progress ids.
  * @property {string} title Collection or director name.
+ * @property {string} personaName Persona base name (e.g. 'Nolan', 'Weir', 'Kon', 'Mission: Impossible').
+ * @property {'person'|'franchise'|'collection'} entityType Type of entity this trophy represents.
+ * @property {string} entityId Entity identifier (slug, id, or normalized name).
  * @property {string} emblem Typographic initials.
- * @property {string} edition Fixed collection size as ornamental text.
+ * @property {string} [edition] Optional ornamental edition string.
+ * @property {string|null} [letterboxdUrl] Optional Letterboxd URL.
  * @property {string} scope Localizable collection scope.
  * @property {string} celebration Localizable earned caption.
  * @property {string} invitation Localizable in-progress caption.
  * @property {string} criteria Localizable completion rule.
- * @property {TrophyWorkProgress[]} films Fixed film or series checklist.
- * @property {number} watchedCount Number of unique watched works in the collection.
- * @property {number} total Number of required works.
- * @property {boolean} earned Whether all fixed works are watched.
+ * @property {Record<TrophyTierKey, CollectionTierProgress>} tiers Map of the three progression tiers.
+ * @property {CollectionTierProgress[]} tierList Array of the three tiers in progression order.
+ * @property {CollectionTierProgress|null} activeTier Highest unlocked tier, or null if none earned.
+ * @property {string|null} activePersonaTitle Unlocked persona title, or null.
+ * @property {string|null} activeBadge Unlocked badge emoji, or null.
+ * @property {CollectionTierProgress|null} nextTier Next tier to achieve, or null if all completed.
+ * @property {number} highestEarnedLevel Highest level achieved (0, 1, 2, or 3).
+ * @property {TrophyWorkProgress[]} films All works across all tiers.
+ * @property {number} watchedCount Number of unique watched works across all tiers.
+ * @property {number} total Total required works across all tiers.
+ * @property {boolean} earned Whether all tiers are earned.
+ * @property {boolean} isCurated Flag indicating curated collection with 3-tier progression.
+ */
+
+/**
+ * One scope in a staged insertion journey; scopes need not use dates or include prior scopes.
+ * @template T
+ * @typedef {Object} StagedPlacementStage
+ * @property {string} label Visible stage name.
+ * @property {(item: T) => boolean} includes Selects peers for this stage.
+ */
+
+/**
+ * Bounds restored when returning to a previous placement stage.
+ * @typedef {Object} StagedPlacementBounds
+ * @property {number} index Global insertion index.
+ * @property {number} lower First legal global insertion index.
+ * @property {number} upper Last legal global insertion index.
+ */
+
+/**
+ * Mutable draft over a caller-owned item and an ordered snapshot of ranked peers.
+ * @template T
+ * @typedef {Object} StagedPlacementPlan
+ * @property {T} item Item being placed.
+ * @property {T[]} peers Ranked peers, excluding the selected item.
+ * @property {StagedPlacementStage<T>[]} stages Ordered scope filters.
+ * @property {number} stage Current stage; stages.length means complete.
+ * @property {number} index Chosen global insertion index.
+ * @property {number} lower Locked roof index plus one, or zero.
+ * @property {number} upper Locked floor index, or peers.length.
+ * @property {StagedPlacementBounds[]} history Bounds before each completed stage.
+ * @property {(index: number) => boolean} [isLegalIndex] Optional collection constraint on insertion gaps, such as keeping tied peers together.
+ */
+
+/**
+ * A ranked peer's global index and optional rank in the current scope.
+ * @template T
+ * @typedef {Object} StagedPlacementPeer
+ * @property {T} item Original peer record.
+ * @property {number} index Index in the complete peer order.
+ * @property {number} [rank] One-based rank in the current scope.
+ */
+
+/**
+ * Current scope and its legal gaps, including previously locked anchors.
+ * @template T
+ * @typedef {Object} StagedPlacementPool
+ * @property {StagedPlacementPeer<T>[]} scoped Complete scoped peers, for rank labels.
+ * @property {StagedPlacementPeer<T>|null} roof Locked upper neighbour.
+ * @property {StagedPlacementPeer<T>[]} above Peers between locked neighbours.
+ * @property {StagedPlacementPeer<T>|null} anchor Locked lower neighbour.
+ * @property {number} bottom Final legal gap in this pool.
+ * @property {number[]} slots Legal global insertion indexes.
+ */
+
+/**
+ * Display projection for any rankable record, independent of its storage shape.
+ * @typedef {Object} StagedPlacementCandidate
+ * @property {string} id Stable candidate identity.
+ * @property {string} title Display title.
+ * @property {string} [metadata] Searchable secondary display text.
+ * @property {string} [searchText] Searchable text; defaults to title and metadata.
+ * @property {string} [poolMetadata] Secondary text for peers; defaults to metadata.
+ * @property {string} [posterUrl] Optional artwork URL.
+ * @property {boolean} [ranked] Whether a persisted position exists; defaults to false.
+ * @property {boolean} [eligible] Whether the picker offers this item; defaults to true.
+ */
+
+/**
+ * Collection-owned projection, plan construction, position resolution, and persistence.
+ * @template T, P
+ * @typedef {Object} StagedPlacementAdapter
+ * @property {(item: T) => StagedPlacementCandidate} readItem Projects a candidate for the dialog.
+ * @property {(items: T[], id: string) => StagedPlacementPlan<T>} createPlan Selects and orders peers and supplies stage filters.
+ * @property {(plan: StagedPlacementPlan<T>) => string} [groupLabel] Describes the ranking group.
+ * @property {(plan: StagedPlacementPlan<T>) => P|Promise<P>} [resolvePosition] Resolves a final storage position; omit when save owns resolution.
+ * @property {(plan: StagedPlacementPlan<T>, position?: P) => void|Promise<void>} save Persists the completed plan, retaining the draft on failure.
+ */
+
+/**
+ * Inputs for the collection-independent staged placement dialog.
+ * @template T, P
+ * @typedef {Object} StagedPlacementDialogOptions
+ * @property {T[]} items Initial picker candidates in caller-defined order.
+ * @property {StagedPlacementAdapter<T, P>} adapter Collection-specific operations.
+ * @property {() => T[]} [getItems] Reads fresh candidates before selection and after saving.
+ * @property {() => void} [onSaved] Refreshes the caller's view after persistence succeeds.
+ * @property {{dialog?: string, category?: string, noun?: string, plural?: string, picker?: string, firstPool?: string, search?: string, placeholder?: string}} [labels] Collection-specific copy.
+ * @property {string} [focusFallback] Focus target if the original opener has been removed.
+ * @property {string} [initialId] Immediately selects this candidate, reporting unavailable or invalid candidates in the picker.
+ */
+
+/**
+ * Watchlist compatibility fields layered over the shared insertion draft.
+ * @typedef {StagedPlacementPlan<WatchlistItem> & {film: WatchlistItem, tier: string, year: number}} WatchlistPlacementPlan
+ */
+
+/**
+ * Watched/Rewatchlist workspace draft and concurrency snapshot.
+ * @typedef {StagedPlacementPlan<Object> & {category: string, scopes: Object[], snapshots: Object[], group: string}} RankingPlacementPlan
  */

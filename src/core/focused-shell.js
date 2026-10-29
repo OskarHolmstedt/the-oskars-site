@@ -64,12 +64,12 @@
     let finish = window.startOskarsPerformance?.("focusedShell:load");
     let request = (async () => {
       let auth = await window.resolveSupabaseAuthState();
-      if (
-        auth.status !== "signed-in" ||
-        auth.user.id !== requestOwner ||
-        !isCurrent()
-      )
-        throw changedError();
+      if (auth.status !== "signed-in") throw changedError();
+      if (!owner) {
+        owner = auth.user.id;
+        requestOwner = owner;
+      }
+      if (auth.user.id !== requestOwner || !isCurrent()) throw changedError();
       await loadDependencies();
       if (!isCurrent()) throw changedError();
       // Fresh on each deferred load: do not extend a session-cache timestamp

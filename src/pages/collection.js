@@ -27,6 +27,7 @@
   let busy = false;
   let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
   let boundContainerEvents = false;
+  let collectionTrophy = null;
 
   function collectionAction(kind, id, active) {
     if (!canEdit || !id) return "";
@@ -230,9 +231,31 @@
   }
 
   function itemCard(record, index = 0, editable = false) {
+    let filmObj =
+      record.status === "watchlist"
+        ? window.watchlistFilmLike(record.item)
+        : record.film;
+    let filmTier = collectionTrophy
+      ? window.getCollectionFilmTier(
+          collectionTrophy,
+          filmObj.supabaseFilmId || filmObj.id,
+        )
+      : null;
+    let tierBadgeHtml = filmTier
+      ? window.renderCollectionTierBadge(filmTier)
+      : "";
+
     if (record.status === "watchlist") {
       let item = record.item;
-      let film = window.watchlistFilmLike(item);
+      let film = filmObj;
+      let beforeTitle = [
+        item.tier
+          ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(window.renderTierWithModifier(item.tier, item.tier_modifier || item.tierModifier))}</span>`
+          : "",
+        tierBadgeHtml,
+      ]
+        .filter(Boolean)
+        .join(" ");
       return window.renderSharedFilmCard(film, {
         classes: [
           "project-film-card",
@@ -249,15 +272,21 @@
         openFilm: false,
         showYear: true,
         escape,
-        beforeTitleHtml: item.tier
-          ? `<span class="watchlist-tier tier-${escape(item.tier.toLowerCase())}">${escape(window.renderTierWithModifier(item.tier, item.tier_modifier || item.tierModifier))}</span>`
-          : "",
+        beforeTitleHtml: beforeTitle,
         titleHtml: `<a class="table-film-link" href="${escape(window.filmPageUrl(item.supabaseFilmId))}">${escape(window.localizedFilmTitle?.(film) || item.title)}</a>`,
         bodyHtml: `<div class="watchlist-card-actions"><span>${escape(ui("Watchlist"))}</span></div>`,
       });
     }
     let film = record.film;
     let missingEditable = editable && record.status === "missing";
+    let cardBody = [
+      record.status === "missing"
+        ? `<div class="leaderboard-meta">${escape(ui("Not in your collection yet"))}</div>`
+        : "",
+      tierBadgeHtml ? `<div class="card-tier-meta">${tierBadgeHtml}</div>` : "",
+    ]
+      .filter(Boolean)
+      .join("");
     return window.renderSharedFilmCard(film, {
       classes: [
         "project-film-card",
@@ -273,10 +302,7 @@
       showYear: true,
       escape,
       director: film.director,
-      bodyHtml:
-        record.status === "missing"
-          ? `<div class="leaderboard-meta">${escape(ui("Not in your collection yet"))}</div>`
-          : "",
+      bodyHtml: cardBody,
     });
   }
 
@@ -300,9 +326,24 @@
   }
 
   function itemRow(record, index = 0, editable = false) {
+    let filmObj =
+      record.status === "watchlist"
+        ? window.watchlistFilmLike(record.item)
+        : record.film;
+    let filmTier = collectionTrophy
+      ? window.getCollectionFilmTier(
+          collectionTrophy,
+          filmObj.supabaseFilmId || filmObj.id,
+        )
+      : null;
+    let tierBadgeHtml = filmTier
+      ? window.renderCollectionTierBadge(filmTier)
+      : "";
+    let metaFragments = tierBadgeHtml ? [tierBadgeHtml] : [];
+
     if (record.status === "watchlist") {
       let item = record.item;
-      let film = window.watchlistFilmLike(item);
+      let film = filmObj;
       let attributes = window.renderOrderEditItemAttributes(
         {
           enabled: editable,
@@ -328,7 +369,7 @@
         { item },
         { escape, editHtml: `${tierHtml} ${actionHtml}` },
       );
-      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", item.year))}">${escape(item.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, href: window.filmPageUrl(item.supabaseFilmId) })}<td class="film-people-cell">${window.renderLinkedDirectors(film, { escape })}</td>${ratingTierHtml}</tr>`;
+      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", item.year))}">${escape(item.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, href: window.filmPageUrl(item.supabaseFilmId), metaFragments })}<td class="film-people-cell">${window.renderLinkedDirectors(item, { escape })}</td>${ratingTierHtml}</tr>`;
     }
     let film = record.film;
     let missingEditable = editable && record.status === "missing";
@@ -349,9 +390,9 @@
         film.supabaseFilmId || film.id,
         false,
       );
-      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}${directorCell}<td class="rating-tier-cell">— ${actionHtml}</td></tr>`;
+      return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, metaFragments })}${directorCell}<td class="rating-tier-cell">— ${actionHtml}</td></tr>`;
     }
-    return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape })}${directorCell}${window.renderRatingTierCell({ film }, { escape })}${collectionRewatchTierCell(film)}</tr>`;
+    return `<tr${attributes}><td><a class="period-link" href="${escape(window.periodPageUrl("year", film.year))}">${escape(film.year || "")}</a></td>${window.renderFilmIdentityCell(film, { escape, metaFragments })}${directorCell}${window.renderRatingTierCell({ film }, { escape })}${collectionRewatchTierCell(film)}</tr>`;
   }
 
   function render() {
@@ -363,6 +404,12 @@
     document.title = `${collection.name} · The Oskars`;
     let finishRenderTimer =
       window.startOskarsPerformance?.("collection:render");
+    let collectionTrophy = window.getCollectionTrophy
+      ? window.getCollectionTrophy("collection", collection.id, state)
+      : null;
+    let trophyBannerHtml = collectionTrophy
+      ? window.renderCollectionTrophyBanner(collectionTrophy)
+      : "";
     let watched = items.filter((record) => record.status === "watched");
     let queue = items
       .filter((record) => record.status !== "watched")
@@ -423,6 +470,7 @@
         actionsHtml: `<button type="button" class="sort-order-button" data-promote-collection${busy ? " disabled" : ""}>${escape(ui("Promote to project"))}</button>`,
       },
     )}
+    ${trophyBannerHtml}
     ${window.renderDetailStats({ itemsHtml: `<span><b>${watched.length}</b> ${escape(ui("Watched"))}</span><span><b>${queue.length}</b> ${escape(ui("Queue"))}</span><span><b>${total}</b> ${escape(ui("Total"))}</span><span><b>${percent}%</b> ${escape(ui("Complete"))}</span>${window.renderRatingStatisticsItems(ratingStatistics, { escape, ui })}` })}
     ${window.renderSupabaseEntityNote({ entityKind: "collection", entityKey: collection.id, note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Collection note"), escape })}
     <div class="project-progress-meter project-progress-meter--detail" aria-label="${escape(ui("{percent} percent complete", { percent }))}"><span style="width:${escape(percent)}%"></span></div>

@@ -108,6 +108,15 @@
     ...(targetData.watchedFilms || []),
   ];
 
+  let earnedPersonaTitles = window.getEarnedPersonaTitles
+    ? window.getEarnedPersonaTitles({
+        filmsById: Object.fromEntries(
+          allWatchedFilms.map((f) => [f.supabaseFilmId || f.id, f]),
+        ),
+        watchedOther: allWatchedFilms,
+      })
+    : [];
+
   // Public profile and social state
   let targetUserId = fetchResult.id || null;
   let viewerAuth = await window.resolveSupabaseAuthState?.().catch(() => null);
@@ -211,6 +220,71 @@
 
   indexViewerArchive();
 
+  let viewerArchivePromise = null;
+  let viewerArchiveReady = Boolean(
+    window.focusedShellDataFresh?.() ||
+    (viewerState &&
+      (Object.keys(viewerState.years || {}).length > 0 ||
+        (viewerState.watchlist || []).length > 0 ||
+        (viewerState.watchedFilms || []).length > 0)),
+  );
+
+  function renderWithFocusPreserved() {
+    let active = document.activeElement;
+    let activeId = active?.id;
+    let inputEl =
+      typeof HTMLInputElement !== "undefined" &&
+      active instanceof HTMLInputElement
+        ? active
+        : typeof HTMLTextAreaElement !== "undefined" &&
+            active instanceof HTMLTextAreaElement
+          ? active
+          : null;
+    let selectionStart = inputEl?.selectionStart;
+    let selectionEnd = inputEl?.selectionEnd;
+    render();
+    if (activeId) {
+      let el = document.getElementById(activeId);
+      if (el) {
+        el.focus();
+        if (
+          typeof selectionStart === "number" &&
+          typeof selectionEnd === "number" &&
+          ((typeof HTMLInputElement !== "undefined" &&
+            el instanceof HTMLInputElement) ||
+            (typeof HTMLTextAreaElement !== "undefined" &&
+              el instanceof HTMLTextAreaElement))
+        ) {
+          try {
+            el.setSelectionRange(selectionStart, selectionEnd);
+          } catch (_) {}
+        }
+      }
+    }
+  }
+
+  function ensureViewerArchive() {
+    if (viewerArchiveReady) return Promise.resolve();
+    if (viewerAuth?.status !== "signed-in") return Promise.resolve();
+    if (viewerArchivePromise) return viewerArchivePromise;
+
+    viewerArchivePromise = (
+      window.ensureFocusedShellData?.() || Promise.resolve()
+    )
+      .then(() => {
+        viewerArchiveReady = true;
+        viewerState = window.state || {};
+        indexViewerArchive();
+        renderWithFocusPreserved();
+      })
+      .catch((err) => {
+        console.warn("Viewer archive hydration failed:", err);
+        viewerArchivePromise = null;
+      });
+
+    return viewerArchivePromise;
+  }
+
   function getViewerFilm(film) {
     if (!film) return null;
     let normKey = `${film.year || ""}::${(film.title || "").toLowerCase().trim()}`;
@@ -299,6 +373,7 @@
             <div class="user-profile-badges">
               <span class="data-source-badge data-source-badge--connected">Public Archive</span>
               ${isOwnProfile ? `<span class="data-source-badge" style="background:var(--accent);color:#fff">You</span>` : ""}
+              ${earnedPersonaTitles.map((t) => `<span class="persona-trophy-badge tier-${escape(t.tier)}" title="${escape(t.collectionTitle)} · ${escape(t.title)}">${t.badge} ${escape(t.personaTitle)}</span>`).join("")}
             </div>
             <h1 class="user-profile-name">${escape(ownerName)}</h1>
             <p class="user-profile-bio">
@@ -565,6 +640,36 @@
     return `
       <div class="user-tab-panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
         ${renderSignatureShelf()}
+
+        ${
+          earnedPersonaTitles.length
+            ? `
+          <section class="user-overview-section" aria-labelledby="userTrophiesHeading">
+            <div class="user-section-title-row">
+              <div>
+                <span class="eyebrow">Milestones</span>
+                <h2 id="userTrophiesHeading">${escape(ui("Earned Collection Trophies"))}</h2>
+              </div>
+            </div>
+            <div class="user-trophy-badge-grid">
+              ${earnedPersonaTitles
+                .map(
+                  (t) => `
+                <div class="user-trophy-card tier-${escape(t.tier)}">
+                  <span class="user-trophy-badge" aria-hidden="true">${t.badge}</span>
+                  <div class="user-trophy-info">
+                    <strong>${escape(t.personaTitle)}</strong>
+                    <span>${escape(t.collectionTitle)} · ${escape(t.title)}</span>
+                  </div>
+                </div>
+              `,
+                )
+                .join("")}
+            </div>
+          </section>
+        `
+            : ""
+        }
 
         ${
           topRated.length
@@ -1116,13 +1221,26 @@
       `;
     }
 
-    let viewerFilmCount = viewerWatchedMap.size;
-    if (viewerFilmCount === 0) {
+    if (viewerArchivePromise && !viewerArchiveReady) {
       return `
         <div class="user-tab-panel" id="panel-compare" role="tabpanel" aria-labelledby="tab-compare">
           <div class="detail-empty">
             <span class="eyebrow">Taste Compatibility</span>
-            <h2>Sign in or add films to compare</h2>
+            <h2>Loading your archive…</h2>
+            <p>Comparing films and calculating taste compatibility…</p>
+          </div>
+        </div>
+      `;
+    }
+
+    let viewerFilmCount = viewerWatchedMap.size;
+    if (viewerFilmCount === 0) {
+      let isSignedOut = viewerAuth?.status !== "signed-in";
+      return `
+        <div class="user-tab-panel" id="panel-compare" role="tabpanel" aria-labelledby="tab-compare">
+          <div class="detail-empty">
+            <span class="eyebrow">Taste Compatibility</span>
+            <h2>${isSignedOut ? "Sign in or add films to compare" : "Add films to compare"}</h2>
             <p>Your personal archive has 0 watched films. Log films to calculate taste compatibility and compare ratings!</p>
           </div>
         </div>
@@ -1325,6 +1443,9 @@
           try {
             history.replaceState(null, "", `#${activeTab}`);
           } catch (err) {}
+          if (["films", "watchlist", "rankings", "compare"].includes(target)) {
+            ensureViewerArchive();
+          }
           render();
         }
       });
@@ -1342,10 +1463,27 @@
           try {
             history.replaceState(null, "", `#${activeTab}`);
           } catch (err) {}
+          if (["films", "watchlist", "rankings", "compare"].includes(target)) {
+            ensureViewerArchive();
+          }
           render();
         }
       });
     });
+
+    let preheatViewerArchive = () => {
+      if (viewerAuth?.status === "signed-in") ensureViewerArchive();
+    };
+    container
+      .querySelectorAll(
+        '[data-tab-target="films"], [data-tab-target="watchlist"], [data-tab-target="rankings"], [data-tab-target="compare"], [data-switch-tab], [data-user-action]',
+      )
+      .forEach((el) => {
+        el.addEventListener("pointerenter", preheatViewerArchive, {
+          once: true,
+        });
+        el.addEventListener("focus", preheatViewerArchive, { once: true });
+      });
 
     // Toggle follow button
     container
@@ -1491,14 +1629,15 @@
             return;
           }
 
-          let existingWatchlistItem = getViewerWatchlistItem({
-            id: filmId,
-            title,
-            year,
-          });
           button.disabled = true;
 
           try {
+            await ensureViewerArchive();
+            let existingWatchlistItem = getViewerWatchlistItem({
+              id: filmId,
+              title,
+              year,
+            });
             if (existingWatchlistItem) {
               if (window.removeFromSupabaseWatchlist) {
                 await window.removeFromSupabaseWatchlist(
@@ -1519,15 +1658,25 @@
                 year,
                 supabaseFilmId: filmId,
               };
+              let row = null;
               if (window.addSupabaseWatchlistRecord) {
-                await window.addSupabaseWatchlistRecord(record);
+                row = await window.addSupabaseWatchlistRecord(record);
               } else if (window.addWatchlistItem) {
-                window.addWatchlistItem(record);
+                row = window.addWatchlistItem(record);
               }
+              if (!Array.isArray(viewerState.watchlist)) {
+                viewerState.watchlist = [];
+              }
+              viewerState.watchlist.push({
+                id: row?.id || filmId,
+                title,
+                year,
+                supabaseFilmId: filmId,
+              });
               window.showOskarsToast?.(`Added "${title}" to your watchlist`);
             }
             indexViewerArchive();
-            render();
+            renderWithFocusPreserved();
           } catch (err) {
             button.disabled = false;
             window.showOskarsToast?.(err.message || String(err));
@@ -1556,26 +1705,31 @@
             return;
           }
 
-          let viewerFilm = getViewerFilm({ id: filmId, title, year });
-          let currentRating =
-            viewerFilm?.ratingValue != null
-              ? String(viewerFilm.ratingValue)
-              : "";
-
-          let promptText = `Rate "${title}" (1.0 to 5.0 stars, e.g. 4.5):`;
-          let userRatingInput = window.prompt(promptText, currentRating);
-          if (userRatingInput === null) return;
-
-          let parsed = window.parseFilmRating?.(userRatingInput);
-          if (!parsed || parsed.value <= 0) {
-            window.showOskarsToast?.(
-              "Please enter a valid rating between 1 and 5 stars.",
-            );
-            return;
-          }
-
           button.disabled = true;
           try {
+            await ensureViewerArchive();
+            let viewerFilm = getViewerFilm({ id: filmId, title, year });
+            let currentRating =
+              viewerFilm?.ratingValue != null
+                ? String(viewerFilm.ratingValue)
+                : "";
+
+            let promptText = `Rate "${title}" (1.0 to 5.0 stars, e.g. 4.5):`;
+            let userRatingInput = window.prompt(promptText, currentRating);
+            if (userRatingInput === null) {
+              button.disabled = false;
+              return;
+            }
+
+            let parsed = window.parseFilmRating?.(userRatingInput);
+            if (!parsed || parsed.value <= 0) {
+              button.disabled = false;
+              window.showOskarsToast?.(
+                "Please enter a valid rating between 1 and 5 stars.",
+              );
+              return;
+            }
+
             if (viewerFilm && window.updateFilmMetadata) {
               let rendered =
                 window.renderFilmRating?.(parsed) || `${parsed.value}★`;
@@ -1584,9 +1738,23 @@
                 ratingValue: parsed.value,
                 ratingModifier: parsed.modifier,
               });
+              viewerFilm.rating = rendered;
+              viewerFilm.ratingValue = parsed.value;
+              viewerFilm.ratingModifier = parsed.modifier;
               window.save?.();
             } else if (window.addSupabaseCandidateToWatched) {
-              await window.addSupabaseCandidateToWatched({
+              let added = await window.addSupabaseCandidateToWatched({
+                title,
+                year,
+                rating: window.renderFilmRating?.(parsed) || `${parsed.value}★`,
+                ratingValue: parsed.value,
+                ratingModifier: parsed.modifier,
+              });
+              if (!Array.isArray(viewerState.watchedFilms)) {
+                viewerState.watchedFilms = [];
+              }
+              viewerState.watchedFilms.push({
+                id: added?.id || filmId,
                 title,
                 year,
                 rating: window.renderFilmRating?.(parsed) || `${parsed.value}★`,
@@ -1596,7 +1764,7 @@
             }
             window.showOskarsToast?.(`Saved rating for "${title}"!`);
             indexViewerArchive();
-            render();
+            renderWithFocusPreserved();
           } catch (err) {
             button.disabled = false;
             window.showOskarsToast?.(err.message || String(err));
@@ -1609,4 +1777,36 @@
   await checkFollowStatus();
   render();
   finishRender?.();
+  if (
+    viewerAuth?.status === "signed-in" &&
+    ["films", "watchlist", "rankings", "compare"].includes(activeTab)
+  ) {
+    ensureViewerArchive();
+  }
+
+  window.addEventListener("oskars:focused-shell-ready", () => {
+    if (viewerArchivePromise) return;
+    viewerArchiveReady = true;
+    viewerState = window.state || {};
+    indexViewerArchive();
+    renderWithFocusPreserved();
+  });
+  window.addEventListener("oskars:focused-shell-invalidated", () => {
+    viewerArchiveReady = false;
+    viewerArchivePromise = null;
+    viewerState = window.state || {};
+    indexViewerArchive();
+    renderWithFocusPreserved();
+  });
+  window.onSupabaseAuthChange?.((user) => {
+    let nextStatus = user ? "signed-in" : "signed-out";
+    viewerAuth = { status: nextStatus, user };
+    if (!user) {
+      viewerArchiveReady = false;
+      viewerArchivePromise = null;
+      viewerState = {};
+      indexViewerArchive();
+      renderWithFocusPreserved();
+    }
+  });
 })();

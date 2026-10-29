@@ -397,14 +397,14 @@
       <div class="watchlist-merge-blocks-overview">
         <div class="watchlist-merge-blocks-header">
           <span class="watchlist-merge-blocks-title">Candidate blocks (merge sort)</span>
-          <a class="sort-order-button" href="rankings.html#watchlist-ordering">Order year shelves</a>
+          <a class="sort-order-button" href="rankings.html?category=watchlist">Order year shelves</a>
           ${blocks.some((block) => !block.isSingle) ? '<button type="button" class="watchlist-merge-text-action" data-merge-reset-blocks>Reset to single years</button>' : ""}
         </div>
         <div class="watchlist-merge-blocks-chips">${chipsHtml}</div>
       </div>
 
       <p>${pendingShelves.reduce((sum, shelf) => sum + shelf.items.length, 0)} tiered films awaiting year ordering · ${blocks.length} ordered groups</p>
-      ${pendingShelves.length ? `<p>Order these shelves before merging: ${pendingShelves.map((shelf) => `<a href="rankings.html?watchlistYear=${shelf.year}&amp;tier=${encodeURIComponent(watchlistPicker.tier)}">${escape(shelf.year || "Unknown year")} (${shelf.items.length})</a>`).join(" · ")}</p>` : ""}
+      ${pendingShelves.length ? `<p>Order these shelves before merging: ${pendingShelves.map((shelf) => `<a href="${escape(window.watchlistYearOrderUrl(shelf.year, watchlistPicker.tier))}">${escape(shelf.year || "Unknown year")} (${shelf.items.length})</a>`).join(" · ")}</p>` : ""}
       ${blocks.length < 2 && !blocks.length ? "<p>Confirm more year shelves to merge two groups. A single completed group needs no further merge.</p>" : ""}
       ${suggestedHtml}
       <p class="watchlist-merge-rule-note">Interest tier guard rail active: comparisons only occur between films with the same exact tier refinement (e.g. S+, S, S-). Shelves with only one group auto-pass.</p>

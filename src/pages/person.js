@@ -413,6 +413,17 @@
     document.title = `${person.name} · The Oskars`;
     isDirector = person.professions.includes("Director");
     if (!isDirector) collectionPageView = "films";
+    let collectionTrophy = window.getCollectionTrophy
+      ? window.getCollectionTrophy("person", person.id, state) ||
+        window.getCollectionTrophy(
+          "person",
+          window.personStorageKey(person),
+          state,
+        )
+      : null;
+    let trophyBannerHtml = collectionTrophy
+      ? window.renderCollectionTrophyBanner(collectionTrophy)
+      : "";
     let requestedFilmographySort = window.pageQueryParam("sort");
     filmographySort =
       requestedFilmographySort === "shuffle"
@@ -545,6 +556,15 @@
 
     function personFilmRow(film, index = 0) {
       let credit = filmCredit(film);
+      let filmTier = collectionTrophy
+        ? window.getCollectionFilmTier(
+            collectionTrophy,
+            film.supabaseFilmId || film.id,
+          )
+        : null;
+      let tierBadgeHtml = filmTier
+        ? ` ${window.renderCollectionTierBadge(filmTier)}`
+        : "";
       let attributes = window.renderOrderEditItemAttributes(
         {
           enabled: localRankEditMode,
@@ -563,7 +583,7 @@
         escape: personPageEscape,
         allTimeRank: true,
       })}
-      <td class="film-people-cell">${personPageEscape(credit.professions.join(", "))}${credit.detailHtml ? `<span class="leaderboard-meta">${credit.detailHtml}</span>` : ""}</td>
+      <td class="film-people-cell">${personPageEscape(credit.professions.join(", "))}${tierBadgeHtml}${credit.detailHtml ? `<span class="leaderboard-meta">${credit.detailHtml}</span>` : ""}</td>
       ${window.renderRatingTierCell({ film }, { escape: personPageEscape })}
       ${personRewatchTierCell(film)}
     </tr>`;
@@ -571,6 +591,15 @@
 
     function personFilmCard(film, index = 0) {
       let credit = filmCredit(film);
+      let filmTier = collectionTrophy
+        ? window.getCollectionFilmTier(
+            collectionTrophy,
+            film.supabaseFilmId || film.id,
+          )
+        : null;
+      let tierBadgeHtml = filmTier
+        ? ` ${window.renderCollectionTierBadge(filmTier)}`
+        : "";
       return window.renderSharedFilmCard(film, {
         classes: [
           "person-film-card",
@@ -591,26 +620,44 @@
               : null,
         showYear: true,
         escape: personPageEscape,
-        bodyHtml: `<div class="person-film-credit">${personPageEscape(credit.professions.join(", "))}${credit.detailHtml ? `<span>${credit.detailHtml}</span>` : ""}</div>`,
+        bodyHtml: `<div class="person-film-credit">${personPageEscape(credit.professions.join(", "))}${tierBadgeHtml}${credit.detailHtml ? `<span>${credit.detailHtml}</span>` : ""}</div>`,
       });
     }
 
     function personOtherWatchedRow(film) {
+      let otherTier = collectionTrophy
+        ? window.getCollectionFilmTier(
+            collectionTrophy,
+            film.supabaseFilmId || film.id,
+          )
+        : null;
+      let otherTierBadge = otherTier
+        ? ` ${window.renderCollectionTierBadge(otherTier)}`
+        : "";
       return `<tr>
       <td><a class="period-link" href="${personPageEscape(`${window.periodPageUrl("year", film.year)}&view=other`)}">${personPageEscape(film.year || "")}</a></td>
       ${window.renderFilmIdentityCell(film, { escape: personPageEscape })}
-      <td class="film-people-cell">${personPageEscape(film.type || ui("Other"))}</td>
+      <td class="film-people-cell">${personPageEscape(film.type || ui("Other"))}${otherTierBadge}</td>
       ${window.renderRatingTierCell({ film }, { escape: personPageEscape })}
       ${personRewatchTierCell(film)}
     </tr>`;
     }
 
     function personOtherWatchedCard(film) {
+      let otherTier = collectionTrophy
+        ? window.getCollectionFilmTier(
+            collectionTrophy,
+            film.supabaseFilmId || film.id,
+          )
+        : null;
+      let otherTierBadge = otherTier
+        ? ` ${window.renderCollectionTierBadge(otherTier)}`
+        : "";
       return window.renderSharedFilmCard(film, {
         classes: ["person-film-card", "other-watched-card"],
         showYear: true,
         escape: personPageEscape,
-        bodyHtml: `<div class="person-film-credit">${personPageEscape(film.type || ui("Other"))}</div>`,
+        bodyHtml: `<div class="person-film-credit">${personPageEscape(film.type || ui("Other"))}${otherTierBadge}</div>`,
       });
     }
 
@@ -1281,6 +1328,7 @@
         .filter(Boolean)
         .join(""),
     })}
+    ${trophyBannerHtml}
     ${window.renderSupabaseEntityNote({ entityKind: "person", entityKey: window.personStorageKey(person), note: noteState.note, editing: noteState.editing, busy: noteState.busy, draft: noteState.draft, label: ui("Person note"), escape: personPageEscape })}
     ${isDirector ? collectionViewControlsHtml() : ""}
   <div data-collection-page-view="films" ${collectionPageView === "films" ? "" : "hidden"}>

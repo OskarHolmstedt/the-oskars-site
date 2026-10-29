@@ -64,3 +64,472 @@
 .catalog-review dd {
   margin-bottom: 1rem;
 }
+
+/* Collection trophies & essentials curator workspace */
+.curator-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (min-width: 50rem) {
+  .curator-container {
+    display: grid;
+    grid-template-columns: minmax(18rem, 24rem) 1fr;
+    align-items: start;
+    gap: 1.5rem;
+  }
+}
+
+.curator-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.curator-search-box input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.curator-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.curator-filter-chips .btn-chip {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  border-radius: 1rem;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.curator-filter-chips .btn-chip.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+  font-weight: bold;
+}
+
+.curator-director-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.curator-director-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.curator-director-item:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.curator-director-item.active {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+}
+
+.curator-director-name {
+  display: block;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.curator-director-meta {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.curator-workspace-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+}
+
+.curator-workspace-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.curator-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.curator-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.curator-tiers-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.75rem;
+}
+
+.curator-tier-card {
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.curator-tier-essentialist {
+  background: rgba(205, 127, 50, 0.1);
+  border-color: rgba(205, 127, 50, 0.4);
+}
+
+.curator-tier-completionist {
+  background: rgba(192, 192, 192, 0.08);
+  border-color: rgba(192, 192, 192, 0.3);
+}
+
+.curator-tier-sycophant {
+  background: rgba(212, 175, 55, 0.1);
+  border-color: rgba(212, 175, 55, 0.4);
+}
+
+.curator-tier-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.curator-tier-count {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.curator-tier-desc,
+.curator-tier-recommendation {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.curator-status-warn {
+  color: #ffb74d;
+  font-weight: 500;
+}
+
+.curator-status-ok {
+  color: #81c784;
+  font-weight: 500;
+}
+
+.curator-status-note {
+  color: var(--muted);
+}
+
+.curator-table-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.curator-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.curator-quick-buttons {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.tier-badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+}
+
+.tier-badge-essentialist {
+  background: rgba(205, 127, 50, 0.25);
+  color: #e0a96d;
+}
+
+.tier-badge-completionist {
+  background: rgba(192, 192, 192, 0.2);
+  color: #e0e0e0;
+}
+
+.tier-badge-sycophant {
+  background: rgba(212, 175, 55, 0.2);
+  color: #d4af37;
+}
+
+.badge-curated {
+  background: rgba(76, 175, 80, 0.2);
+  color: #81c784;
+}
+
+.badge-feature {
+  background: rgba(33, 150, 243, 0.15);
+  color: #90caf9;
+}
+
+.badge-format {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+
+.row-selected {
+  background: rgba(205, 127, 50, 0.07);
+}
+
+.curator-tmdb-sync-panel {
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.curator-tmdb-sync-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.curator-tmdb-sync-header h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.15rem;
+}
+
+.curator-tmdb-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.curator-tmdb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.curator-tmdb-table-wrap {
+  overflow-x: auto;
+  max-height: 25rem;
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+}
+
+.curator-tmdb-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.badge-missing {
+  background: rgba(244, 67, 54, 0.18);
+  color: #ef5350;
+}
+
+.badge-warn {
+  background: rgba(255, 152, 0, 0.18);
+  color: #ffa726;
+}
+
+.badge-lost {
+  background: rgba(158, 158, 158, 0.2);
+  color: #9e9e9e;
+  border: 1px dashed rgba(158, 158, 158, 0.4);
+}
+
+.row-lost {
+  opacity: 0.65;
+}
+
+.btn-small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+/* Standalone Data Tools Shell */
+.data-tools-standalone {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: var(--page);
+  color: var(--ink);
+}
+
+.data-tools-standalone-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 2rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.data-tools-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.data-tools-logo {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.data-tools-title {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.data-tools-subtitle {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.data-tools-connection-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+}
+
+.data-tools-connection-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.data-tools-connection-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.data-tools-auth-prompt {
+  max-width: 32rem;
+  margin: 4rem auto;
+  padding: 2rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  text-align: center;
+}
+
+.data-tools-target-pill {
+  margin: 1rem 0;
+  padding: 0.4rem 0.8rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.data-tools-key-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: left;
+  margin-top: 1.5rem;
+}
+
+.data-tools-key-form input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.8rem;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.data-tools-hint {
+  text-align: center;
+  margin-top: 0.5rem;
+  color: var(--muted);
+}
+
+.badge-success {
+  background: rgba(76, 175, 80, 0.18);
+  color: #66bb6a;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.data-tools-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1.25rem 0 1.5rem;
+  padding: 0;
+  border: 0;
+}
+
+.data-tools-nav .period-view-pill {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.9rem;
+}
+
+.data-tools-connection-info code {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.data-tool-group[hidden] {
+  display: none !important;
+}

@@ -127,13 +127,16 @@
     };
   }
 
-  function classifyImdbType(titleType) {
+  function classifyImdbType(titleType, runtimeMinutes) {
     let normalized = String(titleType || "")
       .trim()
       .toLocaleLowerCase();
     if (["movie", "tvmovie", "tv_movie", "video"].includes(normalized))
       return "Film";
-    if (normalized === "short") return "Short";
+    if (normalized === "short") {
+      let runtime = Number(runtimeMinutes) || 0;
+      return runtime > 40 ? "Film" : "Short";
+    }
     if (normalized === "documentary") return "Documentary";
     if (
       [
@@ -148,6 +151,7 @@
       return "TV";
     return "Film";
   }
+  window.classifyImdbType = classifyImdbType;
 
   function freshWatchedRecordFields(row, validYear) {
     let title = String(
@@ -165,7 +169,7 @@
       title,
       year,
       normalizedTitle: window.normalizeTitle(title),
-      type: classifyImdbType(row["title type"]),
+      type: classifyImdbType(row["title type"], runtime),
       rating: "",
       ratingValue: null,
       ratingModifier: "",

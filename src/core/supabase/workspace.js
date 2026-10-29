@@ -2,7 +2,7 @@
 
 (function () {
   const WATCHED_SELECT =
-    "id, film_id, rating, rating_modifier, date_watched, review, platform, views, updated_at, films(id, tmdb_id, tmdb_tv_ref, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type, original_language)";
+    "id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, rewatch_position, platform, views, updated_at, films(id, tmdb_id, tmdb_tv_ref, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type, original_language)";
 
   const WATCHLIST_SELECT =
     "id, film_id, tier, tier_modifier, position, reason, updated_at, films(id, tmdb_id, tmdb_tv_ref, title, year, poster_url, runtime_minutes, country, medium, type)";

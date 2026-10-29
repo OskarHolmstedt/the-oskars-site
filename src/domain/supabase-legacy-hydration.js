@@ -44,6 +44,10 @@
       .trim()
       .toLowerCase();
     if (!type || type === "film") return false;
+    let runtime = Number(
+      film?.runtimeMinutes || film?.["runtime_minutes"] || 0,
+    );
+    if (type === "short" && runtime > 40) return false;
     return !(
       Number(film.allTimeRank) > 0 ||
       Number(film.yearRank) > 0 ||

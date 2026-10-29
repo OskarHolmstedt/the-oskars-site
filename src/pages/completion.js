@@ -1536,6 +1536,21 @@
       return tab === sectionId;
     }
 
+    let allCollectionTrophies = window.collectionTrophiesData
+      ? window.collectionTrophiesData()
+      : [];
+    let totalTrophiesCount = 0;
+    let earnedTrophiesCount = 0;
+    allCollectionTrophies.forEach((col) => {
+      col.tierList.forEach((tier) => {
+        totalTrophiesCount += 1;
+        if (tier.earned) earnedTrophiesCount += 1;
+      });
+    });
+    let earnedPersonaTitles = window.getEarnedPersonaTitles
+      ? window.getEarnedPersonaTitles()
+      : [];
+
     let summaryHtml = window.renderDetailStats({
       classes: "completion-summary",
       itemsHtml: `${officialSummaryStatItems()}
@@ -1546,6 +1561,8 @@
   <span><b>${hub.completeDirectors + hub.completeFranchises + hub.completeProjects}</b> ${escape(ui("Complete"))}</span>
   <span><b>${bracketSummary.filled}/${bracketSummary.total}</b> ${escape(ui("Bracket slots filled"))}</span>
   <span><b>${reachedWatchGoals}/${watchGoals.length}</b> ${escape(ui("Watch goals reached"))}</span>
+  <span><b>${earnedTrophiesCount}/${totalTrophiesCount}</b> ${escape(ui("Trophies earned"))}</span>
+  ${earnedPersonaTitles.length ? `<span><b>${earnedPersonaTitles.length}</b> ${escape(ui("Persona titles unlocked"))}</span>` : ""}
 `,
     });
 

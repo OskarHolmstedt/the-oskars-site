@@ -683,12 +683,14 @@
    * @param {string} rankingId
    * @param {string} year
    * @param {Object[]} bucketEntries The bucket's entries, in position order.
+   * @param {'years'|'decades'|'centuries'|'allTime'} [scopeType] Ranking scope type.
    * @returns {Promise<{reviewed: number}>}
    */
   window.resolveSupabaseYearRankingBucket = async function (
     rankingId,
     year,
     bucketEntries,
+    scopeType = "years",
   ) {
     let ready = await window.ensureSupabaseClient();
     if (!ready) throw new Error("Supabase not configured.");
@@ -706,7 +708,7 @@
     for (let index = 0; index < bucketEntries.length - 1; index += 1) {
       await window.resolveSupabaseRankingPairReview(
         String(year),
-        "years",
+        scopeType,
         rankingId,
         bucketEntries[index].film_id,
         bucketEntries[index + 1].film_id,
@@ -715,6 +717,8 @@
     }
     return { reviewed };
   };
+
+  window.resolveSupabaseRankingBucket = window.resolveSupabaseYearRankingBucket;
 
   /**
    * Loads the caller's ranking entries for a set of films, each carrying
