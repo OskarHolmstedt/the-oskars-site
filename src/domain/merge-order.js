@@ -291,9 +291,15 @@
 
       if (event.key !== "Enter" && event.key !== " ") return;
       let pickTarget = event.target.closest("[data-watchlist-merge-pick]");
-      if (!pickTarget) return;
-      event.preventDefault();
-      handlers.pick(pickTarget.dataset.watchlistMergePick);
+      if (pickTarget) {
+        event.preventDefault();
+        handlers.pick(pickTarget.dataset.watchlistMergePick);
+        return;
+      }
+      if (container.querySelector("[data-merge-apply]")) {
+        event.preventDefault();
+        handlers.apply?.();
+      }
     });
   };
 })();

@@ -222,6 +222,30 @@
   };
 
   /**
+   * Reads every confirmed rewatchlist shelf and merge group for the active owner.
+   * @returns {Promise<Object[]>}
+   */
+  window.loadSupabaseRewatchOrderGroups = async function () {
+    let ready = await window.ensureSupabaseClient();
+    if (!ready) throw new Error("Supabase not configured.");
+    let ownerId = window.getSupabaseCurrentUser?.()?.id;
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
+    let groups = [];
+    for (let offset = 0; ; offset += 500) {
+      let { data, error } = await ready.client
+        .from("rewatch_order_groups")
+        .select("id,tier,kind,years,film_ids")
+        .eq("user_id", ownerId)
+        .order("id")
+        .range(offset, offset + 499);
+      if (error) throw error;
+      window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+      groups.push(...(data || []));
+      if ((data || []).length < 500) return groups;
+    }
+  };
+
+  /**
    * Atomically saves a complete versioned rewatchlist order for the current owner.
    * @param {FilmRecord[]} films Rewatch films in the reviewed global order.
    * @returns {Promise<void>}

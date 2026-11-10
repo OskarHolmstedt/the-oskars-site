@@ -532,10 +532,12 @@
   // every other field too (see buildSharedFilmArchiveFromSupabase in
   // src/domain/supabase-legacy-hydration.js).
   function objectiveFilmMetadataRows(film) {
+    let isLetterboxdUrl = /letterboxd\.com|boxd\.it/i.test(
+      String(film.url || ""),
+    );
     let letterboxdUrl =
-      film.letterboxdUrl ||
-      (/letterboxd\.com/i.test(String(film.url || "")) ? film.url : "");
-    let otherUrl = film.url && film.url !== letterboxdUrl ? film.url : "";
+      window.letterboxdFilmUrl(film) || (isLetterboxdUrl ? film.url : "");
+    let otherUrl = film.url && !isLetterboxdUrl ? film.url : "";
     let countryValues = window.countryListValues(film.country);
     let primaryCountry =
       window.primaryCountryValue?.(film) || film.primaryCountry || "";

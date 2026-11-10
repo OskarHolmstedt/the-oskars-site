@@ -17,6 +17,7 @@
  */
 (function () {
   let escape = window.pageEscape;
+  let ui = window.uiText || ((text) => text);
   let container = document.getElementById("localRankMergePage");
 
   let collection = null; // {kind, id, name}
@@ -28,6 +29,27 @@
   let orderedFilmIds = [];
   let applyResult = null;
   let isMutating = false;
+  let filmDirectors = new Map();
+  let autoApply =
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("oskars-merge-auto-apply") === "true";
+
+  function resolveFilmDirector(film) {
+    if (!film) return "";
+    if (typeof film.director === "string" && film.director.trim()) {
+      return film.director.trim();
+    }
+    if (Array.isArray(film.directors) && film.directors.length) {
+      return film.directors.filter(Boolean).join(", ");
+    }
+    if (film.id && filmDirectors.has(film.id)) {
+      return filmDirectors.get(film.id);
+    }
+    if (collection?.kind === "person" && collection.name) {
+      return collection.name;
+    }
+    return "";
+  }
 
   function renderPickStep() {
     let tagList = tagOptions.length
@@ -113,6 +135,11 @@
       deckUnderlayHtml = `<div class="watchlist-merge-deck-underlay" aria-hidden="true">${cardsHtml}</div>`;
     }
 
+    let director = resolveFilmDirector(film);
+    let directorHtml = director
+      ? `<div class="watchlist-merge-card-director" title="${escape(director)}">${escape(ui("by"))} ${escape(director)}</div>`
+      : "";
+
     return `<article class="film-card watchlist-card watchlist-merge-choice-card ${stackClass}" data-watchlist-merge-pick="${side}" tabindex="0" role="button" aria-label="${escape(film.title || "film")}">
       ${deckUnderlayHtml}
       <div class="watchlist-merge-card-header">
@@ -127,6 +154,7 @@
         <div class="watchlist-merge-card-subline">
           <span class="film-year">(${escape(film.year || "—")})</span>
         </div>
+        ${directorHtml}
       </div>
       <div class="watchlist-merge-card-footer">
         <span class="watchlist-merge-pick-cue"><kbd>${keyHint}</kbd> Choose</span>
@@ -146,8 +174,11 @@
       <p>This becomes ${escape(collection.name)}'s new local rank order.</p>
       <ol class="watchlist-merge-preview-list">${itemsHtml}</ol>
       <div class="watchlist-merge-preview-actions">
-        <button type="button" class="sort-order-button" data-merge-apply>Use this order</button>
+        <button type="button" class="sort-order-button" data-merge-apply autofocus>Use this order</button>
         <button type="button" class="sort-order-button" data-merge-restart>Start over</button>
+        <label class="watchlist-merge-auto-apply-label" title="Skip this confirmation screen for future merges">
+          <input type="checkbox" data-merge-auto-apply ${autoApply ? "checked" : ""}> Auto-apply in future
+        </label>
       </div>
     </section>`;
   }
@@ -187,6 +218,11 @@
         return;
       }
       collection = { kind, id, name: loaded.name };
+      if (kind === "person") {
+        loaded.films.forEach((film) => {
+          if (film) film.director = loaded.name;
+        });
+      }
       let implicitOrder = [...loaded.films].sort((left, right) =>
         String(left.title).localeCompare(String(right.title)),
       );
@@ -253,21 +289,41 @@
     }
   });
 
-  function startMerge() {
+  async function startMerge() {
     let canEdit = window.oskarsCapabilities?.().canEdit ?? true;
     if (!canEdit) return;
     let films = orderedFilmIds;
     if (films.length < 2) return;
+    let filmIds = films.map((f) => f.id).filter(Boolean);
+    if (window.loadSupabaseFilmDirectors) {
+      try {
+        let loaded = await window.loadSupabaseFilmDirectors(filmIds);
+        if (loaded instanceof Map) {
+          for (let [id, names] of loaded.entries()) {
+            filmDirectors.set(
+              id,
+              Array.isArray(names) ? names.join(", ") : names,
+            );
+          }
+        }
+      } catch (err) {}
+    }
     let mid = Math.ceil(films.length / 2);
     session = window.createMergeSession(films.slice(0, mid), films.slice(mid));
     step = session.done ? "preview" : "compare";
     render();
   }
 
-  function pickSide(side) {
+  async function pickSide(side) {
     if (!session) return;
     window.pickMergeSide(session, side);
-    if (session.done) step = "preview";
+    if (session.done) {
+      if (autoApply) {
+        await applyMerge();
+        return;
+      }
+      step = "preview";
+    }
     render();
   }
 
@@ -301,6 +357,17 @@
       isMutating = false;
     }
   }
+
+  container.addEventListener("click", (event) => {
+    let autoApplyCheckbox = event.target.closest("[data-merge-auto-apply]");
+    if (autoApplyCheckbox) {
+      autoApply = Boolean(autoApplyCheckbox.checked);
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem("oskars-merge-auto-apply", String(autoApply));
+      }
+      render();
+    }
+  });
 
   window.wireMergeCompareControls(container, {
     start: startMerge,

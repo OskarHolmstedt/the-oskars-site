@@ -57,16 +57,16 @@
         ? "merge.html?mode=watched"
         : category === "watchlist"
           ? "merge.html?mode=watchlist"
-          : "";
+          : "merge.html?mode=rewatchlist";
     let review =
       category === "watched"
         ? "ranking-review.html"
         : category === "watchlist"
           ? "merge.html?mode=watchlist"
-          : `${view}&order=rank`;
+          : "merge.html?mode=rewatchlist";
     return `<div class="period-edit-controls" aria-label="Ranking actions">
       <button type="button" class="sort-order-button" ${category === "watchlist" ? "data-watchlist-placement-open" : "data-ranking-placement-open"}>Place a film</button>
-      ${merge ? `<a class="sort-order-button" href="${merge}">Merge groups</a>` : '<button type="button" class="sort-order-button" disabled title="Rewatchlist uses a single order within each tier">Merge groups</button>'}
+      <a class="sort-order-button" href="${merge}">Merge groups</a>
       <a class="sort-order-button" href="${review}">Review order</a>
       <a class="sort-order-button" href="${view}">View</a>
     </div>`;
@@ -150,22 +150,13 @@
   function renderRankingsMatrix(yearMap, populatedYears) {
     let matrixHtml = window.renderPeriodIndexMatrix({
       years: populatedYears,
-      allTimeUrl:
-        category === "rewatchlist"
-          ? "period.html?type=alltime&view=rewatch"
-          : window.periodRankingPageUrl("alltime", "alltime", category),
+      allTimeUrl: window.periodRankingPageUrl("alltime", "alltime", category),
       centuryUrl: (century) =>
-        category === "rewatchlist"
-          ? `period.html?type=century&key=${encodeURIComponent(century)}&view=rewatch`
-          : window.periodRankingPageUrl("century", century, category),
+        window.periodRankingPageUrl("century", century, category),
       decadeUrl: (decade) =>
-        category === "rewatchlist"
-          ? `period.html?type=decade&key=${encodeURIComponent(decade)}&view=rewatch`
-          : window.periodRankingPageUrl("decade", decade, category),
+        window.periodRankingPageUrl("decade", decade, category),
       yearUrl: (yearStr) => {
         let y = Number(yearStr);
-        if (category === "rewatchlist")
-          return `period.html?type=year&key=${encodeURIComponent(y)}&view=rewatch`;
         return window.periodRankingPageUrl("year", y, category);
       },
       yearClass: (yearStr) => {
@@ -354,8 +345,8 @@
         yearMap.set(y, current);
       });
     } else if (category === "watchlist") {
-      let tiered = watchlist.filter((row) =>
-        window.normalizeWatchlistTier(row.tier),
+      let tiered = watchlist.filter(
+        (row) => !row.is_stashed && window.normalizeWatchlistTier(row.tier),
       );
       unrankedFilms = tiered.filter(
         (row) => row.position == null || row.position === "",
@@ -391,21 +382,20 @@
       tiered.forEach((row) => {
         let y = Number(row.films?.year);
         if (!Number.isInteger(y)) return;
+        let py = pendingYears.get(y);
         let current = yearMap.get(y) || {
-          total: 0,
-          ranked: 0,
-          unranked: 0,
+          total: py ? py.count : 0,
+          ranked: py ? Math.max(0, py.count - py.pending) : 0,
+          unranked: py ? py.pending : 0,
           unreviewed: 0,
         };
-        current.total += 1;
-        if (row.position != null && row.position !== "") {
-          current.ranked += 1;
-        } else {
-          current.unranked += 1;
-        }
-        let py = pendingYears.get(y);
-        if (py && py.pending > 0) {
-          current.unreviewed = py.pending;
+        if (!py) {
+          current.total += 1;
+          if (row.position != null && row.position !== "") {
+            current.ranked += 1;
+          } else {
+            current.unranked += 1;
+          }
         }
         yearMap.set(y, current);
       });
@@ -413,25 +403,51 @@
       unrankedFilms = rewatch.filter(
         (row) => row.rewatch_position == null || row.rewatch_position === "",
       );
+      let pending = window
+        .watchlistExactTiers()
+        .flatMap((tier) => window.rewatchOrderingShelves(tier))
+        .filter((shelf) => !shelf.confirmed)
+        .reduce((sum, shelf) => sum + shelf.items.length, 0);
+      let groups = window
+        .watchlistExactTiers()
+        .reduce(
+          (sum, tier) => sum + window.rewatchOrderingBlocks(tier).length,
+          0,
+        );
       totalCount = rewatch.length;
       unrankedCount = unrankedFilms.length;
       rankedCount = Math.max(0, totalCount - unrankedCount);
-      summary = `${totalCount} marked for rewatch · ${rankedCount} ordered · ${unrankedCount} unranked`;
+      summary = `${totalCount} marked for rewatch · ${pending} awaiting year ordering · ${groups} ordered groups`;
+
+      let pendingYears = new Map();
+      for (let tier of window.watchlistExactTiers()) {
+        for (let shelf of window.rewatchOrderingShelves(tier)) {
+          let y = shelf.year;
+          if (!pendingYears.has(y))
+            pendingYears.set(y, { pending: 0, count: 0 });
+          let stat = pendingYears.get(y);
+          stat.count += shelf.items.length;
+          if (!shelf.confirmed) stat.pending += shelf.items.length;
+        }
+      }
 
       rewatch.forEach((row) => {
         let y = Number(row.films?.year);
         if (!Number.isInteger(y)) return;
+        let py = pendingYears.get(y);
         let current = yearMap.get(y) || {
-          total: 0,
-          ranked: 0,
-          unranked: 0,
+          total: py ? py.count : 0,
+          ranked: py ? Math.max(0, py.count - py.pending) : 0,
+          unranked: py ? py.pending : 0,
           unreviewed: 0,
         };
-        current.total += 1;
-        if (row.rewatch_position != null && row.rewatch_position !== "") {
-          current.ranked += 1;
-        } else {
-          current.unranked += 1;
+        if (!py) {
+          current.total += 1;
+          if (row.rewatch_position != null && row.rewatch_position !== "") {
+            current.ranked += 1;
+          } else {
+            current.unranked += 1;
+          }
         }
         yearMap.set(y, current);
       });
@@ -477,7 +493,8 @@
       workspace = await window.loadSupabaseWorkspace({
         parts: ["watched", "watchlist", "rankings"],
       });
-      await window.loadWatchlistOrdering();
+      await window.loadWatchlistOrdering?.();
+      await window.loadRewatchOrdering?.();
       if (window.mountWatchlistYearOrder(container)) return;
       category = selectedCategory();
       renderHub();

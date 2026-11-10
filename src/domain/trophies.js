@@ -390,32 +390,45 @@
     });
   };
 
+  if (Array.isArray(window.BUNDLED_COLLECTION_TROPHIES)) {
+    window.applyCollectionTrophies(window.BUNDLED_COLLECTION_TROPHIES);
+  }
+
+  let activeCollectionTrophiesPromise = null;
+
   /**
    * Loads active collection trophies and essential landmarks from Supabase.
+   * @param {boolean} [forceRefresh=false] Bypass cached in-flight or completed fetch.
    * @returns {Promise<CollectionTrophyProgress[]>} Curated collection trophies with active qualification.
    */
-  window.loadCollectionTrophies = async function () {
-    let ready = await window.ensureSupabaseClient?.();
-    if (!ready) return window.collectionTrophiesData();
-    try {
-      let { data, error } = await ready.client
-        .from("collection_trophies")
-        .select(
-          "id, entity_type, entity_id, title, persona_name, emblem, edition, letterboxd_url, custom_rules, is_active, collection_trophy_essentials(film_id, sort_order)",
-        )
-        .eq("is_active", true)
-        .order("id");
-      if (error) {
-        console.warn?.("loadCollectionTrophies query failed", error);
-        return window.collectionTrophiesData();
-      }
-      if (Array.isArray(data)) {
-        window.applyCollectionTrophies(data);
-      }
-    } catch (e) {
-      console.warn?.("loadCollectionTrophies exception", e);
+  window.loadCollectionTrophies = async function (forceRefresh = false) {
+    if (activeCollectionTrophiesPromise && !forceRefresh) {
+      return activeCollectionTrophiesPromise;
     }
-    return window.collectionTrophiesData();
+    activeCollectionTrophiesPromise = (async () => {
+      let ready = await window.ensureSupabaseClient?.();
+      if (!ready) return window.collectionTrophiesData();
+      try {
+        let { data, error } = await ready.client
+          .from("collection_trophies")
+          .select(
+            "id, entity_type, entity_id, title, persona_name, emblem, edition, letterboxd_url, custom_rules, is_active, collection_trophy_essentials(film_id, sort_order)",
+          )
+          .eq("is_active", true)
+          .order("id");
+        if (error) {
+          console.warn?.("loadCollectionTrophies query failed", error);
+          return window.collectionTrophiesData();
+        }
+        if (Array.isArray(data)) {
+          window.applyCollectionTrophies(data);
+        }
+      } catch (e) {
+        console.warn?.("loadCollectionTrophies exception", e);
+      }
+      return window.collectionTrophiesData();
+    })();
+    return activeCollectionTrophiesPromise;
   };
 
   /**
@@ -424,51 +437,74 @@
    * @param {Object} [archive] Hydrated archive.
    * @returns {Object|null} Film record or null.
    */
+  // Secondary film index per source collection, cached by object identity and
+  // validated by entry count. Trophy resolution looks up thousands of ids and
+  // most are misses, so the linear scans this replaces made a single
+  // collectionTrophiesData() call take seconds on a hydrated archive.
+  const filmSourceIndexCache = new WeakMap();
+
+  function filmSourceLookup(source, id, includeTmdb) {
+    if (!source || typeof source !== "object") return null;
+    const isArray = Array.isArray(source);
+    let cached = filmSourceIndexCache.get(source);
+    // Arrays revalidate by length on every call (O(1)); keyed pools only
+    // recount their entries at most twice a second, since counting keys of a
+    // multi-thousand-entry object per lookup is itself the quadratic cost
+    // this cache exists to remove.
+    let stale = !cached;
+    if (cached) {
+      if (isArray) {
+        stale = cached.size !== source.length;
+      } else if (Date.now() - cached.checkedAt > 500) {
+        stale = cached.size !== Object.keys(source).length;
+        cached.checkedAt = Date.now();
+      }
+    }
+    if (stale) {
+      const films = isArray ? source : Object.values(source);
+      const map = new Map();
+      films.forEach((f) => {
+        if (!f) return;
+        // First match wins, like the linear scans this replaces.
+        if (f.id != null && !map.has(f.id)) map.set(f.id, f);
+        if (f.supabaseFilmId != null && !map.has(f.supabaseFilmId))
+          map.set(f.supabaseFilmId, f);
+        if (f.tmdb_id != null && !map.has(`tmdb:${f.tmdb_id}`))
+          map.set(`tmdb:${f.tmdb_id}`, f);
+      });
+      cached = { size: films.length, map, checkedAt: Date.now() };
+      filmSourceIndexCache.set(source, cached);
+    }
+    return (
+      cached.map.get(id) ||
+      (includeTmdb ? cached.map.get(`tmdb:${String(id)}`) : null) ||
+      null
+    );
+  }
+
   function findFilmInArchive(id, archive = window.state || {}) {
     if (!id) return null;
-    if (archive.filmsById && archive.filmsById[id])
-      return archive.filmsById[id];
-    if (window.state?.filmsById && window.state.filmsById[id])
-      return window.state.filmsById[id];
-    const other =
-      (archive.watchedOther || []).find((f) => f.id === id) ||
-      (window.state?.watchedOther || []).find((f) => f.id === id);
-    if (other) return other;
-    const wl =
-      (archive.watchlist || []).find(
-        (w) => w.id === id || w.supabaseFilmId === id,
-      ) ||
-      (window.state?.watchlist || []).find(
-        (w) => w.id === id || w.supabaseFilmId === id,
-      );
-    if (wl) return wl;
-    if (
-      window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID &&
-      window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID[id]
-    ) {
-      return window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID[id];
-    }
-    if (Array.isArray(archive.films)) {
-      const match = archive.films.find(
-        (f) =>
-          f &&
-          (f.id === id ||
-            f.supabaseFilmId === id ||
-            String(f.tmdb_id) === String(id)),
-      );
-      if (match) return match;
-    }
-    if (Array.isArray(window.state?.films)) {
-      const match = window.state.films.find(
-        (f) =>
-          f &&
-          (f.id === id ||
-            f.supabaseFilmId === id ||
-            String(f.tmdb_id) === String(id)),
-      );
-      if (match) return match;
-    }
-    return null;
+    const direct = archive.filmsById?.[id] || window.state?.filmsById?.[id];
+    if (direct) return direct;
+
+    const filmsByIdPool = archive.filmsById || window.state?.filmsById;
+    const match =
+      filmSourceLookup(filmsByIdPool, id, true) ||
+      filmSourceLookup(archive.watchedOther, id, false) ||
+      filmSourceLookup(window.state?.watchedOther, id, false) ||
+      filmSourceLookup(archive.watchlist, id, false) ||
+      filmSourceLookup(window.state?.watchlist, id, false) ||
+      filmSourceLookup(archive.watched, id, false) ||
+      filmSourceLookup(window.state?.watched, id, false) ||
+      window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID?.[id] ||
+      filmSourceLookup(window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID, id, true) ||
+      (Array.isArray(archive.films)
+        ? filmSourceLookup(archive.films, id, true)
+        : null) ||
+      (Array.isArray(window.state?.films)
+        ? filmSourceLookup(window.state.films, id, true)
+        : null);
+    return match || null;
   }
 
   /**
@@ -490,11 +526,12 @@
   function extractWatchedIds(archive = window.state || {}) {
     const watchedIds = new Set();
     [
+      ...(Array.isArray(archive.watched) ? archive.watched : []),
       ...Object.values(archive.filmsById || {}),
       ...(archive.watchedOther || []),
     ].forEach((film) => {
-      if (film?.supabaseFilmId || film?.id)
-        watchedIds.add(film.supabaseFilmId || film.id);
+      if (film?.supabaseFilmId) watchedIds.add(film.supabaseFilmId);
+      if (film?.id) watchedIds.add(film.id);
     });
     return watchedIds;
   }
@@ -639,17 +676,31 @@
       if (window.isLostFilm(film || filmId, customRules)) {
         return;
       }
-      if (!collectedFilms.has(filmId)) {
-        collectedFilms.set(filmId, {
-          id: filmId,
-          title: film?.title || `Film ${filmId.slice(0, 8)}`,
+      const canonicalId = film?.id || film?.supabaseFilmId || filmId;
+      const title = film?.title || `Film ${filmId.slice(0, 8)}`;
+      const existingKey = collectedFilms.has(canonicalId)
+        ? canonicalId
+        : collectedFilms.has(filmId)
+          ? filmId
+          : film?.supabaseFilmId && collectedFilms.has(film.supabaseFilmId)
+            ? film.supabaseFilmId
+            : null;
+      if (existingKey) {
+        const existing = collectedFilms.get(existingKey);
+        existing.isEssential = true;
+        if (existing.title.startsWith("Film ") && film?.title) {
+          existing.title = film.title;
+          existing.year = Number(film.year) || existing.year;
+        }
+      } else {
+        collectedFilms.set(canonicalId, {
+          id: canonicalId,
+          title,
           year: Number(film?.year) || 0,
           kind: "",
           isFeature: true,
           isEssential: true,
         });
-      } else {
-        collectedFilms.get(filmId).isEssential = true;
       }
     });
 
@@ -701,6 +752,9 @@
       const normKey = window.normalizePersonName
         ? window.normalizePersonName(def.entityId || def.title)
         : String(def.entityId || def.title).toLowerCase();
+      const normTitle = window.normalizePersonName
+        ? window.normalizePersonName(def.title)
+        : String(def.title).toLowerCase();
       const peopleIndex =
         (window.ensurePeopleIndex ? window.ensurePeopleIndex() : null) ||
         archive.peopleById ||
@@ -708,62 +762,165 @@
         {};
       const person =
         peopleIndex[normKey] ||
+        peopleIndex[normTitle] ||
         Object.values(peopleIndex).find(
           (p) =>
             p.id === normKey ||
+            p.id === normTitle ||
             p.name === def.title ||
-            (p.aliases || []).includes(def.title),
+            (window.normalizePersonName &&
+              window.normalizePersonName(p.name) === normTitle) ||
+            (p.aliases || []).some(
+              (a) =>
+                a === def.title ||
+                (window.normalizePersonName &&
+                  window.normalizePersonName(a) === normTitle),
+            ),
         );
 
       if (person) {
-        const addDirected = (film) => {
-          if (!film || window.isLostFilm(film, customRules)) return;
-          const filmId = film.supabaseFilmId || film.id;
-          if (
-            !filmId ||
-            (sycophantExcludes.has(filmId) && !sycophantIncludes.has(filmId))
-          )
+        const addDirected = (filmCandidate) => {
+          if (!filmCandidate || window.isLostFilm(filmCandidate, customRules)) {
             return;
-          const typeStr = String(film.type || "").trim();
+          }
+          const film = filmCandidate.films || filmCandidate;
+          const title = String(film.title || "").trim();
+          if (!title) return; // Ignore any candidate lacking a real title
+
+          const filmId =
+            film.supabaseFilmId ||
+            filmCandidate.supabaseFilmId ||
+            filmCandidate.film_id ||
+            film.id;
+          if (!filmId) return;
+          if (
+            (sycophantExcludes.has(filmId) && !sycophantIncludes.has(filmId)) ||
+            (film.id &&
+              sycophantExcludes.has(film.id) &&
+              !sycophantIncludes.has(film.id))
+          ) {
+            return;
+          }
+          const typeStr = String(film.type || filmCandidate.type || "").trim();
           const isNonFeature = window.isNonFeatureFilm
             ? window.isNonFeatureFilm(film)
             : typeStr && typeStr.toLowerCase() !== "film";
           const isFeature =
             completionistIncludes.has(filmId) ||
+            (film.id && completionistIncludes.has(film.id)) ||
             (!completionistExcludes.has(filmId) &&
+              (!film.id || !completionistExcludes.has(film.id)) &&
               (!isNonFeature || typeStr.toLowerCase() === "film"));
 
-          const existing = collectedFilms.get(filmId);
-          if (!existing) {
+          const normCandidateTitle = title
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
+          const candidateYear = Number(film.year) || 0;
+
+          let existingKey = collectedFilms.has(filmId)
+            ? filmId
+            : film.id && collectedFilms.has(film.id)
+              ? film.id
+              : film.supabaseFilmId && collectedFilms.has(film.supabaseFilmId)
+                ? film.supabaseFilmId
+                : null;
+
+          if (!existingKey && normCandidateTitle) {
+            for (const [key, existingItem] of collectedFilms.entries()) {
+              const existingNorm = (existingItem.title || "")
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, "");
+              if (
+                existingNorm &&
+                existingNorm === normCandidateTitle &&
+                (!candidateYear ||
+                  !existingItem.year ||
+                  Math.abs(candidateYear - existingItem.year) <= 1)
+              ) {
+                existingKey = key;
+                break;
+              }
+            }
+          }
+
+          if (!existingKey) {
             collectedFilms.set(filmId, {
               id: filmId,
-              title: film.title || "",
-              year: Number(film.year) || 0,
+              title,
+              year: candidateYear,
               kind: isFeature ? "" : typeStr || "Other",
               isFeature,
               isEssential: false,
             });
+          } else {
+            const existing = collectedFilms.get(existingKey);
+            if (!existing.title || existing.title.startsWith("Film ")) {
+              existing.title = title;
+            }
+            if (!existing.year && candidateYear) {
+              existing.year = candidateYear;
+            }
+            if (!existing.isEssential && !isFeature && existing.isFeature) {
+              existing.isFeature = false;
+              existing.kind = typeStr || "Other";
+            }
           }
         };
 
         (person.filmIds || []).forEach((fId) => {
           const film =
-            archive.filmsById?.[fId] ||
-            window.state?.filmsById?.[fId] ||
+            findFilmInArchive(fId, archive) ||
             window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID?.[fId];
           if (film) {
-            const isDirector =
-              (person.credits || []).some(
-                (c) => c.filmId === fId && c.profession === "Director",
-              ) || (person.professions || []).includes("Director");
-            if (isDirector) addDirected(film);
+            const hasDirectorCredit = (person.credits || []).some(
+              (c) =>
+                c.filmId === fId &&
+                (c.profession === "Director" || c.role === "director"),
+            );
+            const matchesDirectorField =
+              film.director &&
+              (window.splitRecipientNames
+                ? window.splitRecipientNames(film.director)
+                : [film.director]
+              ).some((n) => {
+                const norm = window.normalizePersonName
+                  ? window.normalizePersonName(n)
+                  : String(n).toLowerCase();
+                return norm === normKey || norm === normTitle;
+              });
+            const matchesFilmPeople = Object.values(film.people || {}).some(
+              (p) =>
+                (p.professions || []).includes("Director") &&
+                ((window.normalizePersonName
+                  ? window.normalizePersonName(p.name)
+                  : String(p.name).toLowerCase()) === normKey ||
+                  (window.normalizePersonName
+                    ? window.normalizePersonName(p.name)
+                    : String(p.name).toLowerCase()) === normTitle ||
+                  p.supabasePersonIds?.includes(person.id)),
+            );
+            const hasExplicitDirectorInfo = Boolean(
+              film.director ||
+              (film.people && Object.keys(film.people).length > 0) ||
+              (person.credits && person.credits.length > 0),
+            );
+            const isDirector = hasExplicitDirectorInfo
+              ? hasDirectorCredit || matchesDirectorField || matchesFilmPeople
+              : (person.professions || []).includes("Director");
+            if (isDirector) {
+              addDirected(film);
+            }
           }
         });
 
         (person.watchedOtherIds || []).forEach((fId) => {
           const film =
-            (archive.watchedOther || []).find((f) => f.id === fId) ||
-            (window.state?.watchedOther || []).find((f) => f.id === fId);
+            (archive.watchedOther || []).find(
+              (f) => f.id === fId || f.supabaseFilmId === fId,
+            ) ||
+            (window.state?.watchedOther || []).find(
+              (f) => f.id === fId || f.supabaseFilmId === fId,
+            );
           if (film) addDirected(film);
         });
 
@@ -778,15 +935,31 @@
           if (item) addDirected(item);
         });
 
+        if (window.personWatchlistItems) {
+          (window.personWatchlistItems(person, archive) || []).forEach(
+            (item) => {
+              addDirected(item);
+            },
+          );
+        }
+        (person.watchlistPreview || []).forEach((item) => {
+          addDirected(item);
+        });
+
         (person.catalogIds || []).forEach((cId) => {
-          const film = window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID?.[cId];
+          const film =
+            findFilmInArchive(cId, archive) ||
+            window.OSKARS_SHARED_FILM_ARCHIVE_BY_ID?.[cId];
           if (film) {
             const isDirector = Object.values(film.people || {}).some(
               (c) =>
                 (c.professions || []).includes("Director") &&
                 ((window.normalizePersonName
                   ? window.normalizePersonName(c.name)
-                  : c.name) === normKey ||
+                  : String(c.name).toLowerCase()) === normKey ||
+                  (window.normalizePersonName
+                    ? window.normalizePersonName(c.name)
+                    : String(c.name).toLowerCase()) === normTitle ||
                   c.supabasePersonIds?.includes(person.id)),
             );
             if (isDirector) addDirected(film);
@@ -794,15 +967,20 @@
         });
 
         if (window.watchlistItemsByDirector) {
-          const items = window.watchlistItemsByDirector(person.name);
+          const items = [
+            ...(person.name
+              ? window.watchlistItemsByDirector(person.name)
+              : []),
+            ...(def.title && def.title !== person.name
+              ? window.watchlistItemsByDirector(def.title)
+              : []),
+          ];
           items.forEach((item) => addDirected(item));
         }
 
         (customRules.sycophant_include_film_ids || []).forEach((extraId) => {
-          if (!collectedFilms.has(extraId)) {
-            const film = findFilmInArchive(extraId, archive);
-            if (film) addDirected(film);
-          }
+          const film = findFilmInArchive(extraId, archive);
+          if (film) addDirected(film);
         });
       }
     }
@@ -819,21 +997,72 @@
         {};
       const franchise = franchiseIndex[normKey];
       if (franchise) {
-        const addFranchise = (film, isFeature) => {
-          if (!film || window.isLostFilm(film, customRules)) return;
-          const filmId = film.supabaseFilmId || film.id;
+        const addFranchise = (filmCandidate, isFeature) => {
+          if (!filmCandidate || window.isLostFilm(filmCandidate, customRules)) {
+            return;
+          }
+          const film = filmCandidate.films || filmCandidate;
+          const title = String(film.title || "").trim();
+          if (!title) return;
+          const filmId =
+            film.supabaseFilmId ||
+            filmCandidate.supabaseFilmId ||
+            filmCandidate.film_id ||
+            film.id;
           if (!filmId) return;
-          const typeStr = String(film.type || "").trim();
-          const existing = collectedFilms.get(filmId);
-          if (!existing) {
+          const typeStr = String(film.type || filmCandidate.type || "").trim();
+          const normCandidateTitle = title
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
+          const candidateYear = Number(film.year) || 0;
+
+          let existingKey = collectedFilms.has(filmId)
+            ? filmId
+            : film.id && collectedFilms.has(film.id)
+              ? film.id
+              : film.supabaseFilmId && collectedFilms.has(film.supabaseFilmId)
+                ? film.supabaseFilmId
+                : null;
+
+          if (!existingKey && normCandidateTitle) {
+            for (const [key, existingItem] of collectedFilms.entries()) {
+              const existingNorm = (existingItem.title || "")
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, "");
+              if (
+                existingNorm &&
+                existingNorm === normCandidateTitle &&
+                (!candidateYear ||
+                  !existingItem.year ||
+                  Math.abs(candidateYear - existingItem.year) <= 1)
+              ) {
+                existingKey = key;
+                break;
+              }
+            }
+          }
+
+          if (!existingKey) {
             collectedFilms.set(filmId, {
               id: filmId,
-              title: film.title || "",
-              year: Number(film.year) || 0,
+              title,
+              year: candidateYear,
               kind: isFeature ? "" : typeStr || "Other",
               isFeature,
               isEssential: false,
             });
+          } else {
+            const existing = collectedFilms.get(existingKey);
+            if (!existing.title || existing.title.startsWith("Film ")) {
+              existing.title = title;
+            }
+            if (!existing.year && candidateYear) {
+              existing.year = candidateYear;
+            }
+            if (!existing.isEssential && !isFeature && existing.isFeature) {
+              existing.isFeature = false;
+              existing.kind = typeStr || "Other";
+            }
           }
         };
 
@@ -862,11 +1091,38 @@
       }
     }
 
-    // Final filter pass: ensure no lost films are present in collectedFilms
+    // Final filter pass: ensure no lost films or blank titles
     for (const [filmId, item] of collectedFilms.entries()) {
       const filmRecord = findFilmInArchive(filmId, archive);
-      if (window.isLostFilm(filmRecord || item, customRules)) {
+      if (
+        !item.title ||
+        !item.title.trim() ||
+        window.isLostFilm(filmRecord || item, customRules)
+      ) {
         collectedFilms.delete(filmId);
+      }
+    }
+
+    // Deduplication pass: ensure no film exists more than once by normalized title + year
+    const seenByTitleYear = new Map();
+    for (const [key, item] of collectedFilms.entries()) {
+      const normTitle = (item.title || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+      if (!normTitle || normTitle.startsWith("film")) continue;
+      const titleYearKey = `${normTitle}::${item.year || 0}`;
+      if (seenByTitleYear.has(titleYearKey)) {
+        const primaryKey = seenByTitleYear.get(titleYearKey);
+        const primary = collectedFilms.get(primaryKey);
+        if (item.isEssential) primary.isEssential = true;
+        if (item.isFeature && !primary.isFeature && !primary.isEssential) {
+          primary.isFeature = true;
+        }
+        if (!primary.year && item.year) primary.year = item.year;
+        if (!primary.kind && item.kind) primary.kind = item.kind;
+        collectedFilms.delete(key);
+      } else {
+        seenByTitleYear.set(titleYearKey, key);
       }
     }
 
@@ -905,13 +1161,22 @@
      * @param {[string, string, number, string?][]} tuples
      */
     const mapChecklist = (tuples) =>
-      tuples.map(([id, title, year, kind = ""]) => ({
-        id,
-        title,
-        year,
-        watched: watched.has(id),
-        kind,
-      }));
+      tuples.map(([id, title, year, kind = ""]) => {
+        const filmRecord = findFilmInArchive(id, archive);
+        const isWatched =
+          watched.has(id) ||
+          (filmRecord &&
+            ((filmRecord.id && watched.has(filmRecord.id)) ||
+              (filmRecord.supabaseFilmId &&
+                watched.has(filmRecord.supabaseFilmId))));
+        return {
+          id,
+          title,
+          year,
+          watched: Boolean(isWatched),
+          kind,
+        };
+      });
 
     const essentialFilms = mapChecklist(sortedEssentialTuples);
     const completionistFilms = mapChecklist(sortedCompletionistTuples);
@@ -996,7 +1261,7 @@
       ui("{count} theatrical feature films", {
         count: completionistFilms.length,
       });
-    const overallCelebration = def.celebration || completionistCelebration;
+    const overallCelebration = def.celebration || "";
     const overallInvitation = def.invitation || completionistInvitation;
     const overallCriteria = def.criteria || completionistCriteria;
 
@@ -1081,13 +1346,27 @@
           ? sycophantTier
           : null;
 
+    const kind =
+      def.kind ||
+      (def.entityType === "person"
+        ? "filmography"
+        : def.entityType === "franchise"
+          ? "franchise"
+          : "other-collection");
+
     return {
       id: def.id,
       domId: def.domId,
       title: def.title,
       personaName: def.personaName,
+      kind,
       entityType: /** @type {'person'|'franchise'|'collection'} */ (
-        def.entityType
+        def.entityType ||
+          (kind === "filmography"
+            ? "person"
+            : kind === "franchise"
+              ? "franchise"
+              : "collection")
       ),
       entityId: def.entityId,
       emblem: def.emblem,
@@ -1114,6 +1393,355 @@
       earned: sycophantTier.earned,
       isCurated: true,
     };
+  };
+
+  /**
+   * Derives viewing journey progress trophies (Volume, Decathlon, Critic, Canon).
+   * @param {Object} [archive] Hydrated archive.
+   * @returns {CollectionTrophyProgress[]} Progress milestones with active qualification.
+   */
+  window.progressTrophiesData = function (archive = window.state || {}) {
+    const ui = window.uiText || ((text) => text);
+    const watchedMap = archive.filmsById || {};
+    const watchedList = Object.values(watchedMap).filter(
+      (f) => f && (f.id || f.title),
+    );
+    const watchedOther = archive.watchedOther || [];
+    const watchedCount = watchedList.length + watchedOther.length;
+    const ratedCount = watchedList.filter((f) => f.rating).length;
+
+    // 1. Decade Decathlon
+    const decadeGoals = window.watchGoalProgress
+      ? window.watchGoalProgress("decade", { state: archive })
+      : [];
+    const decadeTarget = window.WATCH_GOAL_TARGETS?.decade || 50;
+    const metDecades = (decadeGoals || []).filter((d) => {
+      const totalMetric = (d.metrics || []).find((m) => m.key === "total");
+      return totalMetric
+        ? totalMetric.met
+        : (d.watchedCount || 0) >= decadeTarget;
+    }).length;
+
+    // 2. Canonical Lists
+    const canonicalLists = window.allCanonicalListsCompletion
+      ? [
+          ...(
+            window.allCanonicalListsCompletion({ state: archive }) || new Map()
+          ).values(),
+        ]
+      : [];
+    const canonicalWatched = canonicalLists.reduce(
+      (sum, list) => sum + (list.watchedCount || 0),
+      0,
+    );
+
+    function createProgressTrophy(config) {
+      const tierList = config.tiers.map((t, index) => {
+        const earned = t.current >= t.target;
+        return {
+          tier: t.key,
+          title: t.title,
+          personaTitle: t.personaTitle,
+          badge: t.badge,
+          level: index + 1,
+          scope: t.scope,
+          criteria: t.criteria,
+          celebration: t.celebration,
+          invitation: t.invitation,
+          films: [],
+          tierOnlyFilms: [],
+          watchedCount: Math.min(t.current, t.target),
+          total: t.target,
+          earned,
+        };
+      });
+
+      const activeTier = tierList[2].earned
+        ? tierList[2]
+        : tierList[1].earned
+          ? tierList[1]
+          : tierList[0].earned
+            ? tierList[0]
+            : null;
+
+      const nextTier = !tierList[0].earned
+        ? tierList[0]
+        : !tierList[1].earned
+          ? tierList[1]
+          : !tierList[2].earned
+            ? tierList[2]
+            : null;
+
+      return {
+        id: config.id,
+        domId: config.domId,
+        title: config.title,
+        personaName: config.personaName,
+        kind: "progress",
+        entityType: /** @type {'progress'} */ ("progress"),
+        entityId: config.id,
+        emblem: config.emblem,
+        edition: config.edition || null,
+        letterboxdUrl: null,
+        scope: config.scope,
+        celebration: config.celebration,
+        invitation: config.invitation,
+        criteria: config.criteria,
+        tiers: {
+          essentialist: tierList[0],
+          completionist: tierList[1],
+          sycophant: tierList[2],
+        },
+        tierList,
+        activeTier,
+        activePersonaTitle: activeTier ? activeTier.personaTitle : null,
+        activeBadge: activeTier ? activeTier.badge : null,
+        nextTier,
+        highestEarnedLevel: activeTier ? activeTier.level : 0,
+        films: [],
+        watchedCount: tierList[2].watchedCount,
+        total: tierList[2].total,
+        earned: tierList[2].earned,
+        isCurated: true,
+      };
+    }
+
+    return [
+      createProgressTrophy({
+        id: "progress-volume",
+        domId: "progressVolumeTrophy",
+        title: ui("Archive Volume"),
+        personaName: ui("Archivist"),
+        emblem: "AV",
+        scope: ui("Watched films logged across your archive"),
+        celebration: ui("You have built an extraordinary cinematic archive."),
+        invitation: ui(
+          "Grow your total watch count across all cinematic eras.",
+        ),
+        criteria: ui("Log watched films in your personal archive."),
+        tiers: [
+          {
+            key: "essentialist",
+            badge: "🥉",
+            title: "Century",
+            personaTitle: ui("Century Archivist"),
+            scope: ui("100 films watched"),
+            criteria: ui("Log 100 watched films in your archive."),
+            celebration: ui("You have logged your first hundred films."),
+            invitation: ui("Reach 100 films logged in your archive."),
+            current: watchedCount,
+            target: 100,
+          },
+          {
+            key: "completionist",
+            badge: "🥈",
+            title: "Cinéaste",
+            personaTitle: ui("Cinéaste Archivist"),
+            scope: ui("500 films watched"),
+            criteria: ui("Log 500 watched films in your archive."),
+            celebration: ui("Half a thousand films cataloged and watched."),
+            invitation: ui("Reach 500 films logged in your archive."),
+            current: watchedCount,
+            target: 500,
+          },
+          {
+            key: "sycophant",
+            badge: "🥇",
+            title: "Grand Archivist",
+            personaTitle: ui("Grand Archivist"),
+            scope: ui("1,000 films watched"),
+            criteria: ui("Log 1,000 watched films in your archive."),
+            celebration: ui("A monumental cinephile milestone: 1,000 films."),
+            invitation: ui("Reach 1,000 films logged in your archive."),
+            current: watchedCount,
+            target: 1000,
+          },
+        ],
+      }),
+      createProgressTrophy({
+        id: "progress-decathlon",
+        domId: "progressDecathlonTrophy",
+        title: ui("Decade Decathlon"),
+        personaName: ui("Decathlete"),
+        emblem: "DD",
+        scope: ui("Coverage goals across film history decades"),
+        celebration: ui(
+          "Complete temporal mastery: 10 decades of cinema conquered.",
+        ),
+        invitation: ui(
+          "Reach watch targets across distinct decades of film history.",
+        ),
+        criteria: ui("Reach the 50-film watch goal in historical decades."),
+        tiers: [
+          {
+            key: "essentialist",
+            badge: "🥉",
+            title: "Decade Explorer",
+            personaTitle: ui("Decade Explorer"),
+            scope: ui("3 decades reached"),
+            criteria: ui("Reach the watch goal in 3 distinct decades."),
+            celebration: ui(
+              "You have broad taste spanning multiple cinematic eras.",
+            ),
+            invitation: ui("Reach watch goals in 3 decades."),
+            current: metDecades,
+            target: 3,
+          },
+          {
+            key: "completionist",
+            badge: "🥈",
+            title: "Decade Pioneer",
+            personaTitle: ui("Decade Pioneer"),
+            scope: ui("6 decades reached"),
+            criteria: ui("Reach the watch goal in 6 distinct decades."),
+            celebration: ui(
+              "Over half a century of film history thoroughly explored.",
+            ),
+            invitation: ui("Reach watch goals in 6 decades."),
+            current: metDecades,
+            target: 6,
+          },
+          {
+            key: "sycophant",
+            badge: "🥇",
+            title: "Decathlon Master",
+            personaTitle: ui("Decathlon Master"),
+            scope: ui("10 decades reached"),
+            criteria: ui("Reach the watch goal across 10 distinct decades."),
+            celebration: ui("Mastery across ten distinct decades of cinema."),
+            invitation: ui("Reach watch goals across 10 decades."),
+            current: metDecades,
+            target: 10,
+          },
+        ],
+      }),
+      createProgressTrophy({
+        id: "progress-critic",
+        domId: "progressCriticTrophy",
+        title: ui("Critic's Notebook"),
+        personaName: ui("Critic"),
+        emblem: "CN",
+        scope: ui("Calibrated star ratings across your archive"),
+        celebration: ui(
+          "A discerning critical voice with deep ratings coverage.",
+        ),
+        invitation: ui(
+          "Rate watched films to calibrate your personal critical archive.",
+        ),
+        criteria: ui("Give star ratings to films you have watched."),
+        tiers: [
+          {
+            key: "essentialist",
+            badge: "🥉",
+            title: "Initiate Reviewer",
+            personaTitle: ui("Initiate Reviewer"),
+            scope: ui("100 films rated"),
+            criteria: ui("Rate at least 100 films in your archive."),
+            celebration: ui("Your critical standard has begun to take shape."),
+            invitation: ui("Rate 100 films in your archive."),
+            current: ratedCount,
+            target: 100,
+          },
+          {
+            key: "completionist",
+            badge: "🥈",
+            title: "Archive Critic",
+            personaTitle: ui("Archive Critic"),
+            scope: ui("500 films rated"),
+            criteria: ui("Rate at least 500 films in your archive."),
+            celebration: ui(
+              "A comprehensive critical catalog spanning hundreds of works.",
+            ),
+            invitation: ui("Rate 500 films in your archive."),
+            current: ratedCount,
+            target: 500,
+          },
+          {
+            key: "sycophant",
+            badge: "🥇",
+            title: "Master of Taste",
+            personaTitle: ui("Master of Taste"),
+            scope: ui("1,000 films rated"),
+            criteria: ui("Rate at least 1,000 films in your archive."),
+            celebration: ui(
+              "An encyclopedic, thoroughly evaluated personal canon.",
+            ),
+            invitation: ui("Rate 1,000 films in your archive."),
+            current: ratedCount,
+            target: 1000,
+          },
+        ],
+      }),
+      createProgressTrophy({
+        id: "progress-canonical",
+        domId: "progressCanonicalTrophy",
+        title: ui("The Canon"),
+        personaName: ui("Scholar"),
+        emblem: "TC",
+        scope: ui("Films watched from canonical historical lists"),
+        celebration: ui(
+          "Deep immersion in the universally recognized cinematic canon.",
+        ),
+        invitation: ui(
+          "Explore landmark works across curated canonical lists.",
+        ),
+        criteria: ui("Watch films included on canonical historical lists."),
+        tiers: [
+          {
+            key: "essentialist",
+            badge: "🥉",
+            title: "Canon Seeker",
+            personaTitle: ui("Canon Seeker"),
+            scope: ui("25 canonical films watched"),
+            criteria: ui("Watch 25 films from curated canonical lists."),
+            celebration: ui(
+              "First steps into cinema's established landmark works.",
+            ),
+            invitation: ui("Watch 25 canonical list films."),
+            current: canonicalWatched,
+            target: 25,
+          },
+          {
+            key: "completionist",
+            badge: "🥈",
+            title: "Canon Scholar",
+            personaTitle: ui("Canon Scholar"),
+            scope: ui("100 canonical films watched"),
+            criteria: ui("Watch 100 films from curated canonical lists."),
+            celebration: ui(
+              "Solid foundation across the historical film canon.",
+            ),
+            invitation: ui("Watch 100 canonical list films."),
+            current: canonicalWatched,
+            target: 100,
+          },
+          {
+            key: "sycophant",
+            badge: "🥇",
+            title: "Canon Authority",
+            personaTitle: ui("Canon Authority"),
+            scope: ui("250 canonical films watched"),
+            criteria: ui("Watch 250 films from curated canonical lists."),
+            celebration: ui("Exhaustive command of essential film history."),
+            invitation: ui("Watch 250 canonical list films."),
+            current: canonicalWatched,
+            target: 250,
+          },
+        ],
+      }),
+    ];
+  };
+
+  /**
+   * Returns all collection and progress trophies.
+   * @param {Object} [archive] Hydrated archive.
+   * @returns {CollectionTrophyProgress[]} All trophies.
+   */
+  window.allTrophiesData = function (archive = window.state || {}) {
+    return [
+      ...window.collectionTrophiesData(archive),
+      ...window.progressTrophiesData(archive),
+    ];
   };
 
   /**
@@ -1264,10 +1892,12 @@
    * @returns {EarnedPersonaTitle[]} Earned persona milestones.
    */
   window.getEarnedPersonaTitles = function (archive = window.state || {}) {
-    const collections = window.collectionTrophiesData(archive);
+    const list = window.allTrophiesData
+      ? window.allTrophiesData(archive)
+      : window.collectionTrophiesData(archive);
     /** @type {EarnedPersonaTitle[]} */
     const earned = [];
-    for (const col of collections) {
+    for (const col of list) {
       if (col.activeTier) {
         earned.push({
           collectionId: col.id,

@@ -199,7 +199,7 @@ window.renderSharedFilmCard = function (film, options = {}) {
     attributes.tabindex ??= "0";
   }
   return `<${tag} class="${escape(classes)}"${filmCardAttributes(attributes, escape)}>
-    ${options.poster === false ? "" : window.renderFilmPoster(film, options.posterSize || "card", { priority: options.priority, hero: options.hero })}
+    ${options.poster === false ? "" : window.renderFilmPoster(film, options.posterSize || "card", { priority: options.priority, hero: options.hero, fallback: Boolean(options.posterFallback || options.fallback) })}
     ${options.beforeTitleHtml || ""}
     <div class="film-title">${rank}${title}${options.afterTitleHtml || ""}${year}${ratingHtml}</div>
     ${directorHtml}${options.bodyHtml || ""}${options.actionsHtml || compareHtml}

@@ -52,6 +52,7 @@
     "presentation",
     "community",
     "completion",
+    "trophies",
     "stats",
     "projects",
     "project",
@@ -194,6 +195,7 @@
       community: locale === "sv" ? "Gemenskap" : "Community",
       showcase: locale === "sv" ? "Utställning" : "Showcase",
       completion: locale === "sv" ? "Färdigställande" : "Completion",
+      trophies: locale === "sv" ? "Troféer" : "Trophies",
       statistics: locale === "sv" ? "Statistik" : "Statistics",
       people: locale === "sv" ? "Personer" : "People",
       data: "Data",
@@ -245,7 +247,7 @@
         <summary aria-label="${text.menuAria}" title="${text.menuTitle}"><span></span><span></span><span></span></summary>
         <div class="site-menu-panel">
           <section><h2>${text.browse}</h2><div class="site-menu-links"><a href="films.html">${text.films}</a><a href="periods.html">${text.periods}</a><a href="categories.html">${text.categories}</a><a href="collections.html">${text.collections}</a><a href="people.html">${text.people}</a></div></section>
-          <section><h2>${text.archiveProjections}</h2><div class="site-menu-links"><a href="community.html">${text.community}</a><a href="discover.html">${text.discover}</a><a href="compare.html">${text.compare}</a><a href="presentation.html">${text.showcase}</a><a href="completion.html">${text.completion}</a><a href="stats.html">${text.statistics}</a></div></section>
+          <section><h2>${text.archiveProjections}</h2><div class="site-menu-links"><a href="community.html">${text.community}</a><a href="discover.html">${text.discover}</a><a href="compare.html">${text.compare}</a><a href="presentation.html">${text.showcase}</a><a href="completion.html">${text.completion}</a><a href="trophies.html">${text.trophies}</a><a href="stats.html">${text.statistics}</a></div></section>
           <section data-site-menu-owner><h2>${text.buildOskars}</h2><div class="site-menu-links"><a href="build.html">${locale === "sv" ? "Översikt" : "Overview"}</a><a href="rate-watched.html">${text.rateWatched}</a><a href="tier-watchlist.html">${text.tierWatchlist}</a><a href="rankings.html">${text.rankings}</a><a href="award.html">${text.award}</a></div></section>
           <section data-site-menu-owner><h2>${text.admin}</h2><div class="site-menu-links"><a href="data.html">${text.data}</a><a href="profile.html">${text.profile}</a></div></section>
         </div>
@@ -432,6 +434,14 @@
     categories: ["watched", "rankings", "personalAwards"],
     periods: ["watched", "rankings", "personalAwards"],
     stats: ["watched", "personalAwards"],
+    trophies: [
+      "watched",
+      "watchlist",
+      "rankings",
+      "personalAwards",
+      "franchises",
+      "people",
+    ],
     completion: [
       "watched",
       "watchlist",
@@ -512,7 +522,12 @@
   let entryHydrationDomains = hydrationDomainsByEntry[entry] || null;
   // Hydrated entries whose people index needs read_people_directory_edges()
   // before the page script runs (the others load it themselves).
-  let peopleEdgeEntries = new Set(["discover", "compare", "presentation"]);
+  let peopleEdgeEntries = new Set([
+    "discover",
+    "compare",
+    "presentation",
+    "trophies",
+  ]);
   window.OSKARS_ENTRY_HYDRATION_DOMAINS = entryHydrationDomains;
   let focusedShellEntries = new Set([
     "profile",
@@ -584,12 +599,16 @@
     ...(entry === "completion"
       ? ["src/domain/award-bracket-completion.js"]
       : []),
-    ...(["completion", "person", "franchise", "collection", "user"].includes(
+    ...(["trophies", "person", "franchise", "collection", "user"].includes(
       entry,
     )
-      ? ["src/domain/trophies.js", "src/ui/trophies.js"]
+      ? [
+          "src/generated/bundled-collection-trophies.js",
+          "src/domain/trophies.js",
+          "src/ui/trophies.js",
+        ]
       : []),
-    ...(["completion", "project"].includes(entry)
+    ...(["completion", "project", "trophies"].includes(entry)
       ? ["src/domain/watch-goals.js"]
       : []),
     ...(entry === "completion" ? ["src/domain/supabase-completion.js"] : []),
@@ -1068,6 +1087,7 @@
     "presentation",
     "community",
     "completion",
+    "trophies",
     "stats",
     "film",
     "period",
@@ -1317,14 +1337,15 @@
     "ranking-review": ["workspace", "rankings", "profile"],
     merge: [
       "workspace",
+      "watched",
       "watchlist",
       "catalog",
       "rankings",
       "profile",
       "notes-tags",
     ],
-    rankings: ["workspace", "watchlist", "rankings", "profile"],
-    "rank-year": ["workspace", "watchlist", "rankings", "profile"],
+    rankings: ["workspace", "watched", "watchlist", "rankings", "profile"],
+    "rank-year": ["workspace", "watched", "watchlist", "rankings", "profile"],
     "awards-year": ["workspace", "catalog", "rankings", "awards", "profile"],
     compare: [
       "workspace",
@@ -1364,6 +1385,16 @@
       "projects",
       "notes-tags",
       "catalog-metadata",
+    ],
+    trophies: [
+      "workspace",
+      "intake",
+      "watchlist",
+      "catalog",
+      "rankings",
+      "profile",
+      "projects",
+      "notes-tags",
     ],
     stats: [
       "workspace",
@@ -1574,6 +1605,7 @@
       await loadScript("src/domain/supabase-local-rank.js");
       await loadScript("src/domain/supabase-ranking-consistency.js");
       await loadScript("src/domain/fractional-position.js");
+      await loadScript("src/domain/watchlist-stash-merge.js");
     }
     if (entry === "rankings" || entry === "rank-year") {
       await loadScript("src/domain/supabase-watchlist-merge.js");
@@ -1583,6 +1615,7 @@
     }
     if (["merge", "rankings", "rank-year"].includes(entry)) {
       await loadScript("src/domain/watchlist-ordering.js");
+      await loadScript("src/domain/rewatch-ordering.js");
     }
     if (entry === "rankings")
       await loadScript("src/ui/watchlist-year-order.js");

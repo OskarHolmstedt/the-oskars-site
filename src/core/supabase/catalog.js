@@ -127,6 +127,45 @@
   };
 
   /**
+   * Resolves director names for films from credits/people.
+   * @param {string[]} filmIds Film UUIDs to resolve directors for.
+   * @returns {Promise<Map<string, string[]>>} Map of filmId -> director names array.
+   */
+  window.loadSupabaseFilmDirectors = async function (filmIds) {
+    let ready = await window.ensureSupabaseClient();
+    if (!ready) throw new Error("Supabase not configured.");
+    let ids = [...new Set((filmIds || []).filter(Boolean))];
+    let directors = new Map();
+    if (!ids.length) return directors;
+
+    let selectChunks =
+      window.supabaseWorkspaceContext?.selectInChunks ||
+      (async (chunkIds, runChunk) => {
+        let { data, error } = await runChunk(chunkIds);
+        if (error) throw error;
+        return data || [];
+      });
+
+    let rows = await selectChunks(ids, (chunk) =>
+      ready.client
+        .from("credits")
+        .select("film_id, role, billing_order, people(name)")
+        .in("film_id", chunk)
+        .eq("role", "director")
+        .order("film_id")
+        .order("billing_order"),
+    );
+    (rows || []).forEach((row) => {
+      let name = row.people?.name;
+      if (!name) return;
+      let list = directors.get(row.film_id) || [];
+      list.push(name);
+      directors.set(row.film_id, list);
+    });
+    return directors;
+  };
+
+  /**
    * Loads the watchlist and unseen-catalog half of the people index, one row
    * per credited person), so a
    * people page can skip the watchlist and shared-catalog hydration domains.

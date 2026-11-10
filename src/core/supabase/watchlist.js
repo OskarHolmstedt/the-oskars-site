@@ -544,4 +544,100 @@
     }
     window.invalidateCachedSupabaseHydrationSource?.();
   };
+
+  /**
+   * Freezes active ranked watchlist items into the stash and clears active positions (issue #1037).
+   * @param {string|null} [tier] Optional exact tier grade, or null for all tiers.
+   * @returns {Promise<number>} Number of stashed films.
+   */
+  window.stashSupabaseWatchlistRanking = async function (tier = null) {
+    let ready = await window.ensureSupabaseClient();
+    if (!ready) throw new Error("Supabase not configured.");
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
+    let { data, error } = await ready.client.rpc("stash_watchlist_ranking", {
+      p_tier: tier || null,
+    });
+    if (error) throw error;
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    window.invalidateCachedSupabaseHydrationSource?.();
+    await window.loadSupabaseWorkspace({ parts: ["watchlist"], force: true });
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    await window.loadWatchlistOrdering?.();
+    return Number(data) || 0;
+  };
+
+  /**
+   * Restores stashed watchlist items back to active ranking positions (issue #1037).
+   * @param {string|null} [tier] Optional exact tier grade, or null for all tiers.
+   * @returns {Promise<number>} Number of unstashed films.
+   */
+  window.unstashSupabaseWatchlistRanking = async function (tier = null) {
+    let ready = await window.ensureSupabaseClient();
+    if (!ready) throw new Error("Supabase not configured.");
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
+    let { data, error } = await ready.client.rpc("unstash_watchlist_ranking", {
+      p_tier: tier || null,
+    });
+    if (error) throw error;
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    window.invalidateCachedSupabaseHydrationSource?.();
+    await window.loadSupabaseWorkspace({ parts: ["watchlist"], force: true });
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    await window.loadWatchlistOrdering?.();
+    return Number(data) || 0;
+  };
+
+  /**
+   * Loads stashed watchlist items for an exact tier, sorted by stashed position.
+   * @param {string|null} [tier] Exact tier grade (e.g. "S+", "A-", "B"), or null for all.
+   * @returns {Promise<Object[]>} Stashed rows joined with films.
+   */
+  window.loadSupabaseWatchlistStash = async function (tier = null) {
+    let ready = await window.ensureSupabaseClient();
+    if (!ready) throw new Error("Supabase not configured.");
+    let userId =
+      window.getSupabaseCurrentUser?.()?.id ||
+      ready.client.auth?.getUser?.()?.data?.user?.id;
+    let allRows = [];
+    let pageSize = 500;
+    for (let offset = 0; ; offset += pageSize) {
+      let query = ready.client
+        .from("watchlist_ranking_stash")
+        .select(
+          "id, film_id, tier, position, created_at, films(id, tmdb_id, title, year, poster_url, runtime_minutes, country, medium, type)",
+        )
+        .eq("user_id", userId)
+        .order("position", { ascending: true })
+        .order("id", { ascending: true })
+        .range(offset, offset + pageSize - 1);
+      if (tier) query = query.eq("tier", tier);
+      let { data, error } = await query;
+      if (error) throw error;
+      allRows.push(...(data || []));
+      if (!data || data.length < pageSize) break;
+    }
+    return allRows;
+  };
+
+  /**
+   * Atomically commits a pop merge of stashed and newly ranked items for one exact tier.
+   * @param {string} tier Exact tier grade.
+   * @param {Array<{film_id: string, position: string, updated_at?: string}>} entries Merged entries.
+   * @returns {Promise<void>}
+   */
+  window.saveSupabaseStashedWatchlistMerge = async function (tier, entries) {
+    let ready = await window.ensureSupabaseClient();
+    if (!ready) throw new Error("Supabase not configured.");
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
+    let { error } = await ready.client.rpc("save_stashed_watchlist_merge", {
+      p_tier: tier,
+      p_entries: entries,
+    });
+    if (error) throw error;
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    window.invalidateCachedSupabaseHydrationSource?.();
+    await window.loadSupabaseWorkspace({ parts: ["watchlist"], force: true });
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    await window.loadWatchlistOrdering?.();
+  };
 })();

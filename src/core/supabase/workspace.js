@@ -5,7 +5,7 @@
     "id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, rewatch_position, platform, views, updated_at, films(id, tmdb_id, tmdb_tv_ref, title, year, poster_url, runtime_minutes, country, primary_country, medium, type, screenplay_type, original_language)";
 
   const WATCHLIST_SELECT =
-    "id, film_id, tier, tier_modifier, position, reason, updated_at, films(id, tmdb_id, tmdb_tv_ref, title, year, poster_url, runtime_minutes, country, medium, type)";
+    "id, film_id, tier, tier_modifier, position, reason, is_stashed, updated_at, films(id, tmdb_id, tmdb_tv_ref, title, year, poster_url, runtime_minutes, country, medium, type)";
 
   let workspaceState = null;
 
@@ -253,7 +253,7 @@
     "id, film_id, rating, rating_modifier, date_watched, review, want_to_rewatch, rewatch_tier, rewatch_tier_modifier, rewatch_position, music_score, music_rating, music_rating_value, views, platform, updated_at";
 
   const HYDRATION_WATCHLIST_FIELDS =
-    "id, film_id, tier, tier_modifier, position, reason, added_at, updated_at";
+    "id, film_id, tier, tier_modifier, position, reason, is_stashed, added_at, updated_at";
 
   // Every field a legacy read-only page's FilmRecord might display -
   // credits/tags/franchises embedded directly (one round trip, no per-film

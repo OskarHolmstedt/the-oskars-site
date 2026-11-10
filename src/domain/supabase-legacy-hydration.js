@@ -346,6 +346,7 @@
       primaryCountry: shared.primaryCountry,
       originalLanguage: shared.originalLanguage,
       medium: shared.medium,
+      type: shared.type || "",
       screenplayType: shared.screenplayType,
       runtimeMinutes: shared.runtimeMinutes,
       adaptationSource: shared.adaptationSource,
@@ -464,11 +465,28 @@
       ).find((domain) => source.domains.includes(domain));
       watchlistRows = subset ? source[subset] : [];
     }
-    let rankedIndex = 0;
+    // Ranked numbering is tier-major, matching read_watchlist_page()'s
+    // abs_order (tier grade, then position): a stable sort by tier grade
+    // keeps the database's collation-dependent position order within each
+    // tier without re-comparing position strings client-side.
+    let tierGrade = window.watchlistTierGrade || (() => 0);
+    let rankedRows = (watchlistRows || []).filter(
+      (row) => row.position != null && row.position !== "",
+    );
+    rankedRows = rankedRows
+      .map((row, arrival) => ({ row, arrival }))
+      .sort(
+        (a, b) =>
+          tierGrade(a.row.tier, a.row.tier_modifier) -
+            tierGrade(b.row.tier, b.row.tier_modifier) || a.arrival - b.arrival,
+      )
+      .map((entry) => entry.row);
+    let rankedIndexById = new Map(rankedRows.map((row, i) => [row.id, i]));
     let watchlist = (watchlistRows || [])
       .map((row) => {
-        let index =
-          row.position != null && row.position !== "" ? rankedIndex++ : null;
+        let index = rankedIndexById.has(row.id)
+          ? rankedIndexById.get(row.id)
+          : null;
         return window.supabaseLegacyHydrationWatchlistItem(row, index, chains);
       })
       .filter(Boolean);

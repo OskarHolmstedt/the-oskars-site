@@ -19,6 +19,8 @@ const catalogFilmFields = [
 ];
 const editorialDecisionHelp =
   "Screenplay type, adaptation source, primary country and Type are yours to decide: a changed value becomes your decision, which reviews show beside TMDB's value without asking again and which fetches never overwrite. Clear one of them to follow TMDB again. Other changed fields are checked against TMDB on the next review; choose Keep there to make a different value your decision.";
+const letterboxdLinkHelp =
+  "A movie's Letterboxd link comes from its TMDB movie ID; Letterboxd URL is shown only for TV entries, which Letterboxd cannot look up by TMDB ID.";
 const catalogPersonFields = [
   ["name", "Name"],
   ["tmdb_id", "TMDB person ID", "number"],
@@ -331,7 +333,7 @@ window.createSharedCatalogEditor = function (options) {
     let decided = new Set(
       entity === "films" ? row.owner_decided_fields || [] : [],
     );
-    return `${entity === "films" ? options.reviewHtml?.(row, true) || "" : ""}<form data-catalog-save class="catalog-edit-form"><p>Editing shared metadata for <strong>${esc(row.title || row.name)}</strong>. Blank clears a value. Use either a movie ID or TV reference, not both.</p>${entity === "films" ? `<p>${esc(editorialDecisionHelp)}</p>` : ""}<div class="catalog-edit-fields">${fields()
+    return `${entity === "films" ? options.reviewHtml?.(row, true) || "" : ""}<form data-catalog-save class="catalog-edit-form"><p>Editing shared metadata for <strong>${esc(row.title || row.name)}</strong>. Blank clears a value. Use either a movie ID or TV reference, not both.</p>${entity === "films" ? `<p>${esc(editorialDecisionHelp)}</p><p>${esc(letterboxdLinkHelp)}</p>` : ""}<div class="catalog-edit-fields">${fields()
       .map(
         ([key, label, type]) =>
           `<label>${esc(label)}${decided.has(key) ? " · your decision" : ""}<input data-catalog-field="${key}" name="${key}" type="${type || "text"}" value="${esc(edit.draft[key] ?? "")}"${blocked() ? " disabled" : ""}></label>`,

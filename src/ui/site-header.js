@@ -374,6 +374,7 @@
         [headerText("nav.compare", "Compare"), "compare.html"],
         [headerText("menu.showcase", "Showcase"), "presentation.html"],
         [headerText("menu.completion", "Completion"), "completion.html"],
+        [headerText("menu.trophies", "Trophies"), "trophies.html"],
         [headerText("menu.statistics", "Statistics"), "stats.html"],
       ]),
     ];

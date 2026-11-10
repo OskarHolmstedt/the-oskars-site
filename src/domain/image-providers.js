@@ -187,6 +187,21 @@ window.tmdbResourcePath = function (reference) {
 // episode/{e}"), so tmdbResourcePath(reference) doubles as the public path
 // too — https://www.themoviedb.org/${tmdbResourcePath(reference)}.
 
+/**
+ * Returns a film's Letterboxd page. letterboxd.com/tmdb/<movie id>/ redirects
+ * to the film Letterboxd lists under that TMDB movie (the trailing slash is
+ * required), so a movie always links by its TMDB ID. Letterboxd has no TMDB
+ * route for TV, so a TV entry falls back to its stored link.
+ * @param {{tmdbId?: string|number|null, letterboxdUrl?: string}} film Film with its stored TMDB reference and Letterboxd link.
+ * @returns {string} Letterboxd URL, or "" when there is none.
+ */
+window.letterboxdFilmUrl = function (film) {
+  let reference = window.parseTmdbReference(film?.tmdbId);
+  if (reference.mediaType === "movie" && /^[1-9]\d*$/.test(reference.id))
+    return `https://letterboxd.com/tmdb/${reference.id}/`;
+  return String(film?.letterboxdUrl || "").trim();
+};
+
 /** Requests provider JSON with timeouts and retries. @param {Function} fetchFn Fetch implementation. @param {string} url URL. @param {Object} options Fetch options. @param {string} provider Provider label. @param {number} attempts Attempts. @returns {Promise<Object>} Parsed JSON. */
 window.requestPosterJson = async function (
   fetchFn,

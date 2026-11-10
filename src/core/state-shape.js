@@ -429,6 +429,7 @@
  * @property {string} [supabaseWatchlistUpdatedAt] Timestamp of last update in Supabase `watchlist` table.
  * @property {string} [supabaseWatchlistPosition] Fractional lexicographical position string in Supabase `watchlist` table.
  * @property {string} [country]
+ * @property {string} [type]
  * @property {number|string} [runtimeMinutes]
  * @property {'live-action'|'animation'|'unknown'} [medium]
  * @property {'original'|'adapted'|'unknown'} [screenplayType]
@@ -1771,7 +1772,8 @@ window.canonicalDataRevision = function (canonical) {
  * @property {string} domId Unique prefix for accessible heading and progress ids.
  * @property {string} title Collection or director name.
  * @property {string} personaName Persona base name (e.g. 'Nolan', 'Weir', 'Kon', 'Mission: Impossible').
- * @property {'person'|'franchise'|'collection'} entityType Type of entity this trophy represents.
+ * @property {'person'|'franchise'|'collection'|'progress'} entityType Type of entity this trophy represents.
+ * @property {string} [kind] Trophy category/kind ('filmography'|'franchise'|'other-collection'|'progress').
  * @property {string} entityId Entity identifier (slug, id, or normalized name).
  * @property {string} emblem Typographic initials.
  * @property {string} [edition] Optional ornamental edition string.

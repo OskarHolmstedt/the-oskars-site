@@ -1289,24 +1289,31 @@
                 : []),
               { value: "rating", label: "Rating" },
             ]
-          : [
-              {
-                value: "rank",
-                label:
-                  viewMode === "watchlist" || viewMode === "rewatch"
-                    ? "Interest order"
-                    : "Rank order",
-              },
-              { value: "title", label: "Title" },
-              ...(type !== "year"
-                ? [{ value: "year", label: "Release year" }]
-                : []),
-              { value: "rating", label: "Rating" },
-              { value: "runtime", label: "Runtime" },
-              { value: "wins", label: "Wins" },
-              { value: "nominations", label: "Nominations" },
-              { value: "score", label: "Score" },
-            ];
+          : viewMode === "watchlist"
+            ? [
+                { value: "rank", label: "Ranking" },
+                { value: "title", label: "Title" },
+                ...(type !== "year"
+                  ? [{ value: "year", label: "Release year" }]
+                  : []),
+                { value: "runtime", label: "Runtime" },
+              ]
+            : [
+                {
+                  value: "rank",
+                  label:
+                    viewMode === "rewatch" ? "Interest order" : "Rank order",
+                },
+                { value: "title", label: "Title" },
+                ...(type !== "year"
+                  ? [{ value: "year", label: "Release year" }]
+                  : []),
+                { value: "rating", label: "Rating" },
+                { value: "runtime", label: "Runtime" },
+                { value: "wins", label: "Wins" },
+                { value: "nominations", label: "Nominations" },
+                { value: "score", label: "Score" },
+              ];
     let sortControl = window.renderSortAxisControl({
       escape: periodEscape,
       value: periodOrder === "shuffle" ? "" : periodOrder,
@@ -1819,35 +1826,13 @@
         periodRank: (filmPage - 1) * FILMS_PER_PAGE + visibleIndex + 1,
         escape: periodEscape,
       });
-    // Tier shelves follow interest order only, and stay out of the edit
-    // modes so drag-and-drop indexing sees plain cards.
-    let watchlistShelfTotals =
-      viewMode === "watchlist" &&
-      periodOrder === "rank" &&
-      !tierEditMode &&
-      !watchlistOrderEditMode
-        ? window.watchlistTierCounts(watchlistFilters, {
-            tierCounts: watchlistCompactActive
-              ? compactWatchlistModel?.tierCounts
-              : undefined,
-          })
-        : null;
-    let watchlistItemsHtml = (renderEntry, layout) =>
-      watchlistShelfTotals
-        ? window.renderWatchlistTierShelves(visibleWatchlistPage, renderEntry, {
-            counts: watchlistShelfTotals,
-            layout,
-            escape: periodEscape,
-            ui,
-          })
-        : visibleWatchlistPage.map(renderEntry).join("");
     let watchlistCards =
       viewMode === "watchlist" && layout === "grid"
-        ? watchlistItemsHtml(renderWatchlistGridCard, "grid")
+        ? visibleWatchlistPage.map(renderWatchlistGridCard).join("")
         : "";
     let watchlistRows =
       viewMode === "watchlist" && layout !== "grid"
-        ? watchlistItemsHtml(renderWatchlistListRow, "list")
+        ? visibleWatchlistPage.map(renderWatchlistListRow).join("")
         : "";
     let watchlistUpNextHtml =
       viewMode === "watchlist"
@@ -2356,7 +2341,7 @@
     let viewInput = event.target.closest('input[name="periodViewMode"]');
     if (viewInput) {
       viewMode = viewInput.value;
-      if (viewMode === "awards") {
+      if (viewMode === "awards" || viewMode === "watchlist") {
         periodOrder = "rank";
         periodDirection = window.defaultOrderForFilmAxis("rank");
       } else if (viewMode === "other" || viewMode === "shared") {

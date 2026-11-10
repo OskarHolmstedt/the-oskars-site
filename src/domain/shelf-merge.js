@@ -30,9 +30,10 @@
   /**
    * Formats release years as contiguous spans, decades, or disjoint lists.
    * @param {number[]} years
+   * @param {{completeDecades?: string[]}} [options]
    * @returns {string}
    */
-  window.formatShelfMergeBlockLabel = function (years) {
+  window.formatShelfMergeBlockLabel = function (years, options = {}) {
     if (!Array.isArray(years) || !years.length) return "";
     let sorted = [...new Set(years.map(Number).filter(Number.isInteger))].sort(
       (a, b) => a - b,
@@ -54,14 +55,20 @@
     runs.push(current);
 
     let parts = runs.map((run) => {
-      if (run.length === 1) return String(run[0]);
       if (run.length === 10 && run[0] % 10 === 0 && window.getDecadeKey) {
         return window.getDecadeKey(run[0]);
       }
+      if (run.length === 1) return String(run[0]);
       return `${run[0]}–${run[run.length - 1]}`;
     });
 
-    return parts.join(", ");
+    let baseLabel = parts.join(", ");
+    if (options.completeDecades && options.completeDecades.length === 1) {
+      let dec = options.completeDecades[0];
+      if (baseLabel === dec) return baseLabel;
+      return `${dec} (${baseLabel})`;
+    }
+    return baseLabel;
   };
 
   /**

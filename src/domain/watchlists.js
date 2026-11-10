@@ -352,6 +352,7 @@ window.watchlistFilmLike = function (
     swedishTitle: item.swedishTitle || archiveFilm?.swedishTitle || "",
     country: item.country || archiveFilm?.country || "",
     medium: item.medium || archiveFilm?.medium || "unknown",
+    type: item.type || archiveFilm?.type || "",
     screenplayType:
       item.screenplayType || archiveFilm?.screenplayType || "unknown",
     adaptationSource:
@@ -810,6 +811,14 @@ window.compareWatchlistItemsBy = function (
   sort = "order",
   order = "asc",
 ) {
+  let leftOrder = Number(left?.order);
+  let rightOrder = Number(right?.order);
+  let leftRanked = Number.isFinite(leftOrder) && leftOrder > 0;
+  let rightRanked = Number.isFinite(rightOrder) && rightOrder > 0;
+  if (sort === "order") {
+    if (leftRanked && !rightRanked) return -1;
+    if (!leftRanked && rightRanked) return 1;
+  }
   let tierComparison =
     window.watchlistTierGrade(
       left?.tier,
@@ -833,16 +842,10 @@ window.compareWatchlistItemsBy = function (
       window.compareEnglishTitles(left?.title, right?.title);
     return order === "desc" ? -result : result;
   }
-  let leftOrder = Number(left?.order);
-  let rightOrder = Number(right?.order);
-  let leftRanked = Number.isFinite(leftOrder) && leftOrder > 0;
-  let rightRanked = Number.isFinite(rightOrder) && rightOrder > 0;
   if (leftRanked && rightRanked) {
     result = leftOrder - rightOrder;
     return order === "desc" ? -result : result;
   }
-  if (leftRanked && !rightRanked) return -1;
-  if (!leftRanked && rightRanked) return 1;
   result =
     Number(left?.year || 9999) - Number(right?.year || 9999) ||
     window.compareEnglishTitles(left?.title, right?.title);

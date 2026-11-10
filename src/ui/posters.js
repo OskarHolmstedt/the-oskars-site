@@ -24,12 +24,18 @@ function defaultPosterEscape(value) {
  * Renders a film poster, linking detail variants to their external source.
  * @param {FilmRecord} film Film carrying the poster.
  * @param {string} [variant] Presentation variant.
- * @param {{priority?: string, hero?: boolean}} [options] Priority and presentation options.
+ * @param {{priority?: string, hero?: boolean, fallback?: boolean, placeholder?: boolean}} [options] Priority and presentation options.
  * @returns {string}
  */
 window.renderFilmPoster = function (film, variant = "card", options = {}) {
   let poster = window.normalizePosterRecord?.(film?.poster);
-  if (!poster) return "";
+  if (!poster) {
+    if (options.fallback || options.placeholder) {
+      let escape = window.pageEscape || defaultPosterEscape;
+      return `<figure class="film-poster film-poster--${escape(variant)} film-poster--fallback"><div class="film-poster-placeholder-art" aria-hidden="true">🎬</div></figure>`;
+    }
+    return "";
+  }
   let escape = window.pageEscape || defaultPosterEscape;
   let isPriority =
     options.priority === "high" || options.hero || variant === "detail";
@@ -86,7 +92,7 @@ function stablePortraitPlaceholder(personId) {
  * to a stable placeholder sketch when the person has none.
  * @param {RecipientPerson} person Person to render.
  * @param {string} [variant] Presentation variant.
- * @param {{priority?: string, hero?: boolean}} [options] Priority and presentation options.
+ * @param {{priority?: string, hero?: boolean, fallback?: boolean, placeholder?: boolean}} [options] Priority and presentation options.
  * @returns {string}
  */
 window.renderPersonPortrait = function (
@@ -150,7 +156,7 @@ window.awardRecipientPeople = function (award) {
  * @param {FilmRecord} film Awarded film.
  * @param {AwardRecord} award Award record.
  * @param {string} [variant] Presentation variant.
- * @param {{priority?: string, hero?: boolean}} [options] Priority and presentation options.
+ * @param {{priority?: string, hero?: boolean, fallback?: boolean, placeholder?: boolean}} [options] Priority and presentation options.
  * @returns {string}
  */
 window.renderAwardWinnerImage = function (
@@ -190,7 +196,7 @@ window.renderAwardWinnerImage = function (
  * invoke this for `nomination.winner === true`.
  * @param {OfficialNomination} nomination Winning nomination.
  * @param {string} [variant] Presentation variant.
- * @param {{priority?: string, hero?: boolean}} [options] Priority and presentation options.
+ * @param {{priority?: string, hero?: boolean, fallback?: boolean, placeholder?: boolean}} [options] Priority and presentation options.
  * @returns {string}
  */
 window.renderOfficialWinnerImage = function (

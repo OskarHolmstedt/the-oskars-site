@@ -643,6 +643,7 @@ function watchlistTierEditor(item, escape, ui) {
  * @param {boolean} [options.watchlistOrderEditMode] Whether drag-to-reorder attributes are attached.
  * @param {string} [options.periodOrder] Current sort axis, to decide whether to show the order rank label.
  * @param {number} [options.periodRank] 1-based position within the current period's filtered watchlist (replaces global item.order for the rank label).
+ * @param {boolean} [options.poster] Whether poster presentation is enabled.
  * @returns {string}
  */
 window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
@@ -661,12 +662,10 @@ window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
     escape: escape,
     modifier: item.tierModifier,
   });
-  // In interest order the position and tier sit on the poster itself, so
-  // they stay readable in posters-only mode.
-  let posterBadges =
-    periodOrder === "rank" &&
-    !tierEditMode &&
-    window.normalizePosterRecord?.(film.poster);
+  let showPoster = options.poster !== false;
+  // In interest order the position and tier sit on the poster itself (or
+  // placeholder poster), so they stay readable in posters-only mode.
+  let posterBadges = periodOrder === "rank" && !tierEditMode && showPoster;
   let orderRankLabel =
     periodOrder === "rank" && !posterBadges
       ? rankText === "NR"
@@ -693,6 +692,8 @@ window.renderWatchlistCard = function (entry, visibleIndex = 0, options = {}) {
     }),
     openFilm: false,
     rankLabel: orderRankLabel,
+    poster: showPoster,
+    posterFallback: showPoster,
     beforeTitleHtml: posterBadges
       ? `<div class="watchlist-poster-badges"><span class="watchlist-rank-badge">${escape(rankText)}</span>${tierBadge}</div>`
       : "",

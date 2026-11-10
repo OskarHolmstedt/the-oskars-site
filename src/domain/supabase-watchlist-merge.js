@@ -28,6 +28,7 @@
   window.supabaseWatchlistTierItemsInOrder = function (tier) {
     let workspace = window.getSupabaseWorkspace();
     return (workspace?.watchlist || [])
+      .filter((row) => !row.is_stashed)
       .filter((row) =>
         tier === "all"
           ? Boolean(row.tier)
@@ -71,6 +72,110 @@
               String(right.films?.title || ""),
             );
       });
+  };
+
+  /**
+   * One interest tier's rewatch rows, in their current position order,
+   * respecting the 21-level interest tier grade scale (S+ down to F-).
+   * @param {string} tier
+   * @returns {Object[]} Watched rows (each already joined with its film).
+   */
+  window.supabaseRewatchTierItemsInOrder = function (tier) {
+    let workspace = window.getSupabaseWorkspace();
+    return (workspace?.watched || [])
+      .filter(
+        (row) =>
+          Boolean(row.want_to_rewatch) &&
+          (tier === "all"
+            ? Boolean(row.rewatch_tier)
+            : window.watchlistTierKey(
+                row.rewatch_tier,
+                row.rewatch_tier_modifier,
+              ) === window.watchlistTierKey(tier)),
+      )
+      .sort((left, right) => {
+        let gradeLeft = window.watchlistTierGrade
+          ? window.watchlistTierGrade(
+              left.rewatch_tier,
+              left.rewatch_tier_modifier,
+            )
+          : 0;
+        let gradeRight = window.watchlistTierGrade
+          ? window.watchlistTierGrade(
+              right.rewatch_tier,
+              right.rewatch_tier_modifier,
+            )
+          : 0;
+        if (gradeLeft !== gradeRight) return gradeLeft - gradeRight;
+
+        let leftHas =
+          left.rewatch_position != null && left.rewatch_position !== "";
+        let rightHas =
+          right.rewatch_position != null && right.rewatch_position !== "";
+        if (leftHas && rightHas) {
+          let posDiff =
+            Number(left.rewatch_position) - Number(right.rewatch_position);
+          if (posDiff !== 0) return posDiff;
+        }
+        if (leftHas && !rightHas) return -1;
+        if (!leftHas && rightHas) return 1;
+
+        if (window.compareByAllTimeRank) {
+          let rankComp = window.compareByAllTimeRank(left, right, undefined, {
+            rankTieBreak: false,
+            yearFallback: false,
+          });
+          if (rankComp !== 0) return rankComp;
+        }
+        let leftYear = Number(left.films?.year || 9999);
+        let rightYear = Number(right.films?.year || 9999);
+        if (leftYear !== rightYear) return leftYear - rightYear;
+        return window.compareEnglishTitles
+          ? window.compareEnglishTitles(left.films?.title, right.films?.title)
+          : String(left.films?.title || "").localeCompare(
+              String(right.films?.title || ""),
+            );
+      });
+  };
+
+  /**
+   * Interest tiers with at least two rewatch rows.
+   * @returns {string[]}
+   */
+  window.supabaseRewatchTiersWithItems = function () {
+    return window
+      .watchlistExactTiers()
+      .filter(
+        (tier) => window.supabaseRewatchTierItemsInOrder(tier).length >= 2,
+      );
+  };
+
+  /**
+   * Lists all populated integer release years present for a rewatch tier.
+   * @param {string} tier
+   * @returns {number[]} Sorted ascending.
+   */
+  window.supabaseRewatchTierPopulatedYears = function (tier) {
+    let years = new Set();
+    window.supabaseRewatchTierItemsInOrder(tier).forEach((row) => {
+      let year = row.films?.year;
+      if (Number.isInteger(year)) years.add(Number(year));
+    });
+    return [...years].sort((a, b) => a - b);
+  };
+
+  /**
+   * Filters one rewatch tier's items to a set of years, preserving existing
+   * relative order.
+   * @param {string} tier
+   * @param {number[]} years
+   * @returns {Object[]} Watched rows.
+   */
+  window.supabaseRewatchBlockScopeItems = function (tier, years) {
+    let yearSet = new Set((years || []).map(Number));
+    return window
+      .supabaseRewatchTierItemsInOrder(tier)
+      .filter((row) => yearSet.has(Number(row.films?.year)));
   };
 
   /**
@@ -191,6 +296,25 @@
   };
 
   /**
+   * Encodes a rewatch row's tier and modifier into a composite bucket key.
+   * @param {{rewatch_tier?: string, rewatchTier?: string, rewatch_tier_modifier?: string, rewatchTierModifier?: string}} item
+   * @returns {string} Bucket key or "" when unset.
+   */
+  window.supabaseRewatchTierGradeKey = function (item) {
+    let tier = window.normalizeWatchlistTier
+      ? window.normalizeWatchlistTier(item?.rewatch_tier || item?.rewatchTier)
+      : String(item?.rewatch_tier || item?.rewatchTier || "")
+          .trim()
+          .toUpperCase();
+    let modifier = window.normalizeTierModifierValue
+      ? window.normalizeTierModifierValue(
+          item?.rewatch_tier_modifier || item?.rewatchTierModifier,
+        )
+      : item?.rewatch_tier_modifier || item?.rewatchTierModifier || "";
+    return tier ? `${tier}|${modifier}` : "";
+  };
+
+  /**
    * Returns the exact 0–20 integer sort grade for a watchlist tier key.
    * @param {string} key
    * @returns {number}
@@ -225,6 +349,22 @@
   window.createWatchlistShelfMergeSession = function (listA, listB) {
     return window.createShelfMergeSession(listA, listB, {
       gradeKey: (item) => window.supabaseWatchlistTierGradeKey(item),
+      gradeValue: (key) =>
+        window.supabaseWatchlistTierGradeSortValueFromKey(key),
+      direction: 1,
+      formatLabel: formatWatchlistShelfLabel,
+    });
+  };
+
+  /**
+   * Creates a shelf-by-shelf merge session for Rewatchlist rankings.
+   * @param {Object[]} listA Ordered items from Group A.
+   * @param {Object[]} listB Ordered items from Group B.
+   * @returns {Object} Rewatchlist shelf merge session.
+   */
+  window.createRewatchShelfMergeSession = function (listA, listB) {
+    return window.createShelfMergeSession(listA, listB, {
+      gradeKey: (item) => window.supabaseRewatchTierGradeKey(item),
       gradeValue: (key) =>
         window.supabaseWatchlistTierGradeSortValueFromKey(key),
       direction: 1,

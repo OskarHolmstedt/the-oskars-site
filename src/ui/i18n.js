@@ -92,6 +92,7 @@
     "menu.people": { sv: "Personer" },
     "menu.directors": { sv: "Regissörer" },
     "menu.completion": { sv: "Färdigställande" },
+    "menu.trophies": { sv: "Troféer" },
     "menu.statistics": { sv: "Statistik" },
     "menu.openDirectory": { sv: "Öppna sidkatalog" },
     "theme.switch": { sv: "Byt färgtema" },
@@ -309,20 +310,32 @@
     "Earned Collection Trophies": { sv: "Intjänade samlingstroféer" },
     "Persona titles unlocked": { sv: "Personatitlar upplåsta" },
     "Trophies earned": { sv: "Troféer intjänade" },
+    "Highest persona rank": { sv: "Högsta personarank" },
+    "Curated cinephile milestones across director filmographies, cinematic franchises, and viewing progress.":
+      {
+        sv: "Kurerade milstolpar för cineaster över regissörers filmografier, filmserier och tittframsteg.",
+      },
     Essentialist: { sv: "Essentialist" },
     Completionist: { sv: "Completionist" },
     Sycophant: { sv: "Sykofant" },
     Essential: { sv: "Essentiell" },
-    "Theatrical Canon": { sv: "Biokanon" },
-    "Expanded Canon": { sv: "Utökad kanon" },
-    "The Essentials · Curated artistic peak": {
-      sv: "De essentiella · Kurerad konstnärlig höjdpunkt",
+    Canon: { sv: "Kanon" },
+    Expanded: { sv: "Utökad" },
+    Milestone: { sv: "Milstolpe" },
+    "The Essentials · Curated artistic landmark": {
+      sv: "De essentiella · Kurerat konstnärligt landmärke",
     },
-    "The Theatrical Canon · Official feature film": {
-      sv: "Biokanonen · Officiell långfilm",
+    "Theatrical Canon · Official feature film": {
+      sv: "Biokanon · Officiell långfilm",
     },
-    "Expanded & Bonus Works · Peripheral catalog entry": {
-      sv: "Utökade verk & bonusmaterial · Perifert katalogbidrag",
+    "Expanded Works · Shorts, TV, and bonus entries": {
+      sv: "Utökade verk · Kortfilmer, TV och bonusbidrag",
+    },
+    "Next: {nextTier} ({watched}/{total})": {
+      sv: "Nästa: {nextTier} ({watched}/{total})",
+    },
+    "Aiming for {targetTier} ({watched}/{total})": {
+      sv: "Siktar på {targetTier} ({watched}/{total})",
     },
     "{personaName} Essentialist": { sv: "{personaName} Essentialist" },
     "{personaName} Completionist": { sv: "{personaName} Completionist" },
@@ -530,7 +543,293 @@
       sv: "Kunde inte ladda färdigställandedata.",
     },
     "Completion categories": { sv: "Färdigställandekategorier" },
+    "Your trophy cabinet is empty": {
+      sv: "Ditt troféskåp är tomt",
+    },
+    "Acquire trophies by watching curated milestones across director filmographies, franchises, and viewing progress.":
+      {
+        sv: "Tjäna troféer genom att se kurerade milstolpar i regissörsfilmografier, franchiser och visningsframsteg.",
+      },
+    "Trophy progress": {
+      sv: "Troféframsteg",
+    },
+    "{count} in progress": {
+      sv: "{count} pågående",
+    },
+    "Track upcoming milestones across director filmographies, franchises, and viewing progress.":
+      {
+        sv: "Följ kommande milstolpar i regissörsfilmografier, franchiser och visningsframsteg.",
+      },
+    "Filter trophies by kind": {
+      sv: "Filtrera troféer efter typ",
+    },
+    Progress: {
+      sv: "Framsteg",
+    },
+    "Archive Volume": {
+      sv: "Arkivvolym",
+    },
+    Archivist: {
+      sv: "Arkivarie",
+    },
+    "Century Archivist": {
+      sv: "Sekelarkivarie",
+    },
+    "Cinéaste Archivist": {
+      sv: "Cineastarkivarie",
+    },
+    "Grand Archivist": {
+      sv: "Storarkivarie",
+    },
+    "Watched films logged across your archive": {
+      sv: "Sedda filmer loggade i ditt arkiv",
+    },
+    "You have built an extraordinary cinematic archive.": {
+      sv: "Du har byggt upp ett enastående filmiskt arkiv.",
+    },
+    "Grow your total watch count across all cinematic eras.": {
+      sv: "Öka ditt totala antal sedda filmer över filmhistoriens alla epoker.",
+    },
+    "Log watched films in your personal archive.": {
+      sv: "Logga sedda filmer i ditt personliga arkiv.",
+    },
+    Cinéaste: {
+      sv: "Cineast",
+    },
+    "100 films watched": {
+      sv: "100 filmer sedda",
+    },
+    "Log 100 watched films in your archive.": {
+      sv: "Logga 100 sedda filmer i ditt arkiv.",
+    },
+    "You have logged your first hundred films.": {
+      sv: "Du har loggat dina första hundra filmer.",
+    },
+    "Reach 100 films logged in your archive.": {
+      sv: "Nå 100 loggade filmer i ditt arkiv.",
+    },
+    "500 films watched": {
+      sv: "500 filmer sedda",
+    },
+    "Log 500 watched films in your archive.": {
+      sv: "Logga 500 sedda filmer i ditt arkiv.",
+    },
+    "Half a thousand films cataloged and watched.": {
+      sv: "Ett halvt tusental filmer katalogiserade och sedda.",
+    },
+    "Reach 500 films logged in your archive.": {
+      sv: "Nå 500 loggade filmer i ditt arkiv.",
+    },
+    "1,000 films watched": {
+      sv: "1 000 filmer sedda",
+    },
+    "Log 1,000 watched films in your archive.": {
+      sv: "Logga 1 000 sedda filmer i ditt arkiv.",
+    },
+    "A monumental cinephile milestone: 1,000 films.": {
+      sv: "En monumental cineastmilstolpe: 1 000 filmer.",
+    },
+    "Reach 1,000 films logged in your archive.": {
+      sv: "Nå 1 000 loggade filmer i ditt arkiv.",
+    },
+    "Decade Decathlon": {
+      sv: "Decennietiokamp",
+    },
+    Decathlete: {
+      sv: "Tiokampare",
+    },
+    "Decade Explorer": {
+      sv: "Decennieutforskare",
+    },
+    "Decade Pioneer": {
+      sv: "Decenniepionjär",
+    },
+    "Decathlon Master": {
+      sv: "Tiokampsmästare",
+    },
+    "Coverage goals across film history decades": {
+      sv: "Täckningsmål över filmhistoriens decennier",
+    },
+    "Complete temporal mastery: 10 decades of cinema conquered.": {
+      sv: "Fullständig tidsmässig mästerskap: 10 filmdecennier erövrade.",
+    },
+    "Reach watch targets across distinct decades of film history.": {
+      sv: "Nå visningsmål över olika decennier av filmhistorien.",
+    },
+    "Reach the 50-film watch goal in historical decades.": {
+      sv: "Nå 50-filmersmålet i historiska decennier.",
+    },
+    "3 decades reached": {
+      sv: "3 decennier uppnådda",
+    },
+    "Reach the watch goal in 3 distinct decades.": {
+      sv: "Nå visningsmålet i 3 olika decennier.",
+    },
+    "You have broad taste spanning multiple cinematic eras.": {
+      sv: "Du har bred smak som spänner över flera filmiska epoker.",
+    },
+    "Reach watch goals in 3 decades.": {
+      sv: "Nå visningsmål i 3 decennier.",
+    },
+    "6 decades reached": {
+      sv: "6 decennier uppnådda",
+    },
+    "Reach the watch goal in 6 distinct decades.": {
+      sv: "Nå visningsmålet i 6 olika decennier.",
+    },
+    "Over half a century of film history thoroughly explored.": {
+      sv: "Över ett halvt sekel av filmhistoria grundligt utforskat.",
+    },
+    "Reach watch goals in 6 decades.": {
+      sv: "Nå visningsmål i 6 decennier.",
+    },
+    "10 decades reached": {
+      sv: "10 decennier uppnådda",
+    },
+    "Reach the watch goal across 10 distinct decades.": {
+      sv: "Nå visningsmålet över 10 olika decennier.",
+    },
+    "Mastery across ten distinct decades of cinema.": {
+      sv: "Mästerskap över tio olika filmdecennier.",
+    },
+    "Reach watch goals across 10 decades.": {
+      sv: "Nå visningsmål över 10 decennier.",
+    },
+    "Critic's Notebook": {
+      sv: "Kritikerns anteckningsbok",
+    },
+    Critic: {
+      sv: "Kritiker",
+    },
+    "Initiate Reviewer": {
+      sv: "Recensentlärling",
+    },
+    "Archive Critic": {
+      sv: "Arkivkritiker",
+    },
+    "Master of Taste": {
+      sv: "Smakmästare",
+    },
+    "Calibrated star ratings across your archive": {
+      sv: "Kalibrerade stjärnbetyg i ditt arkiv",
+    },
+    "A discerning critical voice with deep ratings coverage.": {
+      sv: "En kräsen kritisk röst med djup betygstäckning.",
+    },
+    "Rate watched films to calibrate your personal critical archive.": {
+      sv: "Betygsätt sedda filmer för att kalibrera ditt personliga kritikarkiv.",
+    },
+    "Give star ratings to films you have watched.": {
+      sv: "Ge stjärnbetyg till filmer du har sett.",
+    },
+    "100 films rated": {
+      sv: "100 filmer betygsatta",
+    },
+    "Rate at least 100 films in your archive.": {
+      sv: "Betygsätt minst 100 filmer i ditt arkiv.",
+    },
+    "Your critical standard has begun to take shape.": {
+      sv: "Din kritiska standard har börjat ta form.",
+    },
+    "Rate 100 films in your archive.": {
+      sv: "Betygsätt 100 filmer i ditt arkiv.",
+    },
+    "500 films rated": {
+      sv: "500 filmer betygsatta",
+    },
+    "Rate at least 500 films in your archive.": {
+      sv: "Betygsätt minst 500 filmer i ditt arkiv.",
+    },
+    "A comprehensive critical catalog spanning hundreds of works.": {
+      sv: "En omfattande kritisk katalog som spänner över hundratals verk.",
+    },
+    "Rate 500 films in your archive.": {
+      sv: "Betygsätt 500 filmer i ditt arkiv.",
+    },
+    "1,000 films rated": {
+      sv: "1 000 filmer betygsatta",
+    },
+    "Rate at least 1,000 films in your archive.": {
+      sv: "Betygsätt minst 1 000 filmer i ditt arkiv.",
+    },
+    "An encyclopedic, thoroughly evaluated personal canon.": {
+      sv: "En encyklopedisk, noggrant utvärderad personlig kanon.",
+    },
+    "Rate 1,000 films in your archive.": {
+      sv: "Betygsätt 1 000 filmer i ditt arkiv.",
+    },
+    "The Canon": {
+      sv: "Kanonen",
+    },
+    Scholar: {
+      sv: "Forskare",
+    },
+    "Canon Seeker": {
+      sv: "Kanonsökare",
+    },
+    "Canon Scholar": {
+      sv: "Kanonlärd",
+    },
+    "Canon Authority": {
+      sv: "Kanonauktoritet",
+    },
+    "Films watched from canonical historical lists": {
+      sv: "Sedda filmer från kanoniska historiska listor",
+    },
+    "Deep immersion in the universally recognized cinematic canon.": {
+      sv: "Djup fördjupning i den universellt erkända filmiska kanonen.",
+    },
+    "Explore landmark works across curated canonical lists.": {
+      sv: "Utforska landmärken över kurerade kanoniska listor.",
+    },
+    "Watch films included on canonical historical lists.": {
+      sv: "Se filmer som ingår i kanoniska historiska listor.",
+    },
+    "25 canonical films watched": {
+      sv: "25 kanoniska filmer sedda",
+    },
+    "Watch 25 films from curated canonical lists.": {
+      sv: "Se 25 filmer från kurerade kanoniska listor.",
+    },
+    "First steps into cinema's established landmark works.": {
+      sv: "Första stegen in i filmens etablerade landmärkesverk.",
+    },
+    "Watch 25 canonical list films.": {
+      sv: "Se 25 kanoniska listfilmer.",
+    },
+    "100 canonical films watched": {
+      sv: "100 kanoniska filmer sedda",
+    },
+    "Watch 100 films from curated canonical lists.": {
+      sv: "Se 100 filmer från kurerade kanoniska listor.",
+    },
+    "Solid foundation across the historical film canon.": {
+      sv: "Gedigen grund över den historiska filmkanonen.",
+    },
+    "Watch 100 canonical list films.": {
+      sv: "Se 100 kanoniska listfilmer.",
+    },
+    "250 canonical films watched": {
+      sv: "250 kanoniska filmer sedda",
+    },
+    "Watch 250 films from curated canonical lists.": {
+      sv: "Se 250 filmer från kurerade kanoniska listor.",
+    },
+    "Exhaustive command of essential film history.": {
+      sv: "Uttömmande behärskning av den essentiella filmhistorien.",
+    },
+    "Watch 250 canonical list films.": {
+      sv: "Se 250 kanoniska listfilmer.",
+    },
     "Official awards": { sv: "Officiella priser" },
+    "Period awards": { sv: "Periodpriser" },
+    "Milestone filter": { sv: "Milstolpefilter" },
+    "No films match this milestone filter.": {
+      sv: "Inga filmer matchar detta milstolpefilter.",
+    },
+    "No watchlist films match this milestone filter.": {
+      sv: "Inga watchlist-filmer matchar detta milstolpefilter.",
+    },
     "Project status": { sv: "Projektstatus" },
     "Generator modes": { sv: "Generatorlägen" },
     "Reset filters": { sv: "Återställ filter" },
@@ -2275,6 +2574,7 @@
     "Surprise me": { sv: "Överraska mig" },
     "Double feature": { sv: "Dubbelfeature" },
     Rank: { sv: "Rankning" },
+    Ranking: { sv: "Rankning" },
     Ranked: { sv: "Rankade" },
     "Rank order": { sv: "Rankningsordning" },
     Rating: { sv: "Betyg" },

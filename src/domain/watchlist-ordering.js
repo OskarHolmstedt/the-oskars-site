@@ -104,16 +104,55 @@
         blocks.push({ years: [shelf.year] });
       }
     }
+    let populatedYears = [
+      ...new Set(
+        tierRows.map((r) => window.watchlistOrderYear(r)).filter((y) => y > 0),
+      ),
+    ];
+    let decadePopulatedYears = new Map();
+    for (let y of populatedYears) {
+      let dec = window.getDecadeKey
+        ? window.getDecadeKey(y)
+        : `${Math.floor(y / 10) * 10}s`;
+      if (!decadePopulatedYears.has(dec))
+        decadePopulatedYears.set(dec, new Set());
+      decadePopulatedYears.get(dec).add(y);
+    }
     return blocks
-      .map(({ years }) => ({
-        id: years.join(","),
-        years,
-        label: years.includes(0)
-          ? years.map((year) => year || "Unknown year").join(", ")
-          : window.formatShelfMergeBlockLabel(years),
-        count: scope(tier, years, tierRows).length,
-        isSingle: years.length === 1,
-      }))
+      .map(({ years }) => {
+        let blockDecades = new Set(
+          years
+            .filter((y) => y > 0)
+            .map((y) =>
+              window.getDecadeKey
+                ? window.getDecadeKey(y)
+                : `${Math.floor(y / 10) * 10}s`,
+            ),
+        );
+        let completeDecades = [];
+        for (let dec of blockDecades) {
+          let allYearsInDecade = decadePopulatedYears.get(dec);
+          if (
+            allYearsInDecade &&
+            allYearsInDecade.size > 0 &&
+            [...allYearsInDecade].every((y) => years.includes(y))
+          ) {
+            completeDecades.push(dec);
+          }
+        }
+        return {
+          id: years.join(","),
+          years,
+          label: years.includes(0)
+            ? years.map((year) => year || "Unknown year").join(", ")
+            : window.formatShelfMergeBlockLabel(years, { completeDecades }),
+          count: scope(tier, years, tierRows).length,
+          isSingle: years.length === 1,
+          decades: [...blockDecades],
+          completeDecades,
+          isDecadeComplete: completeDecades.length > 0,
+        };
+      })
       .sort((a, b) => Math.min(...a.years) - Math.min(...b.years));
   };
 
@@ -161,14 +200,23 @@
     let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
     let tierRows = window.supabaseWatchlistTierItemsInOrder(tier);
     let selected = new Set(rows.map((row) => row.film_id));
+    let unrelatedPositions = new Set(
+      tierRows
+        .filter((row) => !selected.has(row.film_id))
+        .map((row) => row.position)
+        .filter(Boolean),
+    );
     let slots = tierRows
       .filter((row) => selected.has(row.film_id))
       .map((row) => row.position);
     if (
-      slots.some((position) => !position) ||
+      slots.some((position) => !position || unrelatedPositions.has(position)) ||
       new Set(slots).size !== rows.length
     ) {
       // Allocate beyond existing keys; never move or collide with an unrelated film.
+      let allExistingPositions = new Set(
+        tierRows.map((row) => row.position).filter(Boolean),
+      );
       let last =
         tierRows
           .map((row) => row.position)
@@ -176,7 +224,10 @@
           .sort()
           .at(-1) || null;
       slots = rows.map(() => {
-        last = window.fractionalPositionBetween(last, null);
+        do {
+          last = window.fractionalPositionBetween(last, null);
+        } while (allExistingPositions.has(last));
+        allExistingPositions.add(last);
         return last;
       });
     }
