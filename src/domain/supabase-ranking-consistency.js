@@ -69,16 +69,6 @@ window.supabaseRankingEntryInScope = function (scopeType, scopeKey, entry) {
   return window.getCenturyKey(year) === scopeKey;
 };
 
-function supabasePairCrossesNarrowerScope(scopeType, above, below) {
-  let aboveYear = above.films?.year;
-  let belowYear = below.films?.year;
-  if (scopeType === "years") return true;
-  if (scopeType === "decades") return aboveYear !== belowYear;
-  if (scopeType === "centuries")
-    return window.getDecadeKey(aboveYear) !== window.getDecadeKey(belowYear);
-  return window.getCenturyKey(aboveYear) !== window.getCenturyKey(belowYear);
-}
-
 /**
  * Lists unresolved, overall-adjacent, same-rating comparisons for one
  * heat/final, excluding decisions already settled at a narrower scope,
@@ -119,7 +109,7 @@ window.supabaseRankingConsistencyPairs = function (
     if (!aboveKey || aboveKey !== belowKey) continue;
     if (above.tie_group_id && above.tie_group_id === below.tie_group_id)
       continue;
-    if (!supabasePairCrossesNarrowerScope(scopeType, above, below)) continue;
+
     let key = window.supabaseRankingConsistencyPairKey(
       above.film_id,
       below.film_id,

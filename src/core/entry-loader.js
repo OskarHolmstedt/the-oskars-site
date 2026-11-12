@@ -1616,6 +1616,7 @@
     if (["merge", "rankings", "rank-year"].includes(entry)) {
       await loadScript("src/domain/watchlist-ordering.js");
       await loadScript("src/domain/rewatch-ordering.js");
+      await loadScript("src/domain/watched-ordering.js");
     }
     if (entry === "rankings")
       await loadScript("src/ui/watchlist-year-order.js");

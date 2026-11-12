@@ -527,6 +527,7 @@
     });
     let jobs = [];
     for (let ranking of rankings.values()) {
+      if (ranking.scope_type !== "allTime") continue;
       let rankField = window.RANK_FIELD_BY_SCOPE_TYPE[ranking.scope_type];
       if (!rankField) continue;
       let desiredFilms = films

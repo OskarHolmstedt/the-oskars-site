@@ -519,6 +519,10 @@
  * @property {number|null} views
  * @property {string} updated_at Optimistic-concurrency token.
  * @property {SupabaseFilmRow} films
+ * @property {string|null} [position] Canonical key within the exact rating bucket.
+ * @property {string|null} [ranking_group_id] Existing watched tie identifier.
+ * @property {string|null} [ranking_group_title] Existing watched tie label.
+ * @property {boolean} [suppress_all_time_rank] Whether to omit the all-time rank.
  */
 
 /**
@@ -1733,28 +1737,28 @@ window.canonicalDataRevision = function (canonical) {
  */
 
 /**
- * A curated collection trophy row in Supabase (`public.collection_trophies`).
+ * A curated collection trophy row from Supabase (`public.collection_trophies`) with its curator film list.
  * @typedef {Object} CollectionTrophyRow
- * @property {string} id Unique collection trophy identifier.
+ * @property {string} id Unique collection trophy identifier (the curator filmography slug).
  * @property {'person'|'franchise'|'collection'} entity_type Entity kind.
  * @property {string} entity_id Entity identifier (slug or UUID).
  * @property {string} title Collection or director display title.
- * @property {string} persona_name Persona base name (e.g. 'Nolan', 'Weir').
+ * @property {string} persona_name Persona base name (e.g. 'Nolan').
  * @property {string|null} [emblem] Typographic emblem.
  * @property {string|null} [edition] Edition numeral or string.
  * @property {string|null} [letterboxd_url] Letterboxd canonical list URL.
- * @property {Object} [custom_rules] Inclusions, exclusions, and aliases.
  * @property {boolean} [is_active] Whether active in the catalog.
- * @property {string} [created_at] ISO timestamp.
- * @property {CollectionTrophyEssentialRow[]} [collection_trophy_essentials] Joined landmark films.
+ * @property {CollectionTrophyFilmRow[]} [collection_trophy_films] Every curated film with its tier.
  */
 
 /**
- * A curated collection landmark row in Supabase (`public.collection_trophy_essentials`).
- * @typedef {Object} CollectionTrophyEssentialRow
- * @property {string} collection_id
- * @property {string} film_id
- * @property {number} sort_order
+ * A curated film in a collection trophy (`public.collection_trophy_films` joined to `public.films`).
+ * @typedef {Object} CollectionTrophyFilmRow
+ * @property {string} film_id Film UUID.
+ * @property {TrophyTierKey} tier Curator-assigned milestone tier.
+ * @property {string} title Film title.
+ * @property {number|null} year Release year.
+ * @property {string|null} type Catalog type (`Film`, `Short`, `TV Movie`, ...).
  */
 
 /**

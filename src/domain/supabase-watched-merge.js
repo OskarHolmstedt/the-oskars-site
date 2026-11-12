@@ -120,83 +120,21 @@
     return [...years].sort((a, b) => a - b);
   };
 
-  function blockStore(scopeType, scopeKey, watchedRows) {
-    return window.createShelfMergeBlockStore(
-      `oskars-watched-merge-blocks-${scopeType}-${scopeKey}`,
-      () =>
-        window.supabaseWatchedScopePopulatedYears(
-          scopeType,
-          scopeKey,
-          watchedRows,
-        ),
-      (years) =>
-        window.supabaseWatchedBlockItems(
-          scopeType,
-          scopeKey,
-          years,
-          null,
-          watchedRows,
-        ),
-    );
-  }
-
-  /**
-   * Loads candidate blocks for a watched period scope.
-   * @param {string} scopeType
-   * @param {string} scopeKey
-   * @param {Object[]} [watchedRows]
-   * @returns {Object[]} Candidate blocks: {id, years, label, count, isSingle}.
-   */
-  window.loadWatchedMergeBlocks = function (scopeType, scopeKey, watchedRows) {
-    return blockStore(scopeType, scopeKey, watchedRows).load();
-  };
-
-  /**
-   * Unites two candidate blocks into one composite block.
-   * @param {string} scopeType
-   * @param {string} scopeKey
-   * @param {string} blockAId
-   * @param {string} blockBId
-   * @returns {Object[]}
-   */
-  window.uniteWatchedMergeBlocks = function (
+  /** Lists confirmed groups for one exact rating within a period. @param {string} scopeType Period type. @param {string} scopeKey Period key. @param {Object[]} [watchedRows] Explicit rows. @param {string} [rating] Exact rating key. @returns {Object[]} Reviewed groups. */
+  window.loadWatchedMergeBlocks = function (
     scopeType,
     scopeKey,
-    blockAId,
-    blockBId,
+    watchedRows,
+    rating,
   ) {
-    return blockStore(scopeType, scopeKey).unite(blockAId, blockBId);
-  };
-
-  /**
-   * Splits a composite candidate block back into atomic single-year blocks.
-   * @param {string} scopeType
-   * @param {string} scopeKey
-   * @param {string} blockId
-   * @returns {Object[]}
-   */
-  window.splitWatchedMergeBlock = function (scopeType, scopeKey, blockId) {
-    return blockStore(scopeType, scopeKey).split(blockId);
-  };
-
-  /**
-   * Resets candidate blocks for a watched period scope back to single-year blocks.
-   * @param {string} scopeType
-   * @param {string} scopeKey
-   * @returns {Object[]}
-   */
-  window.resetWatchedMergeBlocks = function (scopeType, scopeKey) {
-    return blockStore(scopeType, scopeKey).reset();
-  };
-
-  /**
-   * Groups all populated years in a watched period scope by decade.
-   * @param {string} scopeType
-   * @param {string} scopeKey
-   * @returns {Object[]}
-   */
-  window.groupWatchedMergeBlocksByDecade = function (scopeType, scopeKey) {
-    return blockStore(scopeType, scopeKey).groupByDecade();
+    void watchedRows;
+    return window.watchedOrderingBlocks(rating).filter((block) =>
+      block.years.every((year) =>
+        window.supabaseRankingEntryInScope(scopeType, scopeKey, {
+          films: { year },
+        }),
+      ),
+    );
   };
 
   /**
@@ -237,10 +175,12 @@
       return true;
     });
 
-    let positionMap = new Map();
-    (rankingEntries || []).forEach((entry, index) => {
-      positionMap.set(entry.film_id, entry.position || index);
-    });
+    let positionMap = new Map(
+      eligible
+        .filter((row) => row.position)
+        .map((row) => [row.film_id, row.position]),
+    );
+    void rankingEntries;
 
     return eligible.sort((a, b) => {
       let keyA = window.supabaseRankingRatingKey
@@ -332,92 +272,26 @@
     return window.undoShelfMergeChoice(session);
   };
 
-  /**
-   * Persists the merged film order for a period ranking to Supabase,
-   * preserving all unmerged films' positions.
-   * @param {string} scope
-   * @param {string} scopeType
-   * @param {string[]} orderedFilmIds
-   * @returns {Promise<{ok: boolean, changed?: number, reason?: string}>}
-   */
+  /** Saves a watched exact-rating merge into the shared order. @param {string} scope Period key. @param {string} scopeType Period type. @param {string[]} orderedFilmIds Ordered films. @returns {Promise<Object>} Save result. */
   window.applySupabaseWatchedPeriodMergeOrder = async function (
     scope,
     scopeType,
     orderedFilmIds,
   ) {
-    let ready = await window.ensureSupabaseClient?.();
-    if (!ready) throw new Error("Supabase not configured.");
-
-    let ids = (orderedFilmIds || []).map(String).filter(Boolean);
-    let idSet = new Set(ids);
-    if (idSet.size < 2 || idSet.size !== ids.length) {
-      return {
-        ok: false,
-        reason: "Choose at least two distinct films to merge.",
-      };
-    }
-
-    let loaded = await window.loadSupabaseRanking(scope, scopeType);
-    let entries = loaded?.entries || [];
-    let existingPositions = entries
-      .filter((entry) => idSet.has(entry.film_id))
-      .map((entry) => entry.position);
-
-    if (existingPositions.length !== ids.length) {
-      return {
-        ok: false,
-        reason: "Some selected films are no longer in this ranking.",
-      };
-    }
-
-    if (existingPositions.some((pos) => !pos)) {
-      let firstIndex = entries.findIndex((entry) => idSet.has(entry.film_id));
-      let beforePos = null;
-      for (let i = firstIndex - 1; i >= 0; i--) {
-        if (entries[i].position) {
-          beforePos = entries[i].position;
-          break;
-        }
-      }
-      let lastIndex = -1;
-      for (let i = entries.length - 1; i >= 0; i--) {
-        if (idSet.has(entries[i].film_id)) {
-          lastIndex = i;
-          break;
-        }
-      }
-      let afterPos = null;
-      for (let i = lastIndex + 1; i < entries.length; i++) {
-        if (entries[i].position) {
-          afterPos = entries[i].position;
-          break;
-        }
-      }
-      let generated = [];
-      let cur = beforePos;
-      for (let i = 0; i < ids.length; i++) {
-        let nextPos = window.fractionalPositionBetween
-          ? window.fractionalPositionBetween(cur, afterPos)
-          : String(i + 1);
-        generated.push(nextPos);
-        cur = nextPos;
-      }
-      existingPositions = generated;
-    }
-
-    let updates = ids.map((filmId, index) => ({
-      ranking_id: loaded.rankingId,
-      film_id: filmId,
-      position: existingPositions[index],
-      rank_confirmed: true,
-      updated_at: new Date().toISOString(),
-    }));
-
-    let { error } = await ready.client
-      .from("ranking_entries")
-      .upsert(updates, { onConflict: "ranking_id,film_id" });
-    if (error) throw error;
-
-    return { ok: true, changed: updates.length };
+    let byId = new Map(
+      window.supabaseWatchedItemsInOrder().map((row) => [row.film_id, row]),
+    );
+    let rows = orderedFilmIds.map((id) => byId.get(id));
+    if (rows.some((row) => !row))
+      throw new Error("Refresh the selected films before merging.");
+    let key = window.supabaseRankingRatingKey(rows[0]);
+    await window.saveWatchedOrdering(
+      key,
+      [...new Set(rows.map((row) => row.films?.year || 0))],
+      rows,
+    );
+    void scope;
+    void scopeType;
+    return { ok: true, changed: rows.length };
   };
 })();

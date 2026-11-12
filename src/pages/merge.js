@@ -52,6 +52,7 @@
 
   // Watched state
   let watchedPicker = {
+    rating: "",
     scopeType: "allTime", // "allTime" | "decades" | "centuries"
     scopeKey: "alltime",
     blockAId: "",
@@ -72,6 +73,7 @@
     let urlMode = window.pageQueryParam("mode");
     let tierParam = window.pageQueryParam("tier");
     let decadeParam = window.pageQueryParam("decade");
+    watchedPicker.rating = window.pageQueryParam("rating") || "";
     if (tierParam) {
       watchlistPicker.tier = tierParam;
       rewatchlistPicker.tier = tierParam;
@@ -87,7 +89,7 @@
       )
     ) {
       mode = urlMode;
-      return;
+      if (urlMode !== "watched") return;
     }
     let typeParam = window.pageQueryParam("type");
     let keyParam = window.pageQueryParam("key");
@@ -103,7 +105,7 @@
       watchedPicker.scopeType = norm;
       watchedPicker.scopeKey = norm === "allTime" ? "alltime" : keyParam || "";
     } else {
-      mode = "watchlist";
+      mode = urlMode === "watched" ? "watched" : "watchlist";
     }
   }
 
@@ -122,6 +124,7 @@
       ensureRewatchlistPickerDefaults();
     } else if (targetMode === "watched") {
       await window.loadSupabaseWorkspace({ parts: ["watched"] });
+      await window.loadWatchedOrdering();
       ensureWatchedPickerDefaults();
       await ensureWatchedRankingLoaded();
     } else if (targetMode === "collections") {
@@ -293,6 +296,25 @@
 
   // --- Watched helpers ---
 
+  function watchedRatings() {
+    return [
+      ...new Set(
+        window
+          .supabaseWatchedItemsInOrder()
+          .map(window.supabaseRankingRatingKey),
+      ),
+    ];
+  }
+
+  function watchedBlocks() {
+    return window.loadWatchedMergeBlocks(
+      watchedPicker.scopeType,
+      watchedPicker.scopeKey,
+      undefined,
+      watchedPicker.rating,
+    );
+  }
+
   async function ensureWatchedRankingLoaded() {
     let { scopeType, scopeKey } = watchedPicker;
     let workspace = window.getSupabaseWorkspace();
@@ -316,6 +338,9 @@
   }
 
   function ensureWatchedPickerDefaults() {
+    let ratings = watchedRatings();
+    if (!ratings.includes(watchedPicker.rating))
+      watchedPicker.rating = ratings[0] || "";
     let scopes = window.supabaseWatchedScopes();
     if (!scopes.length) return;
 
@@ -328,10 +353,7 @@
       watchedPicker.scopeKey = scopes[0].key;
     }
 
-    let blocks = window.loadWatchedMergeBlocks(
-      watchedPicker.scopeType,
-      watchedPicker.scopeKey,
-    );
+    let blocks = watchedBlocks();
     if (!blocks.length) {
       watchedPicker.blockAId = "";
       watchedPicker.blockBId = "";
@@ -348,7 +370,7 @@
 
   function effectiveWatchedScopeItems() {
     let { scopeType, scopeKey, blockAId, blockBId } = watchedPicker;
-    let blocks = window.loadWatchedMergeBlocks(scopeType, scopeKey);
+    let blocks = watchedBlocks();
     let blockA = blocks.find((b) => b.id === blockAId);
     let blockB = blocks.find((b) => b.id === blockBId);
     let rankingEntries = watchedRankingLoaded?.entries || [];
@@ -369,7 +391,16 @@
           rankingEntries,
         )
       : [];
-    return { listA, listB, blockA, blockB };
+    return {
+      listA: listA.filter(
+        (row) => window.supabaseRankingRatingKey(row) === watchedPicker.rating,
+      ),
+      listB: listB.filter(
+        (row) => window.supabaseRankingRatingKey(row) === watchedPicker.rating,
+      ),
+      blockA,
+      blockB,
+    };
   }
 
   // --- Stash helpers ---
@@ -1033,10 +1064,7 @@
       })
       .join("");
 
-    let blocks = window.loadWatchedMergeBlocks(
-      watchedPicker.scopeType,
-      watchedPicker.scopeKey,
-    );
+    let blocks = watchedBlocks();
     let hasMultiYear = blocks.some((b) => !b.isSingle);
 
     let chipsHtml = blocks.length
@@ -1152,19 +1180,37 @@
         <label>Period scope
           <select data-merge-watched-scope>${scopeOptions}</select>
         </label>
+        <label>Exact rating
+          <select data-merge-watched-rating>${watchedRatings()
+            .map(
+              (key) =>
+                `<option value="${escape(key)}"${key === watchedPicker.rating ? " selected" : ""}>${escape(key === "unrated" ? "Unrated" : key.replace("|", "★ "))}</option>`,
+            )
+            .join("")}</select>
+        </label>
       </div>
 
       <div class="watchlist-merge-blocks-overview">
         <div class="watchlist-merge-blocks-header">
           <span class="watchlist-merge-blocks-title">Candidate blocks (${escape(watchedPicker.scopeKey)})</span>
           <div class="watchlist-merge-blocks-actions">
-            <button type="button" class="watchlist-merge-text-action" data-merge-group-decade>Group by decade</button>
+
             ${hasMultiYear ? `<button type="button" class="watchlist-merge-text-action" data-merge-reset-blocks>Reset to single years</button>` : ""}
           </div>
         </div>
         <div class="watchlist-merge-blocks-chips">${chipsHtml}</div>
       </div>
 
+      <p>Pending year shelves: ${
+        window
+          .watchedOrderingShelves(watchedPicker.rating)
+          .filter((shelf) => !shelf.confirmed)
+          .map(
+            (shelf) =>
+              `<a href="rank-year.html?year=${shelf.year}&amp;category=watched">${escape(shelf.year || "Unknown year")} (${shelf.items.length})</a>`,
+          )
+          .join(" · ") || "None"
+      }</p>
       ${suggestedHtml}
       <p class="watchlist-merge-rule-note">Rating guard rail active: comparisons only occur between films with the same exact rating. Shelves with only one group auto-pass.</p>
       ${customPairHtml}
@@ -1551,10 +1597,7 @@
           : mode === "rewatchlist"
             ? window.rewatchOrderingBlocks(rewatchlistPicker.tier)
             : mode === "watched"
-              ? window.loadWatchedMergeBlocks(
-                  watchedPicker.scopeType,
-                  watchedPicker.scopeKey,
-                )
+              ? watchedBlocks()
               : [];
       let nextSuggested = window.suggestShelfMergePairs(remainingBlocks);
       if (nextSuggested.pairs.length > 0) {
@@ -1687,10 +1730,7 @@
     } else if (mode === "watched") {
       let { listA, listB } = effectiveWatchedScopeItems();
       if (!listA.length || !listB.length) return;
-      let blocks = window.loadWatchedMergeBlocks(
-        watchedPicker.scopeType,
-        watchedPicker.scopeKey,
-      );
+      let blocks = watchedBlocks();
       let blockA = blocks.find((b) => b.id === watchedPicker.blockAId);
       let blockB = blocks.find((b) => b.id === watchedPicker.blockBId);
       if (!blockA || !blockB) return;
@@ -1699,6 +1739,9 @@
         .filter(Boolean);
       await ensureFilmDirectors(filmIds);
       session = window.createWatchedShelfMergeSession(listA, listB);
+      session.rating = watchedPicker.rating;
+      session.inputYears = [blockA.years, blockB.years];
+      session.rows = [...listA, ...listB];
       session.scopeType = watchedPicker.scopeType;
       session.scopeKey = watchedPicker.scopeKey;
       session.blockAId = watchedPicker.blockAId;
@@ -1831,32 +1874,16 @@
         }
       } else if (mode === "watched") {
         let ids = session.merged.map((r) => r.film_id);
-        let result = await window.applySupabaseWatchedPeriodMergeOrder(
-          session.scopeKey,
-          session.scopeType,
-          ids,
+        let byId = new Map(session.rows.map((row) => [row.film_id, row]));
+        await window.saveWatchedOrdering(
+          session.rating,
+          [...new Set(session.inputYears.flat())],
+          ids.map((id) => byId.get(id)),
+          session.inputYears,
         );
-        if (!result.ok) {
-          alert(result.reason);
-          if (applyButton) applyButton.disabled = false;
-          return;
-        }
-        applyResult = result;
-        let updatedBlocks = window.uniteWatchedMergeBlocks(
-          session.scopeType,
-          session.scopeKey,
-          session.blockAId,
-          session.blockBId,
-        );
-        let unitedBlock = updatedBlocks.find((b) =>
-          b.years.some((y) => session.mergedYearSet.has(y)),
-        );
-        if (unitedBlock) {
-          session.unitedBlockLabel = unitedBlock.label;
-          watchedPicker.blockAId = unitedBlock.id;
-          watchedPicker.blockBId =
-            updatedBlocks.find((b) => b.id !== unitedBlock.id)?.id || "";
-        }
+        await window.loadWatchedOrdering();
+        applyResult = { ok: true, changed: ids.length };
+        ensureWatchedPickerDefaults();
         await ensureWatchedRankingLoaded();
       } else {
         // Collections
@@ -1999,10 +2026,7 @@
           ? window.watchlistOrderingBlocks(watchlistPicker.tier)
           : mode === "rewatchlist"
             ? window.rewatchOrderingBlocks(rewatchlistPicker.tier)
-            : window.loadWatchedMergeBlocks(
-                watchedPicker.scopeType,
-                watchedPicker.scopeKey,
-              );
+            : watchedBlocks();
       let { pairs } = window.suggestShelfMergePairs(remainingBlocks);
       if (!pairs.length) {
         step = "setup";
@@ -2041,10 +2065,7 @@
           ? window.watchlistOrderingBlocks(watchlistPicker.tier)
           : mode === "rewatchlist"
             ? window.rewatchOrderingBlocks(rewatchlistPicker.tier)
-            : window.loadWatchedMergeBlocks(
-                watchedPicker.scopeType,
-                watchedPicker.scopeKey,
-              );
+            : watchedBlocks();
       if (mode === "watchlist" && watchlistPicker.decade) {
         blocks = blocks.filter((b) =>
           b.years.some(
@@ -2098,10 +2119,7 @@
           ? window.watchlistOrderingBlocks(watchlistPicker.tier)
           : mode === "rewatchlist"
             ? window.rewatchOrderingBlocks(rewatchlistPicker.tier)
-            : window.loadWatchedMergeBlocks(
-                watchedPicker.scopeType,
-                watchedPicker.scopeKey,
-              );
+            : watchedBlocks();
       if (mode === "watchlist" && watchlistPicker.decade) {
         blocks = blocks.filter((b) =>
           b.years.some(
@@ -2249,11 +2267,7 @@
       } else if (mode === "rewatchlist") {
         await splitRewatchlistGroups(blockId);
       } else if (mode === "watched") {
-        window.splitWatchedMergeBlock(
-          watchedPicker.scopeType,
-          watchedPicker.scopeKey,
-          blockId,
-        );
+        await window.splitWatchedOrderingGroups(watchedPicker.rating, blockId);
         ensureWatchedPickerDefaults();
       }
       render();
@@ -2262,10 +2276,7 @@
     if (event.target.closest("[data-merge-group-decade]")) {
       pairQueue = null;
       if (mode === "watched") {
-        window.groupWatchedMergeBlocksByDecade(
-          watchedPicker.scopeType,
-          watchedPicker.scopeKey,
-        );
+        await window.splitWatchedOrderingGroups(watchedPicker.rating);
         ensureWatchedPickerDefaults();
       }
       render();
@@ -2296,10 +2307,7 @@
       } else if (mode === "rewatchlist") {
         await splitRewatchlistGroups();
       } else if (mode === "watched") {
-        window.resetWatchedMergeBlocks(
-          watchedPicker.scopeType,
-          watchedPicker.scopeKey,
-        );
+        await window.splitWatchedOrderingGroups(watchedPicker.rating);
         ensureWatchedPickerDefaults();
       }
       render();
@@ -2429,6 +2437,16 @@
       return;
     }
 
+    let watchedRating = event.target.closest("[data-merge-watched-rating]");
+    if (watchedRating) {
+      watchedPicker.rating = watchedRating.value;
+      watchedPicker.blockAId = "";
+      watchedPicker.blockBId = "";
+      ensureWatchedPickerDefaults();
+      render();
+      return;
+    }
+
     // Watched scope select
     let wtScope = event.target.closest("[data-merge-watched-scope]");
     if (wtScope) {
@@ -2464,10 +2482,7 @@
               ? window.watchlistOrderingBlocks(activePicker.tier)
               : mode === "rewatchlist"
                 ? window.rewatchOrderingBlocks(activePicker.tier)
-                : window.loadWatchedMergeBlocks(
-                    activePicker.scopeType,
-                    activePicker.scopeKey,
-                  );
+                : watchedBlocks();
           activePicker.blockBId = blocks.find((b) => b.id !== chosen)?.id || "";
         }
       } else {

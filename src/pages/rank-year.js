@@ -316,7 +316,8 @@
         <div class="setup-year-category-header setup-year-shelf-header">
           <span class="setup-year-rank-bucket-label">${escape(label)}</span>
           <a class="setup-year-section-empty" href="${escape(window.filmPageUrl(bucketEntries[0].film_id))}">${escape(bucketEntries[0].films?.title || "")}</a>
-          <span class="setup-ranking-state is-reviewed">Settled</span>
+          <span class="setup-ranking-state is-reviewed">${bucketEntries[0].position ? "Settled" : "No comparison needed"}</span>
+          ${canEdit && !bucketEntries[0].position ? `<button type="button" class="sort-order-button" data-setup-rank-confirm="${escape(key)}">Place film</button>` : ""}
         </div>
       </div>`;
     }
@@ -402,30 +403,9 @@
       group.every((entry) => entry.rank_confirmed !== false),
     );
 
-    let footerHtml;
-    if (periodType === "year") {
-      let decade = window.getDecadeKey
-        ? window.getDecadeKey(scopeKey)
-        : `${Math.floor(Number(scopeKey) / 10) * 10}s`;
-      footerHtml = heatComplete
-        ? `<span>Year heat complete</span><a class="button-link" href="ranking-review.html?type=decades&amp;key=${escape(decade)}">Continue to ${escape(decade)} finals →</a>`
-        : `<a class="button-link" href="ranking-review.html?type=years&amp;key=${escape(scopeKey)}">Compare this year two at a time</a>`;
-    } else if (periodType === "decade") {
-      let century = window.getCenturyKey
-        ? window.getCenturyKey(parseInt(scopeKey, 10))
-        : `${Math.floor(Number.parseInt(scopeKey, 10) / 100) * 100}s`;
-      footerHtml = heatComplete
-        ? `<span>Decade heat complete</span><a class="button-link" href="ranking-review.html?type=centuries&amp;key=${escape(century)}">Continue to ${escape(century)} finals →</a>`
-        : `<a class="button-link" href="ranking-review.html?type=decades&amp;key=${escape(scopeKey)}">Compare this decade two at a time</a>`;
-    } else if (periodType === "century") {
-      footerHtml = heatComplete
-        ? `<span>Century heat complete</span><a class="button-link" href="ranking-review.html?type=allTime&amp;key=alltime">Continue to all-time finals →</a>`
-        : `<a class="button-link" href="ranking-review.html?type=centuries&amp;key=${escape(scopeKey)}">Compare this century two at a time</a>`;
-    } else {
-      footerHtml = heatComplete
-        ? `<span>All-time ranking complete</span><a class="button-link" href="rankings.html?category=watched">View all rankings →</a>`
-        : `<a class="button-link" href="ranking-review.html?type=allTime&amp;key=alltime">Compare all-time two at a time</a>`;
-    }
+    let footerHtml = heatComplete
+      ? `<span>${periodType === "alltime" ? "All-time ranking complete" : "Selected order reviewed"}</span><a class="button-link" href="merge.html?mode=watched">Merge ordered groups →</a>`
+      : `<a class="button-link" href="ranking-review.html?type=${escape(scopeType)}&amp;key=${escape(scopeKey)}">Compare two at a time</a>`;
 
     let scopeNoun =
       periodType === "year"
@@ -436,7 +416,7 @@
             ? "century"
             : "all-time";
 
-    return `<p class="setup-year-section-empty">Edits this ${escape(scopeNoun)}’s order inside the same exact rating only. Broader rankings are confirmed separately.</p>
+    return `<p class="setup-year-section-empty">Edits this ${escape(scopeNoun)}’s order inside the same exact rating only. Every period uses this same saved order.</p>
       <div class="setup-year-category-list">${sections}</div>
       <div class="setup-ranking-footer">${footerHtml}</div>`;
   }
@@ -761,13 +741,6 @@
       isMutating = false;
       render();
     }
-  }
-
-  function overallNeighborFilmId(filmId, direction) {
-    let index = allEntries.findIndex((entry) => entry.film_id === filmId);
-    if (index < 0) return null;
-    let neighbor = allEntries[index + direction];
-    return neighbor ? neighbor.film_id : null;
   }
 
   function render() {
@@ -1131,15 +1104,8 @@
     let insertIndex = movingBefore ? targetIndex + 1 : targetIndex;
     let beforeEntry = bucketEntries[insertIndex - 1];
     let afterEntry = bucketEntries[insertIndex];
-    let beforeFilmId = beforeEntry
-      ? beforeEntry.film_id
-      : overallNeighborFilmId(bucketEntries[0].film_id, -1);
-    let afterFilmId = afterEntry
-      ? afterEntry.film_id
-      : overallNeighborFilmId(
-          bucketEntries[bucketEntries.length - 1].film_id,
-          1,
-        );
+    let beforeFilmId = beforeEntry?.film_id || null;
+    let afterFilmId = afterEntry?.film_id || null;
     try {
       await window.moveSupabaseRankingEntryToPosition(
         rankingId,

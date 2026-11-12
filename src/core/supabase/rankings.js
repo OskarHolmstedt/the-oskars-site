@@ -10,108 +10,190 @@
     );
   };
 
-  const RANKING_ENTRY_SELECT =
-    "film_id, position, rank_confirmed, tie_group_id, films(id, tmdb_id, tmdb_tv_ref, title, year, type, poster_url)";
-
-  /**
-   * Finds or creates one account-scoped ranking under the unique owner, scope type, and scope constraint.
-   * @param {Object} client Ready Supabase client.
-   * @param {string} scope
-   * @param {'years'|'decades'|'centuries'|'allTime'} scopeType
-   * @returns {Promise<string>} The ranking row's id.
-   */
-  async function getOrCreateSupabaseRankingId(client, scope, scopeType) {
-    let { data: existing, error: selectError } = await client
-      .from("rankings")
-      .select("id")
-      .eq("scope", scope)
-      .eq("scope_type", scopeType)
-      .maybeSingle();
-    if (selectError) throw selectError;
-    if (existing) return existing.id;
-
-    let { data: created, error: insertError } = await client
-      .from("rankings")
-      .insert({ scope, scope_type: scopeType })
-      .select("id")
-      .single();
-    if (insertError) {
-      if (insertError.code === "23505") {
-        let { data: retryExisting, error: retryError } = await client
-          .from("rankings")
-          .select("id")
-          .eq("scope", scope)
-          .eq("scope_type", scopeType)
-          .single();
-        if (retryError) throw retryError;
-        return retryExisting.id;
-      }
-      throw insertError;
-    }
-    return created.id;
+  function ratingKey(row) {
+    return !(Number(row.rating) >= 0.5 && Number(row.rating) <= 5)
+      ? "unrated"
+      : `${Number(row.rating)}|${row.rating_modifier || ""}`;
   }
 
-  /**
-   * Loads the signed-in user's ranking entries for one scope, ordered by
-   * position, joined with films. Not cached - a fresh fetch every call,
-   * left to the caller (a page-local variable, same as
-   * rate-watched-supabase.js's queue) rather than a shared session cache.
-   * @param {string} scope
-   * @param {'years'|'decades'|'centuries'|'allTime'} scopeType
-   * @returns {Promise<{rankingId: string, entries: Object[]}|{rankingId: null, entries: []}>}
-   */
-  window.loadSupabaseRanking = async function (scope, scopeType) {
+  function ratingValue(row) {
+    return ratingKey(row) === "unrated"
+      ? 0
+      : Number(row.rating) * 6 +
+          (row.rating_modifier === "plus"
+            ? 1
+            : row.rating_modifier === "minus"
+              ? -1
+              : 0);
+  }
+
+  function orderedRows(rows) {
+    return rows
+      .slice()
+      .sort(
+        (a, b) =>
+          ratingValue(b) - ratingValue(a) ||
+          (a.position && b.position
+            ? a.position < b.position
+              ? -1
+              : a.position > b.position
+                ? 1
+                : a.film_id.localeCompare(b.film_id)
+            : a.position
+              ? -1
+              : b.position
+                ? 1
+                : a.film_id.localeCompare(b.film_id)),
+      );
+  }
+
+  function rowInScope(row, scope, type) {
+    if (!window.supabaseRankingFilmEligible(row)) return false;
+    if (type === "allTime") return true;
+    let year = row.films?.year || 0;
+    return type === "years"
+      ? String(year) === String(scope)
+      : `${Math.floor(year / (type === "decades" ? 10 : 100)) * (type === "decades" ? 10 : 100)}s` ===
+          scope;
+  }
+
+  /** Reads the account's reviewed exact-rating year and merge groups. @returns {Promise<Object[]>} Stored groups. */
+  window.loadSupabaseWatchedOrderGroups = async function () {
     let ready = await window.ensureSupabaseClient();
     if (!ready) throw new Error("Supabase not configured.");
-    let authState = await window.resolveSupabaseAuthState();
-    if (authState.status !== "signed-in")
-      return { rankingId: null, entries: [] };
-
-    let rankingId = await getOrCreateSupabaseRankingId(
-      ready.client,
-      scope,
-      scopeType,
-    );
-    let entries = await window.supabaseWorkspaceContext.fetchAllSupabaseRows(
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
+    let groups = await window.supabaseWorkspaceContext.fetchAllSupabaseRows(
       (withCount) =>
         ready.client
-          .from("ranking_entries")
+          .from("watched_order_groups")
           .select(
-            RANKING_ENTRY_SELECT,
+            "id,rating_key,kind,years,film_ids",
             withCount ? { count: "exact" } : undefined,
           )
-          .eq("ranking_id", rankingId)
-          .order("position")
-          .order("film_id"),
+          .eq("user_id", window.getSupabaseCurrentUser()?.id)
+          .order("id"),
     );
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    return groups;
+  };
+
+  /** Returns watched rows sorted within their exact rating buckets. @param {Object[]} [rows] Explicit rows. @returns {Object[]} Ordered eligible rows. */
+  window.supabaseWatchedItemsInOrder = function (rows) {
+    return orderedRows(
+      (rows || window.getSupabaseWorkspace()?.watched || []).filter(
+        window.supabaseRankingFilmEligible,
+      ),
+    );
+  };
+
+  /** Returns one exact rating bucket in its canonical order. @param {string} key Rating key. @returns {Object[]} Watched rows. */
+  window.supabaseWatchedRatingItemsInOrder = function (key) {
+    return window
+      .supabaseWatchedItemsInOrder()
+      .filter((row) => ratingKey(row) === key);
+  };
+
+  /** Places a Build film among same-rating neighbors in the shared order. @param {string} rankingId Scope id. @param {Object[]} entries Scoped entries. @param {string} filmId Selected film. @param {string|null} targetFilmId Neighbor. @param {'before'|'after'} side Placement side. @returns {Promise<string>} Saved key. */
+  window.placeSupabaseIntakeRankingFilm = async function (
+    rankingId,
+    entries,
+    filmId,
+    targetFilmId,
+    side,
+  ) {
+    let selected = window
+      .getSupabaseWorkspace()
+      ?.watched.find((row) => row.film_id === filmId);
+    if (!selected) throw new Error("Refresh the film before placing it.");
+    let bucket = window.supabaseWatchedRatingItemsInOrder(ratingKey(selected));
+    let others = bucket.filter((row) => row.film_id !== filmId);
+    let index = others.findIndex((row) => row.film_id === targetFilmId);
+    if (index < 0) index = others.length;
+    else if (side === "after") index++;
+    others.splice(index, 0, selected);
+    await window.saveWatchedOrdering(
+      ratingKey(selected),
+      [...new Set(others.map((row) => row.films?.year || 0))],
+      others,
+    );
+    void rankingId;
+    void entries;
+    return window
+      .getSupabaseWorkspace()
+      .watched.find((row) => row.film_id === filmId).position;
+  };
+
+  /** Loads a scope as a filter over the single watched order, without writing on page entry. @param {string} scope Period key. @param {string} scopeType Period type. @returns {Promise<Object>} Projected entries, including pending films. */
+  window.loadSupabaseRanking = async function (scope, scopeType) {
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
+    let workspace = await window.loadSupabaseWorkspace({ parts: ["watched"] });
+    let groups = await window.loadSupabaseWatchedOrderGroups();
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    let all = window.supabaseWatchedItemsInOrder(workspace.watched);
+    let selected = all.filter((row) => rowInScope(row, scope, scopeType));
+    let byRating = new Map();
+    for (let row of selected) {
+      let key = ratingKey(row);
+      if (!byRating.has(key)) byRating.set(key, []);
+      byRating.get(key).push(row);
+    }
+    let confirmed = new Set();
+    for (let [key, rows] of byRating) {
+      if (rows.length === 1) {
+        confirmed.add(rows[0].film_id);
+        continue;
+      }
+      for (let group of groups.filter((group) => group.rating_key === key)) {
+        let actual = all.filter(
+          (row) =>
+            ratingKey(row) === key &&
+            group.years.includes(row.films?.year || 0),
+        );
+        if (
+          actual.length !== group.film_ids.length ||
+          actual.some(
+            (row, i) => !row.position || row.film_id !== group.film_ids[i],
+          )
+        )
+          continue;
+        if (rows.every((row) => group.film_ids.includes(row.film_id)))
+          rows.forEach((row) => confirmed.add(row.film_id));
+      }
+    }
     return {
-      rankingId,
-      entries: entries.filter(window.supabaseRankingFilmEligible),
+      rankingId: `${scopeType}:${scope}`,
+      entries: selected.map((row) => ({
+        ...row,
+        ranking_id: `${scopeType}:${scope}`,
+        rank_confirmed: confirmed.has(row.film_id),
+        tie_group_id: row.ranking_group_id || null,
+        tie_group_title: row.ranking_group_title || null,
+        suppress_all_time_rank: Boolean(row.suppress_all_time_rank),
+      })),
     };
   };
 
-  /**
-   * Loads existing ranking scopes with fully paged entries, without creating empty rankings.
-   * @returns {Promise<Object[]>} Rankings with ordered film entries.
-   */
+  /** Loads paged archive projections of the canonical order. @returns {Promise<Object[]>} Scope read models. */
   window.loadSupabaseStoredRankings = async function () {
     let ready = await window.ensureSupabaseClient();
     if (!ready) throw new Error("Supabase not configured.");
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
+    let fetch = window.supabaseWorkspaceContext.fetchAllSupabaseRows;
     let [rankings, entries] = await Promise.all([
-      window.supabaseWorkspaceContext.fetchAllSupabaseRows((withCount) =>
+      fetch((withCount) =>
         ready.client
           .from("rankings")
           .select(
-            "id, scope, scope_type",
+            "id,scope,scope_type",
             withCount ? { count: "exact" } : undefined,
           )
           .order("id"),
       ),
-      window.supabaseWorkspaceContext.fetchAllSupabaseRows((withCount) =>
+      fetch((withCount) =>
         ready.client
           .from("ranking_entries")
           .select(
-            `ranking_id, ${RANKING_ENTRY_SELECT}`,
+            "ranking_id,film_id,position,rank_confirmed,suppress_all_time_rank,tie_group_id,tie_group_title,films(id,title,year,type,poster_url)",
             withCount ? { count: "exact" } : undefined,
           )
           .order("ranking_id")
@@ -119,315 +201,234 @@
           .order("film_id"),
       ),
     ]);
-    let byRanking = new Map();
-    entries.forEach((entry) => {
-      if (!byRanking.has(entry.ranking_id)) byRanking.set(entry.ranking_id, []);
-      byRanking.get(entry.ranking_id).push(entry);
-    });
-    return rankings.map((ranking) => ({
-      ...ranking,
-      ranking_entries: (byRanking.get(ranking.id) || []).filter(
-        window.supabaseRankingFilmEligible,
-      ),
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    let byId = new Map();
+    for (let entry of entries) {
+      if (!byId.has(entry.ranking_id)) byId.set(entry.ranking_id, []);
+      byId.get(entry.ranking_id).push(entry);
+    }
+    return rankings.map((row) => ({
+      ...row,
+      ranking_entries: byId.get(row.id) || [],
     }));
   };
 
-  /**
-   * Prepares the selected period's own ranking, carrying narrower ordering forward provisionally.
-   * @param {string} scope Period key.
-   * @param {'years'|'decades'|'centuries'|'allTime'} scopeType Period type.
-   * @param {Object[]} watched Watched rows joined with films.
-   * @returns {Promise<{rankingId: string, entries: Object[]}>} Selected ranking.
-   */
+  /** Projects an existing watched order into the selected period. @param {string} scope Period key. @param {string} scopeType Period type. @param {Object[]} watched Watched rows. @returns {Promise<Object>} Scope read model. */
   window.prepareSupabasePeriodRanking = async function (
     scope,
     scopeType,
     watched,
   ) {
-    let loaded = await window.loadSupabaseRanking(scope, scopeType);
-    let watchedById = new Map(watched.map((row) => [row.film_id, row]));
-    let eligible = watched.filter((row) =>
-      window.supabaseRankingEntryInScope(scopeType, scope, row),
+    void watched;
+    return window.loadSupabaseRanking(scope, scopeType);
+  };
+
+  async function refreshWatchedOrder(isCurrent) {
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    window.invalidateCachedSupabaseHydrationSource?.();
+    await window.loadSupabaseWorkspace({ parts: ["watched"], force: true });
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+  }
+
+  function positionsFor(rows, all) {
+    let selected = new Set(rows.map((row) => row.film_id));
+    let slots = all
+      .filter((row) => selected.has(row.film_id))
+      .map((row) => row.position)
+      .filter(Boolean)
+      .sort();
+    let outside = new Set(
+      all
+        .filter((row) => !selected.has(row.film_id))
+        .map((row) => row.position)
+        .filter(Boolean),
     );
-    let existingIds = new Set(loaded.entries.map((entry) => entry.film_id));
-    let missing = eligible.some(
-      (row) =>
-        window.supabaseRankingRatingKey(row) && !existingIds.has(row.film_id),
-    );
-    let sourceEntries = [];
-    if (missing) {
-      let stored = await window.loadSupabaseStoredRankings();
-      let narrower = {
-        years: "allTime",
-        decades: "years",
-        centuries: "decades",
-        allTime: "centuries",
-      }[scopeType];
-      sourceEntries = stored
-        .filter((ranking) => ranking.scope_type === narrower)
-        .sort((a, b) => a.scope.localeCompare(b.scope))
-        .flatMap((ranking) => ranking.ranking_entries);
-    }
     if (
-      await window.seedSupabaseYearRanking(
-        loaded.rankingId,
-        loaded.entries,
-        eligible,
-        null,
-        sourceEntries,
-      )
+      slots.length !== rows.length ||
+      new Set(slots).size !== rows.length ||
+      slots.some((pos) => outside.has(pos))
     ) {
-      loaded = await window.loadSupabaseRanking(scope, scopeType);
-    }
-    // A year shelf with one film has no ordering decision to make. Broader
-    // scopes require explicit confirmation even when they contain one film.
-    if (scopeType === "years") {
-      let byId = new Map(eligible.map((row) => [row.film_id, row]));
-      let buckets = new Map();
-      loaded.entries.forEach((entry) => {
-        let key = window.supabaseRankingRatingKey(byId.get(entry.film_id));
-        if (!key) return;
-        if (!buckets.has(key)) buckets.set(key, []);
-        buckets.get(key).push(entry);
+      let last =
+        all
+          .map((row) => row.position)
+          .filter(Boolean)
+          .sort()
+          .at(-1) || null;
+      slots = rows.map(() => {
+        last = window.fractionalPositionBetween(last, null);
+        return last;
       });
-      let singles = [...buckets.values()]
-        .filter(
-          (group) => group.length === 1 && group[0].rank_confirmed === false,
-        )
-        .flat();
-      if (singles.length) {
-        await window.confirmSupabaseRankingEntries(
-          loaded.rankingId,
-          singles.map((entry) => entry.film_id),
-        );
-        loaded = await window.loadSupabaseRanking(scope, scopeType);
-      }
     }
-    return {
-      ...loaded,
-      entries: loaded.entries.filter((entry) =>
-        window.supabaseRankingFilmEligible(
-          watchedById.get(entry.film_id) || entry,
-        ),
-      ),
-    };
-  };
+    return slots;
+  }
 
-  /**
-   * Confirms the specified films in one ranking without changing other scopes.
-   * @param {string} rankingId Selected ranking id.
-   * @param {string[]} filmIds Films deliberately ordered in that ranking.
-   */
-  window.confirmSupabaseRankingEntries = async function (rankingId, filmIds) {
-    if (!filmIds.length) return;
+  /** Saves a complete exact-rating shelf or reviewed merge without moving unrelated films. @param {string} key Exact rating key. @param {number[]} years Selected years. @param {Object[]} rows Reviewed rows and their versions. @param {number[][]} [inputs] Two reviewed merge groups. @returns {Promise<void>} Save completion. */
+  window.saveWatchedOrdering = async function (key, years, rows, inputs) {
+    if (rows.some((row) => ratingKey(row) !== key))
+      throw new Error("Keep films within their exact rating.");
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
     let ready = await window.ensureSupabaseClient();
     if (!ready) throw new Error("Supabase not configured.");
-    // Keep PostgREST filter URLs bounded even for an all-time list with thousands of films.
-    for (let index = 0; index < filmIds.length; index += 100) {
-      let { error } = await ready.client
-        .from("ranking_entries")
-        .update({ rank_confirmed: true })
-        .eq("ranking_id", rankingId)
-        .in("film_id", filmIds.slice(index, index + 100));
-      if (error) throw error;
-    }
-  };
-
-  /**
-   * Seeds missing rated watched films into a selected ranking’s exact-rating shelves without changing existing entries.
-   * @param {string} rankingId Selected ranking id.
-   * @param {Object[]} entries Existing ordered ranking entries.
-   * @param {Object[]} watched Watched rows joined with films.
-   * @param {string|null} year Selected year, or null for prefiltered period rows.
-   * @param {Object[]} [sourceEntries] Preferred order inherited from a narrower period.
-   * @returns {Promise<boolean>} Whether missing entries were submitted.
-   */
-  window.seedSupabaseYearRanking = async function (
-    rankingId,
-    entries,
-    watched,
-    year,
-    sourceEntries = [],
-  ) {
-    let preferred = new Map(
-      sourceEntries.map((entry, index) => [entry.film_id, index]),
-    );
-    let byId = new Map(watched.map((row) => [row.film_id, row]));
-    let rankedIds = new Set(entries.map((entry) => entry.film_id));
-    let ratingValue = (row) =>
-      window.supabaseRankingRatingSortValueFromKey(
-        window.supabaseRankingRatingKey(row),
-      );
-    let missing = watched
-      .filter(
-        (row) =>
-          window.supabaseRankingFilmEligible(row) &&
-          (year === null || String(row.films?.year) === String(year)) &&
-          window.supabaseRankingRatingKey(row) &&
-          !rankedIds.has(row.film_id),
-      )
-      .sort(
-        (a, b) =>
-          ratingValue(b) - ratingValue(a) ||
-          (preferred.get(a.film_id) ?? Infinity) -
-            (preferred.get(b.film_id) ?? Infinity) ||
-          a.film_id.localeCompare(b.film_id),
-      );
-    if (!missing.length) return false;
-    let ordered = entries.slice();
-    let additions = [];
-    for (let row of missing) {
-      if (rankedIds.has(row.film_id)) continue;
-      let index = ordered.findIndex(
-        (entry) => ratingValue(byId.get(entry.film_id)) < ratingValue(row),
-      );
-      if (index < 0) index = ordered.length;
-      let entry = {
-        ranking_id: rankingId,
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    let all = window
+      .supabaseWatchedItemsInOrder()
+      .filter((row) => ratingKey(row) === key);
+    let slots = positionsFor(rows, all);
+    let { error } = await ready.client.rpc("save_watched_order", {
+      p_rating_key: key,
+      p_years: [...new Set(years)].sort((a, b) => a - b),
+      p_entries: rows.map((row, i) => ({
         film_id: row.film_id,
-        position: window.fractionalPositionBetween(
-          ordered[index - 1]?.position || null,
-          ordered[index]?.position || null,
-        ),
-        rank_confirmed: false,
-      };
-      ordered.splice(index, 0, entry);
-      additions.push(entry);
-      rankedIds.add(row.film_id);
-    }
-    let ready = await window.ensureSupabaseClient();
-    if (!ready) throw new Error("Supabase not configured.");
-    let { error } = await ready.client
-      .from("ranking_entries")
-      .upsert(additions, {
-        onConflict: "ranking_id,film_id",
-        ignoreDuplicates: true,
-      });
-    if (error) throw error;
-    return true;
-  };
-
-  /**
-   * Adds a film to the end of a scope's ranking, straight through to
-   * Supabase. Position uses the same simple monotonic base-36 timestamp
-   * scheme addToSupabaseWatchlist() uses - always sorts after every
-   * existing entry, no fractional-index gap management.
-   * @param {string} scope
-   * @param {string} filmId
-   * @param {'years'|'decades'|'centuries'|'allTime'} scopeType
-   */
-  window.addToSupabaseRanking = async function (scope, filmId, scopeType) {
-    let ready = await window.ensureSupabaseClient();
-    if (!ready) throw new Error("Supabase not configured.");
-    let rankingId = await getOrCreateSupabaseRankingId(
-      ready.client,
-      scope,
-      scopeType,
-    );
-    let { error } = await ready.client.from("ranking_entries").insert({
-      ranking_id: rankingId,
-      film_id: filmId,
-      position: Date.now().toString(36),
+        updated_at: row.updated_at,
+        position: slots[i],
+      })),
+      p_inputs: inputs || null,
     });
     if (error) throw error;
+    await refreshWatchedOrder(isCurrent);
   };
 
-  /** Inserts or moves an Intake film at a chosen gap in one ranking. @param {string} rankingId Ranking row id. @param {Object[]} entries Full ordered ranking. @param {string} filmId Intake film id. @param {string|null} targetFilmId Comparison target, or null for an empty cohort. @param {'before'|'after'} position Side of the comparison target. @returns {Promise<string>} New sort key. */
-  window.placeSupabaseIntakeRankingFilm = async function (
+  /** Confirms the selected films in complete exact-rating shelves. @param {string} rankingId Scope read model id. @param {string[]} filmIds Selected films. @returns {Promise<void>} Save completion. */
+  window.confirmSupabaseRankingEntries = async function (rankingId, filmIds) {
+    let rows = window
+      .supabaseWatchedItemsInOrder()
+      .filter((row) => filmIds.includes(row.film_id));
+    let keys = [...new Set(rows.map(ratingKey))];
+    for (let key of keys) {
+      let bucket = rows.filter((row) => ratingKey(row) === key);
+      await window.saveWatchedOrdering(
+        key,
+        [...new Set(bucket.map((row) => row.films?.year || 0))],
+        bucket,
+      );
+    }
+    void rankingId;
+  };
+
+  /** Confirms one exact-rating shelf in the canonical watched order. @param {string} rankingId Scope read model id. @param {string} year Scope key. @param {Object[]} entries Ordered shelf rows. @param {string} [scopeType] Scope type. @returns {Promise<Object>} Review result. */
+  window.resolveSupabaseYearRankingBucket = async function (
     rankingId,
+    year,
     entries,
-    filmId,
-    targetFilmId,
-    position,
+    scopeType = "years",
   ) {
+    if (!entries.length) return { reviewed: 0 };
+    await window.saveWatchedOrdering(
+      ratingKey(entries[0]),
+      [...new Set(entries.map((row) => row.films?.year || 0))],
+      entries,
+    );
+    void rankingId;
+    void year;
+    void scopeType;
+    return { reviewed: Math.max(0, entries.length - 1) };
+  };
+  window.resolveSupabaseRankingBucket = window.resolveSupabaseYearRankingBucket;
+
+  async function moveRows(rows) {
+    let key = ratingKey(rows[0]);
+    if (rows.some((row) => ratingKey(row) !== key))
+      throw new Error("Keep films within their exact rating.");
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
     let ready = await window.ensureSupabaseClient();
     if (!ready) throw new Error("Supabase not configured.");
-    let withoutTarget = (entries || []).filter(
-      (entry) => entry.film_id !== filmId,
-    );
-    let insertionIndex = withoutTarget.length;
-    if (targetFilmId) {
-      let targetIndex = withoutTarget.findIndex(
-        (entry) => entry.film_id === targetFilmId,
-      );
-      if (targetIndex < 0)
-        throw new Error("The comparison film is no longer ranked.");
-      insertionIndex = targetIndex + (position === "after" ? 1 : 0);
-    }
-    let before = withoutTarget[insertionIndex - 1]?.position || null;
-    let after = withoutTarget[insertionIndex]?.position || null;
-    let newPosition = window.fractionalPositionBetween(before, after);
-    let { error } = await ready.client.from("ranking_entries").upsert(
-      {
-        ranking_id: rankingId,
-        film_id: filmId,
-        position: newPosition,
-        rank_confirmed: true,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "ranking_id,film_id" },
-    );
+    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
+    let { error } = await ready.client.rpc("move_watched_order", {
+      p_rating_key: key,
+      p_entries: rows.map((row) => ({
+        film_id: row.film_id,
+        updated_at: row.updated_at,
+        position: row.position,
+      })),
+    });
     if (error) throw error;
-    return newPosition;
+    await refreshWatchedOrder(isCurrent);
+  }
+
+  /** Moves one watched film between same-rating neighbors. @param {string} rankingId Scope read model id. @param {string} filmId Selected film. @param {Object[]} entries Scoped entries. @param {string|null} beforeFilmId Preceding neighbor. @param {string|null} afterFilmId Following neighbor. @returns {Promise<string>} New key. */
+  window.moveSupabaseRankingEntryToPosition = async function (
+    rankingId,
+    filmId,
+    entries,
+    beforeFilmId,
+    afterFilmId,
+  ) {
+    let row = entries.find((entry) => entry.film_id === filmId);
+    if (!row) throw new Error("Refresh the ranking before moving this film.");
+    let neighbor = (id) =>
+      id ? entries.find((entry) => entry.film_id === id) : null;
+    let before = neighbor(beforeFilmId),
+      after = neighbor(afterFilmId);
+    if (
+      [before, after].some(
+        (other) => other && ratingKey(other) !== ratingKey(row),
+      )
+    )
+      throw new Error("Keep films within their exact rating.");
+    let all = window
+      .supabaseWatchedItemsInOrder()
+      .filter((other) => ratingKey(other) === ratingKey(row));
+    let old = all.find((other) => other.film_id === filmId);
+    let actual = window.fractionalPositionBetween(
+      before?.position || null,
+      after?.position || null,
+    );
+    await moveRows([{ ...row, position: actual }]);
+    row.position = actual;
+    row.updated_at =
+      window
+        .getSupabaseWorkspace()
+        ?.watched.find((other) => other.film_id === filmId)?.updated_at ||
+      old?.updated_at;
+    void rankingId;
+    return actual;
   };
 
-  /**
-   * Moves one ranking entry up or down by swapping its `position` value
-   * with its immediate neighbor's - the minimal reorder operation that
-   * proves the wiring pattern without needing a fractional-indexing
-   * scheme. No optimistic-concurrency check on this swap (unlike
-   * setSupabaseWatchedRating) - a deliberate scope cut for this PoC, not
-   * an oversight; that guarantee is already proven elsewhere.
-   * @param {string} rankingId
-   * @param {Object[]} entries The full ordered list loadSupabaseRanking() returned.
-   * @param {string} filmId The entry to move.
-   * @param {'up'|'down'} direction
-   */
+  /** Swaps adjacent films within one exact rating atomically. @param {string} rankingId Scope read model id. @param {Object[]} entries Scoped entries. @param {string} filmId Selected film. @param {'up'|'down'} direction Move direction. @returns {Promise<void>} Save completion. */
   window.moveSupabaseRankingEntry = async function (
     rankingId,
     entries,
     filmId,
     direction,
   ) {
-    let ready = await window.ensureSupabaseClient();
-    if (!ready) throw new Error("Supabase not configured.");
-
-    let index = entries.findIndex((entry) => entry.film_id === filmId);
-    let targetIndex = direction === "up" ? index - 1 : index + 1;
+    let index = entries.findIndex((entry) => entry.film_id === filmId),
+      targetIndex = index + (direction === "up" ? -1 : 1);
     if (index < 0 || targetIndex < 0 || targetIndex >= entries.length) return;
-
-    let current = entries[index];
-    let target = entries[targetIndex];
-    let [{ error: firstError }, { error: secondError }] = await Promise.all([
-      ready.client
-        .from("ranking_entries")
-        .update({ position: target.position })
-        .eq("ranking_id", rankingId)
-        .eq("film_id", current.film_id),
-      ready.client
-        .from("ranking_entries")
-        .update({ position: current.position })
-        .eq("ranking_id", rankingId)
-        .eq("film_id", target.film_id),
+    let current = entries[index],
+      target = entries[targetIndex];
+    if (ratingKey(current) !== ratingKey(target))
+      throw new Error("Keep films within their exact rating.");
+    if (!current.position || !target.position) {
+      let bucket = entries.filter(
+        (row) => ratingKey(row) === ratingKey(current),
+      );
+      let from = bucket.indexOf(current),
+        to = bucket.indexOf(target);
+      [bucket[from], bucket[to]] = [bucket[to], bucket[from]];
+      let slots = positionsFor(
+        bucket,
+        window.supabaseWatchedRatingItemsInOrder(ratingKey(current)),
+      );
+      await moveRows(bucket.map((row, i) => ({ ...row, position: slots[i] })));
+      for (let row of bucket)
+        Object.assign(
+          row,
+          window
+            .getSupabaseWorkspace()
+            .watched.find((other) => other.film_id === row.film_id),
+        );
+      return;
+    }
+    await moveRows([
+      { ...current, position: target.position },
+      { ...target, position: current.position },
     ]);
-    if (firstError) throw firstError;
-    if (secondError) throw secondError;
-  };
-
-  /**
-   * Removes one film from a scope's ranking, straight through to Supabase.
-   * @param {string} rankingId
-   * @param {string} filmId
-   */
-  window.removeFromSupabaseRanking = async function (rankingId, filmId) {
-    let ready = await window.ensureSupabaseClient();
-    if (!ready) throw new Error("Supabase not configured.");
-    let { error } = await ready.client
-      .from("ranking_entries")
-      .delete()
-      .eq("ranking_id", rankingId)
-      .eq("film_id", filmId);
-    if (error) throw error;
+    [current.position, target.position] = [target.position, current.position];
+    for (let row of [current, target])
+      row.updated_at = window
+        .getSupabaseWorkspace()
+        ?.watched.find((other) => other.film_id === row.film_id)?.updated_at;
+    void rankingId;
   };
 
   const LOCAL_RANK_FILM_SELECT =
@@ -635,92 +636,6 @@
   };
 
   /**
-   * Moves one ranking entry to an arbitrary new position between two given
-   * neighbors, using fractionalPositionBetween() - unlike
-   * moveSupabaseRankingEntry's adjacent-only swap, this supports real
-   * drag-and-drop to any spot in the list, not just moving one step.
-   * @param {string} rankingId
-   * @param {string} filmId The entry to move.
-   * @param {Object[]} entries The full ordered list loadSupabaseRanking() returned (read for beforeFilmId/afterFilmId's current position values).
-   * @param {string|null} beforeFilmId Neighbor the entry should sort after, or null to move to the very start.
-   * @param {string|null} afterFilmId Neighbor the entry should sort before, or null to move to the very end.
-   * @returns {Promise<string>} The entry's new position value.
-   */
-  window.moveSupabaseRankingEntryToPosition = async function (
-    rankingId,
-    filmId,
-    entries,
-    beforeFilmId,
-    afterFilmId,
-  ) {
-    let ready = await window.ensureSupabaseClient();
-    if (!ready) throw new Error("Supabase not configured.");
-    let beforePosition = beforeFilmId
-      ? entries.find((entry) => entry.film_id === beforeFilmId)?.position
-      : null;
-    let afterPosition = afterFilmId
-      ? entries.find((entry) => entry.film_id === afterFilmId)?.position
-      : null;
-    let newPosition = window.fractionalPositionBetween(
-      beforePosition,
-      afterPosition,
-    );
-    let { error } = await ready.client
-      .from("ranking_entries")
-      .update({ position: newPosition })
-      .eq("ranking_id", rankingId)
-      .eq("film_id", filmId);
-    if (error) throw error;
-    return newPosition;
-  };
-
-  /**
-   * Confirms every film in one year's exact-rating bucket as deliberately
-   * ordered:
-   * marks every entry's rank_confirmed and records every adjacent pair
-   * within the bucket as reviewed, so ranking-review.html won't re-ask
-   * about a pair already settled here.
-   * @param {string} rankingId
-   * @param {string} year
-   * @param {Object[]} bucketEntries The bucket's entries, in position order.
-   * @param {'years'|'decades'|'centuries'|'allTime'} [scopeType] Ranking scope type.
-   * @returns {Promise<{reviewed: number}>}
-   */
-  window.resolveSupabaseYearRankingBucket = async function (
-    rankingId,
-    year,
-    bucketEntries,
-    scopeType = "years",
-  ) {
-    let ready = await window.ensureSupabaseClient();
-    if (!ready) throw new Error("Supabase not configured.");
-    if (bucketEntries.length < 2) return { reviewed: 0 };
-
-    let filmIds = bucketEntries.map((entry) => entry.film_id);
-    let { error: confirmError } = await ready.client
-      .from("ranking_entries")
-      .update({ rank_confirmed: true })
-      .eq("ranking_id", rankingId)
-      .in("film_id", filmIds);
-    if (confirmError) throw confirmError;
-
-    let reviewed = 0;
-    for (let index = 0; index < bucketEntries.length - 1; index += 1) {
-      await window.resolveSupabaseRankingPairReview(
-        String(year),
-        scopeType,
-        rankingId,
-        bucketEntries[index].film_id,
-        bucketEntries[index + 1].film_id,
-      );
-      reviewed += 1;
-    }
-    return { reviewed };
-  };
-
-  window.resolveSupabaseRankingBucket = window.resolveSupabaseYearRankingBucket;
-
-  /**
    * Loads the caller's ranking entries for a set of films, each carrying
    * its real rank within the whole ranking, shaped like
    * loadSupabaseLegacyHydrationSource()'s `rankings` so
@@ -805,77 +720,33 @@
     return true;
   };
 
-  /**
-   * Persists a within-rating move in the moved film's four affected ranking scopes.
-   * @param {FilmRecord} movedFilm Film after the validated local ranking move.
-   * @returns {Promise<void>} Resolves after the affected ranking orders are saved.
-   */
+  /** Saves the moved film's exact-rating order once for every period view. @param {FilmRecord} movedFilm Moved film. @returns {Promise<void>} Save completion. */
   window.persistSupabaseFilmRankingMove = async function (movedFilm) {
-    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
     if (!window.OSKARS_STATE_HYDRATION_COMPLETE)
       throw new Error("Load the complete ranking before editing its order.");
-    let scopes = [
-      ["allTime", "alltime"],
-      ["years", String(movedFilm.year)],
-      ["decades", window.getDecadeKey(movedFilm.year)],
-      ["centuries", window.getCenturyKey(movedFilm.year)],
-    ];
-    let ready = await window.ensureSupabaseClient();
-    if (!ready) throw new Error("Supabase not configured.");
+    let isCurrent = window.supabaseWorkspaceContext.beginWorkspaceMutation();
+    let workspace = await window.loadSupabaseWorkspace({ parts: ["watched"] });
     window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
-    for (let [scopeType, scope] of scopes) {
-      window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
-      let rankField = window.RANK_FIELD_BY_SCOPE_TYPE[scopeType];
-      let films = Object.values(window.state.filmsById || {})
-        .filter(
-          (film) =>
-            Number(film[rankField]) > 0 &&
-            (scopeType === "allTime" ||
-              (scopeType === "years"
-                ? String(film.year)
-                : scopeType === "decades"
-                  ? window.getDecadeKey(film.year)
-                  : window.getCenturyKey(film.year)) === scope),
-        )
-        .sort((a, b) => Number(a[rankField]) - Number(b[rankField]));
-      let original = window.OSKARS_SUPABASE_HYDRATION_SOURCE?.rankings?.find(
-        (ranking) =>
-          ranking.scope_type === scopeType && ranking.scope === scope,
+    let rows = window.supabaseWatchedItemsInOrder(workspace.watched);
+    let selected = rows.find((row) => row.film_id === movedFilm.supabaseFilmId);
+    if (!selected) throw new Error("Refresh the ranking before editing it.");
+    let byId = new Map(
+      Object.values(window.state.filmsById || {}).map((film) => [
+        film.supabaseFilmId,
+        film,
+      ]),
+    );
+    let bucket = rows
+      .filter((row) => ratingKey(row) === ratingKey(selected))
+      .sort(
+        (a, b) =>
+          (byId.get(a.film_id)?.allTimeRank || Infinity) -
+          (byId.get(b.film_id)?.allTimeRank || Infinity),
       );
-      let byFilm = new Map(
-        (original?.ranking_entries || []).map((entry) => [
-          entry.film_id,
-          entry,
-        ]),
-      );
-      let seen = new Set();
-      let entries = [];
-      for (let film of films) {
-        if (!film.supabaseFilmId)
-          throw new Error("Refresh the ranked film before editing it.");
-        if (seen.has(film.supabaseFilmId)) continue;
-        seen.add(film.supabaseFilmId);
-        let previous = byFilm.get(film.supabaseFilmId) || {};
-        entries.push({
-          film_id: film.supabaseFilmId,
-          position: String((entries.length + 1) * 1000).padStart(12, "0"),
-          rank_confirmed:
-            film.rankConfirmedByScope?.[scopeType] ??
-            film.rankConfirmed !== false,
-          suppress_all_time_rank: Boolean(film.suppressAllTimeRank),
-          tie_group_id: film.rankingGroupId || previous.tie_group_id || "",
-          tie_group_title:
-            film.rankingGroupTitle || previous.tie_group_title || "",
-        });
-      }
-      let { error } = await ready.client.rpc("replace_ranking_order", {
-        p_scope: scope,
-        p_scope_type: scopeType,
-        p_entries: entries,
-      });
-      if (error) throw error;
-    }
-    window.supabaseWorkspaceContext.assertCurrentWorkspaceMutation(isCurrent);
-    window.invalidateCachedSupabaseHydrationSource?.();
+    await window.saveWatchedOrdering(
+      ratingKey(selected),
+      [...new Set(bucket.map((row) => row.films?.year || 0))],
+      bucket,
+    );
   };
 })();

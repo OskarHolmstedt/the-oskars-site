@@ -60,6 +60,7 @@
       collectionBallots,
       awardPoolExclusions,
       watchlistOrderGroups,
+      watchedOrderGroups,
     ] = await Promise.all([
       client
         .from("award_reviews")
@@ -96,6 +97,15 @@
           )
           .order("id"),
       ),
+      window.fetchAllSupabaseRows((count) =>
+        client
+          .from("watched_order_groups")
+          .select(
+            "rating_key,kind,years,film_ids",
+            count ? { count: "exact" } : undefined,
+          )
+          .order("id"),
+      ),
     ]);
     if (awardReviews.error) throw awardReviews.error;
     if (entityNotes.error) throw entityNotes.error;
@@ -110,6 +120,7 @@
         collectionBallots,
         awardPoolExclusions,
         watchlistOrderGroups,
+        watchedOrderGroups,
         googleSheetsSpreadsheetId:
           (typeof localStorage !== "undefined"
             ? localStorage.getItem(GOOGLE_SHEETS_STORAGE_KEY)
@@ -213,6 +224,42 @@
     if (data.watched != null && !Array.isArray(data.watched)) {
       throw new Error(ui("This is not a supported backup."));
     }
+    if (
+      data.watchedOrderGroups != null &&
+      !Array.isArray(data.watchedOrderGroups)
+    )
+      throw new Error(ui("This is not a supported backup."));
+    for (let group of data.watchedOrderGroups || []) {
+      if (
+        !/^(unrated|(0\.5|[1-4](\.5)?|5)\|(plus|minus)?)$/.test(
+          group?.rating_key,
+        ) ||
+        !["year", "merge"].includes(group?.kind) ||
+        !Array.isArray(group?.years) ||
+        !group.years.length ||
+        group.years.some(
+          (year) => !Number.isInteger(year) || year < 0 || year > 9999,
+        ) ||
+        new Set(group.years).size !== group.years.length ||
+        (group.kind === "year" && group.years.length !== 1) ||
+        !Array.isArray(group?.film_ids) ||
+        !group.film_ids.length ||
+        new Set(group.film_ids).size !== group.film_ids.length ||
+        group.film_ids.some(
+          (id) =>
+            !/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.test(
+              id,
+            ),
+        )
+      )
+        throw new Error(ui("This is not a supported backup."));
+    }
+    for (let row of data.watched || [])
+      if (
+        row.position != null &&
+        (typeof row.position !== "string" || !/^[0-9a-z]+$/.test(row.position))
+      )
+        throw new Error(ui("This is not a supported backup."));
     if (data.watchlist != null && !Array.isArray(data.watchlist)) {
       throw new Error(ui("This is not a supported backup."));
     }
@@ -378,6 +425,9 @@
       film_id: row.film_id,
       rating: row.rating,
       rating_modifier: row.rating_modifier,
+      ranking_group_id: row.ranking_group_id,
+      ranking_group_title: row.ranking_group_title,
+      suppress_all_time_rank: row.suppress_all_time_rank || false,
       date_watched: row.date_watched,
       review: row.review,
       want_to_rewatch: Boolean(row.want_to_rewatch),
@@ -438,8 +488,39 @@
         .upsert(batch, { onConflict: "user_id,tier,kind,years" });
       if (error) throw error;
     }
+    // Apply positions after rating updates, whose trigger deliberately resets placement.
+    let positioned = (data.watched || []).filter((row) =>
+      Object.hasOwn(row, "position"),
+    );
+    for (let from = 0; from < positioned.length; from += BATCH_SIZE) {
+      let { error } = await client.from("watched").upsert(
+        positioned.slice(from, from + BATCH_SIZE).map((row) => ({
+          user_id: user.id,
+          film_id: row.film_id,
+          position: row.position,
+          updated_at: new Date().toISOString(),
+        })),
+        { onConflict: "user_id,film_id" },
+      );
+      if (error) throw error;
+    }
+    for (let group of data.watchedOrderGroups || []) {
+      let { error } = await client.from("watched_order_groups").upsert(
+        {
+          user_id: user.id,
+          rating_key: group.rating_key,
+          kind: group.kind,
+          years: [...group.years].sort((a, b) => a - b),
+          film_ids: group.film_ids,
+        },
+        { onConflict: "user_id,rating_key,kind,years" },
+      );
+      if (error) throw error;
+    }
     await restoreFilmTags(client, user.id, data.watched);
-    for (let ranking of data.rankings || []) {
+    for (let ranking of (positioned.length ? [] : data.rankings || []).filter(
+      (row) => row.scope_type === "allTime",
+    )) {
       let { error } = await client.rpc("replace_ranking_order", {
         p_scope: ranking.scope,
         p_scope_type: ranking.scope_type,
@@ -962,8 +1043,8 @@
         "Deletes every year/decade/century/all-time ranking, and saved ranking-review progress.",
       opinion: true,
       async run(client) {
-        await deleteAll(client, "rankings");
-        await deleteAll(client, "ranking_pair_reviews", "scope");
+        let { error } = await client.rpc("clear_watched_order");
+        if (error) throw error;
       },
     },
     {

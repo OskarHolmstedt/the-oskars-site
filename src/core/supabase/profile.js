@@ -281,6 +281,7 @@
     ["watched", "*", ["id"]],
     ["watchlist", "*", ["position", "id"]],
     ["watchlist_order_groups", "*", ["id"]],
+    ["watched_order_groups", "*", ["id"]],
     ["tags", "*", ["id"]],
     ["film_tags", "*", ["film_id", "tag_id"]],
     ["rankings", "*, ranking_entries(*)", ["id"]],

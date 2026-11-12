@@ -14,6 +14,7 @@
     rewatchlist: "Rewatchlist",
   };
   let workspace;
+  let storedRankings = [];
   let category;
 
   function selectedCategory() {
@@ -219,7 +220,11 @@
 
   function openPlacement(initialId = "") {
     if (category !== "watchlist") {
-      window.openRankingPlacement(category, initialId, () => renderHub());
+      window.openRankingPlacement(category, initialId, async () => {
+        workspace = window.getSupabaseWorkspace();
+        storedRankings = await window.loadSupabaseStoredRankings();
+        renderHub();
+      });
       return;
     }
     window.openWatchlistPlacement({
@@ -277,7 +282,7 @@
     let watched = (workspace?.watched || []).filter(
       window.supabaseRankingFilmEligible,
     );
-    let rankings = workspace?.rankings || [];
+    let rankings = storedRankings;
     let watchlist = workspace?.watchlist || [];
     let rewatch = (workspace?.watched || []).filter(
       (row) => row.want_to_rewatch,
@@ -491,8 +496,9 @@
 
     try {
       workspace = await window.loadSupabaseWorkspace({
-        parts: ["watched", "watchlist", "rankings"],
+        parts: ["watched", "watchlist"],
       });
+      storedRankings = await window.loadSupabaseStoredRankings();
       await window.loadWatchlistOrdering?.();
       await window.loadRewatchOrdering?.();
       if (window.mountWatchlistYearOrder(container)) return;

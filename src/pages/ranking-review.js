@@ -33,28 +33,16 @@
   }
 
   function scopeLabel() {
-    if (scopeType === "years") return `${scopeKey} year heat`;
-    if (scopeType === "decades") return `${scopeKey} finals`;
-    if (scopeType === "centuries") return `${scopeKey} finals`;
-    return "All-time final";
+    if (scopeType === "years") return `${scopeKey} order`;
+    if (scopeType === "decades") return `${scopeKey} order`;
+    if (scopeType === "centuries") return `${scopeKey} order`;
+    return "All-time order";
   }
 
   function backUrl() {
     return scopeType === "years"
       ? window.yearRankingPageUrl(scopeKey)
       : window.periodPageUrl(scopeType, scopeKey);
-  }
-
-  function nextScope() {
-    if (scopeType === "years")
-      return { type: "decades", key: window.getDecadeKey(scopeKey) };
-    if (scopeType === "decades")
-      return {
-        type: "centuries",
-        key: window.getCenturyKey(Number.parseInt(scopeKey, 10)),
-      };
-    if (scopeType === "centuries") return { type: "allTime", key: "alltime" };
-    return null;
   }
 
   function renderConsistencyCard(entry, side, caption, shortcut) {
@@ -81,13 +69,11 @@
       allEntries.length &&
       !remaining.length &&
       allEntries.some((entry) => entry.rank_confirmed === false);
-    let next = nextScope();
-    let nextAction = next
-      ? `<a class="button-link" href="ranking-review.html?type=${escape(next.type)}&key=${escape(next.key)}">${escape(`Continue to ${next.type === "allTime" ? "all-time final" : next.key}`)} →</a>`
-      : `<a class="button-link" href="build.html">Return to Build your Oskars</a>`;
+    let nextAction =
+      '<a class="button-link" href="rankings.html?category=watched">Return to Rankings</a>';
     return `<div class="detail-empty">
       <span class="eyebrow">${remaining.length ? "Comparisons skipped" : canConfirm ? "Ready to confirm" : allEntries.length ? "Period confirmed" : "No rated films"}</span><h2>${escape(scopeLabel())}</h2>
-      <p>${remaining.length ? "Skipped comparisons remain. Reload to revisit them before confirming this period." : "Confirmation applies only to this period. Broader rankings are settled separately."}</p>
+      <p>${remaining.length ? "Skipped comparisons remain. Reload to revisit them before confirming this period." : "This view filters your shared watched order. Comparisons stay within an exact rating."}</p>
       ${canConfirm ? `<button type="button" data-ranking-confirm-scope>Keep this order for this period</button>` : ""}
       ${!remaining.length && !canConfirm ? nextAction : ""}
     </div>`;
@@ -117,8 +103,8 @@
   function render() {
     document.title = `${scopeLabel()} · The Oskars`;
     let header = window.renderDetailHeader({
-      mainHtml: `<span class="eyebrow">Ranking heat</span><h1>${escape(scopeLabel())}</h1><p>Only comparisons that cross the already-settled narrower scope are shown in later finals.</p>`,
-      actionsHtml: `<a class="button-link" href="${escape(backUrl())}">Back</a>`,
+      mainHtml: `<span class="eyebrow">Ranking heat</span><h1>${escape(scopeLabel())}</h1><p>Compare films within an exact rating. Every period uses the same saved order.</p>`,
+      actionsHtml: `<a class="button-link" href="rankings.html?category=watched">Place a film</a><a class="button-link" href="${escape(backUrl())}">Back</a>`,
     });
     let body = !currentPair ? renderEmpty() : renderReview();
     let feedbackHtml = window.renderActionFeedback({
@@ -274,8 +260,7 @@
       allEntries.forEach((entry) => {
         entry.rank_confirmed = true;
       });
-      feedback =
-        "This period’s order is confirmed. Other periods are unchanged.";
+      feedback = "This order is confirmed and shared by every period.";
       render();
     } catch (error) {
       confirm.disabled = false;

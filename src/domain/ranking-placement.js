@@ -1,13 +1,5 @@
 /** @file Owns Watched and Rewatchlist adapters for the Rankings staged placement journey. */
 (function () {
-  let orderEntries = (entries) =>
-    [...entries].sort((a, b) =>
-      a.position < b.position
-        ? -1
-        : a.position > b.position
-          ? 1
-          : a.film_id.localeCompare(b.film_id),
-    );
   let tier = (row) =>
     window.watchlistTierKey(row.rewatch_tier, row.rewatch_tier_modifier);
   let rating = (row) => window.supabaseRankingRatingKey(row);
@@ -18,9 +10,6 @@
           ratingValue: row.rating,
           ratingModifier: row.rating_modifier,
         });
-  let grade = (row) =>
-    window.supabaseRankingRatingSortValueFromKey(rating(row));
-  let positioned = (entry) => entry.position != null && entry.position !== "";
 
   function scopesFor(row) {
     let year = row.films?.year;
@@ -66,52 +55,6 @@
       );
   };
 
-  // A single topological order preserves every saved scope's peer relationships,
-  // including films missing from broader rankings. Contradictory scopes need review.
-  function compatiblePeers(scopes, byId, selected) {
-    let nodes = new Map();
-    let edges = new Map();
-    let incoming = new Map();
-    for (let scope of scopes) {
-      let entries = scope.entries.filter(
-        (entry) =>
-          entry.film_id !== selected.film_id &&
-          byId.has(entry.film_id) &&
-          rating(byId.get(entry.film_id)) === rating(selected),
-      );
-      for (let entry of entries) {
-        nodes.set(entry.film_id, byId.get(entry.film_id));
-        if (!edges.has(entry.film_id)) {
-          edges.set(entry.film_id, new Set());
-          incoming.set(entry.film_id, 0);
-        }
-      }
-      for (let i = 1; i < entries.length; i++) {
-        let from = entries[i - 1].film_id,
-          to = entries[i].film_id;
-        if (!edges.get(from).has(to)) {
-          edges.get(from).add(to);
-          incoming.set(to, incoming.get(to) + 1);
-        }
-      }
-    }
-    let queue = [...nodes.keys()].filter((id) => !incoming.get(id));
-    let result = [];
-    for (let i = 0; i < queue.length; i++) {
-      let id = queue[i];
-      result.push(nodes.get(id));
-      for (let next of edges.get(id)) {
-        incoming.set(next, incoming.get(next) - 1);
-        if (!incoming.get(next)) queue.push(next);
-      }
-    }
-    if (result.length !== nodes.size)
-      throw new Error(
-        "These period rankings disagree. Review consistency before placing this film.",
-      );
-    return result;
-  }
-
   /**
    * Builds a draft preserving independent period rankings and exact rating or rewatch tier boundaries.
    * @param {'watched'|'rewatchlist'} category Selected category.
@@ -132,34 +75,26 @@
     let scopes = scopesFor(selected);
     let peers;
     if (category === "watched") {
-      let byId = new Map(items.map((row) => [row.film_id, row]));
-      scopes = scopes.map((scope) => {
-        let stored = workspace.rankings.find(
-          (row) => row.scope_type === scope.type && row.scope === scope.key,
+      let bucket = window
+        .supabaseWatchedItemsInOrder(items)
+        .filter((row) => rating(row) === rating(selected));
+      if (selected.ranking_group_id)
+        throw new Error(
+          "Review the film's tie before placing it individually.",
         );
-        let expected = (stored?.ranking_entries || [])
-          .map(window.rankingPlacementEntrySnapshot)
-          .sort((a, b) => a.film_id.localeCompare(b.film_id));
-        let entries = orderEntries(expected.filter(positioned));
-        if (entries.find((entry) => entry.film_id === id)?.tie_group_id)
-          throw new Error(
-            "This film belongs to a ranking tie. Review its tie before placing it individually.",
-          );
-        for (let i = 1; i < entries.length; i++) {
-          if (
-            entries[i - 1].position === entries[i].position ||
-            (byId.has(entries[i - 1].film_id) &&
-              byId.has(entries[i].film_id) &&
-              grade(byId.get(entries[i - 1].film_id)) <
-                grade(byId.get(entries[i].film_id)))
-          )
-            throw new Error(
-              "This ranking needs review before placement: check duplicate positions and rating order.",
-            );
-        }
-        return { ...scope, expected, entries, rankingId: stored?.id || null };
-      });
-      peers = compatiblePeers(scopes, byId, selected);
+      peers = bucket.filter((row) => row.film_id !== id && row.position);
+      scopes = [
+        {
+          type: "allTime",
+          key: "alltime",
+          label: "Exact rating",
+          entries: bucket,
+        },
+      ];
+      snapshots = bucket.map((row) => ({
+        film_id: row.film_id,
+        updated_at: row.updated_at,
+      }));
     } else {
       peers = items
         .filter(
@@ -201,24 +136,12 @@
             : tier(selected) || "Untiered",
       },
     );
-    if (category === "watched") {
-      let indexes = new Map(peers.map((row, index) => [row.film_id, index]));
-      let ranges = [];
-      for (let scope of scopes) {
-        let groups = new Map();
-        for (let entry of scope.entries) {
-          if (!entry.tie_group_id || !indexes.has(entry.film_id)) continue;
-          let members = groups.get(entry.tie_group_id) || [];
-          members.push(indexes.get(entry.film_id));
-          groups.set(entry.tie_group_id, members);
-        }
-        for (let members of groups.values())
-          if (members.length > 1)
-            ranges.push([Math.min(...members), Math.max(...members)]);
-      }
+    if (category === "watched")
       plan.isLegalIndex = (index) =>
-        !ranges.some(([start, end]) => index > start && index <= end);
-    }
+        !(
+          peers[index - 1]?.ranking_group_id &&
+          peers[index - 1].ranking_group_id === peers[index]?.ranking_group_id
+        );
     return plan;
   };
 
@@ -280,19 +203,7 @@
           ranked:
             category === "rewatchlist"
               ? row.rewatch_position != null
-              : Boolean(
-                  window
-                    .getSupabaseWorkspace()
-                    ?.rankings?.find(
-                      (scope) =>
-                        scope.scope_type === "years" &&
-                        scope.scope === String(row.films?.year),
-                    )
-                    ?.ranking_entries?.some(
-                      (entry) =>
-                        entry.film_id === row.film_id && positioned(entry),
-                    ),
-                ),
+              : Boolean(row.position),
         }),
         createPlan: (items, id) =>
           window.createRankingPlacement(category, items, id),

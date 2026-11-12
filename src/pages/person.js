@@ -1943,12 +1943,9 @@
       // would. Every write on this page goes straight to Supabase (no
       // window.save()/reconcile diff), so a partial window.state is safe.
       let compact = Boolean(window.OSKARS_PERSON_COMPACT);
-      let [source] = await Promise.all([
-        compact
-          ? window.loadSupabasePersonDetail(personId)
-          : window.loadSupabaseLegacyHydrationSource(),
-        window.loadCollectionTrophies?.().catch(() => {}),
-      ]);
+      let source = await (compact
+        ? window.loadSupabasePersonDetail(personId)
+        : window.loadSupabaseLegacyHydrationSource());
       if (!source) {
         container.innerHTML = `<section class="detail-empty"><h1>${personPageEscape(ui("Person not found"))}</h1></section>`;
         return;
